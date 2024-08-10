@@ -26,7 +26,7 @@ stories we made to explain why our continent looks like a dragon.
 
 of existence. She was immortal, but she had to battle against the
 
-embodiement of time itself. She and time fought, but time prevailed,
+embodiment of time itself. She and time fought, but time prevailed,
 
 saving the world. Tiamat, unable to accept this face, clawed at Time and
 
@@ -36,7 +36,7 @@ before using some the the Time she took to begin the process of her
 
 reincarnation. If she awakens, she will surely finish destroying the
 
-world, time, and exsistence. The ancient elves took the egg and broke
+world, time, and existence. The ancient elves took the egg and broke
 
 it, then scattered it to the 5 corners of Tiamat so that she could never
 

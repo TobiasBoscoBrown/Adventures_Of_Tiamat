@@ -4,11 +4,11 @@
     "type": "split",
     "children": [
       {
-        "id": "b60af84bbd843bf7",
+        "id": "650362a689825325",
         "type": "tabs",
         "children": [
           {
-            "id": "6a5eb711b83c9238",
+            "id": "0dee69bb3b437903",
             "type": "leaf",
             "state": {
               "type": "markdown",
@@ -146,12 +146,16 @@
       "command-palette:Open command palette": false
     }
   },
-  "active": "6a5eb711b83c9238",
+  "active": "0dee69bb3b437903",
   "lastOpenFiles": [
-    "Tiamat/Lore of Tiamat.md",
-    "Tiamat/Tiamat Geography.jpg",
     "Tiamat/Tiamat Map.jpg",
+    "Tiamat/Tiamat Geography.jpg",
+    "Tiamat/Lore of Tiamat.md",
+    "Tiamat/DM Timeline of Tiamat.md",
+    "Othorian Nel.md",
     "Tiamat/Timeline of Tiamat.md",
+    "Tiamat/Geography/Water/Oop/LoreS.md",
+    "Tiamat/VIP/Jarnath(Folk Hero)/Jarnath.pdf",
     "Tiamat Map.jpg",
     "Tiamat/VP Items/PirateMap/Tiamat Treasure Map.jpg",
     "Tiamat/Geography/Lore Key.md",
@@ -174,10 +178,6 @@
     "Tiamat/VIP/Marta Rex(Queen of Tiamat)/Background.md",
     "Tiamat/VIP/Lyet(Priest of Hell's Barrow)/Backstory.md",
     "Tiamat/VIP/King Hardfire(King of Gondor)/Backstory.md",
-    "Tiamat/VIP/King Grudge(King of Grudge)/Backstory.md",
-    "Tiamat/VIP/Kassandra(Cardious Mayor)/Kassandra Backstory.md",
-    "Tiamat/VIP/Johnny Deep(Mayor of Kastof)/Backstory.md",
-    "Tiamat/VIP/Joe(Has a Crabshack in Helne)/Backstory.md",
     "Tiamat/VIP/Sue Alloe(Mayor of Nodo)/Background.txt",
     "Tiamat/VIP/Snarlock(Basic Blacksmith of Gondor)/Backstory.txt",
     "Tiamat/VIP/Smithy(Blacksmith of Harven)/Backstory.txt",
@@ -187,7 +187,6 @@
     "Tiamat/VIP/Shilo Nel(Son of Othorian Nel)/Background.txt",
     "Tiamat/VIP/Shi Wright(Shipwright of Kastof)/Backstory.txt",
     "Tiamat/VIP/Scree Dangar (Leader of Dangar)/Backstory.txt",
-    "Tiamat/VIP/Sandra Fairisles(Priestess of Kubi)/Background.txt",
     "Tiamat/Towns/Cardious/Cardious.jpg",
     "Tiamat/Towns/Cardious/OGCardious.jpg"
   ]

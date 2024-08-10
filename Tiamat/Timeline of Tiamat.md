@@ -1,4 +1,4 @@
-A Brief History of Tiamat by 
+A Brief History of [[Lore of Tiamat]] by Hist Orey
 
 
 
@@ -14,7 +14,7 @@ about writing this book. Here we can look at Tiamat, get the main story
 
 and points, and see how far we have come, all without spending hours of
 
-time trying to learn every king pet's name.
+time trying to learn every king's pet's name.
 
 
 
@@ -24,7 +24,7 @@ ago. So many stories have arisen, however one main one seems to be the
 
 consensus. As for things that happened B.T.(Before Tiamat) there is very
 
-little to no information. I have done my best to put the peices
+little to no information. I have done my best to put the pieces
 
 together, although many things during this time are just stories passed
 
@@ -34,7 +34,7 @@ goes.
 
 
 
-B.T. is an era before Tiamat faught The Old Gods. During this time the
+B.T. is an era **Before Tiamat** fought The Old Gods. During this time the
 
 universe and world were still in the midst of creation. Tiamat had
 
@@ -46,7 +46,7 @@ from Tiamat, planets are debris from her other breaths. Black Holes are
 
 where Tiamat and The Old Gods collided. She and Them fought, but They
 
-prevailed. Tiamat, unable to accept this face, clawed at Them and
+prevailed. Tiamat, injured and dying, clawed at Them and
 
 dragged a piece of Them down to the world with her. Tiamat died.
 
@@ -62,9 +62,7 @@ were leaving.
 
 When Tiamat had died, The Ancient Elves watched Tiamat get defeated by
 
-the Old Gods and fall to The World. Her death was not celebrated nor
-
-mourned by the Elves. Othorian Nel was 10 years old when this happened.
+the Old Gods and fall to The World. [[Othorian Nel.pdf]] was 10 years old when this happened.
 
 Her Fall created a place for the Elves to land their ships.
 
@@ -189,7 +187,6 @@ spreading.
 1679 A.T. Jarnath was born.
 
 
-
 1680 A.T. Chin was destroyed by the Elves after it was discovered that
 
 weapons and dark magic was being created there. This began the Elven
@@ -216,7 +213,7 @@ Army for Tiamat.
 
 
 
-1730 A.T. Jarnath had a rematch with Othorian Nel. Jarnath lost again,
+1730 A.T. [[Jarnath.pdf]] had a rematch with Othorian Nel. Jarnath lost again,
 
 and Othorian decided that he would have to shut down Jarnath by
 
@@ -224,7 +221,7 @@ destroying Nether.
 
 
 
-1890 A.T. The Orcs were enraged at how they were treated, and saw an
+1735 A.T. The Orcs were enraged at how they were treated, and saw an
 
 opportunity to take over Tiamat while the Elves and Humans were weakened
 
@@ -238,7 +235,7 @@ again.
 
 
 
-2111 A.T. Tiamat was being torn apart by the Great Orcish War. The
+1800 A.T. Tiamat was being torn apart by the Great Orcish War. The
 
 population fell in half. Eventually the Humans and Elves joined forces
 
@@ -268,7 +265,7 @@ horribly mistreated.
 
 
 
-2430 A.T. The Grudge family after growing their numbers finnally began
+2430 A.T. The Grudge family after growing their numbers finally began
 
 their rebellion.
 
