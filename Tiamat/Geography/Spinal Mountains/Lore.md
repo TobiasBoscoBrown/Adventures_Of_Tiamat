@@ -1,0 +1,28 @@
+Lore of The Spinal Mountains
+
+
+
+1. These mountains are the spine of Tiamat
+
+
+
+2. Really tall and rough mountain range that is very hard to cross.
+
+
+
+3. Separating Tiamat west and east parts. All throughout her.
+
+
+
+4. Getting across will suck, but you can do it through grudge, or
+
+through hell pass.
+
+
+
+5. Gotta get across to Hell's Barrow to get the green shard.
+
+
+
+6. Goblins!
+

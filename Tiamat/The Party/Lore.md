@@ -1,0 +1,20 @@
+The Party Lore
+
+
+
+The party essentially wakes up all in Cardious. They won't know how they
+
+got there, only that they were in their hometown moments before. They
+
+all have gained return from death because Time is still fighting against
+
+Tiamat, and chose them to rebirth Tiamat so that the world can continue
+
+to live, so that they may destroy her and bring back life. Happens every
+
+thousand years. The world begins to get sick, Tiamat is ressurected to
+
+bring life back to the world, and Tiamat is then destroyed to preserve
+
+the world.
+

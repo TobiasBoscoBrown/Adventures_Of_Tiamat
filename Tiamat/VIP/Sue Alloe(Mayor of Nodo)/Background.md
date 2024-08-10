@@ -1,0 +1,16 @@
+Sue Alloe was born 5961 A.T. She was born and raised in Nodo, the throat
+
+of Tiamat. Her parents were murdered at a young age, but she toughed it
+
+out, lived in the slums, and grew up to become a very hard worker and
+
+great leader. She doesn't take any shit, and takes really good care of
+
+her people. She is investigating Daniel Fairisles for corruption as she
+
+thinks she has something to do with the Thieves Guild keeping her town
+
+in poverty. She is actually a good leader, but her town suffers, while
+
+Daniel is a bad leader while his town prospers.
+

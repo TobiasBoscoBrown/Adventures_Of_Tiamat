@@ -1,0 +1,22 @@
+Daniel Fairisles was born 5962 A.T. He is the mayor of Kubi. He is a
+
+respectable man to his peers and his family. However, he knowingly lets
+
+the Thieves Guild run rampant in the city and takes a portion of the
+
+money. In the public eye, he is a very good leader and man, but in the
+
+shadows he betrays everyone. He married Sandra so that he could have
+
+some power in the church. He still wants to gain more political power,
+
+which is why he set up his daughter to marry into the Royal Rex Family.
+
+He even created a plot to kill the King Charles Rex by slowly poisoning
+
+him with his ambassador to Tulorian. He wants to become King, spread the
+
+Thieves guild, and become the most powerful man of all of Tiamat. He's
+
+willing to do anything to achieve his goal.
+

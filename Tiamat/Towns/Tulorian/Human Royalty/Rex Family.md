@@ -1,0 +1,50 @@
+Rolaus Rex
+
+
+
+Charles Rex is the king
+
+
+
+Marta Rex is the Queen
+
+
+
+Rolaus is engaged to Consada Fairisled
+
+
+
+Daniel Fairisles
+
+
+
+Sandra Fairisles
+
+
+
+Little Sister Amare Rex
+
+
+
+THE ROYAL FAMILY
+
+
+
+Tiamat Worshiper
+
+
+
+Blue and Yellow Castle
+
+
+
+Lawful Evil
+
+
+
+Father is ill.
+
+
+
+Jarnath, Legendary Hero, Othorian Nell,
+

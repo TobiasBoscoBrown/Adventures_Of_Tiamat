@@ -1,0 +1,26 @@
+Lore of Unkown Ship
+
+
+
+1. Noone knows if it's actually there, only some claim to have seen it.
+
+
+
+2. Ghost ship of the 4 Captains, Kayle, Sern, Willharm, and Hornel
+
+
+
+3. North of Hell's Barrow
+
+
+
+4. Can only see it on the day you've seen someone die.
+
+
+
+5. Sidequest, treasure map.
+
+
+
+6. The captains are all friendly and love to drink and sing.
+

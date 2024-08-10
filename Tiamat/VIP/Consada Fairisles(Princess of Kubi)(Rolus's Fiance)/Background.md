@@ -1,0 +1,16 @@
+Consada Fairisles was born 5585 A.T. She was born into the wealthy
+
+Fairisles family to Daniel and Sandra Fairisles. She grew up very
+
+sheltered as an only child. She is very kind and follows the rules. She
+
+is engaged to Roluss for political reasons. She is well versed in
+
+history and medicine. She knows her position in life and accepts it.
+
+She's sad, but dutiful. She wants to love Roluss, but isn't sure if he
+
+loves him. Her parents, the rulers of Kubi, have been political leaders
+
+and are trying to make the best life for themselves.
+

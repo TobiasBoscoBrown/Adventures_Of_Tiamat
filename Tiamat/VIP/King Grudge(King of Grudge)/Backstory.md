@@ -1,0 +1,18 @@
+King Grudge was born 5960 A.T. He comes from a line of Orcs called the
+
+Hellbringers. However, once the Hellbringer family lost in the great
+
+Orcish War and became known as the Grudge family. The Grudge family then
+
+started the Great Orc Rebellion. They lost, but they still want to
+
+conquer Tiamat in the name of the Hellbringers, and get rid of the name
+
+Grudge. King Grudge is now building an army to one day attack the humans
+
+and elves once more. He has 1000 Soldiers. Now he is just waiting for a
+
+good time to strike. He no longer associates with the Orcish Order, but
+
+he was friends with Scree Dangar.
+

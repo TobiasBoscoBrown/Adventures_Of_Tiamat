@@ -1,0 +1,26 @@
+Lore of Sern's Ship
+
+
+
+1. Sern was the owner.
+
+
+
+2. Split up in multiple ways.
+
+
+
+3. West of Hell's Barrow
+
+
+
+4. Squid boi!
+
+
+
+5. Sidequest, treasure map.
+
+
+
+6. Sern never found what he was searching for.
+

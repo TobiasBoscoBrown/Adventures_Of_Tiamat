@@ -1,0 +1,14 @@
+Sir Fireheart was born in 5940 A.T. His mother married Sir Hardheart's
+
+father after an Orc Raid killed his father. The two joined the family
+
+and were able to bring order, but he hated his step brother. He focused
+
+on being able to build weapons and tools so that his people could
+
+survive. He has a personal vendetta against all Hardhearts, but he has a
+
+lot of respect for his king. He works in his blacksmith shop, and is the
+
+best blacksmith in all of Tiamat.
+

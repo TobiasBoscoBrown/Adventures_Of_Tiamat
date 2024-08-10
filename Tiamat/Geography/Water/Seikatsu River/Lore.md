@@ -1,0 +1,26 @@
+Lore of Seikatsu River
+
+
+
+1. It is the river of life, it brings life to all of Tiamat.
+
+
+
+2. Like the digestive tract of Tiamat, from her mouth to her bum.
+
+
+
+3. All throughout Tiamat.
+
+
+
+4. Decent fishin.
+
+
+
+5. Good refrence point.
+
+
+
+6. The more north you go, the hotter it gets.
+

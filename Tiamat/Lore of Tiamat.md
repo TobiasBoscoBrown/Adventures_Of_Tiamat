@@ -1,0 +1,88 @@
+Lore of Tiamat
+
+
+
+1. Tiamat is the name of the dragon that is this very continent.
+
+
+
+(What most everyone believes) Tiamat saved the world a long time ago
+
+from an evil force. She was a giant dragon in the ether, fighting to
+
+keep the world alive while evil kept trying to destroy it. The battle
+
+was legendary, and eventually Tiamat sacrificed her life to keep the
+
+world alive, and fell towards it, creating our continent. Or at least,
+
+that's what most the stories say anyways. It's all probably just some
+
+stories we made to explain why our continent looks like a dragon.
+
+
+
+(What actually happened) Tiamat was trying to destroy the world and all
+
+of existence. She was immortal, but she had to battle against the
+
+embodiement of time itself. She and time fought, but time prevailed,
+
+saving the world. Tiamat, unable to accept this face, clawed at Time and
+
+dragged a piece of Time down to the world with her. Tiamat died, but not
+
+before using some the the Time she took to begin the process of her
+
+reincarnation. If she awakens, she will surely finish destroying the
+
+world, time, and exsistence. The ancient elves took the egg and broke
+
+it, then scattered it to the 5 corners of Tiamat so that she could never
+
+be reborn. This process repeats every thousand years or so.
+
+
+
+2. Tiamat is a dragon with 4 heads, spines out her back, and an arm and
+
+leg, stuff like that. She is turning red from the source of Mt.
+
+Elderchrono.
+
+
+
+3. She is on the world, but the world has not been named and discovered
+
+by these people yet. All they know is Tiamat.
+
+
+
+4. There is an egg with missing peices that she was trying to complete
+
+to reincarnate. If all the pieces are collected and used to finish the
+
+egg, she will be reborn to destroy everything. She needs the gold shard
+
+from Cardious, the black shard from the Lake of Life, the white shard
+
+from the Tree of Death, the green shard from the Hell's Barrow, the blue
+
+shard from Kastoff, and the red shard from Mt. Elderchrono. If all the
+
+pieces are brought together around the Speck of Time ontop of Mt.
+
+Elderchrono, she is reincarnated as a baby dragon.
+
+
+
+5. It is the plot.
+
+
+
+7. Year is 6000 A.T. (After Tiamat)
+
+
+
+6. Make sure Vranardoc doesn't fuck Tiamat.
+
