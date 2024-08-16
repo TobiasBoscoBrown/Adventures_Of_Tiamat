@@ -16,14 +16,13 @@ Very little is actually known about the origins of Tiamat 6,000 years ago. Numer
 
 ### **The Era Before Tiamat (B.T.)**
 
-- **Creation of the Universe:** Tiamat and The Old Gods clash, resulting in the creation of the physical universe. (Dates unknown)
-- **10 B.T.:** Tiamat is defeated by The Old Gods and falls to the world, managing to get one deep scratch in as she descends.
+- **Creation of the Universe:** Tiamat and The Old Gods clash, resulting in the creation of the physical universe. (Dates unknown) 
 - **10 B.T.:** Othorian Nel is born during the Elves' exodus from the Imperial Kingdom.
-- **1 A.T.:** The Elves land where Tiamat fell and found the city of Tulorian.
+- **1 B.T.:** Tiamat defeats the Old Gods but falls to the world mortally wounded, creating the continent of Tiamat.
 
 ### **The Age of Tiamat (A.T.)**
 
-- **1 A.T.:** The founding of Tulorian by Othorian Nel and the Elves.
+- **1 A.T.:** The elves running from their continent watch as Tiamat falls from the sky. Tulorian is founded by Othorian Nel and the Elves.
 - **214 A.T.:** The Battle of the Minds, leading to the split between Wood Elves and High Elves.
 - **457 A.T.:** The Dwarves arrive on Tiamat.
 - **481 A.T.:** The founding of KneeStone Mines by the Dwarves.
