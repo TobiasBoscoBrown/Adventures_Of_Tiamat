@@ -13,7 +13,7 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Tiamat/Books/The Haunting Shadows of Quielent Forest.md",
+                "file": "Tiamat/Books/The Enchanted Veil of Scar Lake.md",
                 "mode": "source",
                 "source": false
               }
@@ -85,7 +85,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "Tiamat/Books/The Haunting Shadows of Quielent Forest.md",
+                "file": "Tiamat/Books/The Enchanted Veil of Scar Lake.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -102,7 +102,7 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "Tiamat/Books/The Haunting Shadows of Quielent Forest.md",
+                "file": "Tiamat/Books/The Enchanted Veil of Scar Lake.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               }
@@ -125,7 +125,7 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "Tiamat/Books/The Haunting Shadows of Quielent Forest.md"
+                "file": "Tiamat/Books/The Enchanted Veil of Scar Lake.md"
               }
             }
           }
@@ -148,13 +148,16 @@
   },
   "active": "0dee69bb3b437903",
   "lastOpenFiles": [
+    "Tiamat/Books/Tulorian; The Sacred City of Duality.md",
+    "Tiamat/Books/Timeline of Tiamat.md",
+    "Tiamat/Books/The Haunting Shadows of Quielent Forest.md",
+    "Tiamat/Books/The Founding and History of Gondor.md",
+    "Tiamat/Books/The Enchanted Veil of Scar Lake.md",
+    "2024-08-16.md",
+    "Untitled 1.canvas",
+    "Untitled.canvas",
     "Tiamat/Books/The history of Gondor",
     "Tiamat/Books/The Sacred Writ of Tiamat",
-    "Tiamat/Books/The Founding and History of Gondor.md",
-    "Tiamat/Books/The Haunting Shadows of Quielent Forest.md",
-    "Tiamat/Books/Timeline of Tiamat.md",
-    "Tiamat/Books/Tulorian; The Sacred City of Duality.md",
-    "Tiamat/Books/The Enchanted Veil of Scar Lake.md",
     "Tiamat/Towns/Gondor/Gondor.jpg",
     "Tiamat/DM Timeline of Tiamat.md",
     "Tiamat/VIP/Prince Hardfire(Prince of Gondor)/Backstory.md",
@@ -181,22 +184,18 @@
     "Tiamat/The Party/Lore.md",
     "Tiamat/Towns/Tulorian/Tulorian.jpg",
     "Tiamat/Towns/Tulorian/Lore of Tulorian.md",
-    "Tiamat/VIP/Charles Rex(King of Tiamat)/Background.md",
     "Tiamat/VIP/Amare Rex(Princess of Tiamat)/Amare Rex.pdf",
     "Tiamat/Towns/Tulorian/Human Royalty/Rolaus (Ro Luss).pdf",
     "Tiamat/Geography/Water/Life Lake/LifeLake.PNG",
     "Tiamat/Geography/Water/Seas/DRAGONBREATH SEA/DragonBreath Sea.PNG",
     "Tiamat/Tiamat Geography.jpg",
     "Untitled 3.canvas",
-    "Untitled.canvas",
     "Tiamat/Books",
     "Untitled 2.canvas",
-    "Untitled 1.canvas",
     "Tiamat/VIP/Jarnath(Folk Hero)/Jarnath.pdf",
     "Tiamat/VP Items/PirateMap/Tiamat Treasure Map.jpg",
     "Tiamat/VIP/Sue Alloe(Mayor of Nodo)/Background.txt",
     "Tiamat/VIP/Snarlock(Basic Blacksmith of Gondor)/Backstory.txt",
-    "Tiamat/VIP/Smithy(Blacksmith of Harven)/Backstory.txt",
     "Tiamat/Towns/Cardious/Cardious.jpg"
   ]
 }
