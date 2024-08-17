@@ -1,5 +1,5 @@
 
-### **By Zerkal Abasi, Cleric and Councilor**
+### **By Zerkal Jerkal, Cleric and Councilor**
 
 ---
 

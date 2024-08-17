@@ -13,13 +13,38 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Tiamat/Books/The History of Gondor.md",
+                "file": "Tiamat/Books/The Haunting Shadows of Quielent Forest by Rue Mors.md",
+                "mode": "source",
+                "source": false
+              }
+            }
+          },
+          {
+            "id": "40301edc4ca80d76",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Tiamat/Books/Tulorian; The Sacred City of Duality by Zerkal Jerkal.md",
+                "mode": "source",
+                "source": false
+              }
+            }
+          },
+          {
+            "id": "fba760f831dee662",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Tiamat/Books/The Joyous Revelations of Oktober by Barely Soubher.md",
                 "mode": "source",
                 "source": false
               }
             }
           }
-        ]
+        ],
+        "currentTab": 2
       }
     ],
     "direction": "vertical"
@@ -48,7 +73,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "",
+                "query": "Realms of the sky",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -69,7 +94,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 299.50255966186523
   },
   "right": {
     "id": "a54a7901f79e4ad3",
@@ -85,7 +110,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "Tiamat/Books/The History of Gondor.md",
+                "file": "Tiamat/Books/The Joyous Revelations of Oktober by Barely Soubher.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -102,7 +127,7 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "Tiamat/Books/The History of Gondor.md",
+                "file": "Tiamat/Books/The Joyous Revelations of Oktober by Barely Soubher.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               }
@@ -125,7 +150,7 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "Tiamat/Books/The History of Gondor.md"
+                "file": "Tiamat/Books/The Joyous Revelations of Oktober by Barely Soubher.md"
               }
             }
           }
@@ -146,15 +171,17 @@
       "command-palette:Open command palette": false
     }
   },
-  "active": "0dee69bb3b437903",
+  "active": "b12c408698cd1cf6",
   "lastOpenFiles": [
-    "Tiamat/Books/The Founding and History of Gondor.md",
-    "Tiamat/Books/The History of Gondor.md",
-    "Tiamat/Books/The Enchanted Veil of Scar Lake.md",
-    "Tiamat/Books/The Haunting Shadows of Quielent Forest.md",
+    "Tiamat/Books/The Totally True Realms of the Sky by Rue Mors.md",
+    "Tiamat/Books/Tulorian; The Sacred City of Duality by Zerkal Jerkal.md",
+    "Tiamat/Books/Timeline of Tiamat by Hist Orey.md",
     "Tiamat/Books/The Sacred Writ of Tiamat.md",
-    "Tiamat/Books/Tulorian; The Sacred City of Duality.md",
-    "Tiamat/Books/Timeline of Tiamat.md",
+    "Tiamat/Books/The Joyous Revelations of Oktober by Barely Soubher.md",
+    "Tiamat/Books/The History of Gondor By Wrighton Stone.md",
+    "Tiamat/Books/The Haunting Shadows of Quielent Forest by Rue Mors.md",
+    "Tiamat/Books/The Enchanted Veil of Scar Lake by Rue Mors.md",
+    "Tiamat/Books/The Founding and History of Gondor.md",
     "2024-08-16.md",
     "Untitled 1.canvas",
     "Untitled.canvas",
@@ -182,8 +209,6 @@
     "Tiamat/VIP/Aleg Dafut(Father of Ankor)/Backstory.md",
     "Tiamat/VIP/Puh Wright(Shipwright of Kastof)/Backstory.md",
     "Tiamat/VIP/Amare Rex(Princess of Tiamat)/Background.md",
-    "Tiamat/Lore of Tiamat.md",
-    "Tiamat/The Party/Lore.md",
     "Tiamat/Towns/Tulorian/Tulorian.jpg",
     "Tiamat/VIP/Amare Rex(Princess of Tiamat)/Amare Rex.pdf",
     "Tiamat/Towns/Tulorian/Human Royalty/Rolaus (Ro Luss).pdf",
