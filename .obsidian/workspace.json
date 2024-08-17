@@ -4,47 +4,18 @@
     "type": "split",
     "children": [
       {
-        "id": "650362a689825325",
+        "id": "816482b013e03b38",
         "type": "tabs",
         "children": [
           {
-            "id": "0dee69bb3b437903",
+            "id": "0c171133285aa672",
             "type": "leaf",
             "state": {
-              "type": "markdown",
-              "state": {
-                "file": "Tiamat/Books/The Haunting Shadows of Quielent Forest by Rue Mors.md",
-                "mode": "source",
-                "source": false
-              }
-            }
-          },
-          {
-            "id": "40301edc4ca80d76",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "Tiamat/Books/Tulorian; The Sacred City of Duality by Zerkal Jerkal.md",
-                "mode": "source",
-                "source": false
-              }
-            }
-          },
-          {
-            "id": "fba760f831dee662",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "Tiamat/Books/The Joyous Revelations of Oktober by Barely Soubher.md",
-                "mode": "source",
-                "source": false
-              }
+              "type": "empty",
+              "state": {}
             }
           }
-        ],
-        "currentTab": 2
+        ]
       }
     ],
     "direction": "vertical"
@@ -73,7 +44,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "Realms of the sky",
+                "query": "kneestone",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -94,7 +65,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 299.50255966186523
+    "width": 323.50255966186523
   },
   "right": {
     "id": "a54a7901f79e4ad3",
@@ -110,7 +81,6 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "Tiamat/Books/The Joyous Revelations of Oktober by Barely Soubher.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -127,7 +97,6 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "Tiamat/Books/The Joyous Revelations of Oktober by Barely Soubher.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               }
@@ -149,9 +118,7 @@
             "type": "leaf",
             "state": {
               "type": "outline",
-              "state": {
-                "file": "Tiamat/Books/The Joyous Revelations of Oktober by Barely Soubher.md"
-              }
+              "state": {}
             }
           }
         ]
@@ -171,16 +138,28 @@
       "command-palette:Open command palette": false
     }
   },
-  "active": "b12c408698cd1cf6",
+  "active": "0c171133285aa672",
   "lastOpenFiles": [
-    "Tiamat/Books/The Totally True Realms of the Sky by Rue Mors.md",
+    "Tiamat/Books/The Enchanted Veil of Scar Lake by Rue Mors.md",
+    "Tiamat/Timeline of Tiamat.md",
     "Tiamat/Books/Tulorian; The Sacred City of Duality by Zerkal Jerkal.md",
-    "Tiamat/Books/Timeline of Tiamat by Hist Orey.md",
+    "Tiamat/Books/The Haunting Shadows of Quielent Forest by Rue Mors.md",
+    "Tiamat/Books/The Rough and True History of the KneeStone Mines by Riche AzFuz.md",
     "Tiamat/Books/The Sacred Writ of Tiamat.md",
     "Tiamat/Books/The Joyous Revelations of Oktober by Barely Soubher.md",
     "Tiamat/Books/The History of Gondor By Wrighton Stone.md",
-    "Tiamat/Books/The Haunting Shadows of Quielent Forest by Rue Mors.md",
-    "Tiamat/Books/The Enchanted Veil of Scar Lake by Rue Mors.md",
+    "Tiamat/Books/Timeline of Tiamat by Hist Orey.md",
+    "Tiamat/DM Timeline of Tiamat.md",
+    "Tiamat/Tiamat Geography.jpg",
+    "Tiamat/Tiamat Map.jpg",
+    "Tiamat/Books/The Totally True Realms of the Sky by Rue Mors.md",
+    "Tiamat/Lore of Tiamat.md",
+    "Tiamat/Towns/KneeStone Mines/KneeStone Mines.jpg",
+    "Tiamat/VIP/Dis Knee(Female Leader of the Kneestone Mines)/Backstory.md",
+    "Tiamat/VIP/Dis Knee(Female Leader of the Kneestone Mines)/Dis Knee.pdf",
+    "Tiamat/VIP/Arrotoda Knee(Leader of the KneeStone Mines)/Background.md",
+    "Tiamat/Geography/KneeStone Mines/KneeStone Mines.PNG",
+    "Tiamat/Geography/KneeStone Mines/Capture.PNG",
     "Tiamat/Books/The Founding and History of Gondor.md",
     "2024-08-16.md",
     "Untitled 1.canvas",
@@ -188,7 +167,6 @@
     "Tiamat/Books/The history of Gondor",
     "Tiamat/Books/The Sacred Writ of Tiamat",
     "Tiamat/Towns/Gondor/Gondor.jpg",
-    "Tiamat/DM Timeline of Tiamat.md",
     "Tiamat/VIP/Prince Hardfire(Prince of Gondor)/Backstory.md",
     "Tiamat/VIP/Sir Fireheart(Head of Fireheart Family in Gondor)/Backstory.md",
     "Tiamat/VIP/Snarlock(Basic Blacksmith of Gondor)/Backstory.md",
@@ -196,32 +174,20 @@
     "Tiamat/VIP/King Hardfire(King of Gondor)/Backstory.md",
     "Tiamat/VIP/Maurice(Crazy of Gondor)/Backstory.md",
     "Tiamat/VIP/Maurice(Crazy of Gondor)/Maurice.pdf",
-    "Tiamat/Tiamat Map.jpg",
     "Tiamat/Geography/Water/Scar Lake/Lore.md",
     "Tiamat/Geography/Water/Dragon and Known Lake/Dragon and Known Lake Lore.md",
     "Tiamat/Geography/Plaines/Chaos/Lore.md",
-    "Tiamat/Geography/Plaines/Aiery/Lore.md",
-    "Tiamat/Geography/Quilent Forest/Lore.md",
     "Tiamat Map.jpg",
     "Tiamat/Towns/Quielent Forest/QuielentForest.PNG",
-    "Tiamat/VIP/Arrotoda Knee(Leader of the KneeStone Mines)/Background.md",
     "Tiamat/VIP/Arrotoda Knee(Leader of the KneeStone Mines)/Arrotoda Knee.pdf",
-    "Tiamat/VIP/Aleg Dafut(Father of Ankor)/Backstory.md",
-    "Tiamat/VIP/Puh Wright(Shipwright of Kastof)/Backstory.md",
-    "Tiamat/VIP/Amare Rex(Princess of Tiamat)/Background.md",
     "Tiamat/Towns/Tulorian/Tulorian.jpg",
     "Tiamat/VIP/Amare Rex(Princess of Tiamat)/Amare Rex.pdf",
     "Tiamat/Towns/Tulorian/Human Royalty/Rolaus (Ro Luss).pdf",
     "Tiamat/Geography/Water/Life Lake/LifeLake.PNG",
-    "Tiamat/Geography/Water/Seas/DRAGONBREATH SEA/DragonBreath Sea.PNG",
-    "Tiamat/Tiamat Geography.jpg",
     "Untitled 3.canvas",
     "Tiamat/Books",
     "Untitled 2.canvas",
     "Tiamat/VIP/Jarnath(Folk Hero)/Jarnath.pdf",
-    "Tiamat/VP Items/PirateMap/Tiamat Treasure Map.jpg",
-    "Tiamat/VIP/Sue Alloe(Mayor of Nodo)/Background.txt",
-    "Tiamat/VIP/Snarlock(Basic Blacksmith of Gondor)/Backstory.txt",
-    "Tiamat/Towns/Cardious/Cardious.jpg"
+    "Tiamat/VIP/Sue Alloe(Mayor of Nodo)/Background.txt"
   ]
 }
