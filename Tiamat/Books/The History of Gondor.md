@@ -1,4 +1,5 @@
-By Wrighton Stone
+### **By Wrighton Stone**
+
 
 2467 A.T.: The Founding of Gondor
 Gondor’s origins trace back to 2467 A.T., during a period of Dwarven expansion driven by the discovery of rich mineral veins in the Spine of Tiamat. The region's deep mountains promised vast wealth, and the Dwarven clans, including the Hardheart and Fireheart families, were among the first to seize the opportunity. Gondor was established as a fortress city, strategically located to exploit the precious resources buried within the mountains.
