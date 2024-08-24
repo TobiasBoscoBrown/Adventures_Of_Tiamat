@@ -21,7 +21,6 @@ Lore of Willharm's Ship
 5. Willharm was trying to get to Mt. Elderchrono for some reason.
 
 
-
 (Reason being to reincarnate Tiamat without his knowledge that it was
 
 Kinda bad.)

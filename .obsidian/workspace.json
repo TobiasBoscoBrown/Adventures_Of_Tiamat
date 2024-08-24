@@ -11,8 +11,12 @@
             "id": "0c171133285aa672",
             "type": "leaf",
             "state": {
-              "type": "empty",
-              "state": {}
+              "type": "markdown",
+              "state": {
+                "file": "Tiamat/Books/Geonology of the Kings of Tiamat by Bo Ring.md",
+                "mode": "source",
+                "source": false
+              }
             }
           }
         ]
@@ -44,7 +48,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "kneestone",
+                "query": "",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -65,7 +69,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 323.50255966186523
+    "width": 333.50255966186523
   },
   "right": {
     "id": "a54a7901f79e4ad3",
@@ -81,6 +85,7 @@
             "state": {
               "type": "backlink",
               "state": {
+                "file": "Tiamat/Books/Geonology of the Kings of Tiamat by Bo Ring.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -97,6 +102,7 @@
             "state": {
               "type": "outgoing-link",
               "state": {
+                "file": "Tiamat/Books/Geonology of the Kings of Tiamat by Bo Ring.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               }
@@ -118,15 +124,16 @@
             "type": "leaf",
             "state": {
               "type": "outline",
-              "state": {}
+              "state": {
+                "file": "Tiamat/Books/Geonology of the Kings of Tiamat by Bo Ring.md"
+              }
             }
           }
         ]
       }
     ],
     "direction": "horizontal",
-    "width": 300,
-    "collapsed": true
+    "width": 300
   },
   "left-ribbon": {
     "hiddenItems": {
@@ -140,50 +147,50 @@
   },
   "active": "0c171133285aa672",
   "lastOpenFiles": [
-    "Tiamat/Books/The Enchanted Veil of Scar Lake by Rue Mors.md",
-    "Tiamat/Timeline of Tiamat.md",
-    "Tiamat/Books/Tulorian; The Sacred City of Duality by Zerkal Jerkal.md",
-    "Tiamat/Books/The Haunting Shadows of Quielent Forest by Rue Mors.md",
-    "Tiamat/Books/The Rough and True History of the KneeStone Mines by Riche AzFuz.md",
-    "Tiamat/Books/The Sacred Writ of Tiamat.md",
-    "Tiamat/Books/The Joyous Revelations of Oktober by Barely Soubher.md",
-    "Tiamat/Books/The History of Gondor By Wrighton Stone.md",
     "Tiamat/Books/Timeline of Tiamat by Hist Orey.md",
+    "Tiamat/Timeline of Tiamat.md",
+    "Tiamat/Ships/Willharm's Ship/Lore.md",
+    "Tiamat/Ships/Unkown Ship/Willharm'sship.PNG",
+    "Tiamat/Ships/Unkown Ship/Lore.md",
+    "Tiamat/Ships/Sern's Ship/Lore.md",
+    "Tiamat/Ships/Kayle's Ship/Lore.md",
+    "Tiamat/Ships/Hornel's Ship/Lore.md",
+    "Tiamat/Ships/Unkown Ship/UnkownShip.PNG",
+    "Tiamat/Ships/Sern's Ship/Sern'sship.PNG",
+    "Tiamat/Ships/Kayle's Ship/Kayle'sship.PNG",
+    "Tiamat/Geography/Forsaken Archipeligo/Lore.md",
+    "Tiamat/Geography/Forsaken Archipeligo/ForsakenArchipeligo.PNG",
+    "Tiamat/Geography/Adventure Isthmus/Lore.md",
+    "Tiamat/Geography/Adventure Isthmus/adventureIsthmus.PNG",
+    "Tiamat/Books/Geonology of the Kings of Tiamat by Bo Ring.md",
+    "Tiamat/Books/The History of Gondor By Wrighton Stone.md",
+    "Tiamat/Books/The Rough History of the KneeStone Mines by Riche AzFuz.md",
+    "Tiamat/Books/The Haunting Shadows of Quielent Forest by Rue Mors.md",
+    "Tiamat/Books/The Sacred Writ of Tiamat.md",
+    "Tiamat/Books/The Totally True Realms of the Sky by Rue Mors.md",
+    "Tiamat/Books/Tulorian; The Sacred City of Duality by Zerkal Jerkal.md",
+    "Tiamat/Books/The Joyous Revelations of Oktober by Barely Soubher.md",
+    "Tiamat/Lore of Tiamat.md",
+    "Tiamat/Geography/KneeStone Mines/Lore.md",
+    "Tiamat/Geography/KneeStone Mines/Capture.PNG",
+    "Tiamat/Geography/KneeStone Mines/KneeStone Mines.PNG",
+    "Tiamat/Books/The Enchanted Veil of Scar Lake by Rue Mors.md",
     "Tiamat/DM Timeline of Tiamat.md",
     "Tiamat/Tiamat Geography.jpg",
     "Tiamat/Tiamat Map.jpg",
-    "Tiamat/Books/The Totally True Realms of the Sky by Rue Mors.md",
-    "Tiamat/Lore of Tiamat.md",
-    "Tiamat/Towns/KneeStone Mines/KneeStone Mines.jpg",
     "Tiamat/VIP/Dis Knee(Female Leader of the Kneestone Mines)/Backstory.md",
     "Tiamat/VIP/Dis Knee(Female Leader of the Kneestone Mines)/Dis Knee.pdf",
     "Tiamat/VIP/Arrotoda Knee(Leader of the KneeStone Mines)/Background.md",
-    "Tiamat/Geography/KneeStone Mines/KneeStone Mines.PNG",
-    "Tiamat/Geography/KneeStone Mines/Capture.PNG",
     "Tiamat/Books/The Founding and History of Gondor.md",
     "2024-08-16.md",
     "Untitled 1.canvas",
     "Untitled.canvas",
     "Tiamat/Books/The history of Gondor",
     "Tiamat/Books/The Sacred Writ of Tiamat",
-    "Tiamat/Towns/Gondor/Gondor.jpg",
-    "Tiamat/VIP/Prince Hardfire(Prince of Gondor)/Backstory.md",
-    "Tiamat/VIP/Sir Fireheart(Head of Fireheart Family in Gondor)/Backstory.md",
-    "Tiamat/VIP/Snarlock(Basic Blacksmith of Gondor)/Backstory.md",
-    "Tiamat/VIP/Sir Hardheart(Head of Hardheart Family in Gondor)/Backstory.md",
-    "Tiamat/VIP/King Hardfire(King of Gondor)/Backstory.md",
-    "Tiamat/VIP/Maurice(Crazy of Gondor)/Backstory.md",
     "Tiamat/VIP/Maurice(Crazy of Gondor)/Maurice.pdf",
-    "Tiamat/Geography/Water/Scar Lake/Lore.md",
-    "Tiamat/Geography/Water/Dragon and Known Lake/Dragon and Known Lake Lore.md",
-    "Tiamat/Geography/Plaines/Chaos/Lore.md",
-    "Tiamat Map.jpg",
-    "Tiamat/Towns/Quielent Forest/QuielentForest.PNG",
     "Tiamat/VIP/Arrotoda Knee(Leader of the KneeStone Mines)/Arrotoda Knee.pdf",
-    "Tiamat/Towns/Tulorian/Tulorian.jpg",
     "Tiamat/VIP/Amare Rex(Princess of Tiamat)/Amare Rex.pdf",
     "Tiamat/Towns/Tulorian/Human Royalty/Rolaus (Ro Luss).pdf",
-    "Tiamat/Geography/Water/Life Lake/LifeLake.PNG",
     "Untitled 3.canvas",
     "Tiamat/Books",
     "Untitled 2.canvas",

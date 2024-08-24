@@ -34,7 +34,7 @@ goes.
 
 
 
-B.T. is an era before Tiamat faught The Old Gods. During this time the
+B.T. is an era before Tiamat fought The Old Gods. During this time the
 
 universe and world were still in the midst of creation. Tiamat had
 
