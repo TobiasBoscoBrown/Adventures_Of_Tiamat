@@ -91,4 +91,4 @@ May the wisdom of our ancestors guide us always, and may Tulorian continue to st
 
 ---
 
-_By Zerkal Abasi, Half-Elven Cleric and Councilor of the Church of Tiamat_
+_By Zerkal Jerkal, Half-Elven Cleric and Councilor of the Church of Tiamat_
