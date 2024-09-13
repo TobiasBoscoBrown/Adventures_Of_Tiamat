@@ -40,17 +40,18 @@ Very little is actually known about the origins of Tiamat 6,000 years ago. Numer
 - **1414 A.T.:** The city of Kastof is founded by Humans.
 - **1548 A.T.:** The city of Nether is founded by Humans.
 - **1630 A.T.:** The city of Chin is founded by Humans.
-- **1679 A.T.:** Birth of Jarnath, the legendary Human warrior.
-- **1680 A.T.:** The Elves destroy Chin after discovering its use of dark magic and weapon production, sparking the Elven-Human War.
-- **1699 A.T.:** Jarnath leads the Humans in the Elven-Human War but is ultimately defeated by Othorian Nel, who becomes the sole King of Tiamat.
-- **1700 A.T.:** Othorian Nel takes full command of Tiamat as King.
-- **1735 A.T.:** The Orcs, seeing the weakened state of the Elves and Humans, launch an invasion to conquer Tiamat.
-- **1740 A.T.:** Birth of King Charlie I, who would later become the first Human King of Tiamat.
-- **1770 A.T.:** The Elves and Humans, led by Othorian Nel and Jarnath, join forces for the first time to defeat the Orcs in the Great Orcish War. The Orcish city of Hell is renamed Grudge following their defeat, symbolizing their deep resentment.
+- 1669 A.T.: Birth of Jarnath, the legendary Human warrior.
+- **1680 A.T.: The Elves destroy Chin after discovering its use of dark magic and weapon production, sparking the Elven-Human War.
+- 1688 A.T.: Birth of King Charlie I, who would later become the first Human King of Tiamat.
+- - 1680 - 1699 A.T.: Jarnath leads the Humans in the Elven-Human War but is ultimately defeated by Othorian Nel, who becomes the sole King of Tiamat.
+- 1700 A.T.: Othorian Nel takes full command of Tiamat as King.
+- 1710 A.T.: The Orcs, seeing the weakened state of the Elves and Humans, launch an invasion to conquer Tiamat.
+- 1750 A.T.: The Elves and Humans, led by Othorian Nel and Jarnath, join forces for the first time to defeat the Orcs in the Great Orcish War. The Orcish city of Hell is renamed Grudge following their defeat, symbolizing their deep resentment.
+- 1750 A.T.: With the Orcs defeated, Tiamat is unified under the leadership of Othorian Nel and King Charlie I, the first joint rulers of Tiamat. King Charlie I takes the throne this same year, representing the Humans alongside Othorian Nel in Tulorian.
+- **1750 A.T.:** The Elves and Humans, led by Othorian Nel and Jarnath, join forces for the first time to defeat the Orcs in the Great Orcish War. The Orcish city of Hell is renamed Grudge following their defeat, symbolizing their deep resentment.
 - **1800 A.T.:** With the Orcs defeated, Tiamat is unified under the leadership of Othorian Nel and King Charlie I, the first joint rulers of Tiamat. King Charlie I takes the throne this same year, representing the Humans alongside Othorian Nel in Tulorian.
-- **1930 A.T.:** Jarnath, still holding a grudge, challenges Othorian Nel again; the outcome remains uncertain, as Jarnath lacks full Human support.
+- **1900 A.T.:** Elves and Humans rebuild Tiamat, imposing heavy sanctions on the Orcs.
 - **2000 A.T.:** The Second Blight appears but fades as mysteriously as it came, leaving scholars puzzled.
-- **2120 A.T.:** Elves and Humans rebuild Tiamat, imposing heavy sanctions on the Orcs.
 - **2430 A.T.:** The Grudge family leads an Orcish rebellion.
 - **2467 A.T.:** The city of Gondor is founded by Dwarves.
 - **2516 A.T.:** The Great Orc Rebellion is crushed; Orcs gain respect and some rights.
@@ -63,6 +64,7 @@ Very little is actually known about the origins of Tiamat 6,000 years ago. Numer
 - **3600 A.T.:** Hell Pass is created, facilitating easier travel across the Spinal Mountains.
 - **3834 A.T.:** The city of Kin is rebuilt by Humans on the ruins of Chin.
 - **3990 A.T.:** The Third Blight appears and dissipates without intervention, continuing the cycle of mystery.
+- **4051 A.T.**: "The Culling" began.
 - **4239 A.T.:** Orc raids begin in nearby towns, reigniting tensions in the region.
 - **4401 A.T.:** The city of Puke is founded by Humans.
 - **4500 A.T.:** Dragonborns raid and destroy the city of Puke. The ruins stand as a grim reminder of the Dragonborns' arrival and the conflict that ensued.
@@ -127,7 +129,7 @@ In **1063 A.T.,** the first Humans arrived on Tiamat, escaping the calamities of
 
 The founding of Chin in **1630 A.T.** by Humans marked the beginning of rising tensions that would eventually lead to the Elven-Human War. When the Elves discovered Chin's involvement in dark magic and weapon production, they destroyed the city in **1680 A.T.,** sparking a war that would last nearly two decades. The war ended in **1699 A.T.** with the defeat of the Humans and the ascension of Othorian Nel as the sole King of Tiamat.
 
-The weakened state of the Elves and Humans following the war led to the Great Orcish War, beginning in **1735 A.T.,** when the Orcs launched an invasion. The war culminated in **1770 A.T.,** with the joint forces of Elves and Humans, led by Othorian Nel and Jarnath, defeating the Orcs. The Orcish city of Hell was renamed Grudge, and the Orcs were heavily sanctioned.
+The weakened state of the Elves and Humans following the war led to the Great Orcish War, beginning in **1710 A.T.,** when the Orcs launched an invasion. The war culminated in **1740 A.T.,** with the joint forces of Elves and Humans, led by Othorian Nel and Jarnath, defeating the Orcs. The Orcish city of Hell was renamed Grudge, and the Orcs were heavily sanctioned.
 
 #### **2000 A.T.: The Second Blight**
 

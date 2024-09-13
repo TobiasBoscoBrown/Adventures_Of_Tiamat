@@ -34,13 +34,13 @@ curse that told Othorian if he ever went back to Nether. Finally Jarnath
 
 broke, he trained for a decade. He slayed many dragons, including
 
-stealing the heart from a time dragon named Niadraith, that he used to
+stealing the heart from a time dragon named Niadraith from Scar Lake, that he used to
 
 grant himself the ability to stop aging. He then used this to train for
 
 20 more years. He then went back to reclaim Nether by defeating Othorian
 
-at Tudolorian. But Othorian had gotten stronger too. Othorian and
+at Tulorian. But Othorian had gotten stronger too. Othorian and
 
 Jarnath fought for days. However Othorian proved superior again, and
 
@@ -96,5 +96,4 @@ run out of options, so he just hangs around, gets drunk, trains.
 
 
 
-Jarnath is the mix between Aragorn, Han Solo, and All Might.
-
+Jarnath is the mix between Aragorn, Han Solo, Guildarts, and All Might.

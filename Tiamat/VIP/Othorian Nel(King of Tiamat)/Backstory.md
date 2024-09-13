@@ -42,7 +42,7 @@ Ressurecting Tiamat, and then destroying him again would allow for the
 
 health of Tiamat to be reborn as well. Novachrono gave his power to
 
-Othorian, Great Hellbringer, and Stone Heart. This brought everyone
+Othorian, Great Hellbringer, and Thror Stonehammer. This brought everyone
 
 together in peace against the common enemy of Tiamat. Then in 1063 A.T.
 
@@ -68,7 +68,7 @@ fought Jarnath, and won, seemingly ending the war. He then threatened
 
 and attempted to contain Jarnath. Humans however persisted in their
 
-fighting. Jarnath destroyed Nether to prevent Jarnath fighting back
+fighting. Othorian Nel destroyed Nether to prevent Jarnath fighting back
 
 again. Then when the Orcs began their attack as well, Othorian
 

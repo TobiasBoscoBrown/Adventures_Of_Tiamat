@@ -133,7 +133,8 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 200,
+    "collapsed": true
   },
   "left-ribbon": {
     "hiddenItems": {
@@ -147,12 +148,18 @@
   },
   "active": "0c171133285aa672",
   "lastOpenFiles": [
+    "Tiamat/Books/The Legends of Jarnath.md",
+    "The Legends of Jarnath.md",
+    "Tiamat/The Legends of Jarnath.md",
+    "Tiamat/Books/Timeline of Tiamat/Timeline of Tiamat by Hist Orey.md",
+    "Tiamat/Books/The Joybringer's Guide to Tiamat.md",
+    "The Joybringer's Guide to Tiamat.md",
+    "Tiamat/The Joybringer's Guide to Tiamat.md",
     "Tiamat/Books/Book Pages/ca19b4fc974854f657e57a65eed310e5.jpg",
     "Tiamat/Books/Book Pages/ca19b4fc974854f657e57a65eed310e5.jpg.crdownload",
     "Tiamat/Books/Book Pages",
     "Tiamat/Books/New folder",
     "Tiamat/Books/Tulorian Book/Tulorian; The Sacred City of Duality by Zerkal Jerkal.md",
-    "Tiamat/Books/Timeline of Tiamat/Timeline of Tiamat by Hist Orey.md",
     "Tiamat/Books/Timeline of Tiamat",
     "Tiamat/Books/Geonology of the Kings of Tiamat by Bo Ring.md",
     "Tiamat/Books/Tulorian Book",
@@ -181,15 +188,9 @@
     "Tiamat/Books/Tulorian; The Sacred City of Duality by Zerkal Jerkal.md",
     "Tiamat/Books/The Joyous Revelations of Oktober by Barely Soubher.md",
     "Tiamat/Lore of Tiamat.md",
-    "Tiamat/Geography/KneeStone Mines/Lore.md",
     "Tiamat/Geography/KneeStone Mines/Capture.PNG",
     "Tiamat/Geography/KneeStone Mines/KneeStone Mines.PNG",
-    "Tiamat/Books/The Enchanted Veil of Scar Lake by Rue Mors.md",
-    "Tiamat/DM Timeline of Tiamat.md",
-    "Tiamat/Tiamat Geography.jpg",
-    "Tiamat/VIP/Dis Knee(Female Leader of the Kneestone Mines)/Backstory.md",
     "Tiamat/VIP/Dis Knee(Female Leader of the Kneestone Mines)/Dis Knee.pdf",
-    "Tiamat/VIP/Arrotoda Knee(Leader of the KneeStone Mines)/Background.md",
     "Untitled 1.canvas",
     "Untitled.canvas",
     "Tiamat/Books/The history of Gondor",
