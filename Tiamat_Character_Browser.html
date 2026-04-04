@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tiamat Campaign — Character Browser</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Inter:wght@300;400;500;600&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #06061a;
+    color: #dce0f0;
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    background: linear-gradient(135deg, #0a0a20 0%, #12103a 100%);
+    border-bottom: 2px solid #c9a227;
+    padding: 24px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  header h1 {
+    font-family: 'Cinzel', serif;
+    font-size: 28px;
+    color: #c9a227;
+    letter-spacing: 2px;
+  }
+  header h1 span { color: #9b6dff; }
+  .header-stats {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+  }
+  .stat-badge {
+    background: #0e0e24;
+    border: 1px solid #333;
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 13px;
+    color: #9098b8;
+  }
+  .stat-badge strong { color: #c9a227; }
+
+  /* ── Search & Filter Bar ── */
+  .toolbar {
+    background: #0a0a1e;
+    padding: 16px 40px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    border-bottom: 1px solid #1e2040;
+  }
+  .search-box {
+    background: #0e0e28;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 10px 16px;
+    color: #dce0f0;
+    font-size: 14px;
+    width: 300px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-box:focus { border-color: #c9a227; }
+  .search-box::placeholder { color: #4a5272; }
+
+  .filter-btn {
+    background: #0e0e28;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 8px 16px;
+    color: #9098b8;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Inter', sans-serif;
+  }
+  .filter-btn:hover { border-color: #c9a227; color: #c9a227; }
+  .filter-btn.active {
+    background: #c9a227;
+    color: #06061a;
+    border-color: #c9a227;
+    font-weight: 600;
+  }
+  .filter-btn.theme-royal.active { background: #c9a227; }
+  .filter-btn.theme-warrior.active { background: #cc3333; color: #fff; border-color: #cc3333; }
+  .filter-btn.theme-arcane.active { background: #4488ff; color: #fff; border-color: #4488ff; }
+  .filter-btn.theme-nature.active { background: #44aa44; color: #fff; border-color: #44aa44; }
+  .filter-btn.theme-shadow.active { background: #8844bb; color: #fff; border-color: #8844bb; }
+  .filter-btn.theme-fire.active { background: #dd6622; color: #fff; border-color: #dd6622; }
+  .filter-btn.theme-ocean.active { background: #2299bb; color: #fff; border-color: #2299bb; }
+  .filter-btn.theme-stone.active { background: #aa8855; color: #fff; border-color: #aa8855; }
+  .filter-btn.theme-orc.active { background: #88aa22; color: #fff; border-color: #88aa22; }
+  .filter-btn.theme-pink.active { background: #dd4488; color: #fff; border-color: #dd4488; }
+
+  /* ── Grid ── */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    padding: 30px 40px;
+  }
+
+  /* ── Card ── */
+  .card {
+    background: linear-gradient(145deg, #0e0e24 0%, #0a0a1a 100%);
+    border: 1px solid #1e2040;
+    border-radius: 12px;
+    overflow: visible;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+  }
+  .card:hover {
+    transform: translateY(-4px);
+    border-color: var(--accent, #c9a227);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5), 0 0 20px var(--glow, rgba(201,162,39,0.15));
+  }
+  .card:hover .card-tooltip { opacity: 1; visibility: visible; transform: translateY(0); pointer-events: auto; }
+  .card-inner {
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .card-tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    width: 340px;
+    max-width: 90vw;
+    background: #12103a;
+    border: 1px solid var(--accent, #c9a227);
+    border-radius: 10px;
+    padding: 14px 16px;
+    z-index: 150;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, transform 0.2s, visibility 0.2s;
+    pointer-events: none;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.7);
+    margin-bottom: 10px;
+  }
+  .card-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 8px solid transparent;
+    border-top-color: var(--accent, #c9a227);
+  }
+  .tt-name { font-family: 'Cinzel', serif; font-size: 15px; color: #f0e6d3; font-weight: 700; margin-bottom: 2px; }
+  .tt-title { font-size: 11px; color: var(--accent, #c9a227); margin-bottom: 8px; }
+  .tt-stats { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+  .tt-stat { background: #06061a; border: 1px solid #1e2040; border-radius: 5px; padding: 3px 7px; font-size: 10px; color: #9098b8; }
+  .tt-stat strong { color: var(--accent, #c9a227); }
+  .tt-abilities { display: flex; gap: 4px; margin-bottom: 8px; }
+  .tt-ab { text-align: center; font-size: 10px; color: #9098b8; flex: 1; }
+  .tt-ab span { display: block; font-size: 14px; font-weight: 700; color: #f0e6d3; }
+  .tt-ab.hl span { color: var(--accent, #c9a227); }
+  .tt-lore { font-size: 11px; color: #7a82a0; font-style: italic; line-height: 1.4; }
+  .card-accent {
+    height: 4px;
+    background: var(--accent, #c9a227);
+  }
+  .card-body { padding: 20px; }
+  .card-name {
+    font-family: 'Cinzel', serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: #f0e6d3;
+    margin-bottom: 4px;
+  }
+  .card-title {
+    font-size: 12px;
+    color: var(--accent, #c9a227);
+    font-weight: 500;
+    margin-bottom: 10px;
+    letter-spacing: 0.5px;
+  }
+  .card-subtitle {
+    font-size: 11px;
+    color: #4a5272;
+    margin-bottom: 12px;
+    line-height: 1.4;
+  }
+  .card-stats {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .mini-stat {
+    background: #06061a;
+    border: 1px solid #1e2040;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 11px;
+    color: #9098b8;
+  }
+  .mini-stat strong { color: var(--accent, #c9a227); }
+  .card-quote {
+    font-size: 12px;
+    font-style: italic;
+    color: var(--accent, #c9a227);
+    opacity: 0.8;
+    line-height: 1.5;
+    border-left: 2px solid var(--accent, #c9a227);
+    padding-left: 10px;
+  }
+  .card-group {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: rgba(6,6,26,0.8);
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 3px 10px;
+    font-size: 10px;
+    color: #9098b8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 200;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #0a0a1e;
+    border: 1px solid #333;
+    border-radius: 16px;
+    max-width: 95vw;
+    width: 100%;
+    max-height: 95vh;
+    overflow: hidden;
+    position: relative;
+  }
+  .modal-header {
+    padding: 24px 28px;
+    border-bottom: 1px solid #1e2040;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    background: #0a0a1e;
+    z-index: 10;
+    border-radius: 16px 16px 0 0;
+  }
+  .modal-header h2 {
+    font-family: 'Cinzel', serif;
+    color: #f0e6d3;
+    font-size: 24px;
+  }
+  .modal-close {
+    background: none;
+    border: 1px solid #333;
+    color: #9098b8;
+    border-radius: 8px;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+  }
+  .modal-close:hover { border-color: #cc3333; color: #cc3333; }
+  .modal-nav {
+    display: flex;
+    gap: 8px;
+  }
+  .modal-nav button {
+    background: #0e0e28;
+    border: 1px solid #333;
+    color: #c9a227;
+    border-radius: 8px;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+  }
+  .modal-nav button:hover { background: #c9a227; color: #06061a; }
+  .modal-body { padding: 24px 28px; }
+  .modal-section {
+    margin-bottom: 20px;
+  }
+  .modal-section h3 {
+    font-family: 'Cinzel', serif;
+    font-size: 14px;
+    color: var(--accent, #c9a227);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #1e2040;
+  }
+  .ability-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .ability-chip {
+    background: #0e0e28;
+    border: 1px solid #1e2040;
+    border-radius: 8px;
+    padding: 8px 12px;
+    text-align: center;
+    min-width: 70px;
+  }
+  .ability-chip.highlight { border-color: var(--accent, #c9a227); }
+  .ability-chip .ab-name { font-size: 10px; color: #9098b8; display: block; }
+  .ability-chip .ab-score { font-size: 20px; font-weight: 700; color: #f0e6d3; display: block; }
+  .ability-chip .ab-mod { font-size: 12px; color: var(--accent, #c9a227); display: block; }
+  .trait-item {
+    margin-bottom: 8px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #b8c0d8;
+  }
+  .trait-item strong { color: #f0e6d3; }
+  .modal-quote {
+    font-size: 16px;
+    font-style: italic;
+    color: var(--accent, #c9a227);
+    text-align: center;
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid #1e2040;
+    border-radius: 8px;
+    background: #06061a;
+  }
+  .modal-lore {
+    font-size: 13px;
+    line-height: 1.7;
+    color: #9098b8;
+    font-style: italic;
+  }
+  .stat-line {
+    font-size: 13px;
+    margin-bottom: 4px;
+    color: #b8c0d8;
+  }
+  .stat-line strong { color: var(--accent, #c9a227); }
+
+  .keyboard-hint {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #0e0e28;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 11px;
+    color: #4a5272;
+    z-index: 50;
+  }
+  .keyboard-hint kbd {
+    background: #1e2040;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+    color: #9098b8;
+    font-family: monospace;
+  }
+
+  /* ── (tabs removed — modal goes straight to PDF) ── */
+  .pdf-container {
+    width: 100%;
+    height: calc(95vh - 70px);
+    border: none;
+    background: #111;
+    border-radius: 0 0 16px 16px;
+  }
+  .pdf-missing {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 300px;
+    color: #4a5272;
+    font-size: 14px;
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ADVENTURES OF <span>TIAMAT</span> — Character Browser</h1>
+  <div class="header-stats">
+    <div class="stat-badge"><strong id="totalCount">0</strong> Characters</div>
+    <div class="stat-badge"><strong id="visibleCount">0</strong> Showing</div>
+  </div>
+</header>
+
+<div class="toolbar">
+  <input type="text" class="search-box" id="searchBox" placeholder="Search characters by name, title, or lore..." autofocus>
+  <button class="filter-btn active" data-group="all" onclick="filterGroup('all', this)">All</button>
+  <button class="filter-btn" data-group="royals" onclick="filterGroup('royals', this)">Royals</button>
+  <button class="filter-btn" data-group="power" onclick="filterGroup('power', this)">Power Players</button>
+  <button class="filter-btn" data-group="colorful" onclick="filterGroup('colorful', this)">Colorful NPCs</button>
+  <button class="filter-btn" data-group="kubi" onclick="filterGroup('kubi', this)">Kubi Conspiracy</button>
+  <button class="filter-btn" data-group="gondor" onclick="filterGroup('gondor', this)">Gondor</button>
+  <button class="filter-btn" data-group="misc" onclick="filterGroup('misc', this)">Misc</button>
+  <span style="color: #333; margin: 0 4px;">|</span>
+  <button class="filter-btn theme-royal" data-theme="royal" onclick="filterTheme('royal', this)">Royal</button>
+  <button class="filter-btn theme-warrior" data-theme="warrior" onclick="filterTheme('warrior', this)">Warrior</button>
+  <button class="filter-btn theme-arcane" data-theme="arcane" onclick="filterTheme('arcane', this)">Arcane</button>
+  <button class="filter-btn theme-shadow" data-theme="shadow" onclick="filterTheme('shadow', this)">Shadow</button>
+  <button class="filter-btn theme-nature" data-theme="nature" onclick="filterTheme('nature', this)">Nature</button>
+  <button class="filter-btn theme-fire" data-theme="fire" onclick="filterTheme('fire', this)">Fire</button>
+  <button class="filter-btn theme-ocean" data-theme="ocean" onclick="filterTheme('ocean', this)">Ocean</button>
+  <button class="filter-btn theme-orc" data-theme="orc" onclick="filterTheme('orc', this)">Orc</button>
+  <button class="filter-btn theme-stone" data-theme="stone" onclick="filterTheme('stone', this)">Stone</button>
+  <button class="filter-btn theme-pink" data-theme="pink" onclick="filterTheme('pink', this)">Pink</button>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal" id="modalContent">
+    <div class="modal-header">
+      <h2 id="modalName"></h2>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <div class="modal-nav">
+          <button onclick="navChar(-1)">&#9664; Prev</button>
+          <button onclick="navChar(1)">Next &#9654;</button>
+        </div>
+        <button class="modal-close" onclick="closeModal()">&#10005; Close</button>
+      </div>
+    </div>
+    <div id="modalPdf" style="padding: 0;"></div>
+  </div>
+</div>
+
+<div class="keyboard-hint">
+  <kbd>&#8592;</kbd> <kbd>&#8594;</kbd> Navigate &nbsp; <kbd>Esc</kbd> Close &nbsp; <kbd>/</kbd> Search
+</div>
+
+<script>
+const THEMES = {
+  royal:   { accent: '#c9a227', glow: 'rgba(201,162,39,0.2)' },
+  warrior: { accent: '#cc3333', glow: 'rgba(204,51,51,0.2)' },
+  arcane:  { accent: '#4488ff', glow: 'rgba(68,136,255,0.2)' },
+  nature:  { accent: '#44aa44', glow: 'rgba(68,170,68,0.2)' },
+  shadow:  { accent: '#8844bb', glow: 'rgba(136,68,187,0.2)' },
+  fire:    { accent: '#dd6622', glow: 'rgba(221,102,34,0.2)' },
+  ocean:   { accent: '#2299bb', glow: 'rgba(34,153,187,0.2)' },
+  stone:   { accent: '#aa8855', glow: 'rgba(170,136,85,0.2)' },
+  orc:     { accent: '#88aa22', glow: 'rgba(136,170,34,0.2)' },
+  pink:    { accent: '#dd4488', glow: 'rgba(221,68,136,0.2)' },
+};
+
+const CHARS = [
+  // ROYALS
+  { name:"Othorian Nel", title:"King · High Elf · Ancient Ruler", subtitle:"Born 10 B.T. · Age ~6,000 · Lawful Neutral", theme:"royal", group:"royals", cr:"21", hp:"285", ac:"20", quote:"I have watched empires rise and crumble. I will not let this one fall.", abilities:[["STR",18,"+4",0],["DEX",20,"+5",1],["CON",20,"+5",0],["INT",18,"+4",1],["WIS",22,"+6",1],["CHA",20,"+5",1]], traits:["Legendary Resistance (3/Day)","Ageless — cannot age","Tiamat's Secret — knows the reincarnation cycle","Elven Perfection — immune to charm/sleep","Battle-Hardened Commander — allies +2 attacks/saves within 30 ft."], lore:"The oldest living elf, born before the calendar. Has ruled for millennia, fought Jarnath multiple times, destroyed the town of Nether. Carries the terrible secret of Tiamat's reincarnation." },
+  { name:"Charles Rex", title:"King · Human · Co-Ruler", subtitle:"Born 5948 A.T. · Secretly Being Poisoned · Lawful Good", theme:"royal", group:"royals", cr:"12", hp:"136", ac:"18", quote:"A king who cannot protect his family cannot protect his kingdom.", abilities:[["STR",18,"+4",1],["DEX",12,"+1",0],["CON",18,"+4",1],["INT",14,"+2",0],["WIS",16,"+3",1],["CHA",18,"+4",1]], traits:["Poisoned King — secretly being poisoned by Barfolomew","Beloved Ruler — advantage on Persuasion with citizens","Iron Will — advantage vs. fear/charm","Warrior King — still trains daily despite illness"], lore:"Rules alongside Othorian in an unprecedented alliance. A good man, loving father, slowly dying from poison he doesn't know about." },
+  { name:"Marta Rex", title:"Queen · High Cleric · Healer", subtitle:"Born 5956 A.T. · Devoted Wife & Mother · Lawful Good", theme:"pink", group:"royals", cr:"9", hp:"102", ac:"16", quote:"Healing is not just mending flesh. It is mending hope.", abilities:[["STR",10,"+0",0],["DEX",12,"+1",0],["CON",16,"+3",0],["INT",14,"+2",0],["WIS",20,"+5",1],["CHA",18,"+4",1]], traits:["Divine Healer — max healing + damage resistance","Mother's Intuition — senses something wrong with Charles","Beacon of Hope — allies advantage on death saves"], lore:"The beating heart of the royal family. Channels divine magic into Charles daily, fighting an enemy she cannot see." },
+  { name:"Amare Rex", title:"Princess · Cleric Apprentice", subtitle:"Born 5988 A.T. · Young & Rebellious · Neutral Good", theme:"pink", group:"royals", cr:"3", hp:"45", ac:"14", quote:"I don't want to be queen. I want to be useful.", abilities:[["STR",10,"+0",0],["DEX",14,"+2",0],["CON",14,"+2",0],["INT",13,"+1",0],["WIS",16,"+3",1],["CHA",16,"+3",1]], traits:["Emerging Gift — can upcast healing once/day","Rebellious Spirit — advantage vs. command","Father's Daughter — reactive healing when ally drops"], lore:"Youngest Rex child, following her mother's path. Headstrong, sharp-tongued, secretly terrified of losing her father." },
+  { name:"Shilo Nel", title:"Prince · High Elf · Supremacist", subtitle:"Born 5345 A.T. · Age ~650 · Lawful Evil", theme:"shadow", group:"royals", cr:"14", hp:"168", ac:"18", quote:"Patience is the sharpest blade. I have centuries to wield it.", abilities:[["STR",14,"+2",0],["DEX",20,"+5",1],["CON",16,"+3",0],["INT",20,"+5",1],["WIS",16,"+3",1],["CHA",18,"+4",1]], traits:["Master Manipulator — advantage on Deception/Persuasion","Elven Supremacist — believes humans are inferior","Patient Evil — never acts impulsively","Shadow Magic — Darkness, Invisibility, Modify Memory at will"], lore:"Othorian's son. Brilliant, charming, utterly convinced elves are superior. Building networks of influence, waiting for the right moment." },
+  // POWER PLAYERS
+  { name:"Jarnath", title:"Dragon Slayer · Folk Hero · Legend", subtitle:"Born 1679 A.T. · Age ~4,300 · Chaotic Good", theme:"warrior", group:"power", cr:"20", hp:"262", ac:"19", quote:"I've fought gods, slept with worse, and I still can't pay my bar tab.", abilities:[["STR",24,"+7",1],["DEX",18,"+4",1],["CON",20,"+5",1],["INT",12,"+1",0],["WIS",14,"+2",0],["CHA",20,"+5",1]], traits:["Legendary Dragon Slayer — +3d6 vs. dragons","Unkillable Bastard — CON save to survive at 0 HP","Folk Hero's Luck — one reroll per turn","Kicked Out of Every Bar","Massive Gambling Debts"], lore:"Part Aragorn, part Han Solo, part All Might. Slain more dragons than anyone, fought Othorian multiple times, slept with Cthulhu's daughter." },
+  { name:"Dorinar", title:"High Wizard · Tiamat Academy", subtitle:"Born 5810 A.T. · Keeper of Secrets · Lawful Neutral", theme:"arcane", group:"power", cr:"13", hp:"120", ac:"15", quote:"Knowledge without wisdom is a loaded crossbow in a child's hands.", abilities:[["STR",10,"+0",0],["DEX",14,"+2",0],["CON",18,"+4",1],["INT",22,"+6",1],["WIS",18,"+4",1],["CHA",14,"+2",0]], traits:["Knows Sileisil's dark pact","Arcane Mastery — free 5th-level cast","Spell Sculptor — exclude allies from AoE","Watchful Eye — advantage on checks in Academy"], lore:"Knows Sileisil's terrible secret and chose to watch rather than act. Carries this burden quietly." },
+  { name:"Sileisil", title:"Academy President · Pact-Bound", subtitle:"Born 5800 A.T. · Secret Pact with Tiamat · Neutral", theme:"shadow", group:"power", cr:"16", hp:"152", ac:"17", quote:"The price of power is knowing you will pay it forever.", abilities:[["STR",10,"+0",0],["DEX",14,"+2",0],["CON",20,"+5",1],["INT",24,"+7",1],["WIS",18,"+4",1],["CHA",20,"+5",1]], traits:["Tiamat's Pact — tremendous power at a cost","Life Weaver — animate/resurrect at will","Blight Fighter — double damage to Blight","Prodigy's Mind — concentrate on 2 spells"], lore:"Most gifted wizard of her generation. Her power comes from a dark pact with Tiamat. Can force life into dead things." },
+  { name:"King Grudge", title:"Orc King · Hellbringer · Warlord", subtitle:"Born 5960 A.T. · Building Army of 1,000 · Chaotic Evil", theme:"orc", group:"power", cr:"17", hp:"230", ac:"20", quote:"Humans build walls. I build armies. Walls fall. Armies don't.", abilities:[["STR",26,"+8",1],["DEX",14,"+2",0],["CON",22,"+6",1],["INT",12,"+1",0],["WIS",14,"+2",0],["CHA",20,"+5",1]], traits:["Hellbringer Legacy — +2d6 fire melee","Army of a Thousand — growing force","Relentless Endurance","Aggressive — bonus action charge","Siege Commander"], lore:"United scattered orc tribes under one banner through sheer strength. Building the largest orc force in centuries." },
+  { name:"King Hardfire", title:"Dwarf King of Gondor · Unifier", subtitle:"Born 5935 A.T. · Secretly Raising a Black Dragon · LN", theme:"fire", group:"power", cr:"15", hp:"195", ac:"22", quote:"A dwarf divided is a dwarf defeated. Under my hammer, we are one.", abilities:[["STR",22,"+6",1],["DEX",10,"+0",0],["CON",24,"+7",1],["INT",16,"+3",1],["WIS",18,"+4",1],["CHA",16,"+3",0]], traits:["Unifier of Clans — ended Hardheart/Fireheart rivalry","Secret Dragon Keeper — raising a baby black dragon","Dwarven Resilience","Master Smith — crafted his own +3 gear"], lore:"United the Hardheart and Fireheart clans. Secretly raising a baby black dragon to fight goblins. History suggests this won't end well." },
+  // COLORFUL NPCs
+  { name:"Mourning Wood", title:"Elder Elf · Creator of Wood Elves", subtitle:"Born 140 A.T. · Othorian's Brother · Neutral Good", theme:"nature", group:"colorful", cr:"14", hp:"180", ac:"16", quote:"The forest does not need a king. It needs a gardener.", abilities:[["STR",14,"+2",0],["DEX",16,"+3",0],["CON",18,"+4",0],["INT",16,"+3",0],["WIS",24,"+7",1],["CHA",14,"+2",0]], traits:["Father of Wood Elves","One with the Forest — advantage on everything in forests","Simple Living — no interest in politics","Ancient Druid — unlimited Wild Shape CR 6"], lore:"Othorian's brother. While Othorian built kingdoms, Mourning Wood built forests. Immensely powerful but would rather grow a flower than fight a war." },
+  { name:"Kassandra", title:"Mayor of Cardious · Warrior", subtitle:"Born 5970 A.T. · Badass Fighter · Chaotic Good", theme:"warrior", group:"colorful", cr:"10", hp:"142", ac:"18", quote:"You want to arm wrestle? I've never lost. But you're welcome to try.", abilities:[["STR",20,"+5",1],["DEX",16,"+3",1],["CON",18,"+4",1],["INT",12,"+1",0],["WIS",14,"+2",0],["CHA",18,"+4",1]], traits:["Dragon Trainer — trains with dragons","Arm Wrestling Champion — undefeated","Fearless Leader — immune to fear","Think Gina Carano"], lore:"Toughest human in the realm. Trains with dragons for fun, never lost an arm wrestle, and has slept with Jarnath." },
+  { name:"Maurice", title:"Architect of Gondor · Eccentric Genius", subtitle:"Born 5950 A.T. · Hears Dragons in Sewers · CN", theme:"stone", group:"colorful", cr:"2", hp:"52", ac:"12", quote:"I'm telling you, there's a dragon in the pipes! And WHERE ARE MY SOCKS?!", abilities:[["STR",14,"+2",0],["DEX",10,"+0",0],["CON",14,"+2",0],["INT",20,"+5",1],["WIS",8,"-1",0],["CHA",12,"+1",0]], traits:["Master Architect — built Gondor's sewer system","Hears Dragons in the Sewers — might actually be right","Rats Steal His Socks","Brilliant but Unhinged"], lore:"Greatest architect Gondor has produced and also the craziest. Claims to hear dragons in the pipes — and King Hardfire IS raising one down there..." },
+  { name:"Happy Fullmore", title:"Mayor of Helne · The Glutton", subtitle:"Born 5970 A.T. · Eats 1% of All Food in Tiamat · NE", theme:"royal", group:"colorful", cr:"3", hp:"85", ac:"10", quote:"Taxes are the foundation of civilization. I'm just... very civilized.", abilities:[["STR",8,"-1",0],["DEX",8,"-1",0],["CON",18,"+4",1],["INT",16,"+3",1],["WIS",10,"+0",0],["CHA",16,"+3",1]], traits:["Insatiable Appetite — 1% of all food in Tiamat","Tax Collector Supreme — highest taxes","Greedy to the Core","Surprisingly Tough"], lore:"Fattest, greediest, most well-fed mayor in the realm. Taxes citizens into poverty while feasting daily." },
+  { name:"Johnny Deep", title:"Mayor of Kastof · Sea Sorcerer", subtitle:"Born 5950 A.T. · A Bit Mad from the Sea · CN", theme:"ocean", group:"colorful", cr:"7", hp:"95", ac:"15", quote:"The sea speaks to me, friend. Today she says... run.", abilities:[["STR",14,"+2",0],["DEX",14,"+2",0],["CON",20,"+5",1],["INT",14,"+2",0],["WIS",12,"+1",0],["CHA",18,"+4",1]], traits:["Self-Taught Sorcerer — learned from the sea","Master Shipbuilder","Sea Madness — talks to the ocean","Ocean's Blessing — breathe underwater, swim 40 ft."], lore:"Lost at sea for years, came back with wild magic and conversations with waves. Decent mayor, certified crazy." },
+  { name:"Granma Beth", title:"Elder of Harven · Beloved Grandmother", subtitle:"Born 5910 A.T. · Best Sweet Tea · Neutral Good", theme:"nature", group:"colorful", cr:"0", hp:"22", ac:"10", quote:"Sit down, dear. Have some tea. You look like you haven't eaten in days.", abilities:[["STR",6,"-2",0],["DEX",8,"-1",0],["CON",12,"+1",0],["INT",14,"+2",0],["WIS",20,"+5",1],["CHA",18,"+4",1]], traits:["Best Sweet Tea in Tiamat — 2d4+4 temp HP","Grandmother's Intuition — always knows when you're lying","Beloved by All — DC 20 WIS to attack her","She's Prolly Gonna Die"], lore:"Sweetest old lady in Tiamat. 22 HP, no combat abilities. If she dies, the players will burn the world down to avenge her." },
+  // KUBI CONSPIRACY
+  { name:"Barfolomew", title:"Ambassador of Kubi · Poisoner", subtitle:"Born 5970 A.T. · Thieves Guild Elite · NE", theme:"shadow", group:"kubi", cr:"6", hp:"78", ac:"15", quote:"Trust is the most valuable currency. I trade in it daily.", abilities:[["STR",10,"+0",0],["DEX",16,"+3",1],["CON",14,"+2",0],["INT",16,"+3",1],["WIS",14,"+2",0],["CHA",18,"+4",1]], traits:["Master Poisoner — slowly killing King Charles","Silver Tongue — advantage on Deception/Persuasion","Thieves Guild Agent","Poison Expert — 3 poisons at all times"], lore:"The charming ambassador secretly poisoning King Charles for months under orders from Daniel Fairisles." },
+  { name:"Daniel Fairisles", title:"Mayor of Kubi · Schemer", subtitle:"Born 5962 A.T. · Aspires to Be King · NE", theme:"shadow", group:"kubi", cr:"7", hp:"90", ac:"14", quote:"Every man has a price. I just have the patience to find it.", abilities:[["STR",10,"+0",0],["DEX",14,"+2",0],["CON",16,"+3",0],["INT",18,"+4",1],["WIS",14,"+2",0],["CHA",18,"+4",1]], traits:["Puppet Master — controls Thieves Guild","Public Mask — seems respectable","Political Marriage — married Sandra for church power","Aspiring King — wants the throne"], lore:"Runs the Thieves Guild, orchestrated the poisoning of King Charles, pawned his daughter's marriage for power." },
+  { name:"Sandra Fairisles", title:"Priestess of Kubi · Devoted", subtitle:"Born 5968 A.T. · Blissfully Unaware · LG", theme:"pink", group:"kubi", cr:"3", hp:"55", ac:"14", quote:"Faith is the light that guides us through the darkness.", abilities:[["STR",10,"+0",0],["DEX",12,"+1",0],["CON",12,"+1",0],["INT",12,"+1",0],["WIS",18,"+4",1],["CHA",16,"+3",1]], traits:["Devoted Priestess","Loving Mother","Blind Faith — disadvantage on Insight vs. husband"], lore:"A genuinely kind priestess who loves her family. Has no idea her husband is a criminal mastermind." },
+  { name:"Consada Fairisles", title:"Princess of Kubi · Roluss's Fiancée", subtitle:"Born 5985 A.T. · Dutiful but Sad · LN", theme:"pink", group:"kubi", cr:"1", hp:"32", ac:"12", quote:"I know my place. I just wish it felt like mine.", abilities:[["STR",8,"-1",0],["DEX",12,"+1",0],["CON",14,"+2",0],["INT",16,"+3",1],["WIS",14,"+2",1],["CHA",14,"+2",0]], traits:["Political Pawn","Sheltered Upbringing","Healer's Touch — free Cure Wounds 1/rest"], lore:"Engaged to Roluss Rex as a political arrangement. Kind, educated, faithful — and trapped by duty." },
+  { name:"Sue Alloe", title:"Mayor of Nodo · Investigator", subtitle:"Born 5961 A.T. · Fighting Corruption · LG", theme:"warrior", group:"kubi", cr:"5", hp:"85", ac:"16", quote:"My people are starving while Kubi feasts. Someone is going to answer for that.", abilities:[["STR",16,"+3",1],["DEX",14,"+2",0],["CON",18,"+4",1],["INT",14,"+2",0],["WIS",16,"+3",1],["CHA",14,"+2",0]], traits:["Slum Survivor","Corruption Hunter — building evidence against Daniel","No-Nonsense Leader — immune to charm","Street Fighter"], lore:"Born to murdered parents, raised in slums, clawed to leadership. Investigating Daniel Fairisles for corruption." },
+  // GONDOR
+  { name:"Prince Hardfire", title:"Prince of Gondor · Ambitious", subtitle:"Born 5975 A.T. · Secretly Plotting · CN", theme:"fire", group:"gondor", cr:"9", hp:"120", ac:"18", quote:"My father guards what he has. I intend to take what he won't.", abilities:[["STR",20,"+5",1],["DEX",12,"+1",0],["CON",20,"+5",1],["INT",14,"+2",0],["WIS",12,"+1",0],["CHA",16,"+3",1]], traits:["Mine Manager","Secret Ambition — wants to overthrow father","Dragon Whisperer — bonding with the baby dragon","Dwarven Toughness"], lore:"Capable mine manager secretly training his father's baby black dragon to obey him, planning to seize the throne." },
+  { name:"Sir Fireheart", title:"Head of House Fireheart · Master Smith", subtitle:"Born 5940 A.T. · Best Blacksmith in Tiamat · LN", theme:"fire", group:"gondor", cr:"6", hp:"95", ac:"17", quote:"Steel doesn't lie. You heat it, you hammer it, and it shows you what it truly is.", abilities:[["STR",20,"+5",1],["DEX",10,"+0",0],["CON",20,"+5",1],["INT",14,"+2",0],["WIS",12,"+1",0],["CHA",10,"+0",0]], traits:["Master Blacksmith — weapons gain +1","Grudge Against Hardhearts","Loyal to the King"], lore:"Finest blacksmith in Tiamat. Hates his stepbrother Hardheart but serves King Hardfire faithfully." },
+  { name:"Sir Hardheart", title:"Head of House Hardheart · Master Brewer", subtitle:"Born 5940 A.T. · Best Brewer in Tiamat · CN", theme:"stone", group:"gondor", cr:"5", hp:"95", ac:"15", quote:"My brother makes swords. I make something that actually keeps men alive: good ale.", abilities:[["STR",18,"+4",1],["DEX",10,"+0",0],["CON",22,"+6",1],["INT",12,"+1",0],["WIS",10,"+0",0],["CHA",16,"+3",1]], traits:["Master Brewer — legendary ales","Grudge Against Firehearts","Iron Constitution — immune to poisoned","Barroom Brawler"], lore:"Runs the best bar in Gondor. His beers knock out the toughest warriors. Hates his stepbrother but serves the king." },
+  { name:"Snarlock", title:"Blacksmith · Ass N Iron · Gondor", subtitle:"Born 5950 A.T. · Drunk, Angry-Looking, Decent Guy · TN", theme:"stone", group:"gondor", cr:"1", hp:"52", ac:"13", quote:"I AIN'T MAD! THIS IS JUST MY FACE!", abilities:[["STR",16,"+3",0],["DEX",10,"+0",0],["CON",14,"+2",1],["INT",8,"-1",0],["WIS",8,"-1",0],["CHA",6,"-2",0]], traits:["Resting Angry Face","No Sense of Smell","Perpetually Drunk","Decent at Heart"], lore:"Blacksmith at the Ass N Iron. Angry face, no smell, always drunk. Not a bad guy — just really hard to get to know." },
+  { name:"Maurice", title:"Architect of Gondor", subtitle:"See Colorful NPCs", theme:"stone", group:"gondor", cr:"2", hp:"52", ac:"12", quote:"WHERE ARE MY SOCKS?!", abilities:[["STR",14,"+2",0],["DEX",10,"+0",0],["CON",14,"+2",0],["INT",20,"+5",1],["WIS",8,"-1",0],["CHA",12,"+1",0]], traits:["See Colorful NPCs section"], lore:"(Listed under Colorful NPCs)" },
+  // KNEESTONE
+  { name:"Arrotoda Knee", title:"Mine Lord · KneeStone Mines", subtitle:"Born 5950 A.T. · Boston Accent · Lawful Good", theme:"stone", group:"misc", cr:"8", hp:"130", ac:"18", quote:"We been diggin' heah fah thousands a' yeahs. Ain't no squid-faced freak gonna stop us.", abilities:[["STR",18,"+4",1],["DEX",8,"-1",0],["CON",22,"+6",1],["INT",16,"+3",1],["WIS",18,"+4",1],["CHA",14,"+2",0]], traits:["The Knee Line — hereditary limp","Mind Flayer Veteran","Vast Riches","Protector of His Men — allies +2 AC"], lore:"Lord of KneeStone Mines with a Boston accent. Every Knee has a limp. Fights Mind Flayers. Richest dwarf around." },
+  { name:"Dis Knee", title:"Co-Leader · KneeStone Mines", subtitle:"Born 5955 A.T. · Musician, Fighter, Accountant · LG", theme:"stone", group:"misc", cr:"7", hp:"105", ac:"17", quote:"I balance the books by day and crack skulls by night.", abilities:[["STR",16,"+3",1],["DEX",14,"+2",0],["CON",20,"+5",1],["INT",16,"+3",1],["WIS",14,"+2",0],["CHA",16,"+3",1]], traits:["Triple Threat — music, fighting, accounting","Mind Flayer Slayer","Oktober Devotee","Gets Things Done"], lore:"Arrotoda's wife. Handles finances, performs music, kills Mind Flayers, outdrinks everyone." },
+  { name:"Goffrey", title:"Master Chemist · Tiamat Academy", subtitle:"Born 5780 A.T. · Mad Scientist · Age 220+ · CN", theme:"arcane", group:"misc", cr:"8", hp:"68", ac:"12", quote:"Is it ethical? Probably not. Is it fascinating? ABSOLUTELY.", abilities:[["STR",8,"-1",0],["DEX",14,"+2",0],["CON",18,"+4",1],["INT",22,"+6",1],["WIS",10,"+0",0],["CHA",8,"-1",0]], traits:["Longevity Potion — 220+ years old","Mad Genius","Poison & Potion Master","Morally Flexible — has killed for research"], lore:"Jittery 220-year-old alchemist. Creates potions, poisons, stews, and explosions. Has killed people in the name of science." },
+  { name:"Doc Xu Bushy", title:"Triple Mayor of Harven", subtitle:"Born 5950 A.T. · 3 Personalities · Knows Teleport · NG", theme:"nature", group:"misc", cr:"4", hp:"55", ac:"12", quote:"[Xu] Welcome! [Doc] Fresh fish! [Bushy] Room for the night?", abilities:[["STR",12,"+1",0],["DEX",12,"+1",0],["CON",12,"+1",0],["INT",16,"+3",1],["WIS",14,"+2",1],["CHA",14,"+2",0]], traits:["Three-Way Split Personality","Teleportation — everywhere at once","Down to Tiamat — loves farming"], lore:"Three personalities running three businesses via Teleport. A wholesome triple soul." },
+  { name:"Smithy", title:"Blacksmith of Harven · Protector", subtitle:"Born 5954 A.T. · Harven's Shield · NG", theme:"fire", group:"misc", cr:"5", hp:"85", ac:"16", quote:"They come every season. Every season I'm standing here.", abilities:[["STR",18,"+4",1],["DEX",12,"+1",0],["CON",18,"+4",1],["INT",10,"+0",0],["WIS",12,"+1",0],["CHA",12,"+1",0]], traits:["Harven's Shield — fights off orc raids","Hereditary Smith","Loves to Drink"], lore:"Blacksmith and defender of Harven. Fights Grudge's raids regularly." },
+  { name:"Aleg Dafut", title:"Father of Ankor · Devout Elder", subtitle:"Born 5940 A.T. · Ill & Aging · Lawful Good", theme:"nature", group:"misc", cr:"1/4", hp:"28", ac:"10", quote:"The world outside is cruel, my son. Stay. Pray. Be safe.", abilities:[["STR",6,"-2",0],["DEX",8,"-1",0],["CON",10,"+0",0],["INT",14,"+2",0],["WIS",18,"+4",1],["CHA",14,"+2",1]], traits:["Devout Worshiper","Terminal Illness","Protective Father — kept Ashin home"], lore:"Sick old man who kept his son from adventure to protect him. Won't live much longer." },
+  { name:"Ashin Dafut", title:"Mayor of Ankor · Dutiful Son", subtitle:"Born 5958 A.T. · Dreams Deferred · NG", theme:"nature", group:"misc", cr:"1", hp:"38", ac:"12", quote:"I once wanted to see the world. Now I just want the fish to come back.", abilities:[["STR",12,"+1",0],["DEX",12,"+1",0],["CON",12,"+1",0],["INT",12,"+1",0],["WIS",14,"+2",1],["CHA",14,"+2",1]], traits:["Simple Life","Dreams Deferred","Failing Town — fish disappearing, soil worsening"], lore:"Gave up adventure dreams to care for his father. Now trying to keep a dying town alive." },
+  { name:"Scree Dangar", title:"Leader of Dangar · Bitter Veteran", subtitle:"Born 5960 A.T. · Last of the Orcish Order · CN", theme:"orc", group:"misc", cr:"4", hp:"78", ac:"15", quote:"The orcs are the rightful owners of this land.", abilities:[["STR",18,"+4",1],["DEX",12,"+1",0],["CON",18,"+4",1],["INT",10,"+0",0],["WIS",14,"+2",1],["CHA",12,"+1",0]], traits:["Orcish Order Descendant","Grudge Holder","Former Assassin — killed Cardious leaders","Something at Sea — mysterious creature"], lore:"Bitter orc leader who assassinated Cardious leaders. Something comes ashore at night..." },
+  { name:"Imtra Schid", title:"Village Leader of Scraps", subtitle:"Born 5939 A.T. · Exile from Grudge's Army · TN", theme:"orc", group:"misc", cr:"1", hp:"45", ac:"13", quote:"We came through the forest expecting glory. We found dirt. But it's our dirt.", abilities:[["STR",16,"+3",0],["DEX",12,"+1",0],["CON",16,"+3",1],["INT",10,"+0",0],["WIS",14,"+2",1],["CHA",10,"+0",0]], traits:["Forest Survivor","Simple Life — content in isolation"], lore:"Led orcs through Quielent Forest, found nothing. They stayed. It's their dirt." },
+  { name:"Puh Wright", title:"Shipwright of Kastof · Blue Shard", subtitle:"Born 5965 A.T. · Orphan Shipbuilder · NG", theme:"ocean", group:"misc", cr:"2", hp:"52", ac:"13", quote:"Give me wood, nails, and my brother, and I'll build you a ship.", abilities:[["STR",16,"+3",1],["DEX",14,"+2",0],["CON",14,"+2",0],["INT",14,"+2",1],["WIS",12,"+1",0],["CHA",10,"+0",0]], traits:["Master Shipbuilder","Blue Egg Shard — mysterious artifact","Orphan's Bond — advantage when working with brother"], lore:"Orphan twin shipbuilder. Found with a blue egg shard of Tiamat." },
+  { name:"Shi Wright", title:"Shipwright of Kastof · The Aggressive One", subtitle:"Born 5965 A.T. · Orphan Shipbuilder · CG", theme:"ocean", group:"misc", cr:"3", hp:"60", ac:"14", quote:"My brother builds 'em pretty. I build 'em tough.", abilities:[["STR",18,"+4",1],["DEX",14,"+2",0],["CON",16,"+3",1],["INT",12,"+1",0],["WIS",10,"+0",0],["CHA",12,"+1",0]], traits:["The Aggressive Twin","Blue Egg Shard","Brawler — gets into fights constantly"], lore:"The hot-headed Wright twin who builds tough ships and tougher fists." },
+  { name:"Lyet", title:"Priest of Hell's Barrow", subtitle:"Dark Cleric of a Forsaken Town · LN", theme:"shadow", group:"misc", cr:"4", hp:"65", ac:"15", quote:"Even in Hell's shadow, there is light for those who seek it.", abilities:[["STR",12,"+1",0],["DEX",10,"+0",0],["CON",14,"+2",0],["INT",14,"+2",0],["WIS",18,"+4",1],["CHA",14,"+2",1]], traits:["Hell's Shepherd","Spirit Sight — see invisible/ethereal","Grave Ward — undead disadvantage near him"], lore:"Tends to his flock in one of the most dangerous places in Tiamat." },
+  { name:"Carmelos", title:"Captain of the Sailin' Beef", subtitle:"Sea Captain & Merchant · CN", theme:"ocean", group:"misc", cr:"4", hp:"72", ac:"14", quote:"The Sailin' Beef doesn't stop for storms, pirates, or sea monsters.", abilities:[["STR",14,"+2",0],["DEX",16,"+3",1],["CON",16,"+3",1],["INT",12,"+1",0],["WIS",14,"+2",0],["CHA",16,"+3",1]], traits:["Captain","Sea Legs — advantage on DEX aboard ships","Merchant's Eye — instant appraisal"], lore:"Charismatic sea captain keeping coastal trade alive." },
+  { name:"Lei Whitmoon", title:"Butler to Cardious", subtitle:"Faithful Servant · LN", theme:"royal", group:"misc", cr:"1/2", hp:"32", ac:"12", quote:"Will that be all, madam? Very good.", abilities:[["STR",10,"+0",0],["DEX",14,"+2",0],["CON",14,"+2",0],["INT",14,"+2",1],["WIS",16,"+3",1],["CHA",14,"+2",0]], traits:["The Perfect Butler — knows everything about everyone","Discreet — never shares secrets","Always Prepared"], lore:"Perfectly composed, endlessly discreet. Knows every secret in Cardious." },
+  { name:"Joe", title:"Crabshack Owner · Helne", subtitle:"He Owns the Crabshack · True Neutral", theme:"ocean", group:"misc", cr:"0", hp:"18", ac:"10", quote:"You want crab? I got crab. Sit down.", abilities:[["STR",12,"+1",0],["DEX",10,"+0",0],["CON",12,"+1",0],["INT",10,"+0",0],["WIS",12,"+1",1],["CHA",14,"+2",1]], traits:["Joe Owns the Crabshack","Best Crab in Town — 1d4 temp HP","Knows Everyone — gossip advantage"], lore:"Joe owns the crabshack. That's it. Good crab though." },
+  // Special
+  { name:"Djoner", title:"Sorcerer 20 · Graviturgist", subtitle:"Dragon Tamer · Lawful Neutral · Gravity Sorceress", theme:"arcane", group:"power", cr:"20", hp:"150", ac:"18", quote:"I do not destroy what I can control. And I do not trust what I cannot.", abilities:[["STR",10,"+0",0],["DEX",16,"+3",0],["CON",16,"+3",0],["INT",18,"+4",1],["WIS",18,"+4",1],["CHA",24,"+7",1]], traits:["Metamagic (4 options)","Font of Magic — 20 SP","Gravity Well","Dragon Tamer's Presence"], lore:"Space parts for her. The room tightens when she is angry. Her eyes hold tiny black holes." },
+  { name:"Rigod", title:"Black Dragon Demigod of Chaos", subtitle:"Gargantuan Dragon · Chaotic Evil · CR 30", theme:"fire", group:"power", cr:"30", hp:"735", ac:"26", quote:"I seek dissolution — the unraveling of order itself.", abilities:[["STR",30,"+10",1],["DEX",16,"+3",0],["CON",28,"+9",1],["INT",22,"+6",0],["WIS",20,"+5",0],["CHA",26,"+8",1]], traits:["Legendary Resistance (5/Day)","Divine Aura of Entropy","Acidic Blood","Magic Resistance","Chaos Engine","Apotheosis of Entropy (Mythic)"], lore:"Transcended mortality through centuries of hoarding chaotic energy. Plasma breath cuts through castle walls." },
+];
+
+// Remove duplicate Maurice
+const seen = new Set();
+const UNIQUE_CHARS = CHARS.filter(c => {
+  const key = c.name + c.group;
+  if (c.lore && c.lore.includes('Listed under')) return false;
+  if (seen.has(c.name)) return false;
+  seen.add(c.name);
+  return true;
+});
+
+let currentFilter = 'all';
+let currentTheme = null;
+let currentSearch = '';
+let currentModalIdx = -1;
+let filteredChars = [...UNIQUE_CHARS];
+
+function getTheme(t) { return THEMES[t] || THEMES.royal; }
+
+function renderGrid() {
+  filteredChars = UNIQUE_CHARS.filter(c => {
+    const matchGroup = currentFilter === 'all' || c.group === currentFilter;
+    const matchTheme = !currentTheme || c.theme === currentTheme;
+    const matchSearch = !currentSearch ||
+      c.name.toLowerCase().includes(currentSearch) ||
+      c.title.toLowerCase().includes(currentSearch) ||
+      (c.lore && c.lore.toLowerCase().includes(currentSearch)) ||
+      (c.quote && c.quote.toLowerCase().includes(currentSearch));
+    return matchGroup && matchTheme && matchSearch;
+  });
+
+  const grid = document.getElementById('grid');
+  grid.innerHTML = filteredChars.map((c, i) => {
+    const t = getTheme(c.theme);
+    const abHtml = c.abilities.map(([n,s,m,hl]) =>
+      `<div class="tt-ab${hl?' hl':''}"><span>${s}</span>${n}</div>`
+    ).join('');
+    const traitHtml = (c.traits||[]).slice(0,4).map(tr => `<div style="font-size:10px;color:#b8c0d8;margin-bottom:2px;">• ${tr}</div>`).join('');
+    const loreSnip = c.lore ? (c.lore.length > 120 ? c.lore.slice(0,120) + '…' : c.lore) : '';
+    return `<div class="card" style="--accent:${t.accent};--glow:${t.glow}" onclick="openModal(${i})">
+      <div class="card-tooltip" style="--accent:${t.accent}">
+        <div class="tt-name">${c.name}</div>
+        <div class="tt-title">${c.title}</div>
+        <div class="tt-stats">
+          <div class="tt-stat"><strong>CR</strong> ${c.cr}</div>
+          <div class="tt-stat"><strong>HP</strong> ${c.hp}</div>
+          <div class="tt-stat"><strong>AC</strong> ${c.ac}</div>
+        </div>
+        <div class="tt-abilities">${abHtml}</div>
+        ${traitHtml}
+        ${loreSnip ? `<div class="tt-lore">${loreSnip}</div>` : ''}
+      </div>
+      <div class="card-inner">
+        <div class="card-accent"></div>
+        <div class="card-body">
+          <div class="card-group">${c.group}</div>
+          <div class="card-name">${c.name}</div>
+          <div class="card-title">${c.title}</div>
+          <div class="card-subtitle">${c.subtitle}</div>
+          <div class="card-stats">
+            <div class="mini-stat"><strong>CR</strong> ${c.cr}</div>
+            <div class="mini-stat"><strong>HP</strong> ${c.hp}</div>
+            <div class="mini-stat"><strong>AC</strong> ${c.ac}</div>
+          </div>
+          ${c.quote ? `<div class="card-quote">"${c.quote}"</div>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('totalCount').textContent = UNIQUE_CHARS.length;
+  document.getElementById('visibleCount').textContent = filteredChars.length;
+}
+
+function filterGroup(group, btn) {
+  currentFilter = group;
+  currentTheme = null;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderGrid();
+}
+
+function filterTheme(theme, btn) {
+  currentFilter = 'all';
+  if (currentTheme === theme) {
+    currentTheme = null;
+    btn.classList.remove('active');
+  } else {
+    currentTheme = theme;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  document.querySelector('[data-group="all"]').classList.toggle('active', !currentTheme);
+  renderGrid();
+}
+
+function openModal(idx) {
+  currentModalIdx = idx;
+  const c = filteredChars[idx];
+  const t = getTheme(c.theme);
+  document.getElementById('modalName').textContent = c.name;
+  document.getElementById('modalContent').style.setProperty('--accent', t.accent);
+
+  // Build PDF filename from character name and embed it
+  const pdfName = c.name.replace(/\s+/g, '_') + '_Character_Sheet.pdf';
+  const pdfEl = document.getElementById('modalPdf');
+  pdfEl.innerHTML = `<iframe class="pdf-container" src="${pdfName}"></iframe>`;
+
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  currentModalIdx = -1;
+}
+
+function navChar(dir) {
+  if (currentModalIdx < 0) return;
+  let next = currentModalIdx + dir;
+  if (next < 0) next = filteredChars.length - 1;
+  if (next >= filteredChars.length) next = 0;
+  openModal(next);
+}
+
+document.getElementById('searchBox').addEventListener('input', (e) => {
+  currentSearch = e.target.value.toLowerCase().trim();
+  renderGrid();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeModal();
+  if (e.key === 'ArrowLeft' && currentModalIdx >= 0) navChar(-1);
+  if (e.key === 'ArrowRight' && currentModalIdx >= 0) navChar(1);
+  if (e.key === '/' && currentModalIdx < 0 && document.activeElement !== document.getElementById('searchBox')) {
+    e.preventDefault();
+    document.getElementById('searchBox').focus();
+  }
+});
+
+document.getElementById('modal').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('modal')) closeModal();
+});
+
+renderGrid();
+</script>
+</body>
+</html>
