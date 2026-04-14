@@ -333,6 +333,30 @@
   }
   .sort-select:focus, .sort-select:hover { border-color: #c9a227; }
   .sort-select option { background: #0e0e28; }
+  .export-btn {
+    background: #0e0e28;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 7px 12px;
+    color: #9098b8;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.2s;
+  }
+  .export-btn:hover { border-color: #44aa44; color: #44aa44; }
+  .import-btn {
+    background: #0e0e28;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 7px 12px;
+    color: #9098b8;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.2s;
+  }
+  .import-btn:hover { border-color: #4488ff; color: #4488ff; }
   .cr-slider {
     -webkit-appearance: none;
     appearance: none;
@@ -1366,6 +1390,9 @@
   <button class="filter-btn theme-pink" data-theme="pink" onclick="filterTheme('pink', this)">Pink</button>
   <span style="color: #333; margin: 0 4px;">|</span>
   <button class="reset-hp-btn" onclick="resetAllHP()" title="Reset all HP to maximum">⚕ Reset All HP</button>
+  <button class="export-btn" onclick="exportSessionData()" title="Export all session data as JSON">&#8595; Export</button>
+  <button class="import-btn" onclick="document.getElementById('importFile').click()" title="Import session data from JSON">&#8593; Import</button>
+  <input type="file" id="importFile" accept=".json" style="display:none" onchange="importSessionData(event)">
   <span style="color: #333; margin: 0 4px;">|</span>
   <span style="font-size:12px;color:#4a5272;text-transform:uppercase;letter-spacing:1px;">CR:</span>
   <input type="range" class="cr-slider" id="crMin" min="0" max="30" value="0" oninput="setCRFilter()" title="Min CR">
@@ -1829,6 +1856,75 @@ function renderDicePanel(char) {
     <button class="dice-heal-btn"  onclick="applyHeal()"   title="Apply as healing">+HEAL</button>
     <span style="font-size:12px;color:#9098b8;margin-left:4px;" id="modalHpMini">${curHp} / ${char.hp} HP</span>
   </div>`;
+}
+
+/* ── Export/Import Session Data ── */
+function exportSessionData() {
+  const TIAMAT_KEYS = [
+    'tiamat_favorites', 'tiamat_initiative', 'tiamat_session_log'
+  ];
+  const data = { version: 2, exported: new Date().toISOString(), characters: {} };
+  // Collect character-specific keys
+  UNIQUE_CHARS.forEach(c => {
+    const safeName = c.name.replace(/[^a-zA-Z0-9]/g, '_');
+    const charData = {};
+    const keys = [
+      ['hp',    'tiamat_hp_'   + safeName],
+      ['conds', 'tiamat_cond_' + safeName],
+      ['notes', 'tiamat_notes_'+ safeName],
+      ['ds',    'tiamat_ds_'   + safeName],
+      ['ss',    'tiamat_ss_'   + safeName],
+      ['conc',  'tiamat_conc_' + safeName],
+    ];
+    keys.forEach(([field, key]) => {
+      const val = localStorage.getItem(key);
+      if (val !== null) charData[field] = val;
+    });
+    if (Object.keys(charData).length > 0) data.characters[c.name] = charData;
+  });
+  TIAMAT_KEYS.forEach(k => {
+    const val = localStorage.getItem(k);
+    if (val !== null) data[k.replace('tiamat_', '')] = val;
+  });
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const date = new Date().toISOString().slice(0,10);
+  a.href = url; a.download = `tiamat_session_${date}.json`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importSessionData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.version) throw new Error('Invalid file');
+      if (!confirm('Import session data? This will overwrite current HP, notes, conditions, and log.')) return;
+      // Restore character data
+      Object.entries(data.characters || {}).forEach(([name, charData]) => {
+        const safeName = name.replace(/[^a-zA-Z0-9]/g, '_');
+        if (charData.hp    !== undefined) localStorage.setItem('tiamat_hp_'    + safeName, charData.hp);
+        if (charData.conds !== undefined) localStorage.setItem('tiamat_cond_'  + safeName, charData.conds);
+        if (charData.notes !== undefined) localStorage.setItem('tiamat_notes_' + safeName, charData.notes);
+        if (charData.ds    !== undefined) localStorage.setItem('tiamat_ds_'    + safeName, charData.ds);
+        if (charData.ss    !== undefined) localStorage.setItem('tiamat_ss_'    + safeName, charData.ss);
+        if (charData.conc  !== undefined) localStorage.setItem('tiamat_conc_'  + safeName, charData.conc);
+      });
+      if (data.favorites)      localStorage.setItem('tiamat_favorites',    data.favorites);
+      if (data.initiative)     localStorage.setItem('tiamat_initiative',   data.initiative);
+      if (data.session_log)    localStorage.setItem('tiamat_session_log',  data.session_log);
+      renderGrid();
+      loadInit(); renderInitList();
+      alert('Session data imported successfully!');
+    } catch(err) {
+      alert('Failed to import: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
 }
 
 /* ── CR Filter ── */
