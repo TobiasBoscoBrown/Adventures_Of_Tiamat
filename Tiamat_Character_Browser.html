@@ -646,6 +646,54 @@
     padding: 14px;
     border: 1px solid #1e2040;
   }
+  /* ── Quick Combat Stats Bar (DND Beyond style) ── */
+  .modal-combat-bar {
+    display: flex;
+    align-items: stretch;
+    background: linear-gradient(135deg, #08081e, #0a0a20);
+    border-bottom: 1px solid #1e2040;
+    overflow-x: auto;
+    padding: 0 20px;
+  }
+  .modal-combat-bar::-webkit-scrollbar { height: 0; }
+  .combat-stat-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 16px;
+    border-right: 1px solid #1e2040;
+    cursor: default;
+    min-width: 72px;
+    transition: background 0.12s;
+    user-select: none;
+    gap: 2px;
+  }
+  .combat-stat-box.rollable { cursor: pointer; }
+  .combat-stat-box.rollable:hover { background: rgba(255,255,255,0.03); }
+  .combat-stat-box:last-child { border-right: none; }
+  .combat-stat-label {
+    font-size: 9px;
+    color: #4a5272;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    font-weight: 600;
+  }
+  .combat-stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: #f0e6d3;
+    font-family: 'Cinzel', serif;
+    line-height: 1;
+  }
+  .combat-stat-box.rollable .combat-stat-value { color: var(--accent, #c9a227); }
+  .combat-stat-sub {
+    font-size: 9px;
+    color: #4a5272;
+    margin-top: 1px;
+  }
+  .combat-stat-box.rollable:hover .combat-stat-label { color: var(--accent, #c9a227); }
+
   .stat-chip {
     display: inline-flex;
     align-items: center;
@@ -2319,6 +2367,7 @@
         <button class="modal-close" onclick="closeModal()">&#10005; Close</button>
       </div>
     </div>
+    <div class="modal-combat-bar" id="modalCombatBar"></div>
     <div class="modal-tabs" id="modalTabs" style="display:flex;justify-content:space-between;align-items:center">
       <div style="display:flex">
         <div class="modal-tab active" data-tab="stats" onclick="switchModalTab('stats', this)">Stats</div>
@@ -3611,6 +3660,48 @@ function rollSavingThrow(abName, mod) {
   showModalRollResult(msg, isCrit, isFumble, total);
 }
 
+function buildCombatBar(c) {
+  const ab = {};
+  (c.abilities || []).forEach(([n,s,m]) => ab[n] = { score: s, mod: parseInt(m)||0 });
+  const dexMod = ab['DEX'] ? ab['DEX'].mod : 0;
+  const wisMod = ab['WIS'] ? ab['WIS'].mod : 0;
+  const prof = c.cr === '30' ? 9 : c.cr === '21' || c.cr === '20' ? 7 : c.cr === '17' || c.cr === '16' ? 6 :
+               c.cr === '15' || c.cr === '14' ? 5 : c.cr === '13' || c.cr === '9' || c.cr === '10' ? 4 :
+               c.cr === '7' || c.cr === '8' ? 3 : c.cr === '5' || c.cr === '6' ? 3 : 2;
+  const maxHp = parseInt(c.hp) || 1;
+  const currHp = getCharHP(c.name, maxHp);
+  const hpPct = currHp / maxHp;
+  const initBonus = dexMod >= 0 ? `+${dexMod}` : `${dexMod}`;
+  const passivePerc = 10 + wisMod + prof;
+  const speed = c.theme === 'nature' ? 40 : c.theme === 'ocean' ? 35 : c.theme === 'fire' ? 30 : 30;
+
+  const box = (label, value, sub, rollable, onClick) =>
+    `<div class="combat-stat-box ${rollable?'rollable':''}" ${onClick?`onclick="${onClick}" title="${label} — click to roll"`:''}>
+      <div class="combat-stat-label">${label}</div>
+      <div class="combat-stat-value">${value}</div>
+      ${sub ? `<div class="combat-stat-sub">${sub}</div>` : ''}
+    </div>`;
+
+  return [
+    box('Armor Class', c.ac, 'AC', false, null),
+    box('Initiative', initBonus, 'DEX mod', true, `rollModalInitiative(${dexMod})`),
+    box('Speed', speed + ' ft', null, false, null),
+    box('HP', `<span style="color:${hpBarColor(hpPct)}">${currHp}</span>`, `of ${maxHp} max`, false, null),
+    box('Hit Dice', 'd' + (parseInt(c.hp) > 100 ? '12' : '8'), null, false, null),
+    box('Prof Bonus', `+${prof}`, 'CR ' + c.cr, false, null),
+    box('Passive Perc', passivePerc, 'WIS', false, null),
+    box('CR', c.cr, 'Challenge', false, null),
+  ].join('');
+}
+
+function rollModalInitiative(dexMod) {
+  const roll = Math.floor(Math.random() * 20) + 1;
+  const total = roll + dexMod;
+  const isCrit = roll === 20, isFumble = roll === 1;
+  const mod = dexMod >= 0 ? `+${dexMod}` : `${dexMod}`;
+  showModalRollResult(`Initiative: d20(${roll})${mod} = ${total}${isCrit?' ★ FIRST!':isFumble?' ☠ Last':''}`, isCrit, isFumble, total);
+}
+
 function showModalRollResult(msg, isCrit, isFumble, total) {
   let el = document.getElementById('modalRollBanner');
   if (!el) {
@@ -3639,6 +3730,9 @@ function openModal(idx) {
   document.getElementById('modalPortrait').style.border = `3px solid ${t.accent}`;
   document.getElementById('modalPortrait').style.boxShadow = `0 0 20px ${t.glow}`;
   document.getElementById('modalContent').style.setProperty('--accent', t.accent);
+
+  // Build quick combat stats bar
+  document.getElementById('modalCombatBar').innerHTML = buildCombatBar(c);
 
   // Build stats panel
   document.getElementById('statsPanel').innerHTML = buildStatsPanel(c);
