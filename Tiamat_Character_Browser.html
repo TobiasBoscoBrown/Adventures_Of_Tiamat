@@ -681,6 +681,77 @@
     opacity: 0.8;
   }
 
+  /* ── Dice Roller ── */
+  .dice-section {
+    padding: 12px 28px;
+    border-bottom: 1px solid #1e2040;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .dice-label {
+    font-size: 11px;
+    color: #4a5272;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-right: 2px;
+  }
+  .dice-btn {
+    background: #0e0e28;
+    border: 1px solid #2a2a50;
+    border-radius: 6px;
+    color: #9098b8;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 9px;
+    cursor: pointer;
+    font-family: 'Cinzel', serif;
+    transition: all 0.15s;
+    letter-spacing: 0.5px;
+  }
+  .dice-btn:hover { border-color: var(--accent, #c9a227); color: var(--accent, #c9a227); }
+  .dice-result {
+    background: #06061a;
+    border: 1px solid #1e2040;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #f0e6d3;
+    min-width: 50px;
+    text-align: center;
+    transition: color 0.2s;
+  }
+  .dice-result.rolled { color: var(--accent, #c9a227); animation: diceFlash 0.3s; }
+  @keyframes diceFlash { 0%{transform:scale(1.3)} 100%{transform:scale(1)} }
+  .dice-apply-btn {
+    background: #0e0e28;
+    border: 1px solid #cc3333;
+    border-radius: 6px;
+    color: #cc3333;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.15s;
+  }
+  .dice-apply-btn:hover { background: #cc3333; color: #fff; }
+  .dice-heal-btn {
+    background: #0e0e28;
+    border: 1px solid #44aa44;
+    border-radius: 6px;
+    color: #44aa44;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.15s;
+  }
+  .dice-heal-btn:hover { background: #44aa44; color: #fff; }
+
   /* ── DM Notes ── */
   .modal-notes-section {
     padding: 14px 28px;
@@ -962,6 +1033,7 @@
         <button class="modal-close" onclick="closeModal()">&#10005; Close</button>
       </div>
     </div>
+    <div id="modalDice"></div>
     <div id="modalNotes"></div>
     <div id="modalConditions"></div>
     <div id="modalPdf" style="padding: 0;"></div>
@@ -1125,6 +1197,65 @@ function resetAllHP() {
   if (!confirm('Reset all character HP to maximum?')) return;
   UNIQUE_CHARS.forEach(c => localStorage.removeItem(hpKey(c.name)));
   renderGrid();
+}
+
+/* ── Dice Roller ── */
+let lastDiceRoll = 0;
+let diceModalChar = null;
+
+function rollDice(sides) {
+  const result = Math.ceil(Math.random() * sides);
+  lastDiceRoll = result;
+  const el = document.getElementById('diceResult');
+  if (el) {
+    el.textContent = result;
+    el.className = 'dice-result rolled';
+    setTimeout(() => el.classList.remove('rolled'), 400);
+  }
+}
+
+function applyDamage() {
+  if (!diceModalChar || lastDiceRoll === 0) return;
+  const cur = getHP(diceModalChar.name, diceModalChar.hp);
+  setHP(diceModalChar.name, cur - lastDiceRoll, diceModalChar.hp);
+  const el = document.getElementById('diceResult');
+  if (el) { el.style.color = '#cc3333'; setTimeout(() => el.style.color = '', 600); }
+  // Update the modal HP mini display
+  updateDiceHPDisplay();
+}
+
+function applyHeal() {
+  if (!diceModalChar || lastDiceRoll === 0) return;
+  const cur = getHP(diceModalChar.name, diceModalChar.hp);
+  setHP(diceModalChar.name, cur + lastDiceRoll, diceModalChar.hp);
+  const el = document.getElementById('diceResult');
+  if (el) { el.style.color = '#44aa44'; setTimeout(() => el.style.color = '', 600); }
+  updateDiceHPDisplay();
+}
+
+function updateDiceHPDisplay() {
+  if (!diceModalChar) return;
+  const el = document.getElementById('modalHpMini');
+  if (el) el.textContent = getHP(diceModalChar.name, diceModalChar.hp) + ' / ' + diceModalChar.hp + ' HP';
+}
+
+function renderDicePanel(char) {
+  diceModalChar = char;
+  const curHp = getHP(char.name, char.hp);
+  return `<div class="dice-section">
+    <span class="dice-label">Dice:</span>
+    <button class="dice-btn" onclick="rollDice(4)"  title="Roll d4">d4</button>
+    <button class="dice-btn" onclick="rollDice(6)"  title="Roll d6">d6</button>
+    <button class="dice-btn" onclick="rollDice(8)"  title="Roll d8">d8</button>
+    <button class="dice-btn" onclick="rollDice(10)" title="Roll d10">d10</button>
+    <button class="dice-btn" onclick="rollDice(12)" title="Roll d12">d12</button>
+    <button class="dice-btn" onclick="rollDice(20)" title="Roll d20">d20</button>
+    <button class="dice-btn" onclick="rollDice(100)" title="Roll d100">d100</button>
+    <div class="dice-result" id="diceResult">—</div>
+    <button class="dice-apply-btn" onclick="applyDamage()" title="Apply as damage">−DMG</button>
+    <button class="dice-heal-btn"  onclick="applyHeal()"   title="Apply as healing">+HEAL</button>
+    <span style="font-size:12px;color:#9098b8;margin-left:4px;" id="modalHpMini">${curHp} / ${char.hp} HP</span>
+  </div>`;
 }
 
 /* ── Sort ── */
@@ -1368,6 +1499,8 @@ function openModal(idx) {
   document.getElementById('modalName').textContent = c.name;
   document.getElementById('modalContent').style.setProperty('--accent', t.accent);
 
+  // Dice roller panel
+  document.getElementById('modalDice').innerHTML = renderDicePanel(c);
   // Notes panel
   document.getElementById('modalNotes').innerHTML = renderNotesPanel(c.name);
   // Conditions panel
