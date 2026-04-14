@@ -550,6 +550,161 @@
     border-radius: 3px;
     transition: width 0.3s, background 0.3s;
   }
+
+  /* ── Dice Roller ── */
+  .dice-roller-toggle {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background: linear-gradient(135deg, #12103a, #1e1c4a);
+    border: 1px solid #4488ff;
+    border-radius: 12px;
+    padding: 10px 16px;
+    cursor: pointer;
+    color: #4488ff;
+    font-size: 13px;
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    letter-spacing: 1px;
+    z-index: 200;
+    transition: all 0.2s;
+    box-shadow: 0 4px 20px rgba(68,136,255,0.15);
+    user-select: none;
+  }
+  .dice-roller-toggle:hover {
+    background: #4488ff;
+    color: #06061a;
+    box-shadow: 0 4px 24px rgba(68,136,255,0.4);
+  }
+  .dice-roller-panel {
+    position: fixed;
+    bottom: 72px;
+    left: 20px;
+    background: linear-gradient(145deg, #0e0e2a, #0a0a1e);
+    border: 1px solid #4488ff;
+    border-radius: 16px;
+    padding: 20px;
+    z-index: 300;
+    width: 300px;
+    display: none;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.9), 0 0 30px rgba(68,136,255,0.1);
+  }
+  .dice-roller-panel.open { display: block; }
+  .dice-panel-title {
+    font-family: 'Cinzel', serif;
+    color: #4488ff;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-bottom: 14px;
+    text-align: center;
+  }
+  .dice-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .dice-btn {
+    background: #06061a;
+    border: 1px solid #2a2a50;
+    border-radius: 8px;
+    padding: 10px 4px;
+    cursor: pointer;
+    color: #9098b8;
+    font-size: 12px;
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    text-align: center;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+  .dice-btn:hover { border-color: #4488ff; color: #4488ff; background: #0e0e28; transform: translateY(-2px); }
+  .dice-btn:active { transform: scale(0.95); }
+  .dice-btn .dice-icon { font-size: 18px; }
+  .dice-modifier-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+  .dice-mod-label { font-size: 12px; color: #9098b8; white-space: nowrap; }
+  .dice-mod-input {
+    flex: 1;
+    background: #06061a;
+    border: 1px solid #2a2a50;
+    border-radius: 6px;
+    padding: 6px 8px;
+    color: #f0e6d3;
+    font-size: 13px;
+    text-align: center;
+    outline: none;
+  }
+  .dice-mod-input:focus { border-color: #4488ff; }
+  .dice-count-input {
+    width: 50px;
+    background: #06061a;
+    border: 1px solid #2a2a50;
+    border-radius: 6px;
+    padding: 6px 8px;
+    color: #f0e6d3;
+    font-size: 13px;
+    text-align: center;
+    outline: none;
+  }
+  .dice-count-input:focus { border-color: #4488ff; }
+  .dice-result-area {
+    background: #06061a;
+    border: 1px solid #1e2040;
+    border-radius: 8px;
+    padding: 10px 12px;
+    min-height: 52px;
+    margin-bottom: 10px;
+  }
+  .dice-result-main {
+    font-size: 28px;
+    font-weight: 700;
+    color: #f0e6d3;
+    font-family: 'Cinzel', serif;
+    text-align: center;
+    margin-bottom: 2px;
+  }
+  .dice-result-detail {
+    font-size: 11px;
+    color: #4a5272;
+    text-align: center;
+    font-family: monospace;
+  }
+  .dice-result-main.crit { color: #c9a227; text-shadow: 0 0 10px rgba(201,162,39,0.5); }
+  .dice-result-main.fumble { color: #cc3333; }
+  .dice-history {
+    max-height: 100px;
+    overflow-y: auto;
+    font-size: 11px;
+    color: #4a5272;
+    font-family: monospace;
+    line-height: 1.6;
+  }
+  .dice-history::-webkit-scrollbar { width: 4px; }
+  .dice-history::-webkit-scrollbar-track { background: #06061a; }
+  .dice-history::-webkit-scrollbar-thumb { background: #2a2a50; border-radius: 2px; }
+  .dice-history-entry { margin-bottom: 2px; }
+  .dice-history-entry .roll-val { color: #9098b8; }
+  .dice-history-entry .roll-crit { color: #c9a227; }
+  .dice-history-entry .roll-fumble { color: #cc3333; }
+  .dice-history-clear {
+    background: none;
+    border: none;
+    color: #2a2a50;
+    font-size: 10px;
+    cursor: pointer;
+    float: right;
+    margin-top: -2px;
+  }
+  .dice-history-clear:hover { color: #cc3333; }
 </style>
 </head>
 <body>
@@ -625,8 +780,38 @@
   <button class="hp-popup-full" onclick="applyHpAction('full')">↺ Full HP</button>
 </div>
 
+<!-- Dice Roller Panel -->
+<button class="dice-roller-toggle" onclick="toggleDicePanel()" id="diceToggle">⚄ DICE</button>
+<div class="dice-roller-panel" id="dicePanel">
+  <div class="dice-panel-title">⚄ DICE ROLLER</div>
+  <div class="dice-modifier-row">
+    <span class="dice-mod-label"># Dice:</span>
+    <input type="number" id="diceCount" class="dice-count-input" value="1" min="1" max="20">
+    <span class="dice-mod-label">Modifier:</span>
+    <input type="number" id="diceMod" class="dice-mod-input" value="0" min="-20" max="40">
+  </div>
+  <div class="dice-grid">
+    <button class="dice-btn" onclick="rollDice(4)"><span class="dice-icon">◆</span>d4</button>
+    <button class="dice-btn" onclick="rollDice(6)"><span class="dice-icon">⬡</span>d6</button>
+    <button class="dice-btn" onclick="rollDice(8)"><span class="dice-icon">◈</span>d8</button>
+    <button class="dice-btn" onclick="rollDice(10)"><span class="dice-icon">◇</span>d10</button>
+    <button class="dice-btn" onclick="rollDice(12)"><span class="dice-icon">⬟</span>d12</button>
+    <button class="dice-btn" onclick="rollDice(20)" style="border-color:#c9a227;color:#c9a227"><span class="dice-icon">⬠</span>d20</button>
+    <button class="dice-btn" onclick="rollDice(100)"><span class="dice-icon">○</span>d100</button>
+    <button class="dice-btn" onclick="rollCustom()" style="color:#9b6dff"><span class="dice-icon">✦</span>Custom</button>
+  </div>
+  <div class="dice-result-area">
+    <div id="diceResultMain" class="dice-result-main" style="color:#4a5272">—</div>
+    <div id="diceResultDetail" class="dice-result-detail"></div>
+  </div>
+  <div class="dice-history" id="diceHistory">
+    <button class="dice-history-clear" onclick="clearDiceHistory()">✕ clear</button>
+    <div id="diceHistoryList"></div>
+  </div>
+</div>
+
 <div class="keyboard-hint">
-  <kbd>&#8592;</kbd> <kbd>&#8594;</kbd> Navigate &nbsp; <kbd>Esc</kbd> Close &nbsp; <kbd>/</kbd> Search &nbsp; <kbd>click HP bar</kbd> Adjust HP
+  <kbd>&#8592;</kbd> <kbd>&#8594;</kbd> Navigate &nbsp; <kbd>Esc</kbd> Close &nbsp; <kbd>/</kbd> Search &nbsp; <kbd>D</kbd> Dice
 </div>
 
 <script>
@@ -958,6 +1143,86 @@ document.addEventListener('click', (e) => {
 document.getElementById('modal').addEventListener('click', (e) => {
   if (e.target === document.getElementById('modal')) closeModal();
 });
+
+// ── DICE ROLLER ─────────────────────────────────────────
+let diceHistory = [];
+
+function toggleDicePanel() {
+  const panel = document.getElementById('dicePanel');
+  panel.classList.toggle('open');
+}
+
+function rollDice(sides) {
+  const count = Math.max(1, Math.min(20, parseInt(document.getElementById('diceCount').value) || 1));
+  const mod = parseInt(document.getElementById('diceMod').value) || 0;
+  const rolls = Array.from({length: count}, () => Math.floor(Math.random() * sides) + 1);
+  const total = rolls.reduce((a, b) => a + b, 0) + mod;
+  const isCrit = sides === 20 && count === 1 && rolls[0] === 20;
+  const isFumble = sides === 20 && count === 1 && rolls[0] === 1;
+
+  const mainEl = document.getElementById('diceResultMain');
+  mainEl.textContent = total;
+  mainEl.className = 'dice-result-main' + (isCrit ? ' crit' : isFumble ? ' fumble' : '');
+
+  let detail = `${count}d${sides}`;
+  if (mod !== 0) detail += ` ${mod >= 0 ? '+' : ''}${mod}`;
+  detail += ` = [${rolls.join(', ')}]`;
+  if (mod !== 0) detail += ` + ${mod}`;
+  if (isCrit) detail += ' ★ CRITICAL HIT!';
+  if (isFumble) detail += ' ☠ FUMBLE!';
+  document.getElementById('diceResultDetail').textContent = detail;
+
+  // Add to history
+  const timestamp = new Date().toLocaleTimeString('en-US', {hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit'});
+  const entry = { ts: timestamp, expr: `${count}d${sides}${mod !== 0 ? (mod>0?'+':'') + mod : ''}`, result: total, isCrit, isFumble, detail };
+  diceHistory.unshift(entry);
+  if (diceHistory.length > 30) diceHistory.pop();
+  renderDiceHistory();
+}
+
+function rollCustom() {
+  const expr = prompt('Enter dice expression (e.g. 2d6+3, 1d20-1):');
+  if (!expr) return;
+  const match = expr.match(/^(\d+)?d(\d+)([+-]\d+)?$/i);
+  if (!match) { alert('Use format like: 2d6+3'); return; }
+  const count = parseInt(match[1] || '1');
+  const sides = parseInt(match[2]);
+  const mod = parseInt(match[3] || '0');
+  document.getElementById('diceCount').value = count;
+  document.getElementById('diceMod').value = mod;
+  rollDice(sides);
+}
+
+function renderDiceHistory() {
+  const el = document.getElementById('diceHistoryList');
+  if (!diceHistory.length) { el.innerHTML = '<span style="color:#2a2a50">No rolls yet</span>'; return; }
+  el.innerHTML = diceHistory.map(e =>
+    `<div class="dice-history-entry"><span style="color:#2a2a50">${e.ts}</span> ${e.expr} → <span class="roll-val ${e.isCrit?'roll-crit':e.isFumble?'roll-fumble':''}">${e.result}</span>${e.isCrit?' ★':e.isFumble?' ☠':''}</div>`
+  ).join('');
+}
+
+function clearDiceHistory() {
+  diceHistory = [];
+  renderDiceHistory();
+  document.getElementById('diceResultMain').textContent = '—';
+  document.getElementById('diceResultMain').className = 'dice-result-main';
+  document.getElementById('diceResultDetail').textContent = '';
+}
+
+// 'D' key toggles dice panel
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'd' && !e.ctrlKey && !e.metaKey && currentModalIdx < 0 &&
+      document.activeElement !== document.getElementById('searchBox') &&
+      !document.getElementById('hpGlobalPopup').classList.contains('open')) {
+    toggleDicePanel();
+  }
+  if (e.key === 'Escape') {
+    if (document.getElementById('dicePanel').classList.contains('open')) {
+      document.getElementById('dicePanel').classList.remove('open');
+    }
+  }
+});
+// ────────────────────────────────────────────────────────
 
 renderGrid();
 </script>
