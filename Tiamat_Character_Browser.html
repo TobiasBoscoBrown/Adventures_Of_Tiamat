@@ -636,6 +636,37 @@
   }
   .init-card-btn:hover { border-color: #c9a227; color: #c9a227; background: rgba(201,162,39,0.08); }
 
+  /* ── Favorites ── */
+  .fav-btn {
+    position: absolute;
+    top: 12px;
+    left: 14px;
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    z-index: 7;
+    line-height: 1;
+    padding: 0;
+    opacity: 0.3;
+    transition: opacity 0.2s, transform 0.2s;
+    filter: grayscale(1);
+  }
+  .fav-btn:hover  { opacity: 0.7; transform: scale(1.2); }
+  .fav-btn.active { opacity: 1; filter: none; transform: scale(1.15); }
+  .card.is-pinned { order: -1; }
+  .pinned-badge {
+    position: absolute;
+    top: 36px;
+    left: 14px;
+    font-size: 9px;
+    color: #c9a227;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+    opacity: 0.8;
+  }
+
   /* ── DM Notes ── */
   .modal-notes-section {
     padding: 14px 28px;
@@ -1071,6 +1102,26 @@ function resetAllHP() {
   renderGrid();
 }
 
+/* ── Favorites ── */
+function favKey() { return 'tiamat_favorites'; }
+
+function getFavorites() {
+  try { return new Set(JSON.parse(localStorage.getItem(favKey())) || []); }
+  catch(e) { return new Set(); }
+}
+
+function saveFavorites(favSet) {
+  localStorage.setItem(favKey(), JSON.stringify([...favSet]));
+}
+
+function toggleFavorite(name, event) {
+  event.stopPropagation();
+  const favs = getFavorites();
+  if (favs.has(name)) favs.delete(name); else favs.add(name);
+  saveFavorites(favs);
+  renderGrid();
+}
+
 /* ── Conditions ── */
 const CONDITIONS = [
   'poisoned','stunned','charmed','frightened','paralyzed',
@@ -1154,6 +1205,13 @@ function renderGrid() {
     return matchGroup && matchTheme && matchSearch;
   });
 
+  const favs = getFavorites();
+  // Sort pinned characters to the front
+  filteredChars.sort((a, b) => {
+    const af = favs.has(a.name) ? 0 : 1;
+    const bf = favs.has(b.name) ? 0 : 1;
+    return af - bf;
+  });
   const grid = document.getElementById('grid');
   grid.innerHTML = filteredChars.map((c, i) => {
     const t = getTheme(c.theme);
@@ -1164,6 +1222,7 @@ function renderGrid() {
     const isDead = curHp === 0;
     const activeConds = getConditions(c.name);
     const hasNotes = getNotes(c.name).trim().length > 0;
+    const isPinned = favs.has(c.name);
     const abHtml = c.abilities.map(([n,s,m,hl]) =>
       `<div class="tt-ab${hl?' hl':''}"><span>${s}</span>${n}</div>`
     ).join('');
@@ -1172,6 +1231,8 @@ function renderGrid() {
     return `<div class="card${isDead?' is-dead':''}" id="card-${sid}" style="--accent:${t.accent};--glow:${t.glow}" onclick="openModal(${i})">
       ${isDead ? `<div class="dead-stamp" id="dead-${sid}">DEAD</div>` : `<div class="dead-stamp" id="dead-${sid}" style="display:none">DEAD</div>`}
       ${hasNotes ? `<div class="card-notes-dot" id="notesdot-${sid}" title="Has DM notes"></div>` : `<div class="card-notes-dot" id="notesdot-${sid}" style="display:none" title="Has DM notes"></div>`}
+      <button class="fav-btn${isPinned ? ' active' : ''}" onclick="toggleFavorite('${c.name.replace(/'/g,"\\'")}', event)" title="${isPinned ? 'Unpin' : 'Pin to top'}">★</button>
+      ${isPinned ? `<div class="pinned-badge">Pinned</div>` : ''}
       <div class="card-tooltip" style="--accent:${t.accent}">
         <div class="tt-name">${c.name}</div>
         <div class="tt-title">${c.title}</div>
