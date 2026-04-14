@@ -1936,6 +1936,88 @@
     margin-left: 4px;
     font-family: monospace;
   }
+
+  /* ── Quick Reference Panel ── */
+  .qref-panel {
+    position: fixed;
+    top: 80px;
+    left: 20px;
+    background: linear-gradient(145deg, #0e0e2a, #0a0a1e);
+    border: 1px solid #2299bb;
+    border-radius: 16px;
+    width: 340px;
+    max-height: calc(100vh - 120px);
+    z-index: 300;
+    display: none;
+    flex-direction: column;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.9), 0 0 20px rgba(34,153,187,0.1);
+    overflow: hidden;
+  }
+  .qref-panel.open { display: flex; }
+  .qref-header {
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(34,153,187,0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(34,153,187,0.05);
+    flex-shrink: 0;
+  }
+  .qref-title { font-family: 'Cinzel', serif; color: #2299bb; font-size: 13px; font-weight: 700; letter-spacing: 1px; }
+  .qref-tabs {
+    display: flex;
+    border-bottom: 1px solid #1e2040;
+    flex-shrink: 0;
+  }
+  .qref-tab {
+    padding: 8px 14px;
+    font-size: 11px;
+    color: #4a5272;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .qref-tab:hover { color: #9098b8; }
+  .qref-tab.active { color: #2299bb; border-bottom-color: #2299bb; }
+  .qref-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 14px;
+  }
+  .qref-body::-webkit-scrollbar { width: 4px; }
+  .qref-body::-webkit-scrollbar-track { background: transparent; }
+  .qref-body::-webkit-scrollbar-thumb { background: #2a2a50; border-radius: 2px; }
+  .qref-section { margin-bottom: 14px; }
+  .qref-section-title { font-size: 10px; color: #2299bb; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 6px; }
+  .qref-item { font-size: 11px; color: #9098b8; padding: 4px 0; border-bottom: 1px solid rgba(30,32,64,0.5); line-height: 1.5; }
+  .qref-item strong { color: #f0e6d3; }
+  .qref-item em { color: #4a5272; }
+  .qref-dc-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .qref-dc-table th { color: #2299bb; font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; text-align: left; padding: 4px 6px; border-bottom: 1px solid #1e2040; }
+  .qref-dc-table td { color: #9098b8; padding: 4px 6px; border-bottom: 1px solid rgba(30,32,64,0.5); }
+  .qref-dc-table td:first-child { color: #f0e6d3; font-weight: 600; }
+  /* Quick Ref toggle button */
+  .qref-toggle {
+    position: fixed;
+    top: 80px;
+    left: 20px;
+    background: linear-gradient(135deg, #06121a, #0a1820);
+    border: 1px solid #2299bb;
+    border-radius: 12px;
+    padding: 10px 16px;
+    cursor: pointer;
+    color: #2299bb;
+    font-size: 13px;
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    letter-spacing: 1px;
+    z-index: 200;
+    transition: all 0.2s;
+    user-select: none;
+    display: none;
+  }
+  .qref-toggle:hover { background: #2299bb; color: #fff; }
 </style>
 </head>
 <body>
@@ -1943,6 +2025,7 @@
 <header>
   <h1>ADVENTURES OF <span>TIAMAT</span> — Character Browser</h1>
   <div class="header-stats">
+    <button class="encounter-open-btn" onclick="toggleQRef()" style="border-color:#2299bb;color:#2299bb">⚡ Quick Ref</button>
     <button class="encounter-open-btn" onclick="openLoreBrowser()" style="border-color:#44aa44;color:#44aa44">📚 Lore</button>
     <button class="encounter-open-btn" onclick="openEncounterBuilder()">⚔ Encounters</button>
     <button class="encounter-open-btn" onclick="openSessionManager()" style="border-color:#9b6dff;color:#9b6dff">💾 Session</button>
@@ -2047,6 +2130,21 @@
     <input type="number" id="initCustomScore" class="init-add-input" placeholder="Init" style="width:50px;flex:none;">
     <button class="init-add-btn" onclick="addCustomToInitiative()">+ Add</button>
   </div>
+</div>
+
+<!-- Quick Reference Panel -->
+<div class="qref-panel" id="qrefPanel">
+  <div class="qref-header">
+    <div class="qref-title">⚡ QUICK REFERENCE</div>
+    <button class="modal-close" onclick="toggleQRef()" style="padding:4px 8px;font-size:12px">✕</button>
+  </div>
+  <div class="qref-tabs" id="qrefTabs">
+    <div class="qref-tab active" onclick="showQRefTab('actions',this)">Actions</div>
+    <div class="qref-tab" onclick="showQRefTab('conditions',this)">Conditions</div>
+    <div class="qref-tab" onclick="showQRefTab('dcs',this)">DCs</div>
+    <div class="qref-tab" onclick="showQRefTab('skills',this)">Skills</div>
+  </div>
+  <div class="qref-body" id="qrefBody"></div>
 </div>
 
 <!-- Lore Browser Modal -->
@@ -2966,6 +3064,123 @@ document.addEventListener('keydown', (e) => {
 document.getElementById('notesModal').addEventListener('click', (e) => {
   if (e.target === document.getElementById('notesModal')) closeNotes();
 });
+// ────────────────────────────────────────────────────────
+
+// ── QUICK REFERENCE ─────────────────────────────────────
+const QREF_DATA = {
+  actions: [
+    { title: 'Attack', desc: 'Make one or more melee or ranged attacks' },
+    { title: 'Bonus Action', desc: 'Use a feature that requires a bonus action' },
+    { title: 'Cast a Spell', desc: 'Cast a spell with casting time of 1 action or bonus action' },
+    { title: 'Dash', desc: 'Gain extra movement equal to your speed' },
+    { title: 'Disengage', desc: 'Your movement provokes no opportunity attacks for the turn' },
+    { title: 'Dodge', desc: 'Attackers disadvantage, advantage on DEX saves, until next turn' },
+    { title: 'Help', desc: 'Give advantage on one ability check or attack to ally' },
+    { title: 'Hide', desc: 'Make a Dexterity (Stealth) check — DC set by DM' },
+    { title: 'Ready', desc: 'Prepare a reaction to a specified trigger' },
+    { title: 'Search', desc: 'Perception or Investigation check to find something' },
+    { title: 'Use Object', desc: 'Interact with an object (some objects require full action)' },
+    { title: 'Grapple', desc: 'STR (Athletics) vs. DEX (Acrobatics)/STR (Athletics). Speed 0' },
+    { title: 'Shove', desc: 'STR (Athletics) vs. DEX (Acrobatics)/STR (Athletics). Knock prone or push 5ft' },
+    { title: 'Improvise', desc: 'DM decides — when in doubt, ability check with relevant stat' },
+  ],
+  conditions: [
+    { title: 'Blinded', desc: 'Auto-fail sight checks. Attack rolls against you have advantage. Your attack rolls have disadvantage.' },
+    { title: 'Charmed', desc: 'Cannot attack charmer. Charmer has advantage on social checks against you.' },
+    { title: 'Deafened', desc: 'Cannot hear. Auto-fail hearing checks.' },
+    { title: 'Exhausted', desc: '1:Disadv.checks / 2:Half speed / 3:Disadv.attacks+saves / 4:Half HP max / 5:Speed 0 / 6:Death' },
+    { title: 'Frightened', desc: 'Disadvantage on checks+attacks while source visible. Cannot move closer to source.' },
+    { title: 'Grappled', desc: 'Speed 0. Ends if grappler is incapacitated or moved out of reach.' },
+    { title: 'Incapacitated', desc: 'Cannot take actions or reactions.' },
+    { title: 'Invisible', desc: 'Cannot be seen. Attacks against you disadvantage. Your attacks advantage.' },
+    { title: 'Paralyzed', desc: 'Incapacitated + cannot move/speak. Auto-fail STR/DEX saves. Attacks adv. Melee crits within 5ft.' },
+    { title: 'Petrified', desc: 'Transformed to stone. Incapacitated, can\'t move/speak, unaware. Resistance all dmg, immune poison/disease.' },
+    { title: 'Poisoned', desc: 'Disadvantage on attack rolls and ability checks.' },
+    { title: 'Prone', desc: 'Attack rolls disadvantage. Attackers adv. if within 5ft, disadv. if farther. Stand: half movement.' },
+    { title: 'Restrained', desc: 'Speed 0. Attack rolls disadvantage. DEX saves disadvantage. Attackers advantage.' },
+    { title: 'Stunned', desc: 'Incapacitated + can\'t move. Auto-fail STR/DEX saves. Attackers advantage.' },
+    { title: 'Unconscious', desc: 'Incapacitated + prone. Drop held items. Auto-fail STR/DEX saves. Attackers advantage. Melee crits within 5ft.' },
+  ],
+  dcs: [
+    { dc: '5',  label: 'Very Easy', example: 'Notice a large building' },
+    { dc: '10', label: 'Easy',      example: 'Hear noise through a door' },
+    { dc: '15', label: 'Medium',    example: 'Pick a simple lock' },
+    { dc: '20', label: 'Hard',      example: 'Swim in stormy water' },
+    { dc: '25', label: 'Very Hard', example: 'Pick a masterwork lock' },
+    { dc: '30', label: 'Nearly Impossible', example: 'Track a ghost through snow' },
+  ],
+  skills: [
+    { skill: 'Athletics', ab: 'STR', uses: 'Climb, jump, swim, grapple, shove' },
+    { skill: 'Acrobatics', ab: 'DEX', uses: 'Balance, escape grapple, tumble, flip' },
+    { skill: 'Sleight of Hand', ab: 'DEX', uses: 'Pickpocket, conceal object, palm' },
+    { skill: 'Stealth', ab: 'DEX', uses: 'Hide, move quietly, avoid detection' },
+    { skill: 'Arcana', ab: 'INT', uses: 'Magic lore, spell effects, planes, rituals' },
+    { skill: 'History', ab: 'INT', uses: 'Historical events, people, wars, kingdoms' },
+    { skill: 'Investigation', ab: 'INT', uses: 'Deduce clues, search area, find hidden things' },
+    { skill: 'Nature', ab: 'INT', uses: 'Terrain, plants, animals, weather' },
+    { skill: 'Religion', ab: 'INT', uses: 'Deities, rites, symbols, cults, prayers' },
+    { skill: 'Animal Handling', ab: 'WIS', uses: 'Calm, train, control animals' },
+    { skill: 'Insight', ab: 'WIS', uses: 'Read intent, detect lies, sense motivation' },
+    { skill: 'Medicine', ab: 'WIS', uses: 'Stabilize dying, diagnose illness, treat wounds' },
+    { skill: 'Perception', ab: 'WIS', uses: 'Spot, hear, sense presence. Passive = 10+mod' },
+    { skill: 'Survival', ab: 'WIS', uses: 'Track, forage, navigate, endure wilderness' },
+    { skill: 'Deception', ab: 'CHA', uses: 'Lie, mislead, bluff, disguise intent' },
+    { skill: 'Intimidation', ab: 'CHA', uses: 'Coerce, threaten, bully, frighten' },
+    { skill: 'Performance', ab: 'CHA', uses: 'Entertain, disguise via acting, inspire' },
+    { skill: 'Persuasion', ab: 'CHA', uses: 'Convince, negotiate, charm, request' },
+  ]
+};
+
+let qrefCurrentTab = 'actions';
+
+function toggleQRef() {
+  document.getElementById('qrefPanel').classList.toggle('open');
+  if (document.getElementById('qrefPanel').classList.contains('open')) {
+    showQRefTab(qrefCurrentTab, document.querySelector('.qref-tab.active'));
+  }
+}
+
+function showQRefTab(tab, el) {
+  qrefCurrentTab = tab;
+  document.querySelectorAll('.qref-tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderQRef(tab);
+}
+
+function renderQRef(tab) {
+  const body = document.getElementById('qrefBody');
+  const data = QREF_DATA[tab];
+  if (tab === 'actions') {
+    body.innerHTML = data.map(d =>
+      `<div class="qref-item"><strong>${d.title}</strong><br><em>${d.desc}</em></div>`
+    ).join('');
+  } else if (tab === 'conditions') {
+    body.innerHTML = data.map(d =>
+      `<div class="qref-item"><strong>${d.title}:</strong> <em>${d.desc}</em></div>`
+    ).join('');
+  } else if (tab === 'dcs') {
+    body.innerHTML = `<table class="qref-dc-table">
+      <tr><th>DC</th><th>Difficulty</th><th>Example</th></tr>
+      ${data.map(d => `<tr><td>${d.dc}</td><td>${d.label}</td><td>${d.example}</td></tr>`).join('')}
+    </table>
+    <div class="qref-section" style="margin-top:14px">
+      <div class="qref-section-title">Death Saves</div>
+      <div class="qref-item">3 successes: Stabilized. 3 failures: Dead.</div>
+      <div class="qref-item"><strong>Instant stabilize:</strong> Any healing (even 1 HP).</div>
+      <div class="qref-item"><strong>Crit hit while downed:</strong> Counts as 2 failures.</div>
+    </div>
+    <div class="qref-section">
+      <div class="qref-section-title">Short vs Long Rest</div>
+      <div class="qref-item"><strong>Short Rest (1hr+):</strong> Spend Hit Dice to heal</div>
+      <div class="qref-item"><strong>Long Rest (8hrs):</strong> Full HP, all HD, all spells, abilities</div>
+    </div>`;
+  } else if (tab === 'skills') {
+    body.innerHTML = `<table class="qref-dc-table">
+      <tr><th>Skill</th><th>Ability</th><th>Uses</th></tr>
+      ${data.map(d => `<tr><td>${d.skill}</td><td style="color:#c9a227">${d.ab}</td><td>${d.uses}</td></tr>`).join('')}
+    </table>`;
+  }
+}
 // ────────────────────────────────────────────────────────
 
 // ── LORE BROWSER ────────────────────────────────────────
