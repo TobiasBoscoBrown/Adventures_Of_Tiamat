@@ -828,6 +828,64 @@
     opacity: 0.8;
   }
 
+  /* ── Death Saves ── */
+  .death-saves-section {
+    padding: 10px 28px;
+    border-bottom: 1px solid #1e2040;
+    display: none;
+    align-items: center;
+    gap: 16px;
+    background: rgba(80,0,0,0.15);
+    flex-wrap: wrap;
+  }
+  .death-saves-section.visible { display: flex; }
+  .death-saves-label {
+    font-size: 11px;
+    color: #cc3333;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+    font-family: 'Cinzel', serif;
+  }
+  .death-saves-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+  }
+  .death-saves-row span { color: #9098b8; font-size: 11px; margin-right: 2px; }
+  .ds-pip {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: 2px solid #333;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-block;
+  }
+  .ds-pip.success { border-color: #44aa44; background: #44aa44; }
+  .ds-pip.failure { border-color: #cc3333; background: #cc3333; }
+  .ds-pip:hover   { transform: scale(1.2); }
+  .death-saves-status {
+    font-size: 12px;
+    font-weight: 700;
+    font-family: 'Cinzel', serif;
+    letter-spacing: 1px;
+  }
+  .death-saves-status.stable  { color: #44aa44; }
+  .death-saves-status.dead    { color: #cc3333; }
+  .ds-reset-btn {
+    background: none;
+    border: 1px solid #333;
+    border-radius: 5px;
+    color: #4a5272;
+    font-size: 11px;
+    padding: 3px 8px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.15s;
+  }
+  .ds-reset-btn:hover { border-color: #c9a227; color: #c9a227; }
+
   /* ── Dice Roller ── */
   .dice-section {
     padding: 12px 28px;
@@ -1186,6 +1244,7 @@
         <button class="modal-close" onclick="closeModal()">&#10005; Close</button>
       </div>
     </div>
+    <div id="modalDeathSaves" class="death-saves-section"></div>
     <div id="modalDice"></div>
     <div id="modalNotes"></div>
     <div id="modalConditions"></div>
@@ -1368,6 +1427,51 @@ function resetAllHP() {
   if (!confirm('Reset all character HP to maximum?')) return;
   UNIQUE_CHARS.forEach(c => localStorage.removeItem(hpKey(c.name)));
   renderGrid();
+}
+
+/* ── Death Saves ── */
+function dsKey(name) { return 'tiamat_ds_' + name.replace(/[^a-zA-Z0-9]/g, '_'); }
+
+function getDeathSaves(name) {
+  try { return JSON.parse(localStorage.getItem(dsKey(name))) || {s:[0,0,0], f:[0,0,0]}; }
+  catch(e) { return {s:[0,0,0], f:[0,0,0]}; }
+}
+
+function toggleDS(name, type, idx) {
+  const ds = getDeathSaves(name);
+  ds[type][idx] = ds[type][idx] ? 0 : 1;
+  localStorage.setItem(dsKey(name), JSON.stringify(ds));
+  renderDeathSavesPanel(name);
+}
+
+function resetDeathSaves(name) {
+  localStorage.removeItem(dsKey(name));
+  renderDeathSavesPanel(name);
+}
+
+function renderDeathSavesPanel(name) {
+  const section = document.getElementById('modalDeathSaves');
+  if (!section) return;
+  const curHp = getHP(name, 1);
+  if (curHp > 0) { section.className = 'death-saves-section'; section.innerHTML = ''; return; }
+  const ds = getDeathSaves(name);
+  const successes = ds.s.reduce((a,b)=>a+b,0);
+  const failures  = ds.f.reduce((a,b)=>a+b,0);
+  let statusText = '', statusCls = '';
+  if (successes >= 3) { statusText = 'Stable!'; statusCls = 'stable'; }
+  else if (failures >= 3) { statusText = 'Dead!'; statusCls = 'dead'; }
+  const pipHtml = (type, arr) => arr.map((v,i) =>
+    `<span class="ds-pip${v ? (' ' + (type==='s'?'success':'failure')) : ''}"
+      onclick="toggleDS('${name.replace(/'/g,"\\'")}','${type}',${i})" title="${type==='s'?'Success':'Failure'} ${i+1}"></span>`
+  ).join('');
+  section.className = 'death-saves-section visible';
+  section.innerHTML = `
+    <span class="death-saves-label">&#x1F480; Dying</span>
+    <div class="death-saves-row"><span>Successes:</span>${pipHtml('s', ds.s)}</div>
+    <div class="death-saves-row"><span>Failures:</span>${pipHtml('f', ds.f)}</div>
+    ${statusText ? `<span class="death-saves-status ${statusCls}">${statusText}</span>` : ''}
+    <button class="ds-reset-btn" onclick="resetDeathSaves('${name.replace(/'/g,"\\'")}')">Reset</button>
+  `;
 }
 
 /* ── Dice Roller ── */
@@ -1689,6 +1793,8 @@ function openModal(idx) {
   document.getElementById('modalName').textContent = c.name;
   document.getElementById('modalContent').style.setProperty('--accent', t.accent);
 
+  // Death saves panel (only visible when HP = 0)
+  renderDeathSavesPanel(c.name);
   // Dice roller panel
   document.getElementById('modalDice').innerHTML = renderDicePanel(c);
   // Notes panel
