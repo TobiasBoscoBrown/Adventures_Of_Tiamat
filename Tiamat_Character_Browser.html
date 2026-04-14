@@ -175,13 +175,52 @@
     height: 4px;
     background: var(--accent, #c9a227);
   }
-  .card-body { padding: 20px; }
+  .card-body { padding: 16px 20px 20px; }
+
+  /* ── Portrait System ── */
+  .card-portrait-area {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 12px;
+  }
+  .card-portrait {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    border: 2px solid var(--accent, #c9a227);
+    box-shadow: 0 0 14px var(--glow, rgba(201,162,39,0.3)), 0 2px 8px rgba(0,0,0,0.5);
+    flex-shrink: 0;
+    overflow: hidden;
+    background: #06061a;
+    transition: box-shadow 0.2s, transform 0.2s;
+    cursor: pointer;
+  }
+  .card:hover .card-portrait {
+    box-shadow: 0 0 22px var(--glow, rgba(201,162,39,0.5)), 0 4px 12px rgba(0,0,0,0.6);
+    transform: scale(1.05);
+  }
+  .card-portrait svg { width: 100%; height: 100%; display: block; }
+  .card-portrait-info { flex: 1; min-width: 0; }
+  .modal-portrait {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    border: 3px solid var(--accent, #c9a227);
+    box-shadow: 0 0 20px var(--glow, rgba(201,162,39,0.4));
+    overflow: hidden;
+    flex-shrink: 0;
+    background: #06061a;
+  }
+  .modal-portrait svg { width: 100%; height: 100%; display: block; }
+
   .card-name {
     font-family: 'Cinzel', serif;
-    font-size: 20px;
+    font-size: 17px;
     font-weight: 700;
     color: #f0e6d3;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
+    line-height: 1.2;
   }
   .card-title {
     font-size: 12px;
@@ -2155,8 +2194,14 @@
 <div class="modal-overlay" id="modal">
   <div class="modal" id="modalContent">
     <div class="modal-header">
-      <h2 id="modalName"></h2>
-      <div style="display:flex;gap:8px;align-items:center;">
+      <div style="display:flex;align-items:center;gap:16px;flex:1;min-width:0">
+        <div class="modal-portrait" id="modalPortrait"></div>
+        <div style="min-width:0">
+          <h2 id="modalName" style="font-size:20px;margin-bottom:2px"></h2>
+          <div id="modalSubtitle" style="font-size:12px;color:var(--accent,#c9a227);opacity:0.85"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
         <div class="modal-nav">
           <button onclick="navChar(-1)">&#9664; Prev</button>
           <button onclick="navChar(1)">Next &#9654;</button>
@@ -2769,6 +2814,63 @@ let sortAscending = true;
 
 function getTheme(t) { return THEMES[t] || THEMES.royal; }
 
+// ── PORTRAIT SYSTEM ─────────────────────────────────────
+function getPortraitSvg(c, size) {
+  const t = getTheme(c.theme);
+  const sid = safeId(c.name);
+  const words = c.name.split(' ');
+  const initials = (words.length >= 2
+    ? words[0][0] + words[words.length - 1][0]
+    : c.name.slice(0,2)).toUpperCase();
+
+  // Theme-based inner bg colors
+  const bgs = {
+    royal:   ['#1e1400','#3a2600'],
+    warrior: ['#1e0000','#380000'],
+    arcane:  ['#00081e','#00143a'],
+    nature:  ['#001400','#002800'],
+    shadow:  ['#12001e','#200030'],
+    fire:    ['#1e0800','#321200'],
+    ocean:   ['#000e1e','#001832'],
+    stone:   ['#100e00','#1e1a00'],
+    orc:     ['#081000','#101e00'],
+    pink:    ['#1e0010','#30001a'],
+  };
+  const [bg1, bg2] = bgs[c.theme] || bgs.royal;
+  const acc = t.accent;
+
+  // Unique silhouette per theme
+  const deco = {
+    royal:   `<polygon points="50,12 57,32 78,32 62,44 68,64 50,52 32,64 38,44 22,32 43,32" fill="${acc}" opacity="0.18"/>`,
+    warrior: `<path d="M50 18 L54 28 L50 78 L46 28 Z" fill="${acc}" opacity="0.12"/><polygon points="50,16 62,34 62,54 50,62 38,54 38,34" fill="none" stroke="${acc}" stroke-width="1.5" opacity="0.2"/>`,
+    arcane:  `<circle cx="50" cy="50" r="28" fill="none" stroke="${acc}" stroke-width="1.5" opacity="0.2"/><circle cx="50" cy="50" r="18" fill="none" stroke="${acc}" stroke-width="0.8" opacity="0.15"/><text x="50" y="38" text-anchor="middle" font-size="12" fill="${acc}" opacity="0.3">✦</text><text x="50" y="68" text-anchor="middle" font-size="10" fill="${acc}" opacity="0.25">✦</text>`,
+    nature:  `<path d="M50 75 Q28 55 35 35 Q50 20 65 35 Q72 55 50 75Z" fill="${acc}" opacity="0.12"/><line x1="50" y1="75" x2="50" y2="85" stroke="${acc}" stroke-width="1.5" opacity="0.2"/>`,
+    shadow:  `<path d="M50 15 Q65 28 60 45 Q72 58 62 72 Q50 65 38 72 Q28 58 40 45 Q35 28 50 15Z" fill="${acc}" opacity="0.12"/>`,
+    fire:    `<path d="M50 80 Q32 66 36 50 Q26 40 40 28 Q37 50 50 55 Q55 36 46 20 Q66 32 62 50 Q72 42 68 28 Q82 46 66 68 Q72 78 50 80Z" fill="${acc}" opacity="0.14"/>`,
+    ocean:   `<path d="M15 45 Q28 33 42 45 Q56 57 70 45 Q84 33 90 45" fill="none" stroke="${acc}" stroke-width="2" opacity="0.22"/><path d="M15 58 Q28 46 42 58 Q56 70 70 58 Q84 46 90 58" fill="none" stroke="${acc}" stroke-width="1.2" opacity="0.15"/>`,
+    stone:   `<polygon points="50,16 76,34 76,66 50,84 24,66 24,34" fill="none" stroke="${acc}" stroke-width="1.8" opacity="0.2"/><polygon points="50,28 66,38 66,62 50,72 34,62 34,38" fill="${acc}" opacity="0.07"/>`,
+    orc:     `<polygon points="50,12 64,28 78,24 68,42 82,56 62,54 50,72 38,54 18,56 32,42 22,24 36,28" fill="${acc}" opacity="0.14"/>`,
+    pink:    `<circle cx="50" cy="50" r="26" fill="${acc}" opacity="0.08"/><circle cx="50" cy="38" r="10" fill="${acc}" opacity="0.1"/><circle cx="38" cy="58" r="7" fill="${acc}" opacity="0.08"/><circle cx="62" cy="58" r="7" fill="${acc}" opacity="0.08"/>`,
+  };
+
+  const decoHtml = deco[c.theme] || deco.royal;
+  const crLabel = c.cr !== '0' ? `<text x="50" y="87" text-anchor="middle" font-family="Inter,sans-serif" font-size="8" fill="${acc}" opacity="0.6">CR ${c.cr}</text>` : '';
+
+  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="pbg_${sid}" cx="38%" cy="32%" r="75%">
+      <stop offset="0%" stop-color="${bg2}"/>
+      <stop offset="100%" stop-color="${bg1}"/>
+    </radialGradient>
+  </defs>
+  <circle cx="50" cy="50" r="50" fill="url(#pbg_${sid})"/>
+  ${decoHtml}
+  <text x="50" y="56" text-anchor="middle" font-family="Cinzel,serif" font-size="26" font-weight="700" fill="${acc}" opacity="0.95">${initials}</text>
+  ${crLabel}
+</svg>`;
+}
+// ────────────────────────────────────────────────────────
+
 // ── HP TRACKER ──────────────────────────────────────────
 // ── FAVORITES ───────────────────────────────────────────
 const FAV_KEY = 'tiamat_favorites';
@@ -3042,13 +3144,18 @@ function renderGrid() {
           <div class="card-group">${c.group}</div>
           <button onclick="event.stopPropagation();toggleFavorite(${JSON.stringify(c.name)},event)" title="${isFavorite(c.name)?'Unfavorite':'Favorite'}" style="position:absolute;top:38px;right:14px;background:none;border:none;font-size:14px;cursor:pointer;padding:0;z-index:10;color:${isFavorite(c.name)?'#c9a227':'#2a2a50'};transition:color 0.15s">${isFavorite(c.name)?'★':'☆'}</button>
           <button class="card-init-btn ${isInInitiative(c.name)?'in-init':''}" onclick="event.stopPropagation();toggleInitiative(${JSON.stringify(c.name)},${maxHp})" title="${isInInitiative(c.name)?'Remove from initiative':'Add to initiative'}">⚔</button>
-          <div class="card-name">${c.name}</div>
-          <div class="card-title">${c.title}</div>
-          <div class="card-subtitle">${c.subtitle}</div>
-          <div class="card-stats">
-            <div class="mini-stat"><strong>CR</strong> ${c.cr}</div>
-            <div class="mini-stat"><strong>HP</strong> ${c.hp}</div>
-            <div class="mini-stat"><strong>AC</strong> ${c.ac}</div>
+          <div class="card-portrait-area">
+            <div class="card-portrait" onclick="event.stopPropagation();openModal(${i})" title="Open ${c.name}">${getPortraitSvg(c)}</div>
+            <div class="card-portrait-info">
+              <div class="card-name">${c.name}</div>
+              <div class="card-title">${c.title}</div>
+              <div class="card-subtitle">${c.subtitle}</div>
+              <div class="card-stats">
+                <div class="mini-stat"><strong>CR</strong> ${c.cr}</div>
+                <div class="mini-stat"><strong>HP</strong> ${c.hp}</div>
+                <div class="mini-stat"><strong>AC</strong> ${c.ac}</div>
+              </div>
+            </div>
           </div>
           ${c.quote ? `<div class="card-quote">"${c.quote}"</div>` : ''}
           <div class="conditions-row" onclick="event.stopPropagation()">${getConditionBadgesHtml(c.name)}</div>
@@ -3376,6 +3483,11 @@ function openModal(idx) {
   const c = filteredChars[idx];
   const t = getTheme(c.theme);
   document.getElementById('modalName').textContent = c.name;
+  document.getElementById('modalSubtitle').textContent = c.title;
+  document.getElementById('modalPortrait').innerHTML = getPortraitSvg(c);
+  document.getElementById('modalPortrait').style.setProperty('--accent', t.accent);
+  document.getElementById('modalPortrait').style.border = `3px solid ${t.accent}`;
+  document.getElementById('modalPortrait').style.boxShadow = `0 0 20px ${t.glow}`;
   document.getElementById('modalContent').style.setProperty('--accent', t.accent);
 
   // Build stats panel
