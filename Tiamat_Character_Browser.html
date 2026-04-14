@@ -706,6 +706,186 @@
   }
   .dice-history-clear:hover { color: #cc3333; }
 
+  /* ── Character Notes ── */
+  .notes-modal {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 600;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+  }
+  .notes-modal.open { display: flex; }
+  .notes-panel {
+    background: linear-gradient(145deg, #0e0e2a, #0a0a1e);
+    border: 1px solid #9b6dff;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 560px;
+    max-height: 80vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 50px rgba(0,0,0,0.9), 0 0 30px rgba(155,109,255,0.1);
+  }
+  .notes-header {
+    padding: 18px 20px;
+    border-bottom: 1px solid rgba(155,109,255,0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(155,109,255,0.06);
+  }
+  .notes-char-name {
+    font-family: 'Cinzel', serif;
+    color: #9b6dff;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .notes-subtitle {
+    font-size: 12px;
+    color: #4a5272;
+    margin-top: 2px;
+  }
+  .notes-close-btn {
+    background: none;
+    border: 1px solid #333;
+    color: #9098b8;
+    border-radius: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+  .notes-close-btn:hover { border-color: #cc3333; color: #cc3333; }
+  .notes-body {
+    flex: 1;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+  }
+  .notes-textarea {
+    flex: 1;
+    background: #06061a;
+    border: 1px solid #2a2a50;
+    border-radius: 8px;
+    padding: 14px;
+    color: #dce0f0;
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    line-height: 1.6;
+    resize: none;
+    outline: none;
+    min-height: 200px;
+    transition: border-color 0.2s;
+  }
+  .notes-textarea:focus { border-color: #9b6dff; }
+  .notes-textarea::placeholder { color: #2a2a50; }
+  .notes-tags-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .notes-tag-label { font-size: 11px; color: #4a5272; }
+  .notes-tag {
+    background: #06061a;
+    border: 1px solid #2a2a50;
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: #9098b8;
+    user-select: none;
+  }
+  .notes-tag:hover { border-color: #9b6dff; color: #9b6dff; }
+  .notes-tag.active { background: #9b6dff; border-color: #9b6dff; color: #fff; }
+  .notes-footer {
+    padding: 14px 20px;
+    border-top: 1px solid #1e2040;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+  .notes-save-btn {
+    background: #9b6dff;
+    border: 1px solid #9b6dff;
+    color: #fff;
+    border-radius: 8px;
+    padding: 8px 20px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.15s;
+  }
+  .notes-save-btn:hover { background: #b08dff; }
+  .notes-clear-btn {
+    background: none;
+    border: 1px solid #333;
+    color: #4a5272;
+    border-radius: 8px;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.15s;
+  }
+  .notes-clear-btn:hover { border-color: #cc3333; color: #cc3333; }
+  .notes-saved-indicator {
+    font-size: 11px;
+    color: #44aa44;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .notes-saved-indicator.show { opacity: 1; }
+  /* Notes indicator dot on cards */
+  .card-notes-dot {
+    position: absolute;
+    bottom: 16px;
+    right: 14px;
+    width: 8px;
+    height: 8px;
+    background: #9b6dff;
+    border-radius: 50%;
+    box-shadow: 0 0 6px rgba(155,109,255,0.6);
+    cursor: pointer;
+    z-index: 10;
+  }
+  .card-notes-dot:hover::after {
+    content: 'Has notes';
+    position: absolute;
+    right: 14px;
+    bottom: 0;
+    background: #12103a;
+    border: 1px solid #9b6dff;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 10px;
+    color: #9b6dff;
+    white-space: nowrap;
+  }
+  /* Notes button in card footer area */
+  .card-notes-btn {
+    background: none;
+    border: none;
+    color: #2a2a50;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 0;
+    margin-left: auto;
+    transition: color 0.15s;
+    display: block;
+    margin-top: 4px;
+    text-align: right;
+  }
+  .card-notes-btn:hover { color: #9b6dff; }
+  .card-notes-btn.has-notes { color: #9b6dff; }
+
   /* ── Initiative Tracker ── */
   .initiative-panel {
     position: fixed;
@@ -989,6 +1169,37 @@
   </div>
 </div>
 
+<!-- Character Notes Modal -->
+<div class="notes-modal" id="notesModal">
+  <div class="notes-panel">
+    <div class="notes-header">
+      <div>
+        <div class="notes-char-name" id="notesCharName"></div>
+        <div class="notes-subtitle" id="notesCharTitle"></div>
+      </div>
+      <button class="notes-close-btn" onclick="closeNotes()">✕ Close</button>
+    </div>
+    <div class="notes-body">
+      <div class="notes-tags-row">
+        <span class="notes-tag-label">Status:</span>
+        <span class="notes-tag" data-tag="Allied" onclick="toggleNoteTag(this)">Allied</span>
+        <span class="notes-tag" data-tag="Hostile" onclick="toggleNoteTag(this)">Hostile</span>
+        <span class="notes-tag" data-tag="Met Party" onclick="toggleNoteTag(this)">Met Party</span>
+        <span class="notes-tag" data-tag="Dead" onclick="toggleNoteTag(this)">Dead</span>
+        <span class="notes-tag" data-tag="Captured" onclick="toggleNoteTag(this)">Captured</span>
+        <span class="notes-tag" data-tag="Key NPC" onclick="toggleNoteTag(this)">Key NPC</span>
+        <span class="notes-tag" data-tag="Watch" onclick="toggleNoteTag(this)">⚠ Watch</span>
+      </div>
+      <textarea class="notes-textarea" id="notesTextarea" placeholder="DM notes — anything goes. Relationships with players, secrets they've revealed, what they know, current plans..."></textarea>
+    </div>
+    <div class="notes-footer">
+      <button class="notes-clear-btn" onclick="clearNotes()">Clear Notes</button>
+      <span class="notes-saved-indicator" id="notesSavedIndicator">✓ Saved</span>
+      <button class="notes-save-btn" onclick="saveNotes()">Save Notes</button>
+    </div>
+  </div>
+</div>
+
 <!-- Dice Roller Panel -->
 <button class="dice-roller-toggle" onclick="toggleDicePanel()" id="diceToggle">⚄ DICE</button>
 <div class="dice-roller-panel" id="dicePanel">
@@ -1261,6 +1472,7 @@ function renderGrid() {
             <div class="mini-stat"><strong>AC</strong> ${c.ac}</div>
           </div>
           ${c.quote ? `<div class="card-quote">"${c.quote}"</div>` : ''}
+          <button class="card-notes-btn ${hasNotes(c.name)?'has-notes':''}" onclick="event.stopPropagation();openNotes(${JSON.stringify(c.name)},${JSON.stringify(c.title)})" title="DM Notes">${hasNotes(c.name)?'✎ Notes':'✎ Add note'}</button>
           <div class="hp-tracker" data-sid="${sid}" onclick="event.stopPropagation()">
             <div class="hp-row" onclick="openHpPopup(${JSON.stringify(c.name)},${maxHp},event)" title="Click to adjust HP">
               <div class="hp-bar-bg">
@@ -1353,6 +1565,78 @@ document.addEventListener('click', (e) => {
 document.getElementById('modal').addEventListener('click', (e) => {
   if (e.target === document.getElementById('modal')) closeModal();
 });
+
+// ── CHARACTER NOTES ─────────────────────────────────────
+const NOTES_KEY = 'tiamat_notes';
+let notesCurrentChar = '';
+
+function loadAllNotes() {
+  try { return JSON.parse(localStorage.getItem(NOTES_KEY)) || {}; } catch { return {}; }
+}
+function saveAllNotes(data) { localStorage.setItem(NOTES_KEY, JSON.stringify(data)); }
+
+function hasNotes(name) {
+  const all = loadAllNotes();
+  return !!(all[name] && (all[name].text || (all[name].tags && all[name].tags.length)));
+}
+
+function openNotes(name, title) {
+  notesCurrentChar = name;
+  document.getElementById('notesCharName').textContent = name;
+  document.getElementById('notesCharTitle').textContent = title;
+  const all = loadAllNotes();
+  const data = all[name] || { text: '', tags: [] };
+  document.getElementById('notesTextarea').value = data.text || '';
+  // Update tag states
+  document.querySelectorAll('.notes-tag').forEach(t => {
+    t.classList.toggle('active', (data.tags || []).includes(t.dataset.tag));
+  });
+  document.getElementById('notesSavedIndicator').classList.remove('show');
+  document.getElementById('notesModal').classList.add('open');
+  setTimeout(() => document.getElementById('notesTextarea').focus(), 60);
+}
+
+function closeNotes() {
+  document.getElementById('notesModal').classList.remove('open');
+}
+
+function toggleNoteTag(el) {
+  el.classList.toggle('active');
+}
+
+function saveNotes() {
+  const all = loadAllNotes();
+  const text = document.getElementById('notesTextarea').value.trim();
+  const tags = Array.from(document.querySelectorAll('.notes-tag.active')).map(t => t.dataset.tag);
+  if (text || tags.length) {
+    all[notesCurrentChar] = { text, tags };
+  } else {
+    delete all[notesCurrentChar];
+  }
+  saveAllNotes(all);
+  const ind = document.getElementById('notesSavedIndicator');
+  ind.classList.add('show');
+  setTimeout(() => ind.classList.remove('show'), 2000);
+  renderGrid(); // update notes indicators on cards
+}
+
+function clearNotes() {
+  document.getElementById('notesTextarea').value = '';
+  document.querySelectorAll('.notes-tag').forEach(t => t.classList.remove('active'));
+}
+
+// Ctrl+Enter saves notes
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey && e.key === 'Enter' && document.getElementById('notesModal').classList.contains('open')) {
+    saveNotes();
+  }
+});
+
+// Click outside notes modal to close
+document.getElementById('notesModal').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('notesModal')) closeNotes();
+});
+// ────────────────────────────────────────────────────────
 
 // ── INITIATIVE TRACKER ──────────────────────────────────
 let initiativeList = [];
