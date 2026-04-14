@@ -319,6 +319,20 @@
     transition: all 0.2s;
   }
   .reset-hp-btn:hover { border-color: #cc3333; color: #cc3333; }
+  .sort-select {
+    background: #0e0e28;
+    border: 1px solid #333;
+    border-radius: 8px;
+    color: #9098b8;
+    font-size: 12px;
+    padding: 7px 10px;
+    font-family: 'Inter', sans-serif;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .sort-select:focus, .sort-select:hover { border-color: #c9a227; }
+  .sort-select option { background: #0e0e28; }
 
   /* ── Conditions ── */
   .conditions-bar {
@@ -921,6 +935,17 @@
   <button class="filter-btn theme-pink" data-theme="pink" onclick="filterTheme('pink', this)">Pink</button>
   <span style="color: #333; margin: 0 4px;">|</span>
   <button class="reset-hp-btn" onclick="resetAllHP()" title="Reset all HP to maximum">⚕ Reset All HP</button>
+  <span style="color: #333; margin: 0 4px;">|</span>
+  <span style="font-size:12px;color:#4a5272;text-transform:uppercase;letter-spacing:1px;">Sort:</span>
+  <select class="sort-select" id="sortSelect" onchange="setSortOrder(this.value)" title="Sort characters">
+    <option value="default">Default</option>
+    <option value="name">Name A–Z</option>
+    <option value="cr-asc">CR Low–High</option>
+    <option value="cr-desc">CR High–Low</option>
+    <option value="hp-desc">HP High–Low</option>
+    <option value="hp-asc">HP Low–High</option>
+    <option value="alpha-group">Group</option>
+  </select>
 </div>
 
 <div class="grid" id="grid"></div>
@@ -1102,6 +1127,35 @@ function resetAllHP() {
   renderGrid();
 }
 
+/* ── Sort ── */
+let currentSort = 'default';
+
+function parseCR(cr) {
+  if (!cr) return 0;
+  const s = String(cr).trim();
+  if (s.includes('/')) { const [a,b] = s.split('/'); return parseInt(a)/parseInt(b); }
+  return parseFloat(s) || 0;
+}
+
+function setSortOrder(val) {
+  currentSort = val;
+  renderGrid();
+}
+
+function applySort(chars) {
+  const arr = [...chars];
+  switch (currentSort) {
+    case 'name':        arr.sort((a,b) => a.name.localeCompare(b.name)); break;
+    case 'cr-asc':      arr.sort((a,b) => parseCR(a.cr) - parseCR(b.cr)); break;
+    case 'cr-desc':     arr.sort((a,b) => parseCR(b.cr) - parseCR(a.cr)); break;
+    case 'hp-desc':     arr.sort((a,b) => (parseInt(b.hp)||0) - (parseInt(a.hp)||0)); break;
+    case 'hp-asc':      arr.sort((a,b) => (parseInt(a.hp)||0) - (parseInt(b.hp)||0)); break;
+    case 'alpha-group': arr.sort((a,b) => a.group.localeCompare(b.group) || a.name.localeCompare(b.name)); break;
+    default: break;
+  }
+  return arr;
+}
+
 /* ── Favorites ── */
 function favKey() { return 'tiamat_favorites'; }
 
@@ -1206,7 +1260,8 @@ function renderGrid() {
   });
 
   const favs = getFavorites();
-  // Sort pinned characters to the front
+  // Apply user sort first, then pin favorites to front
+  filteredChars = applySort(filteredChars);
   filteredChars.sort((a, b) => {
     const af = favs.has(a.name) ? 0 : 1;
     const bf = favs.has(b.name) ? 0 : 1;
