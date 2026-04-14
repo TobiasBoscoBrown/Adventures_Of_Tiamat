@@ -1861,6 +1861,7 @@
   <button class="filter-btn theme-pink" data-theme="pink" onclick="filterTheme('pink', this)">Pink</button>
   <span style="color: #333; margin: 0 4px;">|</span>
   <button class="filter-btn" onclick="resetAllHP()" style="border-color:#cc3333;color:#cc3333;" title="Reset all NPC HP to maximum">↺ Reset All HP</button>
+  <button class="filter-btn" id="favFilterBtn" onclick="filterFavorites(this)" style="border-color:#c9a227;color:#9098b8;" title="Show only favorited characters">★ Favorites</button>
 </div>
 
 <div class="grid" id="grid"></div>
@@ -2187,6 +2188,25 @@ let filteredChars = [...UNIQUE_CHARS];
 function getTheme(t) { return THEMES[t] || THEMES.royal; }
 
 // ── HP TRACKER ──────────────────────────────────────────
+// ── FAVORITES ───────────────────────────────────────────
+const FAV_KEY = 'tiamat_favorites';
+let favorites = new Set();
+
+function initFavorites() {
+  try { favorites = new Set(JSON.parse(localStorage.getItem(FAV_KEY)) || []); } catch { favorites = new Set(); }
+}
+function saveFavorites() { localStorage.setItem(FAV_KEY, JSON.stringify([...favorites])); }
+function isFavorite(name) { return favorites.has(name); }
+function toggleFavorite(name, event) {
+  if (event) event.stopPropagation();
+  if (favorites.has(name)) favorites.delete(name);
+  else favorites.add(name);
+  saveFavorites();
+  renderGrid();
+}
+initFavorites();
+// ────────────────────────────────────────────────────────
+
 let hpState = {};
 let popupCharName = '';
 let popupCharMax = 0;
@@ -2295,6 +2315,15 @@ function resetAllHP() {
 initHp();
 // ────────────────────────────────────────────────────────
 
+let showOnlyFavorites = false;
+
+function filterFavorites(btn) {
+  showOnlyFavorites = !showOnlyFavorites;
+  btn.style.color = showOnlyFavorites ? '#c9a227' : '#9098b8';
+  btn.style.background = showOnlyFavorites ? 'rgba(201,162,39,0.15)' : '';
+  renderGrid();
+}
+
 function renderGrid() {
   filteredChars = UNIQUE_CHARS.filter(c => {
     const matchGroup = currentFilter === 'all' || c.group === currentFilter;
@@ -2304,7 +2333,14 @@ function renderGrid() {
       c.title.toLowerCase().includes(currentSearch) ||
       (c.lore && c.lore.toLowerCase().includes(currentSearch)) ||
       (c.quote && c.quote.toLowerCase().includes(currentSearch));
-    return matchGroup && matchTheme && matchSearch;
+    const matchFav = !showOnlyFavorites || isFavorite(c.name);
+    return matchGroup && matchTheme && matchSearch && matchFav;
+  });
+  // Sort: favorites first, then alphabetical
+  filteredChars.sort((a, b) => {
+    if (isFavorite(a.name) && !isFavorite(b.name)) return -1;
+    if (!isFavorite(a.name) && isFavorite(b.name)) return 1;
+    return 0;
   });
 
   const grid = document.getElementById('grid');
@@ -2339,6 +2375,7 @@ function renderGrid() {
         <div class="card-accent"></div>
         <div class="card-body">
           <div class="card-group">${c.group}</div>
+          <button onclick="event.stopPropagation();toggleFavorite(${JSON.stringify(c.name)},event)" title="${isFavorite(c.name)?'Unfavorite':'Favorite'}" style="position:absolute;top:38px;right:14px;background:none;border:none;font-size:14px;cursor:pointer;padding:0;z-index:10;color:${isFavorite(c.name)?'#c9a227':'#2a2a50'};transition:color 0.15s">${isFavorite(c.name)?'★':'☆'}</button>
           <button class="card-init-btn ${isInInitiative(c.name)?'in-init':''}" onclick="event.stopPropagation();toggleInitiative(${JSON.stringify(c.name)},${maxHp})" title="${isInInitiative(c.name)?'Remove from initiative':'Add to initiative'}">⚔</button>
           <div class="card-name">${c.name}</div>
           <div class="card-title">${c.title}</div>
