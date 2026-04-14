@@ -1306,6 +1306,231 @@
   }
   .initiative-toggle.visible { display: block; }
   .initiative-toggle:hover { background: #dd6622; color: #fff; }
+
+  /* ── Encounter Builder ── */
+  .encounter-modal {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 700;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+  }
+  .encounter-modal.open { display: flex; }
+  .encounter-panel {
+    background: linear-gradient(145deg, #0e0e2a, #0a0a1e);
+    border: 1px solid #dd6622;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 700px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 50px rgba(0,0,0,0.9), 0 0 30px rgba(221,102,34,0.1);
+    overflow: hidden;
+  }
+  .encounter-header {
+    padding: 18px 20px;
+    border-bottom: 1px solid rgba(221,102,34,0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(221,102,34,0.05);
+  }
+  .encounter-title {
+    font-family: 'Cinzel', serif;
+    color: #dd6622;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .encounter-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+  .encounter-left {
+    width: 200px;
+    border-right: 1px solid #1e2040;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+    flex-shrink: 0;
+  }
+  .encounter-left-title {
+    font-size: 11px;
+    color: #4a5272;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  .encounter-new-row {
+    display: flex;
+    gap: 6px;
+  }
+  .encounter-name-input {
+    flex: 1;
+    background: #06061a;
+    border: 1px solid #2a2a50;
+    border-radius: 6px;
+    padding: 6px 8px;
+    color: #f0e6d3;
+    font-size: 12px;
+    outline: none;
+    min-width: 0;
+  }
+  .encounter-name-input:focus { border-color: #dd6622; }
+  .encounter-new-btn {
+    background: #1a0e06;
+    border: 1px solid #dd6622;
+    color: #dd6622;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .encounter-new-btn:hover { background: #dd6622; color: #fff; }
+  .encounter-list-item {
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: #06061a;
+    border: 1px solid #1e2040;
+    cursor: pointer;
+    font-size: 12px;
+    color: #9098b8;
+    transition: all 0.15s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .encounter-list-item:hover { border-color: #dd6622; color: #f0e6d3; }
+  .encounter-list-item.active { border-color: #dd6622; background: rgba(221,102,34,0.1); color: #f0e6d3; }
+  .encounter-del-btn {
+    background: none;
+    border: none;
+    color: #333;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0;
+    transition: color 0.15s;
+  }
+  .encounter-del-btn:hover { color: #cc3333; }
+  .encounter-right {
+    flex: 1;
+    padding: 14px 18px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .encounter-right-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .encounter-name-edit {
+    font-family: 'Cinzel', serif;
+    font-size: 16px;
+    color: #f0e6d3;
+    background: none;
+    border: none;
+    border-bottom: 1px solid #1e2040;
+    padding: 4px 0;
+    outline: none;
+    flex: 1;
+    transition: border-color 0.15s;
+  }
+  .encounter-name-edit:focus { border-bottom-color: #dd6622; }
+  .encounter-launch-btn {
+    background: #dd6622;
+    border: none;
+    color: #fff;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Cinzel', serif;
+    letter-spacing: 0.5px;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .encounter-launch-btn:hover { background: #ff8833; box-shadow: 0 4px 15px rgba(221,102,34,0.3); }
+  .encounter-chars-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .enc-char-card {
+    background: #06061a;
+    border: 1px solid #1e2040;
+    border-radius: 8px;
+    padding: 8px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+  }
+  .enc-char-name { color: #f0e6d3; font-weight: 500; }
+  .enc-char-hp { font-size: 10px; color: #9098b8; font-family: monospace; }
+  .enc-char-remove {
+    background: none;
+    border: none;
+    color: #333;
+    cursor: pointer;
+    font-size: 14px;
+    transition: color 0.15s;
+  }
+  .enc-char-remove:hover { color: #cc3333; }
+  .enc-add-area {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .enc-add-input {
+    flex: 1;
+    background: #06061a;
+    border: 1px solid #2a2a50;
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: #f0e6d3;
+    font-size: 12px;
+    outline: none;
+  }
+  .enc-add-input:focus { border-color: #dd6622; }
+  .enc-empty { color: #4a5272; font-size: 13px; text-align: center; padding: 20px; font-style: italic; }
+  /* Encounter button in header */
+  .encounter-open-btn {
+    background: none;
+    border: 1px solid #dd6622;
+    color: #dd6622;
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'Cinzel', serif;
+    letter-spacing: 0.5px;
+    transition: all 0.15s;
+  }
+  .encounter-open-btn:hover { background: #dd6622; color: #fff; }
+  /* Card add-to-encounter button */
+  .card-enc-btn {
+    background: none;
+    border: none;
+    color: #2a2a50;
+    font-size: 10px;
+    cursor: pointer;
+    padding: 0;
+    transition: color 0.15s;
+  }
+  .card-enc-btn:hover { color: #dd6622; }
+  .card-enc-btn.in-enc { color: #dd6622; }
 </style>
 </head>
 <body>
@@ -1313,6 +1538,7 @@
 <header>
   <h1>ADVENTURES OF <span>TIAMAT</span> — Character Browser</h1>
   <div class="header-stats">
+    <button class="encounter-open-btn" onclick="openEncounterBuilder()">⚔ Encounters</button>
     <div class="stat-badge"><strong id="totalCount">0</strong> Characters</div>
     <div class="stat-badge"><strong id="visibleCount">0</strong> Showing</div>
   </div>
@@ -1412,6 +1638,29 @@
     <input type="text" id="initCustomName" class="init-add-input" placeholder="Custom creature name...">
     <input type="number" id="initCustomScore" class="init-add-input" placeholder="Init" style="width:50px;flex:none;">
     <button class="init-add-btn" onclick="addCustomToInitiative()">+ Add</button>
+  </div>
+</div>
+
+<!-- Encounter Builder Modal -->
+<div class="encounter-modal" id="encounterModal">
+  <div class="encounter-panel">
+    <div class="encounter-header">
+      <div class="encounter-title">⚔ Encounter Builder</div>
+      <button class="modal-close" onclick="closeEncounterBuilder()">✕ Close</button>
+    </div>
+    <div class="encounter-body">
+      <div class="encounter-left">
+        <div class="encounter-left-title">Saved Encounters</div>
+        <div class="encounter-new-row">
+          <input type="text" id="newEncounterName" class="encounter-name-input" placeholder="New encounter...">
+          <button class="encounter-new-btn" onclick="createEncounter()">+ New</button>
+        </div>
+        <div id="encounterListEl"></div>
+      </div>
+      <div class="encounter-right" id="encounterRight">
+        <div class="enc-empty">Select or create an encounter to get started</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1729,8 +1978,9 @@ function renderGrid() {
           ${c.quote ? `<div class="card-quote">"${c.quote}"</div>` : ''}
           <div class="conditions-row" onclick="event.stopPropagation()">${getConditionBadgesHtml(c.name)}</div>
           <div style="display:flex;gap:8px;align-items:center;margin-top:3px" onclick="event.stopPropagation()">
-            <button class="card-cond-btn ${hasConditions(c.name)?'has-conds':''}" onclick="openCondPopup(${JSON.stringify(c.name)},event)">⚡ ${hasConditions(c.name)?'Conditions':'Add condition'}</button>
-            <button class="card-notes-btn ${hasNotes(c.name)?'has-notes':''}" onclick="openNotes(${JSON.stringify(c.name)},${JSON.stringify(c.title)})" title="DM Notes">${hasNotes(c.name)?'✎ Notes':'✎ Add note'}</button>
+            <button class="card-cond-btn ${hasConditions(c.name)?'has-conds':''}" onclick="openCondPopup(${JSON.stringify(c.name)},event)">⚡ ${hasConditions(c.name)?'Conds':'Condition'}</button>
+            <button class="card-enc-btn ${isInActiveEncounter(c.name)?'in-enc':''}" onclick="addCharToActiveEncounter(${JSON.stringify(c.name)},${maxHp})">☩ ${isInActiveEncounter(c.name)?'In Enc':'Encounter'}</button>
+            <button class="card-notes-btn ${hasNotes(c.name)?'has-notes':''}" onclick="openNotes(${JSON.stringify(c.name)},${JSON.stringify(c.title)})">${hasNotes(c.name)?'✎':'✎'}</button>
           </div>
           <div class="hp-tracker" data-sid="${sid}" onclick="event.stopPropagation()">
             <div class="hp-row" onclick="openHpPopup(${JSON.stringify(c.name)},${maxHp},event)" title="Click to adjust HP">
@@ -2167,6 +2417,179 @@ document.addEventListener('keydown', (e) => {
 document.getElementById('notesModal').addEventListener('click', (e) => {
   if (e.target === document.getElementById('notesModal')) closeNotes();
 });
+// ────────────────────────────────────────────────────────
+
+// ── ENCOUNTER BUILDER ───────────────────────────────────
+const ENC_KEY = 'tiamat_encounters';
+let encounters = {};
+let activeEncounterId = null;
+
+function loadEncounters() {
+  try { encounters = JSON.parse(localStorage.getItem(ENC_KEY)) || {}; } catch { encounters = {}; }
+}
+function saveEncounters() { localStorage.setItem(ENC_KEY, JSON.stringify(encounters)); }
+
+function openEncounterBuilder() {
+  loadEncounters();
+  document.getElementById('encounterModal').classList.add('open');
+  renderEncounterList();
+}
+function closeEncounterBuilder() {
+  document.getElementById('encounterModal').classList.remove('open');
+}
+
+function createEncounter() {
+  const name = document.getElementById('newEncounterName').value.trim() || 'Encounter ' + (Object.keys(encounters).length + 1);
+  const id = Date.now().toString();
+  encounters[id] = { id, name, chars: [] };
+  saveEncounters();
+  document.getElementById('newEncounterName').value = '';
+  renderEncounterList();
+  selectEncounter(id);
+}
+
+function deleteEncounter(id, event) {
+  event.stopPropagation();
+  if (!confirm('Delete this encounter?')) return;
+  delete encounters[id];
+  if (activeEncounterId === id) { activeEncounterId = null; document.getElementById('encounterRight').innerHTML = '<div class="enc-empty">Select or create an encounter to get started</div>'; }
+  saveEncounters();
+  renderEncounterList();
+  renderGrid();
+}
+
+function selectEncounter(id) {
+  activeEncounterId = id;
+  renderEncounterList();
+  renderEncounterRight();
+}
+
+function renderEncounterList() {
+  const el = document.getElementById('encounterListEl');
+  const ids = Object.keys(encounters);
+  if (!ids.length) { el.innerHTML = '<div style="color:#4a5272;font-size:11px;text-align:center;padding:10px">No encounters yet</div>'; return; }
+  el.innerHTML = ids.map(id => {
+    const enc = encounters[id];
+    return `<div class="encounter-list-item ${id===activeEncounterId?'active':''}" onclick="selectEncounter(${JSON.stringify(id)})">
+      <span>${enc.name}</span>
+      <div style="display:flex;gap:4px;align-items:center">
+        <span style="font-size:10px;color:#4a5272">${enc.chars.length}</span>
+        <button class="encounter-del-btn" onclick="deleteEncounter(${JSON.stringify(id)},event)">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderEncounterRight() {
+  const enc = encounters[activeEncounterId];
+  if (!enc) return;
+  const el = document.getElementById('encounterRight');
+  const allCharNames = UNIQUE_CHARS.map(c => c.name);
+  el.innerHTML = `
+    <div class="encounter-right-header">
+      <input class="encounter-name-edit" value="${enc.name}" onchange="renameEncounter(${JSON.stringify(activeEncounterId)},this.value)" placeholder="Encounter name">
+      <button class="encounter-launch-btn" onclick="launchEncounter(${JSON.stringify(activeEncounterId)})">⚔ Launch to Initiative</button>
+    </div>
+    <div style="font-size:11px;color:#4a5272;margin-top:-4px">${enc.chars.length} NPC${enc.chars.length!==1?'s':''} in this encounter</div>
+    ${enc.chars.length ? `<div class="encounter-chars-grid">${enc.chars.map(cn => {
+      const char = UNIQUE_CHARS.find(c => c.name === cn);
+      const maxHp = char ? parseInt(char.hp) || 1 : 0;
+      return `<div class="enc-char-card">
+        <div>
+          <div class="enc-char-name">${cn}</div>
+          ${maxHp ? `<div class="enc-char-hp">HP: ${maxHp}</div>` : ''}
+        </div>
+        <button class="enc-char-remove" onclick="removeFromEncounter(${JSON.stringify(activeEncounterId)},${JSON.stringify(cn)})">✕</button>
+      </div>`;
+    }).join('')}</div>` : '<div class="enc-empty">No characters yet — add them from the card grid or below</div>'}
+    <div class="enc-add-area">
+      <select id="encCharSelect" class="enc-add-input" style="cursor:pointer">
+        <option value="">Select character to add...</option>
+        ${allCharNames.filter(n => !enc.chars.includes(n)).map(n => `<option value="${n.replace(/"/g,'&quot;')}">${n}</option>`).join('')}
+      </select>
+      <button class="encounter-new-btn" onclick="addFromSelect()">+ Add</button>
+    </div>
+  `;
+}
+
+function renameEncounter(id, name) {
+  if (encounters[id]) { encounters[id].name = name; saveEncounters(); renderEncounterList(); }
+}
+
+function addFromSelect() {
+  const sel = document.getElementById('encCharSelect');
+  const name = sel.value;
+  if (!name || !activeEncounterId) return;
+  addCharToEncounter(activeEncounterId, name);
+  renderEncounterRight();
+}
+
+function addCharToEncounter(encId, charName) {
+  if (!encounters[encId]) return;
+  if (!encounters[encId].chars.includes(charName)) {
+    encounters[encId].chars.push(charName);
+    saveEncounters();
+  }
+}
+
+function removeFromEncounter(encId, charName) {
+  if (!encounters[encId]) return;
+  encounters[encId].chars = encounters[encId].chars.filter(n => n !== charName);
+  saveEncounters();
+  renderEncounterRight();
+  renderGrid();
+}
+
+function launchEncounter(encId) {
+  const enc = encounters[encId];
+  if (!enc || !enc.chars.length) { alert('No characters in this encounter!'); return; }
+  clearInitiative();
+  enc.chars.forEach(name => {
+    const char = UNIQUE_CHARS.find(c => c.name === name);
+    const maxHp = char ? parseInt(char.hp) || 1 : 1;
+    const dexBonus = char ? getDexBonus(name) : 0;
+    const roll = Math.floor(Math.random() * 20) + 1 + dexBonus;
+    initiativeList.push({ name, maxHp, initiative: roll, isNpc: true });
+  });
+  initiativeList.sort((a, b) => b.initiative - a.initiative);
+  currentTurnIdx = 0;
+  currentRound = 1;
+  document.getElementById('initRoundBadge').textContent = 'Round 1';
+  openInitiativePanel();
+  renderInitiative();
+  closeEncounterBuilder();
+  renderGrid();
+}
+
+function isInActiveEncounter(name) {
+  if (!activeEncounterId || !encounters[activeEncounterId]) return false;
+  return encounters[activeEncounterId].chars.includes(name);
+}
+
+function addCharToActiveEncounter(name, maxHp) {
+  if (!activeEncounterId) {
+    // Create a quick encounter if none active
+    const id = Date.now().toString();
+    encounters[id] = { id, name: 'Quick Encounter', chars: [name] };
+    activeEncounterId = id;
+    saveEncounters();
+    renderGrid();
+    return;
+  }
+  if (isInActiveEncounter(name)) {
+    removeFromEncounter(activeEncounterId, name);
+  } else {
+    addCharToEncounter(activeEncounterId, name);
+  }
+  renderGrid();
+}
+
+// Close encounter modal on outside click
+document.getElementById('encounterModal').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('encounterModal')) closeEncounterBuilder();
+});
+
+loadEncounters();
 // ────────────────────────────────────────────────────────
 
 // ── INITIATIVE TRACKER ──────────────────────────────────
