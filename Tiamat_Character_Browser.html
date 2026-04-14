@@ -1532,6 +1532,117 @@
   .card-enc-btn:hover { color: #dd6622; }
   .card-enc-btn.in-enc { color: #dd6622; }
 
+  /* ── Lore Browser ── */
+  .lore-modal {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 700;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+  }
+  .lore-modal.open { display: flex; }
+  .lore-panel {
+    background: linear-gradient(145deg, #0a0a1e, #080816);
+    border: 1px solid #44aa44;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 960px;
+    height: 85vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 8px 50px rgba(0,0,0,0.95), 0 0 40px rgba(68,170,68,0.08);
+  }
+  .lore-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(68,170,68,0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(68,170,68,0.05);
+    flex-shrink: 0;
+  }
+  .lore-title {
+    font-family: 'Cinzel', serif;
+    color: #44aa44;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .lore-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+  .lore-sidebar {
+    width: 240px;
+    border-right: 1px solid #1e2040;
+    overflow-y: auto;
+    padding: 12px;
+    flex-shrink: 0;
+  }
+  .lore-sidebar::-webkit-scrollbar { width: 4px; }
+  .lore-sidebar::-webkit-scrollbar-track { background: transparent; }
+  .lore-sidebar::-webkit-scrollbar-thumb { background: #2a2a50; border-radius: 2px; }
+  .lore-category {
+    margin-bottom: 14px;
+  }
+  .lore-cat-title {
+    font-size: 10px;
+    color: #4a5272;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #1e2040;
+  }
+  .lore-entry {
+    padding: 7px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #9098b8;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-bottom: 2px;
+    line-height: 1.4;
+  }
+  .lore-entry:hover { background: rgba(68,170,68,0.08); color: #dce0f0; }
+  .lore-entry.active { background: rgba(68,170,68,0.12); color: #44aa44; border-left: 2px solid #44aa44; }
+  .lore-search {
+    background: #06061a;
+    border: 1px solid #2a2a50;
+    border-radius: 6px;
+    padding: 7px 10px;
+    color: #f0e6d3;
+    font-size: 12px;
+    width: 100%;
+    outline: none;
+    margin-bottom: 12px;
+    box-sizing: border-box;
+  }
+  .lore-search:focus { border-color: #44aa44; }
+  .lore-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 28px;
+  }
+  .lore-content::-webkit-scrollbar { width: 6px; }
+  .lore-content::-webkit-scrollbar-track { background: transparent; }
+  .lore-content::-webkit-scrollbar-thumb { background: #2a2a50; border-radius: 3px; }
+  .lore-content h1 { font-family: 'Cinzel', serif; color: #44aa44; font-size: 22px; margin-bottom: 12px; border-bottom: 1px solid #1e2040; padding-bottom: 8px; }
+  .lore-content h2 { font-family: 'Cinzel', serif; color: #c9a227; font-size: 16px; margin: 20px 0 8px; }
+  .lore-content h3 { font-family: 'Cinzel', serif; color: #9b6dff; font-size: 14px; margin: 16px 0 6px; }
+  .lore-content p { color: #b8c0d8; font-size: 13px; line-height: 1.8; margin-bottom: 10px; }
+  .lore-content hr { border: none; border-top: 1px solid #1e2040; margin: 16px 0; }
+  .lore-content strong { color: #f0e6d3; }
+  .lore-content em { color: #9098b8; font-style: italic; }
+  .lore-content ul, .lore-content ol { margin: 8px 0 10px 20px; }
+  .lore-content li { color: #b8c0d8; font-size: 13px; line-height: 1.7; }
+  .lore-content blockquote { border-left: 3px solid #44aa44; padding-left: 12px; margin: 8px 0; color: #9098b8; font-style: italic; }
+  .lore-empty { color: #2a2a50; font-style: italic; text-align: center; padding: 40px; font-size: 14px; }
+
   /* ── Session Manager ── */
   .session-mgr-modal {
     position: fixed;
@@ -1832,6 +1943,7 @@
 <header>
   <h1>ADVENTURES OF <span>TIAMAT</span> — Character Browser</h1>
   <div class="header-stats">
+    <button class="encounter-open-btn" onclick="openLoreBrowser()" style="border-color:#44aa44;color:#44aa44">📚 Lore</button>
     <button class="encounter-open-btn" onclick="openEncounterBuilder()">⚔ Encounters</button>
     <button class="encounter-open-btn" onclick="openSessionManager()" style="border-color:#9b6dff;color:#9b6dff">💾 Session</button>
     <div class="stat-badge"><strong id="totalCount">0</strong> Characters</div>
@@ -1934,6 +2046,25 @@
     <input type="text" id="initCustomName" class="init-add-input" placeholder="Custom creature name...">
     <input type="number" id="initCustomScore" class="init-add-input" placeholder="Init" style="width:50px;flex:none;">
     <button class="init-add-btn" onclick="addCustomToInitiative()">+ Add</button>
+  </div>
+</div>
+
+<!-- Lore Browser Modal -->
+<div class="lore-modal" id="loreModal">
+  <div class="lore-panel">
+    <div class="lore-header">
+      <div class="lore-title">📚 World Lore</div>
+      <button class="modal-close" onclick="closeLoreBrowser()">✕ Close</button>
+    </div>
+    <div class="lore-body">
+      <div class="lore-sidebar">
+        <input type="text" class="lore-search" id="loreSearch" placeholder="Search lore..." oninput="filterLoreEntries(this.value)">
+        <div id="loreSidebarContent"></div>
+      </div>
+      <div class="lore-content" id="loreContent">
+        <div class="lore-empty">Select a book or location from the sidebar to read the lore.</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -2834,6 +2965,133 @@ document.addEventListener('keydown', (e) => {
 // Click outside notes modal to close
 document.getElementById('notesModal').addEventListener('click', (e) => {
   if (e.target === document.getElementById('notesModal')) closeNotes();
+});
+// ────────────────────────────────────────────────────────
+
+// ── LORE BROWSER ────────────────────────────────────────
+const LORE_FILES = {
+  'Books': [
+    { title: "The Legends of Jarnath",           path: "Tiamat/Books/The Legends of Jarnath.md" },
+    { title: "The Sacred Writ of Tiamat",         path: "Tiamat/Books/The Sacred Writ of Tiamat.md" },
+    { title: "The History of Gondor",             path: "Tiamat/Books/The History of Gondor By Wrighton Stone.md" },
+    { title: "Genealogy of the Kings",            path: "Tiamat/Books/Geonology of the Kings of Tiamat by Bo Ring.md" },
+    { title: "The Joybringer's Guide",            path: "Tiamat/Books/The Joybringer's Guide to Tiamat.md" },
+    { title: "Revelations of Oktober",            path: "Tiamat/Books/The Joyous Revelations of Oktober by Barely Soubher.md" },
+    { title: "The KneeStone Mines History",       path: "Tiamat/Books/The Rough History of the KneeStone Mines by Riche AzFuz.md" },
+    { title: "The Enchanted Veil of Scar Lake",   path: "Tiamat/Books/The Enchanted Veil of Scar Lake by Rue Mors.md" },
+    { title: "Haunting Shadows of Quielent",      path: "Tiamat/Books/The Haunting Shadows of Quielent Forest by Rue Mors.md" },
+    { title: "Realms of the Sky",                 path: "Tiamat/Books/The Totally True Realms of the Sky by Rue Mors.md" },
+    { title: "Timeline of Tiamat",                path: "Tiamat/Books/Timeline of Tiamat/Timeline of Tiamat by Hist Orey.md" },
+    { title: "The Tulorian Book",                 path: "Tiamat/Books/Tulorian Book/Tulorian; The Sacred City of Duality by Zerkal Jerkal.md" },
+  ],
+  'Geography': [
+    { title: "Lore Key (Overview)",         path: "Tiamat/Geography/Lore Key.md" },
+    { title: "Adventure Isthmus",           path: "Tiamat/Geography/Adventure Isthmus/Lore.md" },
+    { title: "Forsaken Archipelago",        path: "Tiamat/Geography/Forsaken Archipeligo/Lore.md" },
+    { title: "Hell Pass",                   path: "Tiamat/Geography/Hell Pass/Lore.md" },
+    { title: "KneeStone Mines",             path: "Tiamat/Geography/KneeStone Mines/Lore.md" },
+    { title: "Mt. Elderchrono",             path: "Tiamat/Geography/Mt. Elderchrono/Lore.md" },
+    { title: "The Plains — Aiery",          path: "Tiamat/Geography/Plaines/Aiery/Lore.md" },
+    { title: "The Plains — Chaos",          path: "Tiamat/Geography/Plaines/Chaos/Lore.md" },
+    { title: "Quilent Forest",              path: "Tiamat/Geography/Quilent Forest/Lore.md" },
+    { title: "Spinal Mountains",            path: "Tiamat/Geography/Spinal Mountains/Lore.md" },
+    { title: "Dragon & Known Lake",         path: "Tiamat/Geography/Water/Dragon and Known Lake/Lore.md" },
+    { title: "Life Lake",                   path: "Tiamat/Geography/Water/Life Lake/Lore.md" },
+    { title: "Scar Lake",                   path: "Tiamat/Geography/Water/Scar Lake/Lore.md" },
+  ],
+  'DM Reference': [
+    { title: "DM Timeline of Tiamat",       path: "Tiamat/DM Timeline of Tiamat.md" },
+  ],
+};
+
+let loreActive = null;
+
+function openLoreBrowser() {
+  document.getElementById('loreModal').classList.add('open');
+  renderLoreSidebar(LORE_FILES);
+}
+function closeLoreBrowser() { document.getElementById('loreModal').classList.remove('open'); }
+
+function renderLoreSidebar(files) {
+  const el = document.getElementById('loreSidebarContent');
+  el.innerHTML = Object.entries(files).map(([cat, entries]) =>
+    `<div class="lore-category">
+      <div class="lore-cat-title">${cat}</div>
+      ${entries.map(e =>
+        `<div class="lore-entry ${loreActive===e.path?'active':''}" onclick="loadLoreFile(${JSON.stringify(e.title)},${JSON.stringify(e.path)})">${e.title}</div>`
+      ).join('')}
+    </div>`
+  ).join('');
+}
+
+function filterLoreEntries(query) {
+  if (!query.trim()) { renderLoreSidebar(LORE_FILES); return; }
+  const q = query.toLowerCase();
+  const filtered = {};
+  for (const [cat, entries] of Object.entries(LORE_FILES)) {
+    const matching = entries.filter(e => e.title.toLowerCase().includes(q));
+    if (matching.length) filtered[cat] = matching;
+  }
+  renderLoreSidebar(filtered);
+}
+
+function loadLoreFile(title, path) {
+  loreActive = path;
+  renderLoreSidebar(LORE_FILES);
+  const content = document.getElementById('loreContent');
+  content.innerHTML = `<div style="color:#4a5272;text-align:center;padding:30px">Loading ${title}...</div>`;
+  fetch(path)
+    .then(r => { if (!r.ok) throw new Error('Not found'); return r.text(); })
+    .then(md => { content.innerHTML = renderMarkdown(md); content.scrollTop = 0; })
+    .catch(() => {
+      // Fallback: try to show as iframe if fetch fails (file:// protocol)
+      content.innerHTML = `
+        <div style="background:rgba(201,162,39,0.08);border:1px solid rgba(201,162,39,0.2);border-radius:8px;padding:14px;margin-bottom:16px;font-size:12px;color:#c9a227">
+          ⚠ To view lore files, open this page from a local server:<br>
+          <code style="color:#9b6dff;font-size:11px">cd Adventures_Of_Tiamat && python3 -m http.server 8080</code><br>
+          Then visit <code style="color:#9b6dff">http://localhost:8080/Tiamat_Character_Browser.html</code>
+        </div>
+        <iframe src="${path}" style="width:100%;height:calc(85vh - 180px);border:none;background:#fff;border-radius:8px"></iframe>`;
+    });
+}
+
+function renderMarkdown(md) {
+  // Simple markdown → HTML renderer
+  let html = md
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    // Headers
+    .replace(/^#### (.+)$/gm,'<h4>$1</h4>')
+    .replace(/^### (.+)$/gm,'<h3>$1</h3>')
+    .replace(/^## (.+)$/gm,'<h2>$1</h2>')
+    .replace(/^# (.+)$/gm,'<h1>$1</h1>')
+    // Bold/italic
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/__(.+?)__/g,'<strong>$1</strong>')
+    .replace(/_(.+?)_/g,'<em>$1</em>')
+    // HR
+    .replace(/^---+$/gm,'<hr>')
+    .replace(/^===+$/gm,'<hr>')
+    // Unordered lists
+    .replace(/^\* (.+)$/gm,'<li>$1</li>')
+    .replace(/^- (.+)$/gm,'<li>$1</li>')
+    // Blockquote
+    .replace(/^&gt; (.+)$/gm,'<blockquote>$1</blockquote>')
+    // Paragraphs (double newlines)
+    .split(/\n\n+/)
+    .map(block => {
+      if (block.startsWith('<h') || block.startsWith('<hr') || block.startsWith('<blockquote')) return block;
+      if (block.includes('<li>')) return '<ul>' + block + '</ul>';
+      if (block.trim()) return '<p>' + block.replace(/\n/g,' ') + '</p>';
+      return '';
+    })
+    .join('\n');
+  return html;
+}
+
+// Click outside to close
+document.getElementById('loreModal').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('loreModal')) closeLoreBrowser();
 });
 // ────────────────────────────────────────────────────────
 
