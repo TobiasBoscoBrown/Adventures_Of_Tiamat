@@ -531,6 +531,7 @@
     transition: color 0.15s;
   }
   .ab-box:hover .ab-roll-hint { color: var(--accent, #c9a227); opacity: 0.6; }
+  /* ── Saving Throws Panel ── */
   .saves-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -539,15 +540,33 @@
   .save-item {
     background: #06061a;
     border: 1px solid #1e2040;
-    border-radius: 6px;
-    padding: 6px 10px;
+    border-radius: 8px;
+    padding: 8px 10px;
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 7px;
     font-size: 12px;
+    cursor: pointer;
+    transition: border-color 0.12s, background 0.12s;
   }
-  .save-name { color: #9098b8; }
-  .save-val { color: var(--accent, #c9a227); font-weight: 700; font-family: monospace; }
+  .save-item:hover { border-color: var(--accent, #c9a227); background: #0a0a1e; }
+  .save-item.proficient { border-color: rgba(201,162,39,0.3); }
+  .save-prof-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    border: 1.5px solid #2a2a4a;
+    background: transparent;
+    flex-shrink: 0;
+  }
+  .save-item.proficient .save-prof-dot {
+    background: var(--accent, #c9a227);
+    border-color: var(--accent, #c9a227);
+    box-shadow: 0 0 6px var(--glow, rgba(201,162,39,0.4));
+  }
+  .save-name { color: #9098b8; flex: 1; }
+  .save-item.proficient .save-name { color: #dce0f0; }
+  .save-val { color: var(--accent, #c9a227); font-weight: 700; font-family: monospace; font-size: 13px; }
   /* ── Skills Panel ── */
   .skills-grid {
     display: grid;
@@ -3508,11 +3527,18 @@ function buildStatsPanel(c) {
       </div>
     </div>
     <div class="stats-section">
-      <div class="stats-section-title">Saving Throws (base ability)</div>
+      <div class="stats-section-title">Saving Throws <span style="font-size:10px;color:#4a5272;font-weight:400;font-family:'Inter',sans-serif">— filled dot = proficient · click to roll</span></div>
       <div class="saves-grid">
-        ${[['STR',str],['DEX',dex],['CON',con],['INT',int_],['WIS',wis],['CHA',cha]].map(([n,a]) =>
-          `<div class="save-item"><span class="save-name">${n}</span><span class="save-val">${a.mod}</span></div>`
-        ).join('')}
+        ${[['STR',str],['DEX',dex],['CON',con],['INT',int_],['WIS',wis],['CHA',cha]].map(([n,a]) => {
+          const isProf = highlightedAbs.has(n);
+          const saveVal = isProf ? (parseInt(a.mod)||0) + prof : (parseInt(a.mod)||0);
+          const saveStr = saveVal >= 0 ? `+${saveVal}` : `${saveVal}`;
+          return `<div class="save-item ${isProf?'proficient':''}" onclick="rollSavingThrow(${JSON.stringify(n)},${JSON.stringify(saveStr)})" title="Roll ${n} save (d20${saveStr})">
+            <div class="save-prof-dot"></div>
+            <span class="save-name">${n}</span>
+            <span class="save-val">${saveStr}</span>
+          </div>`;
+        }).join('')}
       </div>
     </div>
     <div class="stats-section">
@@ -3574,6 +3600,15 @@ function rollSkillCheck(skillName, mod) {
   const total = roll + modVal;
   const isCrit = roll === 20, isFumble = roll === 1;
   showModalRollResult(`${skillName}: d20(${roll})${modVal>=0?'+':''}${modVal} = ${total}${isCrit?' ★':isFumble?' ☠':''}`, isCrit, isFumble, total);
+}
+
+function rollSavingThrow(abName, mod) {
+  const roll = Math.floor(Math.random() * 20) + 1;
+  const modVal = parseInt(mod) || 0;
+  const total = roll + modVal;
+  const isCrit = roll === 20, isFumble = roll === 1;
+  const msg = `${abName} Save: d20(${roll})${modVal>=0?'+':''}${modVal} = ${total}${isCrit?' ★ CRIT!':isFumble?' ☠ FUMBLE':''}`;
+  showModalRollResult(msg, isCrit, isFumble, total);
 }
 
 function showModalRollResult(msg, isCrit, isFumble, total) {
