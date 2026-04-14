@@ -333,6 +333,30 @@
   }
   .sort-select:focus, .sort-select:hover { border-color: #c9a227; }
   .sort-select option { background: #0e0e28; }
+  .cr-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    background: #1e2040;
+    height: 4px;
+    border-radius: 2px;
+    outline: none;
+    width: 70px;
+    cursor: pointer;
+  }
+  .cr-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #c9a227;
+    cursor: pointer;
+  }
+  .cr-slider::-moz-range-thumb {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #c9a227;
+    border: none;
+    cursor: pointer;
+  }
 
   /* ── Conditions ── */
   .conditions-bar {
@@ -1007,6 +1031,12 @@
   <span style="color: #333; margin: 0 4px;">|</span>
   <button class="reset-hp-btn" onclick="resetAllHP()" title="Reset all HP to maximum">⚕ Reset All HP</button>
   <span style="color: #333; margin: 0 4px;">|</span>
+  <span style="font-size:12px;color:#4a5272;text-transform:uppercase;letter-spacing:1px;">CR:</span>
+  <input type="range" class="cr-slider" id="crMin" min="0" max="30" value="0" oninput="setCRFilter()" title="Min CR">
+  <span style="font-size:12px;color:#9098b8;">–</span>
+  <input type="range" class="cr-slider" id="crMax" min="0" max="30" value="30" oninput="setCRFilter()" title="Max CR">
+  <span style="font-size:12px;color:#c9a227;min-width:50px;" id="crRangeLabel">0–30</span>
+  <span style="color: #333; margin: 0 4px;">|</span>
   <span style="font-size:12px;color:#4a5272;text-transform:uppercase;letter-spacing:1px;">Sort:</span>
   <select class="sort-select" id="sortSelect" onchange="setSortOrder(this.value)" title="Sort characters">
     <option value="default">Default</option>
@@ -1258,6 +1288,23 @@ function renderDicePanel(char) {
   </div>`;
 }
 
+/* ── CR Filter ── */
+let crMin = 0, crMax = 30;
+
+function setCRFilter() {
+  const minEl = document.getElementById('crMin');
+  const maxEl = document.getElementById('crMax');
+  crMin = parseInt(minEl.value);
+  crMax = parseInt(maxEl.value);
+  // Prevent min > max
+  if (crMin > crMax) {
+    if (document.activeElement === minEl) { crMin = crMax; minEl.value = crMin; }
+    else { crMax = crMin; maxEl.value = crMax; }
+  }
+  document.getElementById('crRangeLabel').textContent = crMin + '–' + crMax;
+  renderGrid();
+}
+
 /* ── Sort ── */
 let currentSort = 'default';
 
@@ -1387,7 +1434,9 @@ function renderGrid() {
       c.title.toLowerCase().includes(currentSearch) ||
       (c.lore && c.lore.toLowerCase().includes(currentSearch)) ||
       (c.quote && c.quote.toLowerCase().includes(currentSearch));
-    return matchGroup && matchTheme && matchSearch;
+    const crVal = parseCR(c.cr);
+    const matchCR = crVal >= crMin && crVal <= crMax;
+    return matchGroup && matchTheme && matchSearch && matchCR;
   });
 
   const favs = getFavorites();
