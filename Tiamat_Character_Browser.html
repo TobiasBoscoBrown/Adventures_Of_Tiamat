@@ -2092,6 +2092,7 @@
     <button class="encounter-open-btn" onclick="openLoreBrowser()" style="border-color:#44aa44;color:#44aa44">📚 Lore</button>
     <button class="encounter-open-btn" onclick="openEncounterBuilder()">⚔ Encounters</button>
     <button class="encounter-open-btn" onclick="openCalendar()" style="border-color:#2299bb;color:#44aacc">📅 Calendar</button>
+    <button class="encounter-open-btn" onclick="openWeather()" style="border-color:#4488ff;color:#88aaff">☁ Weather</button>
     <button class="encounter-open-btn" onclick="openXpBudget()" style="border-color:#dd6622;color:#dd6622">⚖ XP Budget</button>
     <button class="encounter-open-btn" onclick="openSessionManager()" style="border-color:#9b6dff;color:#9b6dff">💾 Session</button>
     <div class="stat-badge"><strong id="totalCount">0</strong> Characters</div>
@@ -2445,6 +2446,71 @@
   <div class="log-add-row">
     <input type="text" id="logNoteInput" class="log-note-input" placeholder="Add DM note to log..." onkeydown="if(event.key==='Enter')addManualLogNote()">
     <button class="log-note-btn" onclick="addManualLogNote()">+ Note</button>
+  </div>
+</div>
+
+<!-- Weather Tracker -->
+<div class="modal-backdrop" id="weatherModal" onclick="if(event.target===this)closeWeather()" style="display:none;align-items:center;justify-content:center">
+  <div class="session-manager-content" style="max-width:440px;width:94%">
+    <div class="session-manager-header">
+      <div class="session-manager-title">☁ WEATHER CONDITIONS</div>
+      <button class="modal-close" onclick="closeWeather()">✕</button>
+    </div>
+
+    <!-- Current Weather Display -->
+    <div id="weatherDisplay" style="text-align:center;padding:20px;background:#0a0a1a;border:1px solid #1e2040;border-radius:10px;margin-bottom:16px">
+      <div id="weatherIcon" style="font-size:48px;margin-bottom:8px">—</div>
+      <div id="weatherMain" style="font-size:18px;font-weight:700;color:#e0e0ff;font-family:'Cinzel',serif">No Weather Set</div>
+      <div id="weatherSub" style="font-size:12px;color:#7a7aaa;margin-top:4px"></div>
+    </div>
+
+    <!-- Weather Controls -->
+    <div style="margin-bottom:12px">
+      <div style="font-size:11px;color:#7a7aaa;margin-bottom:6px;letter-spacing:1px">WEATHER TYPE</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px" id="weatherTypeRow">
+        <button class="dmg-type-btn" data-wtype="clear" onclick="selectWeatherType(this)">☀ Clear</button>
+        <button class="dmg-type-btn" data-wtype="cloudy" onclick="selectWeatherType(this)">⛅ Cloudy</button>
+        <button class="dmg-type-btn" data-wtype="overcast" onclick="selectWeatherType(this)">☁ Overcast</button>
+        <button class="dmg-type-btn" data-wtype="fog" onclick="selectWeatherType(this)">🌫 Fog</button>
+        <button class="dmg-type-btn" data-wtype="rain" onclick="selectWeatherType(this)">🌧 Rain</button>
+        <button class="dmg-type-btn" data-wtype="storm" onclick="selectWeatherType(this)">⛈ Storm</button>
+        <button class="dmg-type-btn" data-wtype="snow" onclick="selectWeatherType(this)">❄ Snow</button>
+        <button class="dmg-type-btn" data-wtype="blizzard" onclick="selectWeatherType(this)">🌨 Blizzard</button>
+        <button class="dmg-type-btn" data-wtype="heatwave" onclick="selectWeatherType(this)">🔥 Heat Wave</button>
+        <button class="dmg-type-btn" data-wtype="magical" onclick="selectWeatherType(this)">✦ Magical</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div>
+        <div style="font-size:11px;color:#7a7aaa;margin-bottom:6px;letter-spacing:1px">TEMPERATURE</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">
+          <button class="dmg-type-btn" data-temp="freezing" onclick="selectWeatherTemp(this)">🥶 Freezing</button>
+          <button class="dmg-type-btn" data-temp="cold" onclick="selectWeatherTemp(this)">❄ Cold</button>
+          <button class="dmg-type-btn" data-temp="mild" onclick="selectWeatherTemp(this)">😊 Mild</button>
+          <button class="dmg-type-btn" data-temp="warm" onclick="selectWeatherTemp(this)">🌤 Warm</button>
+          <button class="dmg-type-btn" data-temp="hot" onclick="selectWeatherTemp(this)">🌡 Hot</button>
+          <button class="dmg-type-btn" data-temp="scorching" onclick="selectWeatherTemp(this)">🔥 Scorching</button>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:#7a7aaa;margin-bottom:6px;letter-spacing:1px">WIND</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">
+          <button class="dmg-type-btn" data-wind="calm" onclick="selectWeatherWind(this)">○ Calm</button>
+          <button class="dmg-type-btn" data-wind="breeze" onclick="selectWeatherWind(this)">💨 Breeze</button>
+          <button class="dmg-type-btn" data-wind="windy" onclick="selectWeatherWind(this)">🌬 Windy</button>
+          <button class="dmg-type-btn" data-wind="gale" onclick="selectWeatherWind(this)">⚡ Gale</button>
+          <button class="dmg-type-btn" data-wind="hurricane" onclick="selectWeatherWind(this)">🌀 Hurricane</button>
+        </div>
+      </div>
+    </div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:11px;color:#7a7aaa;margin-bottom:6px;letter-spacing:1px">CUSTOM NOTE</div>
+      <input type="text" id="weatherNote" placeholder="e.g. Magical blue rain, smells of lavender..." style="width:100%;background:#0c0c20;border:1px solid #1e2040;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:13px">
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="saveWeather()" style="flex:1;background:#4488ff22;border:1px solid #4488ff;color:#4488ff;border-radius:6px;padding:8px;cursor:pointer;font-size:13px">Apply Weather</button>
+      <button onclick="randomWeather()" style="background:#c9a22722;border:1px solid #c9a227;color:#c9a227;border-radius:6px;padding:8px 14px;cursor:pointer;font-size:13px">⚄ Random</button>
+    </div>
   </div>
 </div>
 
@@ -4497,6 +4563,112 @@ document.addEventListener('keydown', (e) => {
     }
   }
 });
+// ────────────────────────────────────────────────────────
+
+// ── WEATHER TRACKER ─────────────────────────────────────
+const WEATHER_DATA = {
+  clear:    { icon:'☀', label:'Clear Skies',   color:'#c9a227', sub:'Visibility excellent, no precipitation' },
+  cloudy:   { icon:'⛅', label:'Partly Cloudy', color:'#9098b8', sub:'Light cloud cover, mild conditions' },
+  overcast: { icon:'☁', label:'Overcast',       color:'#7a7aaa', sub:'Heavy cloud cover, gloomy atmosphere' },
+  fog:      { icon:'🌫', label:'Dense Fog',     color:'#8899aa', sub:'Lightly obscured, disadvantage on Perception' },
+  rain:     { icon:'🌧', label:'Rainy',          color:'#4488ff', sub:'Lightly obscured, terrain may be difficult' },
+  storm:    { icon:'⛈', label:'Storm',          color:'#8844bb', sub:'Heavily obscured, ranged attacks disadvantage' },
+  snow:     { icon:'❄', label:'Snowing',        color:'#aaccff', sub:'Difficult terrain, tracks visible in snow' },
+  blizzard: { icon:'🌨', label:'Blizzard',      color:'#88aacc', sub:'Heavily obscured, movement halved, cold dmg' },
+  heatwave: { icon:'🌡', label:'Heat Wave',     color:'#dd6622', sub:'Con save DC 12/hr or gain Exhaustion level' },
+  magical:  { icon:'✦',  label:'Magical Weather',color:'#9b6dff', sub:'Supernatural conditions in effect' },
+};
+
+let weatherState = { type:'', temp:'mild', wind:'calm', note:'', applied:'' };
+
+function initWeather() {
+  try { weatherState = Object.assign({type:'',temp:'mild',wind:'calm',note:'',applied:''}, JSON.parse(localStorage.getItem('tiamat_weather'))); } catch {}
+}
+
+function saveWeatherState() { localStorage.setItem('tiamat_weather', JSON.stringify(weatherState)); }
+
+function openWeather() {
+  renderWeatherModal();
+  document.getElementById('weatherModal').style.display = 'flex';
+}
+
+function closeWeather() { document.getElementById('weatherModal').style.display = 'none'; }
+
+function renderWeatherModal() {
+  // Highlight active buttons
+  document.querySelectorAll('[data-wtype]').forEach(b => b.classList.toggle('active', b.dataset.wtype === weatherState.type));
+  document.querySelectorAll('[data-temp]').forEach(b => b.classList.toggle('active', b.dataset.temp === weatherState.temp));
+  document.querySelectorAll('[data-wind]').forEach(b => b.classList.toggle('active', b.dataset.wind === weatherState.wind));
+  document.getElementById('weatherNote').value = weatherState.note || '';
+  renderWeatherDisplay();
+}
+
+function renderWeatherDisplay() {
+  const w = WEATHER_DATA[weatherState.type];
+  const icon = document.getElementById('weatherIcon');
+  const main = document.getElementById('weatherMain');
+  const sub = document.getElementById('weatherSub');
+  const display = document.getElementById('weatherDisplay');
+  if (w) {
+    icon.textContent = w.icon;
+    main.textContent = w.label;
+    main.style.color = w.color;
+    const extras = [weatherState.temp ? weatherState.temp.charAt(0).toUpperCase()+weatherState.temp.slice(1) : null,
+                    weatherState.wind !== 'calm' ? weatherState.wind + ' winds' : null,
+                    weatherState.note || null].filter(Boolean);
+    sub.textContent = w.sub + (extras.length ? '  ·  ' + extras.join(', ') : '');
+    display.style.borderColor = w.color + '44';
+  } else {
+    icon.textContent = '—';
+    main.textContent = 'No Weather Set';
+    main.style.color = '#e0e0ff';
+    sub.textContent = '';
+    display.style.borderColor = '#1e2040';
+  }
+}
+
+function selectWeatherType(el) {
+  document.querySelectorAll('[data-wtype]').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  weatherState.type = el.dataset.wtype;
+  renderWeatherDisplay();
+}
+
+function selectWeatherTemp(el) {
+  document.querySelectorAll('[data-temp]').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  weatherState.temp = el.dataset.temp;
+  renderWeatherDisplay();
+}
+
+function selectWeatherWind(el) {
+  document.querySelectorAll('[data-wind]').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  weatherState.wind = el.dataset.wind;
+  renderWeatherDisplay();
+}
+
+function saveWeather() {
+  weatherState.note = document.getElementById('weatherNote').value.trim();
+  const w = WEATHER_DATA[weatherState.type];
+  weatherState.applied = w ? w.label : '';
+  saveWeatherState();
+  if (w) logEntry('note', `Weather set: <strong>${w.icon} ${w.label}</strong>${weatherState.note ? ' — ' + weatherState.note : ''}`);
+  closeWeather();
+}
+
+function randomWeather() {
+  const types = Object.keys(WEATHER_DATA);
+  const temps = ['freezing','cold','cold','mild','mild','warm','warm','hot','scorching'];
+  const winds = ['calm','calm','calm','breeze','breeze','windy','gale','hurricane'];
+  weatherState.type = types[Math.floor(Math.random() * types.length)];
+  weatherState.temp = temps[Math.floor(Math.random() * temps.length)];
+  weatherState.wind = winds[Math.floor(Math.random() * winds.length)];
+  weatherState.note = '';
+  renderWeatherModal();
+}
+
+initWeather();
 // ────────────────────────────────────────────────────────
 
 // ── CAMPAIGN CALENDAR ───────────────────────────────────
