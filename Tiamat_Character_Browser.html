@@ -622,6 +622,60 @@
     text-align: right;
   }
   .skill-item:hover .skill-ab-tag { color: #5a5a7a; }
+  /* ── Actions & Attacks Panel ── */
+  .actions-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .actions-table thead th {
+    font-size: 9px;
+    color: #4a5272;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 4px 8px;
+    text-align: left;
+    border-bottom: 1px solid #1e2040;
+  }
+  .action-row {
+    border-bottom: 1px solid rgba(30,32,64,0.5);
+    transition: background 0.1s;
+    cursor: pointer;
+  }
+  .action-row:hover { background: rgba(255,255,255,0.03); }
+  .action-row td { padding: 7px 8px; }
+  .action-name { color: #f0e6d3; font-weight: 600; }
+  .action-type-badge {
+    display: inline-block;
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: 5px;
+    font-weight: 400;
+    vertical-align: middle;
+  }
+  .action-type-attack { background: rgba(204,51,51,0.2); color: #cc6666; }
+  .action-type-spell  { background: rgba(68,136,255,0.15); color: #7aa8ff; }
+  .action-type-ability{ background: rgba(201,162,39,0.15); color: #c9a227; }
+  .action-type-bonus  { background: rgba(136,170,34,0.15); color: #aada44; }
+  .action-type-reaction{ background: rgba(136,68,221,0.15); color: #aa66ff; }
+  .action-hit { color: var(--accent, #c9a227); font-family: monospace; font-weight: 700; }
+  .action-dmg { color: #f0e6d3; font-family: monospace; }
+  .action-range { color: #4a5272; font-size: 11px; }
+  .action-roll-btn {
+    background: rgba(201,162,39,0.1);
+    border: 1px solid rgba(201,162,39,0.3);
+    color: var(--accent, #c9a227);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.12s;
+    font-family: 'Inter', sans-serif;
+    white-space: nowrap;
+  }
+  .action-roll-btn:hover { background: rgba(201,162,39,0.2); border-color: var(--accent,#c9a227); }
+
   .traits-list {
     display: flex;
     flex-direction: column;
@@ -3575,6 +3629,7 @@ function buildStatsPanel(c) {
         ).join('')}
       </div>
     </div>
+    ${buildActionsSection(c)}
     <div class="stats-section">
       <div class="stats-section-title">Saving Throws <span style="font-size:10px;color:#4a5272;font-weight:400;font-family:'Inter',sans-serif">— filled dot = proficient · click to roll</span></div>
       <div class="saves-grid">
@@ -3659,6 +3714,147 @@ function rollSavingThrow(abName, mod) {
   const msg = `${abName} Save: d20(${roll})${modVal>=0?'+':''}${modVal} = ${total}${isCrit?' ★ CRIT!':isFumble?' ☠ FUMBLE':''}`;
   showModalRollResult(msg, isCrit, isFumble, total);
 }
+
+// ── ACTIONS & ATTACKS BUILDER ───────────────────────────
+function inferActions(c) {
+  const ab = {};
+  (c.abilities || []).forEach(([n,s,m]) => ab[n] = { score: parseInt(s)||10, mod: parseInt(m)||0 });
+  const str = ab['STR']?.mod || 0;
+  const dex = ab['DEX']?.mod || 0;
+  const int_ = ab['INT']?.mod || 0;
+  const wis = ab['WIS']?.mod || 0;
+  const cha = ab['CHA']?.mod || 0;
+  const prof = c.cr === '30' ? 9 : c.cr === '21' || c.cr === '20' ? 7 : c.cr === '17' || c.cr === '16' ? 6 :
+               c.cr === '15' || c.cr === '14' ? 5 : c.cr === '13' || c.cr === '9' || c.cr === '10' ? 4 :
+               c.cr === '7' || c.cr === '8' ? 3 : c.cr === '5' || c.cr === '6' ? 3 : 2;
+  const theme = c.theme;
+  const atk = (mod) => (mod + prof >= 0 ? `+${mod+prof}` : `${mod+prof}`);
+  const bonus = (mod) => (mod >= 0 ? `+${mod}` : `${mod}`);
+
+  const actions = [];
+
+  // Physical attacks based on theme
+  if (['warrior','orc','stone','fire'].includes(theme)) {
+    const hitMod = Math.max(str, dex);
+    actions.push({ name:'Weapon Attack', type:'attack',
+      hit: atk(Math.max(str,dex)), dmg: `1d8${bonus(Math.max(str,dex))}`, dtype:'slashing', range:'5 ft' });
+    if (str > dex + 2) {
+      actions.push({ name:'Heavy Strike', type:'attack',
+        hit: atk(str), dmg: `2d6${bonus(str)}`, dtype:'bludgeoning', range:'5 ft' });
+    }
+    actions.push({ name:'Multiattack', type:'ability', hit: '—', dmg:'×2 attacks', dtype:'', range:'5 ft' });
+  }
+  // Spellcaster attacks
+  if (['arcane','shadow'].includes(theme) || isSpellcaster(c)) {
+    const spellMod = Math.max(int_, wis, cha);
+    const spellDc = 8 + prof + spellMod;
+    actions.push({ name:'Spell Attack', type:'spell',
+      hit: atk(spellMod), dmg:`2d10${bonus(spellMod)}`, dtype:'force', range:'60 ft' });
+    actions.push({ name:'Spell DC', type:'ability',
+      hit: `DC ${spellDc}`, dmg:'varies', dtype:'', range:'varies' });
+  }
+  // Nature/druid
+  if (theme === 'nature') {
+    actions.push({ name:'Natural Weapon', type:'attack',
+      hit: atk(Math.max(str,dex)), dmg:`1d6${bonus(Math.max(str,dex))}`, dtype:'piercing', range:'5 ft' });
+    actions.push({ name:'Wild Shape', type:'ability',
+      hit:'—', dmg:'polymorph', dtype:'', range:'self' });
+  }
+  // Ocean/summoner
+  if (theme === 'ocean') {
+    actions.push({ name:'Wave Strike', type:'attack',
+      hit: atk(Math.max(str,dex)), dmg:`2d6${bonus(Math.max(str,dex))}`, dtype:'cold', range:'60 ft' });
+  }
+  // Pink/cleric healing
+  if (theme === 'pink') {
+    actions.push({ name:'Healing Word', type:'spell',
+      hit: '—', dmg:`1d4${bonus(Math.max(wis,cha))} HP`, dtype:'healing', range:'60 ft' });
+    actions.push({ name:'Sacred Flame', type:'spell',
+      hit:`DC ${8+prof+Math.max(wis,cha)}`, dmg:'1d8', dtype:'radiant', range:'60 ft' });
+  }
+  // Royal always has a command ability
+  if (theme === 'royal') {
+    actions.push({ name:'Commanding Presence', type:'ability',
+      hit:'—', dmg:'allies advantage', dtype:'', range:'30 ft' });
+    actions.push({ name:'Noble Weapon', type:'attack',
+      hit: atk(Math.max(str,dex)), dmg:`1d8+3${bonus(Math.max(str,dex))}`, dtype:'slashing', range:'5 ft' });
+  }
+
+  // Legendary actions for high-CR
+  const crNum = parseFloat(c.cr) || 0;
+  if (crNum >= 10) {
+    actions.push({ name:'Legendary Action', type:'reaction',
+      hit:'—', dmg:'special', dtype:'', range:'special', bonus:true });
+  }
+
+  // Bonus action if high DEX
+  if (dex >= 3) {
+    actions.push({ name:'Cunning Action / Dash', type:'bonus',
+      hit:'—', dmg:'movement', dtype:'', range:'self' });
+  }
+
+  return actions.slice(0, 8); // cap at 8
+}
+
+function buildActionsSection(c) {
+  const actions = c.actions || inferActions(c);
+  if (!actions.length) return '';
+
+  const typeClass = { attack:'action-type-attack', spell:'action-type-spell',
+    ability:'action-type-ability', bonus:'action-type-bonus', reaction:'action-type-reaction' };
+
+  const rows = actions.map(a => `
+    <tr class="action-row" onclick="rollActionAttack(${JSON.stringify(a)})">
+      <td><span class="action-name">${a.name}</span><span class="action-type-badge ${typeClass[a.type]||'action-type-ability'}">${a.type}</span></td>
+      <td><span class="action-hit">${a.hit}</span></td>
+      <td><span class="action-dmg">${a.dmg}</span> <span style="font-size:10px;color:#4a5272">${a.dtype||''}</span></td>
+      <td><span class="action-range">${a.range||'—'}</span></td>
+      <td><button class="action-roll-btn" onclick="event.stopPropagation();rollActionAttack(${JSON.stringify(a)})">🎲 Roll</button></td>
+    </tr>`).join('');
+
+  return `
+    <div class="stats-section">
+      <div class="stats-section-title">Actions & Attacks <span style="font-size:10px;color:#4a5272;font-weight:400;font-family:'Inter',sans-serif">— click to roll attack</span></div>
+      <table class="actions-table">
+        <thead><tr>
+          <th>Action</th><th>Hit</th><th>Damage</th><th>Range</th><th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function rollActionAttack(action) {
+  if (action.hit === '—' || action.hit === '') {
+    showModalRollResult(`${action.name}: ${action.dmg || 'triggered'}`, false, false, 0);
+    return;
+  }
+  // Check if it's a DC (saving throw target)
+  if (action.hit && action.hit.startsWith('DC')) {
+    showModalRollResult(`${action.name}: ${action.hit} — targets must save!`, false, false, 0);
+    return;
+  }
+  const roll = Math.floor(Math.random() * 20) + 1;
+  const mod = parseInt(action.hit) || 0;
+  const total = roll + mod;
+  const isCrit = roll === 20, isFumble = roll === 1;
+  let dmgMsg = '';
+  if (isCrit) {
+    // Parse damage and double it
+    const dmgMatch = action.dmg.match(/(\d+)d(\d+)([\+\-]\d+)?/);
+    if (dmgMatch) {
+      const dice = parseInt(dmgMatch[1]) * 2;
+      const sides = dmgMatch[2];
+      dmgMsg = ` — Crit! Roll ${dice}d${sides}`;
+    }
+  }
+  const hitStr = mod >= 0 ? `+${mod}` : `${mod}`;
+  showModalRollResult(
+    `${action.name}: d20(${roll})${hitStr}=${total}${isCrit?'★ CRIT'+dmgMsg:isFumble?' ☠ MISS':''}`,
+    isCrit, isFumble, total
+  );
+}
+// ────────────────────────────────────────────────────────
 
 function buildCombatBar(c) {
   const ab = {};
