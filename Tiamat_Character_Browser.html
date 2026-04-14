@@ -233,6 +233,93 @@
     letter-spacing: 1px;
   }
 
+  /* ── HP Tracker ── */
+  .hp-tracker {
+    padding: 10px 16px 14px;
+    background: rgba(6,6,26,0.6);
+    border-top: 1px solid #1e2040;
+    cursor: default;
+  }
+  .hp-bar-wrap {
+    background: #06061a;
+    border: 1px solid #1a1a38;
+    border-radius: 4px;
+    height: 7px;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+  .hp-bar {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.35s ease, background-color 0.35s ease;
+  }
+  .hp-bar.hp-healthy  { background: linear-gradient(90deg, #33bb44, #44dd55); }
+  .hp-bar.hp-wounded  { background: linear-gradient(90deg, #cc8811, #ffaa22); }
+  .hp-bar.hp-critical { background: linear-gradient(90deg, #aa1111, #dd3333); }
+  .hp-bar.hp-dead     { background: #330000; width: 100% !important; }
+  .hp-controls {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    justify-content: center;
+  }
+  .hp-btn {
+    background: #0e0e28;
+    border: 1px solid #2a2a50;
+    border-radius: 5px;
+    color: #7a82a0;
+    font-size: 11px;
+    padding: 3px 7px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.15s;
+    line-height: 1.4;
+    user-select: none;
+  }
+  .hp-btn-minus:hover { border-color: #cc3333; color: #cc3333; background: rgba(204,51,51,0.1); }
+  .hp-btn-plus:hover  { border-color: #44aa44; color: #44aa44; background: rgba(68,170,68,0.1); }
+  .hp-display {
+    font-size: 12px;
+    color: #dce0f0;
+    min-width: 68px;
+    text-align: center;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .hp-sep { color: #4a5272; margin: 0 2px; font-weight: 400; }
+  .hp-cur { color: var(--accent, #c9a227); }
+  .card.is-dead { opacity: 0.55; filter: grayscale(0.6); }
+  .dead-stamp {
+    position: absolute;
+    top: 45%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-12deg);
+    font-family: 'Cinzel', serif;
+    font-size: 26px;
+    color: #cc3333;
+    font-weight: 900;
+    text-shadow: 0 0 18px rgba(204,51,51,0.7);
+    pointer-events: none;
+    z-index: 6;
+    letter-spacing: 4px;
+    border: 3px solid #cc3333;
+    padding: 4px 12px;
+    border-radius: 4px;
+    opacity: 0.85;
+  }
+  .reset-hp-btn {
+    background: #0e0e28;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 8px 14px;
+    color: #7a82a0;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.2s;
+  }
+  .reset-hp-btn:hover { border-color: #cc3333; color: #cc3333; }
+
   /* ── Modal ── */
   .modal-overlay {
     display: none;
@@ -432,6 +519,8 @@
   <button class="filter-btn theme-orc" data-theme="orc" onclick="filterTheme('orc', this)">Orc</button>
   <button class="filter-btn theme-stone" data-theme="stone" onclick="filterTheme('stone', this)">Stone</button>
   <button class="filter-btn theme-pink" data-theme="pink" onclick="filterTheme('pink', this)">Pink</button>
+  <span style="color: #333; margin: 0 4px;">|</span>
+  <button class="reset-hp-btn" onclick="resetAllHP()" title="Reset all HP to maximum">⚕ Reset All HP</button>
 </div>
 
 <div class="grid" id="grid"></div>
@@ -541,6 +630,49 @@ let filteredChars = [...UNIQUE_CHARS];
 
 function getTheme(t) { return THEMES[t] || THEMES.royal; }
 
+/* ── HP Tracker ── */
+function hpKey(name) { return 'tiamat_hp_' + name.replace(/[^a-zA-Z0-9]/g, '_'); }
+function safeId(name) { return name.replace(/[^a-zA-Z0-9]/g, '_'); }
+
+function getHP(name, maxHp) {
+  const stored = localStorage.getItem(hpKey(name));
+  return stored !== null ? parseInt(stored) : parseInt(maxHp) || 0;
+}
+
+function hpClass(pct) {
+  if (pct > 50) return 'hp-healthy';
+  if (pct > 25) return 'hp-wounded';
+  if (pct > 0)  return 'hp-critical';
+  return 'hp-dead';
+}
+
+function setHP(name, val, maxHp) {
+  const max = parseInt(maxHp) || 0;
+  val = Math.max(0, Math.min(max, val));
+  localStorage.setItem(hpKey(name), val);
+  const sid = safeId(name);
+  const pct = max > 0 ? (val / max) * 100 : 0;
+  const bar  = document.getElementById('hpbar-' + sid);
+  const cur  = document.getElementById('hpcur-' + sid);
+  const card = document.getElementById('card-' + sid);
+  const stamp = document.getElementById('dead-' + sid);
+  if (bar)  { bar.style.width = pct + '%'; bar.className = 'hp-bar ' + hpClass(pct); }
+  if (cur)  { cur.textContent = val; }
+  if (card) { card.classList.toggle('is-dead', val === 0); }
+  if (stamp) { stamp.style.display = val === 0 ? 'block' : 'none'; }
+}
+
+function adjustHP(name, delta, maxHp, event) {
+  event.stopPropagation();
+  setHP(name, getHP(name, maxHp) + delta, maxHp);
+}
+
+function resetAllHP() {
+  if (!confirm('Reset all character HP to maximum?')) return;
+  UNIQUE_CHARS.forEach(c => localStorage.removeItem(hpKey(c.name)));
+  renderGrid();
+}
+
 function renderGrid() {
   filteredChars = UNIQUE_CHARS.filter(c => {
     const matchGroup = currentFilter === 'all' || c.group === currentFilter;
@@ -556,12 +688,18 @@ function renderGrid() {
   const grid = document.getElementById('grid');
   grid.innerHTML = filteredChars.map((c, i) => {
     const t = getTheme(c.theme);
+    const sid = safeId(c.name);
+    const maxHp = parseInt(c.hp) || 0;
+    const curHp = getHP(c.name, maxHp);
+    const pct   = maxHp > 0 ? (curHp / maxHp) * 100 : 0;
+    const isDead = curHp === 0;
     const abHtml = c.abilities.map(([n,s,m,hl]) =>
       `<div class="tt-ab${hl?' hl':''}"><span>${s}</span>${n}</div>`
     ).join('');
     const traitHtml = (c.traits||[]).slice(0,4).map(tr => `<div style="font-size:10px;color:#b8c0d8;margin-bottom:2px;">• ${tr}</div>`).join('');
     const loreSnip = c.lore ? (c.lore.length > 120 ? c.lore.slice(0,120) + '…' : c.lore) : '';
-    return `<div class="card" style="--accent:${t.accent};--glow:${t.glow}" onclick="openModal(${i})">
+    return `<div class="card${isDead?' is-dead':''}" id="card-${sid}" style="--accent:${t.accent};--glow:${t.glow}" onclick="openModal(${i})">
+      ${isDead ? `<div class="dead-stamp" id="dead-${sid}">DEAD</div>` : `<div class="dead-stamp" id="dead-${sid}" style="display:none">DEAD</div>`}
       <div class="card-tooltip" style="--accent:${t.accent}">
         <div class="tt-name">${c.name}</div>
         <div class="tt-title">${c.title}</div>
@@ -583,10 +721,21 @@ function renderGrid() {
           <div class="card-subtitle">${c.subtitle}</div>
           <div class="card-stats">
             <div class="mini-stat"><strong>CR</strong> ${c.cr}</div>
-            <div class="mini-stat"><strong>HP</strong> ${c.hp}</div>
             <div class="mini-stat"><strong>AC</strong> ${c.ac}</div>
           </div>
           ${c.quote ? `<div class="card-quote">"${c.quote}"</div>` : ''}
+        </div>
+        <div class="hp-tracker" onclick="event.stopPropagation()">
+          <div class="hp-bar-wrap">
+            <div class="hp-bar ${hpClass(pct)}" id="hpbar-${sid}" style="width:${pct}%"></div>
+          </div>
+          <div class="hp-controls">
+            <button class="hp-btn hp-btn-minus" onclick="adjustHP('${c.name}',  -10, '${c.hp}', event)" title="−10 HP">−10</button>
+            <button class="hp-btn hp-btn-minus" onclick="adjustHP('${c.name}',   -1, '${c.hp}', event)" title="−1 HP">−1</button>
+            <span class="hp-display"><span class="hp-cur" id="hpcur-${sid}">${curHp}</span><span class="hp-sep"> / </span>${c.hp}</span>
+            <button class="hp-btn hp-btn-plus"  onclick="adjustHP('${c.name}',   +1, '${c.hp}', event)" title="+1 HP">+1</button>
+            <button class="hp-btn hp-btn-plus"  onclick="adjustHP('${c.name}',  +10, '${c.hp}', event)" title="+10 HP">+10</button>
+          </div>
         </div>
       </div>
     </div>`;
