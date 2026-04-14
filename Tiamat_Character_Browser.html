@@ -3115,7 +3115,11 @@
             style="background:rgba(221,136,34,0.2);border-color:#dd8822;color:#dd8822">⬡</button>
   </div>
   <div id="hpTempDisplay" style="font-size:11px;color:#dd8822;text-align:center;min-height:14px;margin-top:2px"></div>
-  <button class="hp-popup-full" onclick="applyHpAction('full')">↺ Full HP</button>
+  <div style="display:flex;gap:6px;margin-top:6px">
+    <button class="hp-popup-full" style="flex:1;background:rgba(68,136,255,.12);border-color:#4488ff;color:#88bbff;font-size:11px" onclick="shortRest()" title="Short Rest: roll hit dice to heal">☽ Short Rest</button>
+    <button class="hp-popup-full" style="flex:1;font-size:11px" onclick="applyHpAction('full')">↺ Full HP</button>
+  </div>
+  <button class="hp-popup-full" style="background:rgba(68,136,255,.08);border-color:#336699;color:#6699cc;font-size:11px;margin-top:4px;width:100%" onclick="longRest()" title="Long Rest: full HP + all spell slots restored">☀ Long Rest (All Slots)</button>
 </div>
 
 <!-- Initiative Tracker Panel -->
@@ -3148,7 +3152,8 @@
   <div class="health-panel-header">
     <span class="health-panel-title">❤ PARTY HEALTH</span>
     <div style="display:flex;gap:6px;align-items:center">
-      <button class="init-ctrl-btn" onclick="resetAllHP()" title="Reset all HP to full" style="font-size:11px">⟳ Full Rest</button>
+      <button class="init-ctrl-btn" onclick="shortRestAll()" title="Short rest all — roll HD for each character" style="font-size:11px;border-color:#4488ff;color:#88bbff">☽ Short</button>
+      <button class="init-ctrl-btn" onclick="longRestAll()" title="Long rest all — full HP + all spell slots restored" style="font-size:11px">☀ Long</button>
       <button class="init-ctrl-btn" onclick="toggleHealthPanel()" style="font-size:14px;padding:2px 8px">✕</button>
     </div>
   </div>
@@ -3979,6 +3984,99 @@ function resetAllHP() {
   saveTempHp();
   saveDeathSaves();
   renderGrid();
+}
+
+// Short Rest: Roll hit die (d8 by default), heal that amount for single char
+function shortRest() {
+  if (!popupCharName) return;
+  const char = UNIQUE_CHARS.find(c => c.name === popupCharName);
+  const maxHp = popupCharMax;
+  const currHp = getCharHP(popupCharName, maxHp);
+  if (currHp >= maxHp) { logEntry('heal', `<strong>${popupCharName}</strong> is already at full HP`); return; }
+
+  // Determine hit die from CR
+  const cr = parseFloat(char?.cr || '1');
+  const hitDie = cr >= 17 ? 12 : cr >= 9 ? 10 : cr >= 5 ? 8 : 6;
+  const roll = Math.floor(Math.random() * hitDie) + 1;
+  const conMod = (() => {
+    const con = (char?.abilities || []).find(([n]) => n === 'CON');
+    return con ? parseInt(con[2]) || 0 : 0;
+  })();
+  const healed = Math.max(1, roll + conMod);
+  const newHp = Math.min(maxHp, currHp + healed);
+  hpState[popupCharName] = newHp;
+  saveHp();
+  logEntry('heal', `<strong>${popupCharName}</strong> short rest — rolled 1d${hitDie}+${conMod} = <strong>${healed}</strong> → ${newHp}/${maxHp} HP`);
+  logHpEvent(popupCharName, 'heal', healed, currHp, newHp, maxHp);
+  const pct = maxHp > 0 ? newHp / maxHp : 0;
+  document.getElementById('hpPopupCurrent').innerHTML = `${newHp} <span>/ ${maxHp} HP</span>`;
+  document.getElementById('hpPopupBarFill').style.width = Math.round(pct * 100) + '%';
+  document.getElementById('hpPopupBarFill').style.background = hpBarColor(pct);
+  updateHpDisplay(popupCharName, maxHp, newHp);
+}
+
+// Long Rest: full HP + restore all spell slots for this character
+function longRest() {
+  if (!popupCharName) return;
+  const maxHp = popupCharMax;
+  hpState[popupCharName] = maxHp;
+  delete tempHpState[popupCharName];
+  delete deathSaveState[popupCharName];
+  // Restore spell slots
+  if (slotState[popupCharName]) {
+    delete slotState[popupCharName];
+    saveSlots();
+    const char = UNIQUE_CHARS.find(c => c.name === popupCharName);
+    if (char) {
+      const sid = safeId(popupCharName);
+      const slotEl = document.getElementById('spellSlotsFor_' + sid);
+      if (slotEl && char) slotEl.innerHTML = buildSpellSlotsHtml(char);
+    }
+  }
+  saveHp();
+  saveTempHp();
+  saveDeathSaves();
+  logEntry('heal', `<strong>${popupCharName}</strong> ☀ long rest — full HP (${maxHp}) + all spell slots restored`);
+  const pct = 1;
+  document.getElementById('hpPopupCurrent').innerHTML = `${maxHp} <span>/ ${maxHp} HP</span>`;
+  document.getElementById('hpPopupBarFill').style.width = '100%';
+  document.getElementById('hpPopupBarFill').style.background = hpBarColor(1);
+  document.getElementById('hpTempDisplay').textContent = '';
+  updateHpDisplay(popupCharName, maxHp, maxHp);
+}
+
+function shortRestAll() {
+  let total = 0;
+  UNIQUE_CHARS.forEach(c => {
+    const maxHp = parseInt(c.hp) || 1;
+    const currHp = getCharHP(c.name, maxHp);
+    if (currHp >= maxHp) return;
+    const cr = parseFloat(c.cr || '1');
+    const hitDie = cr >= 17 ? 12 : cr >= 9 ? 10 : cr >= 5 ? 8 : 6;
+    const roll = Math.floor(Math.random() * hitDie) + 1;
+    const conMod = (() => {
+      const con = (c.abilities || []).find(([n]) => n === 'CON');
+      return con ? parseInt(con[2]) || 0 : 0;
+    })();
+    const healed = Math.max(1, roll + conMod);
+    hpState[c.name] = Math.min(maxHp, currHp + healed);
+    total++;
+  });
+  if (total) { saveHp(); renderGrid(); logEntry('heal', `☽ <strong>Short Rest</strong> — ${total} characters recovered hit dice`); }
+}
+
+function longRestAll() {
+  if (!confirm('Long Rest all characters? Full HP + all spell slots restored.')) return;
+  hpState = {};
+  tempHpState = {};
+  deathSaveState = {};
+  slotState = {};
+  saveHp();
+  saveTempHp();
+  saveDeathSaves();
+  saveSlots();
+  renderGrid();
+  logEntry('heal', `☀ <strong>Long Rest</strong> — all characters restored to full HP and spell slots`);
 }
 
 initHp();
