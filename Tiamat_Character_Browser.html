@@ -1265,6 +1265,11 @@
     min-height: 52px;
     margin-bottom: 10px;
   }
+  @keyframes diceRoll {
+    0% { transform: scale(0.7) rotate(-5deg); opacity: 0.3; }
+    50% { transform: scale(1.15) rotate(2deg); }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  }
   .dice-result-main {
     font-size: 28px;
     font-weight: 700;
@@ -2901,10 +2906,15 @@
     <div class="qref-tab" id="diceTab2" onclick="switchDiceTab('damage',this)">Damage Calc</div>
   </div>
   <div id="diceTabRoller">
+  <!-- Quick expression input -->
+  <div style="display:flex;gap:6px;margin-bottom:10px">
+    <input type="text" id="diceExprInput" placeholder="e.g. 2d6+4, adv, dis" style="flex:1;background:#0a0a1a;border:1px solid #2a2a50;border-radius:6px;padding:6px 10px;color:#e0e0ff;font-size:13px;font-family:inherit;outline:none" onkeydown="if(event.key==='Enter')rollExpression()" onfocus="this.style.borderColor='#4488ff'" onblur="this.style.borderColor='#2a2a50'">
+    <button onclick="rollExpression()" style="background:#4488ff22;border:1px solid #4488ff;color:#4488ff;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:13px;font-weight:600;transition:all 0.12s" onmouseover="this.style.background='#4488ff44'" onmouseout="this.style.background='#4488ff22'">Roll</button>
+  </div>
   <div class="dice-modifier-row">
     <span class="dice-mod-label"># Dice:</span>
     <input type="number" id="diceCount" class="dice-count-input" value="1" min="1" max="20">
-    <span class="dice-mod-label">Modifier:</span>
+    <span class="dice-mod-label">Mod:</span>
     <input type="number" id="diceMod" class="dice-mod-input" value="0" min="-20" max="40">
   </div>
   <div class="dice-grid">
@@ -2915,11 +2925,24 @@
     <button class="dice-btn" onclick="rollDice(12)"><span class="dice-icon">⬟</span>d12</button>
     <button class="dice-btn" onclick="rollDice(20)" style="border-color:#c9a227;color:#c9a227"><span class="dice-icon">⬠</span>d20</button>
     <button class="dice-btn" onclick="rollDice(100)"><span class="dice-icon">○</span>d100</button>
-    <button class="dice-btn" onclick="rollCustom()" style="color:#9b6dff"><span class="dice-icon">✦</span>Custom</button>
+    <button class="dice-btn" onclick="rollWithAdvantage(true)" style="color:#44aa44;border-color:#2a4a2a" title="Roll d20 with advantage (2 dice, take higher)"><span class="dice-icon">↑</span>Adv</button>
+    <button class="dice-btn" onclick="rollWithAdvantage(false)" style="color:#cc3333;border-color:#4a2a2a" title="Roll d20 with disadvantage (2 dice, take lower)"><span class="dice-icon">↓</span>Dis</button>
   </div>
+  <!-- Roll stats -->
+  <div id="diceStats" style="display:flex;gap:8px;margin:6px 0;font-size:10px;color:#4a5272;flex-wrap:wrap"></div>
   <div class="dice-result-area">
     <div id="diceResultMain" class="dice-result-main" style="color:#4a5272">—</div>
     <div id="diceResultDetail" class="dice-result-detail"></div>
+  </div>
+  <!-- Saved expressions -->
+  <div style="margin:8px 0 6px;font-size:9px;color:#4a5272;text-transform:uppercase;letter-spacing:1px">Quick Rolls</div>
+  <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px" id="savedExprs">
+    <button class="dice-btn" style="font-size:10px;padding:4px 8px" onclick="rollExprDirect('1d20')">1d20</button>
+    <button class="dice-btn" style="font-size:10px;padding:4px 8px" onclick="rollExprDirect('2d6')">2d6</button>
+    <button class="dice-btn" style="font-size:10px;padding:4px 8px" onclick="rollExprDirect('1d8+4')">1d8+4</button>
+    <button class="dice-btn" style="font-size:10px;padding:4px 8px" onclick="rollExprDirect('4d6')">4d6</button>
+    <button class="dice-btn" style="font-size:10px;padding:4px 8px" onclick="rollExprDirect('1d20+7')">1d20+7</button>
+    <button class="dice-btn" style="font-size:10px;padding:4px 8px;color:#9b6dff;border-color:#3a2a5a" onclick="saveCurrentExpr()" title="Save current expression">+ Save</button>
   </div>
   <div class="dice-history" id="diceHistory">
     <button class="dice-history-clear" onclick="clearDiceHistory()">✕ clear</button>
@@ -5739,23 +5762,20 @@ function rollDice(sides) {
   const isCrit = sides === 20 && count === 1 && rolls[0] === 20;
   const isFumble = sides === 20 && count === 1 && rolls[0] === 1;
 
-  const mainEl = document.getElementById('diceResultMain');
-  mainEl.textContent = total;
-  mainEl.className = 'dice-result-main' + (isCrit ? ' crit' : isFumble ? ' fumble' : '');
-
   let detail = `${count}d${sides}`;
   if (mod !== 0) detail += ` ${mod >= 0 ? '+' : ''}${mod}`;
   detail += ` = [${rolls.join(', ')}]`;
   if (mod !== 0) detail += ` + ${mod}`;
   if (isCrit) detail += ' ★ CRITICAL HIT!';
   if (isFumble) detail += ' ☠ FUMBLE!';
-  document.getElementById('diceResultDetail').textContent = detail;
+  showDiceResult(total, detail, isCrit, isFumble);
 
   // Add to dice history
   const timestamp = new Date().toLocaleTimeString('en-US', {hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit'});
   const entry = { ts: timestamp, expr: `${count}d${sides}${mod !== 0 ? (mod>0?'+':'') + mod : ''}`, result: total, isCrit, isFumble, detail };
   diceHistory.unshift(entry);
   if (diceHistory.length > 30) diceHistory.pop();
+  updateDiceStats();
   renderDiceHistory();
   // Add to session log
   const expr = `${count}d${sides}${mod !== 0 ? (mod>0?'+':'') + mod : ''}`;
@@ -5765,14 +5785,96 @@ function rollDice(sides) {
 function rollCustom() {
   const expr = prompt('Enter dice expression (e.g. 2d6+3, 1d20-1):');
   if (!expr) return;
-  const match = expr.match(/^(\d+)?d(\d+)([+-]\d+)?$/i);
-  if (!match) { alert('Use format like: 2d6+3'); return; }
+  rollExprDirect(expr);
+}
+
+function rollExpression() {
+  const val = document.getElementById('diceExprInput').value.trim();
+  if (!val) return;
+  rollExprDirect(val);
+}
+
+function rollExprDirect(expr) {
+  const lower = expr.toLowerCase().trim();
+  if (lower === 'adv' || lower === 'advantage') { rollWithAdvantage(true); return; }
+  if (lower === 'dis' || lower === 'disadvantage') { rollWithAdvantage(false); return; }
+
+  const match = expr.match(/^(\d+)?d(\d+)([\+\-]\d+)?$/i);
+  if (!match) {
+    showDiceResult('?', `Invalid: "${expr}" — use like 2d6+3`, false, false);
+    return;
+  }
   const count = parseInt(match[1] || '1');
   const sides = parseInt(match[2]);
   const mod = parseInt(match[3] || '0');
   document.getElementById('diceCount').value = count;
   document.getElementById('diceMod').value = mod;
   rollDice(sides);
+}
+
+function rollWithAdvantage(isAdv) {
+  const mod = parseInt(document.getElementById('diceMod').value) || 0;
+  const r1 = Math.floor(Math.random() * 20) + 1;
+  const r2 = Math.floor(Math.random() * 20) + 1;
+  const chosen = isAdv ? Math.max(r1, r2) : Math.min(r1, r2);
+  const dropped = isAdv ? Math.min(r1, r2) : Math.max(r1, r2);
+  const total = chosen + mod;
+  const isCrit = chosen === 20, isFumble = chosen === 1;
+  const modStr = mod !== 0 ? ` ${mod >= 0 ? '+' : ''}${mod}` : '';
+  const advStr = isAdv ? 'Advantage' : 'Disadvantage';
+  const detail = `${advStr}: [${r1}, ${r2}] → keep ${chosen} (drop ${dropped})${modStr} = ${total}${isCrit?' ★ CRIT!':isFumble?' ☠ FUMBLE':''}`;
+  const expr = isAdv ? 'adv d20' : 'dis d20';
+  showDiceResult(total, detail, isCrit, isFumble);
+  const timestamp = new Date().toLocaleTimeString('en-US', {hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  diceHistory.unshift({ ts: timestamp, expr, result: total, isCrit, isFumble, detail });
+  if (diceHistory.length > 30) diceHistory.pop();
+  updateDiceStats();
+  renderDiceHistory();
+  logEntry('roll', `Rolled <strong>${expr}</strong> → <strong>${total}</strong>${isCrit?' <span style="color:#c9a227">★</span>':isFumble?' <span style="color:#cc3333">☠</span>':''}`);
+}
+
+function showDiceResult(total, detail, isCrit, isFumble) {
+  const mainEl = document.getElementById('diceResultMain');
+  mainEl.textContent = total;
+  mainEl.className = 'dice-result-main' + (isCrit ? ' crit' : isFumble ? ' fumble' : '');
+  mainEl.style.animation = 'none';
+  void mainEl.offsetWidth; // force reflow
+  mainEl.style.animation = 'diceRoll 0.3s ease';
+  document.getElementById('diceResultDetail').textContent = detail;
+}
+
+function updateDiceStats() {
+  const el = document.getElementById('diceStats');
+  if (!el || !diceHistory.length) return;
+  const total = diceHistory.length;
+  const crits = diceHistory.filter(e => e.isCrit).length;
+  const fumbles = diceHistory.filter(e => e.isFumble).length;
+  const avg = (diceHistory.reduce((s, e) => s + e.result, 0) / total).toFixed(1);
+  el.innerHTML = `<span>Rolls: <strong style="color:#f0e6d3">${total}</strong></span> <span>Avg: <strong style="color:#c9a227">${avg}</strong></span> <span style="color:#44aa44">★ Crits: ${crits}</span> <span style="color:#cc3333">☠ Fumbles: ${fumbles}</span>`;
+}
+
+let savedExprs = JSON.parse(localStorage.getItem('tiamat_saved_exprs') || '[]');
+
+function saveCurrentExpr() {
+  const val = document.getElementById('diceExprInput').value.trim();
+  if (!val) return;
+  if (!savedExprs.includes(val)) {
+    savedExprs.push(val);
+    if (savedExprs.length > 8) savedExprs.shift();
+    localStorage.setItem('tiamat_saved_exprs', JSON.stringify(savedExprs));
+    renderSavedExprs();
+  }
+}
+
+function renderSavedExprs() {
+  const container = document.getElementById('savedExprs');
+  if (!container) return;
+  const defaults = ['1d20','2d6','1d8+4','4d6','1d20+7'];
+  const all = [...defaults, ...savedExprs.filter(e => !defaults.includes(e))];
+  container.innerHTML = all.map(e =>
+    `<button class="dice-btn" style="font-size:10px;padding:4px 8px" onclick="rollExprDirect(${JSON.stringify(e)})">${e}</button>`
+  ).join('') +
+  `<button class="dice-btn" style="font-size:10px;padding:4px 8px;color:#9b6dff;border-color:#3a2a5a" onclick="saveCurrentExpr()" title="Save expression from input">+ Save</button>`;
 }
 
 function renderDiceHistory() {
@@ -5786,6 +5888,7 @@ function renderDiceHistory() {
 function clearDiceHistory() {
   diceHistory = [];
   renderDiceHistory();
+  updateDiceStats();
   document.getElementById('diceResultMain').textContent = '—';
   document.getElementById('diceResultMain').className = 'dice-result-main';
   document.getElementById('diceResultDetail').textContent = '';
