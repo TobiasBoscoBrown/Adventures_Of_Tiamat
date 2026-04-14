@@ -846,6 +846,31 @@
   }
   .dice-history-clear:hover { color: #cc3333; }
 
+  /* ── Death Saves ── */
+  .death-saves-row {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    margin-top: 5px;
+    padding: 5px 6px;
+    background: rgba(204,51,51,0.08);
+    border: 1px solid rgba(204,51,51,0.2);
+    border-radius: 6px;
+  }
+  .ds-pip {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-block;
+  }
+  .ds-pip.success { border: 1.5px solid #44aa44; background: transparent; }
+  .ds-pip.success.filled { background: #44aa44; }
+  .ds-pip.failure { border: 1.5px solid #cc3333; background: transparent; }
+  .ds-pip.failure.filled { background: #cc3333; }
+  .ds-pip:hover { transform: scale(1.3); }
+
   /* ── Campaign Calendar ── */
   .cal-adv-btn {
     background: #0c0c20;
@@ -2769,12 +2794,17 @@ let tempHpState = {};
 let popupCharName = '';
 let popupCharMax = 0;
 
+let deathSaveState = {}; // {charName: {successes:0, failures:0}}
+
 function initHp() {
   try { hpState = JSON.parse(localStorage.getItem('tiamat_hp')) || {}; } catch { hpState = {}; }
   try { tempHpState = JSON.parse(localStorage.getItem('tiamat_temp_hp')) || {}; } catch { tempHpState = {}; }
+  try { deathSaveState = JSON.parse(localStorage.getItem('tiamat_death_saves')) || {}; } catch { deathSaveState = {}; }
 }
 function saveHp() { localStorage.setItem('tiamat_hp', JSON.stringify(hpState)); }
 function saveTempHp() { localStorage.setItem('tiamat_temp_hp', JSON.stringify(tempHpState)); }
+function saveDeathSaves() { localStorage.setItem('tiamat_death_saves', JSON.stringify(deathSaveState)); }
+function getDeathSaves(name) { return deathSaveState[name] || {successes:0, failures:0}; }
 function getCharHP(name, maxHp) { return hpState[name] !== undefined ? hpState[name] : maxHp; }
 function getTempHP(name) { return tempHpState[name] || 0; }
 function safeId(name) { return name.replace(/[^a-zA-Z0-9]/g, '_'); }
@@ -2904,12 +2934,39 @@ function updateTempHpDisplay(name) {
   }
 }
 
+function toggleDeathSave(name, type, idx) {
+  if (!deathSaveState[name]) deathSaveState[name] = {successes:0, failures:0};
+  const ds = deathSaveState[name];
+  // Toggle: clicking filled pip below threshold clears it, clicking unfilled fills up to it+1
+  const current = ds[type === 'success' ? 'successes' : 'failures'];
+  if (idx < current) {
+    ds[type === 'success' ? 'successes' : 'failures'] = idx; // clear from this pip onward
+  } else {
+    ds[type === 'success' ? 'successes' : 'failures'] = idx + 1; // fill up to this pip
+  }
+  saveDeathSaves();
+  // Check for stabilized or dead
+  const maxHp = parseInt(UNIQUE_CHARS.find(c=>c.name===name)?.hp||'1');
+  if (ds.successes >= 3) {
+    logEntry('heal', `<strong>${name}</strong> ⬆ STABILIZED (3 death save successes)`);
+    ds.successes = 0; ds.failures = 0;
+    saveDeathSaves();
+  } else if (ds.failures >= 3) {
+    logEntry('damage', `<strong style="color:#cc3333">${name} ✝ DEAD (3 death save failures)</strong>`);
+    ds.successes = 0; ds.failures = 0;
+    saveDeathSaves();
+  }
+  renderGrid();
+}
+
 function resetAllHP() {
   if (!confirm('Reset ALL character HP to full?')) return;
   hpState = {};
   tempHpState = {};
+  deathSaveState = {};
   saveHp();
   saveTempHp();
+  saveDeathSaves();
   renderGrid();
 }
 
@@ -3011,6 +3068,12 @@ function renderGrid() {
               <span class="hp-st ${hpStClass}">${hpStText}</span>
               <span class="temp-hp-badge" style="font-size:10px;color:#dd8822;${getTempHP(c.name)>0?'':'display:none'}">${getTempHP(c.name)>0?`⬡ +${getTempHP(c.name)}`:''}</span>
             </div>
+            ${currHp === 0 ? `<div class="death-saves-row" id="dsrow_${sid}">
+              <span style="font-size:9px;color:#44aa44;letter-spacing:0.5px">✓ Saves: </span>
+              ${[0,1,2].map(i => `<span class="ds-pip success${getDeathSaves(c.name).successes>i?' filled':''}" onclick="toggleDeathSave(${JSON.stringify(c.name)},'success',${i})"></span>`).join('')}
+              <span style="font-size:9px;color:#cc3333;letter-spacing:0.5px;margin-left:6px">✗ Fails: </span>
+              ${[0,1,2].map(i => `<span class="ds-pip failure${getDeathSaves(c.name).failures>i?' filled':''}" onclick="toggleDeathSave(${JSON.stringify(c.name)},'failure',${i})"></span>`).join('')}
+            </div>` : ''}
           </div>
         </div>
       </div>
