@@ -4807,8 +4807,50 @@ function buildStatsPanel(c) {
       <div class="stats-section-title">Lore</div>
       <div class="lore-text">${c.lore}</div>
     </div>` : ''}
+    ${buildSeeAlso(c)}
     ${c.quote ? `<div class="modal-quote">"${c.quote}"</div>` : ''}
   `;
+}
+
+function buildSeeAlso(c) {
+  const t = getTheme(c.theme);
+  // Characters with defined relationships TO this character
+  const allRels = (typeof relState !== 'undefined') ? relState : {};
+  const mentionedBy = [];
+  Object.entries(allRels).forEach(([src, rels]) => {
+    if (src === c.name) return;
+    (rels || []).forEach(r => {
+      if (r.target === c.name) mentionedBy.push({ name: src, type: r.type });
+    });
+  });
+  // Characters in same group
+  const sameGroup = UNIQUE_CHARS.filter(x => x.name !== c.name && x.group === c.group).slice(0, 6);
+  // Characters with same theme
+  const sameTheme = UNIQUE_CHARS.filter(x => x.name !== c.name && x.theme === c.theme && x.group !== c.group).slice(0, 4);
+
+  if (!mentionedBy.length && !sameGroup.length) return '';
+
+  const linkBtn = (name, label, color) => {
+    const idx = UNIQUE_CHARS.findIndex(x => x.name === name);
+    return idx >= 0
+      ? `<button onclick="navToChar(${JSON.stringify(name)})" style="background:none;border:1px solid ${color}33;border-radius:16px;padding:3px 10px;color:${color};font-size:11px;cursor:pointer;transition:all .15s;white-space:nowrap" onmouseover="this.style.borderColor='${color}'" onmouseout="this.style.borderColor='${color}33'">${label}</button>`
+      : '';
+  };
+
+  const relBtns = mentionedBy.map(r => {
+    const char = UNIQUE_CHARS.find(x => x.name === r.name);
+    const color = char ? getTheme(char.theme).accent : '#7a7aaa';
+    const icon = { ally:'✦', enemy:'☠', rival:'⚡', neutral:'○', family:'♥', mentor:'◆', student:'◇' }[r.type] || '◆';
+    return linkBtn(r.name, `${icon} ${r.name}`, color);
+  }).filter(Boolean);
+
+  const groupBtns = sameGroup.map(x => linkBtn(x.name, x.name, getTheme(x.theme).accent)).filter(Boolean);
+
+  const sections = [];
+  if (relBtns.length) sections.push(`<div style="margin-bottom:8px"><div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:6px">LINKED BY RELATIONSHIPS</div><div style="display:flex;flex-wrap:wrap;gap:6px">${relBtns.join('')}</div></div>`);
+  if (groupBtns.length) sections.push(`<div><div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:6px">SAME GROUP · ${c.group?.toUpperCase()}</div><div style="display:flex;flex-wrap:wrap;gap:6px">${groupBtns.join('')}</div></div>`);
+
+  return sections.length ? `<div class="stats-section">${sections.join('')}</div>` : '';
 }
 
 function rollAbilityCheck(abName, mod) {
@@ -5982,6 +6024,25 @@ function navChar(dir) {
   if (next < 0) next = filteredChars.length - 1;
   if (next >= filteredChars.length) next = 0;
   openModal(next);
+}
+
+function navToChar(name) {
+  // Navigate to a character by name from within the modal (used by See Also links)
+  const idx = filteredChars.findIndex(c => c.name === name);
+  if (idx >= 0) {
+    openModal(idx);
+    return;
+  }
+  // Character not in current filtered view — switch to all and navigate
+  const globalIdx = UNIQUE_CHARS.findIndex(c => c.name === name);
+  if (globalIdx < 0) return;
+  currentSearch = '';
+  currentFilter = 'all';
+  document.getElementById('searchBox').value = '';
+  renderGrid();
+  // Now find in filteredChars
+  const newIdx = filteredChars.findIndex(c => c.name === name);
+  if (newIdx >= 0) openModal(newIdx);
 }
 
 document.getElementById('searchBox').addEventListener('input', (e) => {
