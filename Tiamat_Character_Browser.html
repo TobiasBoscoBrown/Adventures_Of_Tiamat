@@ -2051,6 +2051,7 @@
     <button class="encounter-open-btn" onclick="toggleQRef()" style="border-color:#2299bb;color:#2299bb">⚡ Quick Ref</button>
     <button class="encounter-open-btn" onclick="openLoreBrowser()" style="border-color:#44aa44;color:#44aa44">📚 Lore</button>
     <button class="encounter-open-btn" onclick="openEncounterBuilder()">⚔ Encounters</button>
+    <button class="encounter-open-btn" onclick="openXpBudget()" style="border-color:#dd6622;color:#dd6622">⚖ XP Budget</button>
     <button class="encounter-open-btn" onclick="openSessionManager()" style="border-color:#9b6dff;color:#9b6dff">💾 Session</button>
     <div class="stat-badge"><strong id="totalCount">0</strong> Characters</div>
     <div class="stat-badge"><strong id="visibleCount">0</strong> Showing</div>
@@ -2386,6 +2387,59 @@
   <div class="log-add-row">
     <input type="text" id="logNoteInput" class="log-note-input" placeholder="Add DM note to log..." onkeydown="if(event.key==='Enter')addManualLogNote()">
     <button class="log-note-btn" onclick="addManualLogNote()">+ Note</button>
+  </div>
+</div>
+
+<!-- XP Budget Tracker -->
+<div class="modal-backdrop" id="xpBudgetModal" onclick="if(event.target===this)closeXpBudget()" style="display:none;align-items:center;justify-content:center">
+  <div class="session-manager-content" style="max-width:560px;width:94%">
+    <div class="session-manager-header">
+      <div class="session-manager-title">⚖ XP BUDGET CALCULATOR</div>
+      <button class="modal-close" onclick="closeXpBudget()">✕</button>
+    </div>
+
+    <!-- Party Config -->
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:12px;color:#7a7aaa">Party Size:</span>
+        <input type="number" id="xpPartySize" value="4" min="1" max="12" style="width:50px;background:#0c0c20;border:1px solid #1e2040;color:#e0e0ff;border-radius:6px;padding:4px 8px;text-align:center" oninput="recalcXp()">
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:12px;color:#7a7aaa">Party Level:</span>
+        <input type="number" id="xpPartyLevel" value="5" min="1" max="20" style="width:50px;background:#0c0c20;border:1px solid #1e2040;color:#e0e0ff;border-radius:6px;padding:4px 8px;text-align:center" oninput="recalcXp()">
+      </div>
+      <div style="margin-left:auto;font-size:11px;color:#4a5272">Thresholds auto-update below</div>
+    </div>
+
+    <!-- Thresholds display -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:16px" id="xpThresholds"></div>
+
+    <!-- Add monster row -->
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      <select id="xpCrSelect" style="flex:1;background:#0c0c20;border:1px solid #1e2040;color:#e0e0ff;border-radius:6px;padding:6px 10px;font-size:13px">
+        <option value="">— Pick CR —</option>
+      </select>
+      <input type="text" id="xpMonsterName" placeholder="Monster name (optional)" style="flex:2;background:#0c0c20;border:1px solid #1e2040;color:#e0e0ff;border-radius:6px;padding:6px 10px;font-size:13px">
+      <button onclick="addXpMonster()" style="background:#dd662222;border:1px solid #dd6622;color:#dd6622;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:13px;white-space:nowrap">+ Add</button>
+    </div>
+
+    <!-- Monster list -->
+    <div id="xpMonsterList" style="min-height:60px;max-height:220px;overflow-y:auto;margin-bottom:14px;border:1px solid #1e2040;border-radius:8px;padding:8px;background:#0a0a1a"></div>
+
+    <!-- Total + difficulty -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div style="background:#0c0c20;border:1px solid #1e2040;border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:11px;color:#4a5272;margin-bottom:4px">MONSTER XP</div>
+        <div id="xpRawTotal" style="font-size:24px;font-weight:700;color:#dd6622;font-family:'Cinzel',serif">0</div>
+      </div>
+      <div style="background:#0c0c20;border:1px solid #1e2040;border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:11px;color:#4a5272;margin-bottom:4px">ADJUSTED XP <span id="xpMultiplierLabel" style="color:#7a7aaa"></span></div>
+        <div id="xpAdjTotal" style="font-size:24px;font-weight:700;color:#dd6622;font-family:'Cinzel',serif">0</div>
+      </div>
+    </div>
+    <div id="xpDifficultyBanner" style="text-align:center;padding:12px;border-radius:8px;font-size:18px;font-family:'Cinzel',serif;font-weight:700;background:#1e2040;color:#4a5272;letter-spacing:2px">ADD MONSTERS</div>
+
+    <button onclick="clearXpBudget()" style="margin-top:12px;width:100%;background:none;border:1px solid #2a2a50;color:#4a5272;border-radius:6px;padding:6px;cursor:pointer;font-size:12px">Clear All</button>
   </div>
 </div>
 
@@ -4147,6 +4201,149 @@ document.addEventListener('keydown', (e) => {
     }
   }
 });
+// ────────────────────────────────────────────────────────
+
+// ── XP BUDGET CALCULATOR ────────────────────────────────
+const XP_BY_CR = {
+  '0':10,'1/8':25,'1/4':50,'1/2':100,
+  '1':200,'2':450,'3':700,'4':1100,'5':1800,'6':2300,'7':2900,'8':3900,
+  '9':5000,'10':5900,'11':7200,'12':8400,'13':10000,'14':11500,'15':13000,
+  '16':15000,'17':18000,'18':20000,'19':22000,'20':25000,
+  '21':33000,'22':41000,'23':50000,'24':62000,'25':75000,
+  '26':90000,'27':105000,'28':120000,'29':135000,'30':155000
+};
+
+// XP thresholds per character per level (Easy, Medium, Hard, Deadly)
+const XP_THRESHOLDS = [
+  null,
+  [25,50,75,100],[50,100,150,200],[75,150,225,400],[125,250,375,500],[250,500,750,1100],
+  [300,600,900,1400],[350,750,1100,1700],[450,900,1400,2100],[550,1100,1600,2400],[600,1200,1900,2800],
+  [800,1600,2400,3600],[1000,2000,3000,4500],[1100,2200,3300,5100],[1250,2500,3800,5700],[1400,2800,4300,6400],
+  [1600,3200,4800,7200],[2000,3900,5900,8800],[2100,4200,6300,9500],[2400,4900,7300,10900],[2800,5700,8500,12700]
+];
+
+const CR_LIST = ['0','1/8','1/4','1/2','1','2','3','4','5','6','7','8','9','10',
+  '11','12','13','14','15','16','17','18','19','20','21','22','23','24','25','26','27','28','29','30'];
+
+const MULT_BREAKPOINTS = [
+  [1,1.0],[2,1.5],[3,2.0],[6,2.0],[10,2.5],[14,3.0],[Infinity,4.0]
+];
+
+let xpMonsters = []; // [{name, cr, xp}]
+
+function openXpBudget() {
+  document.getElementById('xpBudgetModal').style.display = 'flex';
+  // Populate CR select
+  const sel = document.getElementById('xpCrSelect');
+  if (sel.options.length <= 1) {
+    CR_LIST.forEach(cr => {
+      const opt = document.createElement('option');
+      opt.value = cr;
+      opt.textContent = `CR ${cr} (${(XP_BY_CR[cr]||0).toLocaleString()} XP)`;
+      sel.appendChild(opt);
+    });
+  }
+  recalcXp();
+}
+
+function closeXpBudget() {
+  document.getElementById('xpBudgetModal').style.display = 'none';
+}
+
+function addXpMonster() {
+  const cr = document.getElementById('xpCrSelect').value;
+  if (!cr) return;
+  const name = document.getElementById('xpMonsterName').value.trim() || `CR ${cr} Monster`;
+  xpMonsters.push({ name, cr, xp: XP_BY_CR[cr] || 0 });
+  document.getElementById('xpMonsterName').value = '';
+  document.getElementById('xpCrSelect').value = '';
+  recalcXp();
+}
+
+function removeXpMonster(idx) {
+  xpMonsters.splice(idx, 1);
+  recalcXp();
+}
+
+function getXpMultiplier(count) {
+  for (const [threshold, mult] of MULT_BREAKPOINTS) {
+    if (count <= threshold) return mult;
+  }
+  return 4.0;
+}
+
+function recalcXp() {
+  const partySize = Math.max(1, parseInt(document.getElementById('xpPartySize').value) || 4);
+  const partyLevel = Math.max(1, Math.min(20, parseInt(document.getElementById('xpPartyLevel').value) || 5));
+
+  // Render thresholds
+  const threshEl = document.getElementById('xpThresholds');
+  const thr = XP_THRESHOLDS[partyLevel];
+  const labels = ['Easy','Medium','Hard','Deadly'];
+  const thrColors = ['#44aa44','#c9a227','#dd6622','#cc3333'];
+  if (thr) {
+    const totals = thr.map(t => t * partySize);
+    threshEl.innerHTML = labels.map((lbl, i) =>
+      `<div style="background:#0c0c20;border:1px solid ${thrColors[i]}33;border-radius:6px;padding:8px;text-align:center">
+        <div style="font-size:10px;color:${thrColors[i]};font-weight:600;letter-spacing:1px">${lbl}</div>
+        <div style="font-size:14px;font-weight:700;color:${thrColors[i]}">${totals[i].toLocaleString()}</div>
+      </div>`
+    ).join('');
+  }
+
+  // Render monster list
+  const listEl = document.getElementById('xpMonsterList');
+  if (!xpMonsters.length) {
+    listEl.innerHTML = '<div style="text-align:center;color:#2a2a50;font-size:12px;padding:20px">No monsters added yet</div>';
+  } else {
+    listEl.innerHTML = xpMonsters.map((m, i) =>
+      `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;border-bottom:1px solid #1e2040;font-size:13px">
+        <span style="color:#e0e0ff">${m.name}</span>
+        <span style="color:#dd6622;margin:0 12px;white-space:nowrap">CR ${m.cr} · ${m.xp.toLocaleString()} XP</span>
+        <button onclick="removeXpMonster(${i})" style="background:none;border:none;color:#cc3333;cursor:pointer;font-size:14px;padding:0 4px">✕</button>
+      </div>`
+    ).join('');
+  }
+
+  // Calculate totals
+  const rawXp = xpMonsters.reduce((sum, m) => sum + m.xp, 0);
+  const count = xpMonsters.length;
+  let mult = getXpMultiplier(count);
+  // Adjust multiplier for large/small parties
+  if (partySize < 3 && mult < 4.0) mult = Math.min(4.0, mult * 1.5);
+  if (partySize > 5 && mult > 0.5) mult = Math.max(0.5, mult * 0.5);
+  const adjXp = Math.round(rawXp * mult);
+
+  document.getElementById('xpRawTotal').textContent = rawXp.toLocaleString();
+  document.getElementById('xpAdjTotal').textContent = adjXp.toLocaleString();
+  document.getElementById('xpMultiplierLabel').textContent = count > 0 ? `×${mult}` : '';
+
+  // Determine difficulty
+  const banner = document.getElementById('xpDifficultyBanner');
+  if (!count || !thr) {
+    banner.textContent = 'ADD MONSTERS';
+    banner.style.background = '#1e2040';
+    banner.style.color = '#4a5272';
+    return;
+  }
+  const totals = thr.map(t => t * partySize);
+  let diff, color, bg;
+  if (adjXp < totals[0]) { diff = 'TRIVIAL'; color = '#7a7aaa'; bg = '#1e204088'; }
+  else if (adjXp < totals[1]) { diff = 'EASY'; color = '#44aa44'; bg = '#44aa4422'; }
+  else if (adjXp < totals[2]) { diff = 'MEDIUM'; color = '#c9a227'; bg = '#c9a22722'; }
+  else if (adjXp < totals[3]) { diff = 'HARD'; color = '#dd6622'; bg = '#dd662222'; }
+  else { diff = '☠ DEADLY'; color = '#cc3333'; bg = '#cc333322'; }
+  banner.textContent = diff;
+  banner.style.background = bg;
+  banner.style.color = color;
+  banner.style.borderColor = color + '55';
+  banner.style.border = `1px solid ${color}55`;
+}
+
+function clearXpBudget() {
+  xpMonsters = [];
+  recalcXp();
+}
 // ────────────────────────────────────────────────────────
 
 renderGrid();
