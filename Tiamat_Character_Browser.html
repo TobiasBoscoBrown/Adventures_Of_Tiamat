@@ -853,6 +853,34 @@
   }
   .dice-history-clear:hover { color: #cc3333; }
 
+  /* ── Campaign Calendar ── */
+  .cal-adv-btn {
+    background: #0c0c20;
+    border: 1px solid #1e2040;
+    color: #9098b8;
+    border-radius: 6px;
+    padding: 5px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.15s;
+  }
+  .cal-adv-btn:hover { border-color: #4488ff; color: #4488ff; }
+  .cal-day-cell {
+    aspect-ratio: 1;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    cursor: default;
+    border: 1px solid #1e2040;
+    background: #0a0a1a;
+    color: #4a5272;
+    position: relative;
+  }
+  .cal-day-cell.today { background: #c9a22722; border-color: #c9a227; color: #c9a227; font-weight: 700; }
+  .cal-day-cell.has-event::after { content:''; position:absolute; top:2px; right:2px; width:4px; height:4px; border-radius:50%; background:#4488ff; }
+
   /* ── Relationship Badges ── */
   .rel-badge {
     display: inline-flex;
@@ -2063,6 +2091,7 @@
     <button class="encounter-open-btn" onclick="toggleQRef()" style="border-color:#2299bb;color:#2299bb">⚡ Quick Ref</button>
     <button class="encounter-open-btn" onclick="openLoreBrowser()" style="border-color:#44aa44;color:#44aa44">📚 Lore</button>
     <button class="encounter-open-btn" onclick="openEncounterBuilder()">⚔ Encounters</button>
+    <button class="encounter-open-btn" onclick="openCalendar()" style="border-color:#2299bb;color:#44aacc">📅 Calendar</button>
     <button class="encounter-open-btn" onclick="openXpBudget()" style="border-color:#dd6622;color:#dd6622">⚖ XP Budget</button>
     <button class="encounter-open-btn" onclick="openSessionManager()" style="border-color:#9b6dff;color:#9b6dff">💾 Session</button>
     <div class="stat-badge"><strong id="totalCount">0</strong> Characters</div>
@@ -2406,6 +2435,64 @@
   <div class="log-add-row">
     <input type="text" id="logNoteInput" class="log-note-input" placeholder="Add DM note to log..." onkeydown="if(event.key==='Enter')addManualLogNote()">
     <button class="log-note-btn" onclick="addManualLogNote()">+ Note</button>
+  </div>
+</div>
+
+<!-- Campaign Calendar -->
+<div class="modal-backdrop" id="calendarModal" onclick="if(event.target===this)closeCalendar()" style="display:none;align-items:flex-start;justify-content:center;padding-top:40px">
+  <div class="session-manager-content" style="max-width:520px;width:94%">
+    <div class="session-manager-header">
+      <div class="session-manager-title">📅 CAMPAIGN CALENDAR</div>
+      <button class="modal-close" onclick="closeCalendar()">✕</button>
+    </div>
+
+    <!-- Current Date Display -->
+    <div style="text-align:center;padding:16px;background:#0a0a1a;border:1px solid #c9a22733;border-radius:10px;margin-bottom:16px">
+      <div style="font-size:11px;color:#7a7aaa;letter-spacing:2px;margin-bottom:4px">CURRENT DATE</div>
+      <div id="calCurrentDate" style="font-size:22px;font-weight:700;color:#c9a227;font-family:'Cinzel',serif"></div>
+      <div id="calCurrentYear" style="font-size:13px;color:#7a7aaa;margin-top:2px"></div>
+    </div>
+
+    <!-- Advance Time Controls -->
+    <div style="display:flex;gap:8px;justify-content:center;margin-bottom:16px;flex-wrap:wrap">
+      <button onclick="advanceCalendar(1,'hour')" class="cal-adv-btn">+1 Hour</button>
+      <button onclick="advanceCalendar(8,'hour')" class="cal-adv-btn">+8 Hours</button>
+      <button onclick="advanceCalendar(1,'day')" class="cal-adv-btn" style="border-color:#c9a22766;color:#c9a227">+1 Day</button>
+      <button onclick="advanceCalendar(7,'day')" class="cal-adv-btn">+1 Week</button>
+      <button onclick="advanceCalendar(30,'day')" class="cal-adv-btn">+1 Month</button>
+      <button onclick="advanceCalendar(-1,'day')" class="cal-adv-btn" style="border-color:#cc333366;color:#cc3333">−1 Day</button>
+    </div>
+
+    <!-- Month View -->
+    <div style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div id="calMonthTitle" style="font-family:'Cinzel',serif;font-size:14px;color:#c9a227"></div>
+        <div style="font-size:11px;color:#4a5272">10-day weeks · 3 weeks/month · 12 months</div>
+      </div>
+      <div id="calMonthGrid" style="display:grid;grid-template-columns:repeat(10,1fr);gap:3px"></div>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap" id="calWeekdays"></div>
+    </div>
+
+    <!-- Add Event -->
+    <div style="border-top:1px solid #1e2040;padding-top:12px;margin-bottom:12px">
+      <div style="font-size:12px;color:#7a7aaa;margin-bottom:6px">Add event to current date:</div>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="calEventInput" placeholder="Event description..." style="flex:1;background:#0c0c20;border:1px solid #1e2040;color:#e0e0ff;border-radius:6px;padding:6px 10px;font-size:13px" onkeydown="if(event.key==='Enter')addCalEvent()">
+        <button onclick="addCalEvent()" style="background:#c9a22722;border:1px solid #c9a227;color:#c9a227;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:13px">+ Add</button>
+      </div>
+    </div>
+
+    <!-- Events List -->
+    <div id="calEventsList" style="max-height:200px;overflow-y:auto;border:1px solid #1e2040;border-radius:8px;padding:8px;background:#0a0a1a;min-height:50px"></div>
+
+    <!-- Set custom date -->
+    <div style="border-top:1px solid #1e2040;padding-top:10px;margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span style="font-size:11px;color:#4a5272">Set date:</span>
+      <input type="number" id="calSetDay" placeholder="Day" min="1" max="30" style="width:55px;background:#0c0c20;border:1px solid #1e2040;color:#e0e0ff;border-radius:6px;padding:4px 8px;text-align:center">
+      <select id="calSetMonth" style="background:#0c0c20;border:1px solid #1e2040;color:#e0e0ff;border-radius:6px;padding:4px 8px;font-size:12px"></select>
+      <input type="number" id="calSetYear" placeholder="Year" style="width:75px;background:#0c0c20;border:1px solid #1e2040;color:#e0e0ff;border-radius:6px;padding:4px 8px;text-align:center">
+      <button onclick="setCalDate()" style="background:#4488ff22;border:1px solid #4488ff;color:#4488ff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px">Set</button>
+    </div>
   </div>
 </div>
 
@@ -4301,6 +4388,131 @@ document.addEventListener('keydown', (e) => {
     }
   }
 });
+// ────────────────────────────────────────────────────────
+
+// ── CAMPAIGN CALENDAR ───────────────────────────────────
+// Harptos-inspired: 12 months × 30 days + festivals
+const CAL_MONTHS = [
+  'Deepwinter','Alturiak','Ches','Tarsakh','Mirtul','Kythorn',
+  'Flamerule','Eleasis','Eleint','Marpenoth','Uktar','Nightal'
+];
+const CAL_WEEKDAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat','Sab','Gol','Har'];
+
+// State: {day:1-30, month:0-11, year, hour:0-23, events:{dateKey:[...strings]}}
+let calState = { day: 1, month: 4, year: 5990, hour: 8, events: {} };
+
+function calDateKey(day, month, year) { return `${year}-${month}-${day}`; }
+function calCurrentKey() { return calDateKey(calState.day, calState.month, calState.year); }
+
+function initCalendar() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('tiamat_calendar'));
+    if (saved) calState = Object.assign({ day:1, month:4, year:5990, hour:8, events:{} }, saved);
+  } catch {}
+}
+
+function saveCalendar() { localStorage.setItem('tiamat_calendar', JSON.stringify(calState)); }
+
+function openCalendar() {
+  // Populate month select
+  const sel = document.getElementById('calSetMonth');
+  if (sel.options.length === 0) {
+    CAL_MONTHS.forEach((m, i) => { const o = document.createElement('option'); o.value=i; o.textContent=m; sel.appendChild(o); });
+  }
+  document.getElementById('calSetYear').value = calState.year;
+  renderCalendar();
+  document.getElementById('calendarModal').style.display = 'flex';
+}
+
+function closeCalendar() { document.getElementById('calendarModal').style.display = 'none'; }
+
+function renderCalendar() {
+  const { day, month, year, hour } = calState;
+  const ampm = hour < 12 ? `${hour}:00 AM` : hour === 12 ? '12:00 PM' : `${hour-12}:00 PM`;
+  document.getElementById('calCurrentDate').textContent = `${CAL_WEEKDAYS[(day-1)%10]}, ${day} ${CAL_MONTHS[month]}`;
+  document.getElementById('calCurrentYear').textContent = `Year ${year} A.T.  ·  ${ampm}`;
+  document.getElementById('calMonthTitle').textContent = `${CAL_MONTHS[month]} ${year}`;
+
+  // Month grid: 30 days
+  const grid = document.getElementById('calMonthGrid');
+  let html = '';
+  for (let d = 1; d <= 30; d++) {
+    const isToday = d === day;
+    const key = calDateKey(d, month, year);
+    const hasEv = calState.events[key] && calState.events[key].length > 0;
+    html += `<div class="cal-day-cell${isToday?' today':''}${hasEv?' has-event':''}" title="${d} ${CAL_MONTHS[month]}">${d}</div>`;
+  }
+  grid.innerHTML = html;
+
+  // Weekday labels
+  document.getElementById('calWeekdays').innerHTML = CAL_WEEKDAYS.map(w =>
+    `<span style="font-size:10px;color:#2a2a50;flex:1;text-align:center">${w}</span>`
+  ).join('');
+
+  // Events for current date
+  renderCalEvents();
+}
+
+function renderCalEvents() {
+  const key = calCurrentKey();
+  const evs = calState.events[key] || [];
+  const el = document.getElementById('calEventsList');
+  if (!evs.length) {
+    el.innerHTML = '<div style="text-align:center;color:#2a2a50;font-size:12px;padding:16px">No events on this date</div>';
+    return;
+  }
+  el.innerHTML = evs.map((ev, i) =>
+    `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;border-bottom:1px solid #1e2040">
+      <span style="color:#c9a227;margin-right:8px;font-size:12px">◈</span>
+      <span style="flex:1;font-size:13px;color:#e0e0ff">${ev}</span>
+      <button onclick="removeCalEvent(${i})" style="background:none;border:none;color:#cc3333;cursor:pointer;font-size:13px">✕</button>
+    </div>`
+  ).join('');
+}
+
+function addCalEvent() {
+  const text = document.getElementById('calEventInput').value.trim();
+  if (!text) return;
+  const key = calCurrentKey();
+  if (!calState.events[key]) calState.events[key] = [];
+  calState.events[key].push(text);
+  saveCalendar();
+  document.getElementById('calEventInput').value = '';
+  renderCalEvents();
+  renderCalendar();
+  logEntry('note', `Calendar event on <strong>${calState.day} ${CAL_MONTHS[calState.month]}, ${calState.year}</strong>: ${text}`);
+}
+
+function removeCalEvent(idx) {
+  const key = calCurrentKey();
+  if (calState.events[key]) { calState.events[key].splice(idx, 1); saveCalendar(); renderCalEvents(); renderCalendar(); }
+}
+
+function advanceCalendar(amount, unit) {
+  if (unit === 'hour') {
+    calState.hour += amount;
+    while (calState.hour >= 24) { calState.hour -= 24; advanceCalendar(1, 'day'); return; }
+    while (calState.hour < 0) { calState.hour += 24; advanceCalendar(-1, 'day'); return; }
+  } else if (unit === 'day') {
+    calState.day += amount;
+    while (calState.day > 30) { calState.day -= 30; calState.month++; if (calState.month > 11) { calState.month = 0; calState.year++; } }
+    while (calState.day < 1) { calState.month--; if (calState.month < 0) { calState.month = 11; calState.year--; } calState.day += 30; }
+  }
+  saveCalendar();
+  renderCalendar();
+}
+
+function setCalDate() {
+  const d = parseInt(document.getElementById('calSetDay').value);
+  const m = parseInt(document.getElementById('calSetMonth').value);
+  const y = parseInt(document.getElementById('calSetYear').value);
+  if (d >= 1 && d <= 30 && m >= 0 && m <= 11 && y > 0) {
+    calState.day = d; calState.month = m; calState.year = y;
+    saveCalendar(); renderCalendar();
+  }
+}
+
+initCalendar();
 // ────────────────────────────────────────────────────────
 
 // ── RELATIONSHIP TAGS ───────────────────────────────────
