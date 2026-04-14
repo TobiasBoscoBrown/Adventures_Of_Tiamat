@@ -676,6 +676,54 @@
   }
   .action-roll-btn:hover { background: rgba(201,162,39,0.2); border-color: var(--accent,#c9a227); }
 
+  /* ── Equipment / Inventory Panel ── */
+  .inventory-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .item-card {
+    background: #06061a;
+    border: 1px solid #1e2040;
+    border-radius: 8px;
+    padding: 10px 12px;
+    transition: border-color 0.12s;
+    position: relative;
+  }
+  .item-card.magical {
+    border-color: rgba(155,109,255,0.4);
+    background: linear-gradient(135deg, #06061a, #080620);
+  }
+  .item-card.attuned {
+    border-color: rgba(201,162,39,0.5);
+    background: linear-gradient(135deg, #06061a, #0e0a00);
+  }
+  .item-card:hover { border-color: var(--accent, #c9a227); }
+  .item-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #f0e6d3;
+    margin-bottom: 3px;
+  }
+  .item-card.magical .item-name { color: #bb99ff; }
+  .item-card.attuned .item-name { color: var(--accent, #c9a227); }
+  .item-desc { font-size: 10px; color: #4a5272; line-height: 1.4; }
+  .item-badges { display: flex; gap: 4px; margin-top: 5px; flex-wrap: wrap; }
+  .item-badge {
+    font-size: 9px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .item-badge.magical { background: rgba(155,109,255,0.2); color: #9b6dff; }
+  .item-badge.attuned { background: rgba(201,162,39,0.2); color: #c9a227; }
+  .item-badge.weapon  { background: rgba(204,51,51,0.2); color: #cc6666; }
+  .item-badge.armor   { background: rgba(68,136,255,0.2); color: #6699ff; }
+  .item-badge.consumable { background: rgba(68,170,68,0.2); color: #66aa66; }
+  .item-badge.legendary { background: rgba(255,140,0,0.2); color: #ff8c00; }
+  .item-weight { position: absolute; top: 8px; right: 10px; font-size: 9px; color: #3a3a5a; }
+
   .traits-list {
     display: flex;
     flex-direction: column;
@@ -3630,6 +3678,7 @@ function buildStatsPanel(c) {
       </div>
     </div>
     ${buildActionsSection(c)}
+    ${buildInventorySection(c)}
     <div class="stats-section">
       <div class="stats-section-title">Saving Throws <span style="font-size:10px;color:#4a5272;font-weight:400;font-family:'Inter',sans-serif">— filled dot = proficient · click to roll</span></div>
       <div class="saves-grid">
@@ -3714,6 +3763,95 @@ function rollSavingThrow(abName, mod) {
   const msg = `${abName} Save: d20(${roll})${modVal>=0?'+':''}${modVal} = ${total}${isCrit?' ★ CRIT!':isFumble?' ☠ FUMBLE':''}`;
   showModalRollResult(msg, isCrit, isFumble, total);
 }
+
+// ── EQUIPMENT / INVENTORY BUILDER ───────────────────────
+function inferEquipment(c) {
+  const theme = c.theme;
+  const cr = parseFloat(c.cr) || 0;
+  const traits = (c.traits || []).join(' ').toLowerCase();
+  const lore = (c.lore || '').toLowerCase();
+  const items = [];
+
+  // Parse equipment hints from traits/lore
+  if (traits.includes('poisoner') || traits.includes('poison')) {
+    items.push({ name:'Vial of Midnight Poison', desc:'Deals 2d6 poison dmg on hit. DC 15 CON save', type:'consumable', magical:false });
+    items.push({ name:'Poisoner\'s Kit', desc:'Proficiency applies to poison crafting', type:'tool', magical:false });
+  }
+  if (traits.includes('master smith') || traits.includes('blacksmith') || traits.includes('+3')) {
+    items.push({ name:'Masterwork Weapon', desc:'+3 to attack and damage rolls', type:'weapon', magical:true, attuned:true });
+  }
+  if (traits.includes('dragon') || lore.includes('dragon')) {
+    items.push({ name:'Dragonscale Armor', desc:'+2 AC. Resistance to breath weapon damage type', type:'armor', magical:true, attuned:true });
+  }
+  if (traits.includes('arcane') || theme === 'arcane') {
+    items.push({ name:'Arcane Focus (Staff)', desc:'Required for concentration spells. +1 spell DC', type:'weapon', magical:true, attuned:true });
+    items.push({ name:'Spellbook', desc:'Contains all prepared spells. Indestructible', type:'tool', magical:true });
+  }
+  if (theme === 'royal') {
+    items.push({ name:'Signet Ring', desc:'Proof of noble lineage. Advantage on Persuasion', type:'accessory', magical:false });
+    if (cr > 8) items.push({ name:'Crown of Command', desc:'+2 CHA checks. Allies advantage vs fear in 30 ft', type:'accessory', magical:true, attuned:true });
+  }
+  if (theme === 'shadow' || traits.includes('assassin') || traits.includes('thieves')) {
+    items.push({ name:'Shadow Cloak', desc:'Advantage on Stealth. Can hide as bonus action', type:'armor', magical:true, attuned:true });
+    items.push({ name:'Thieves\' Tools', desc:'Proficiency. +2 to lock-picking and disarming', type:'tool', magical:false });
+  }
+  if (theme === 'ocean') {
+    items.push({ name:'Tidecaller\'s Compass', desc:'Always knows direction of nearest water. 60ft blindsight underwater', type:'accessory', magical:true });
+  }
+  if (theme === 'nature') {
+    items.push({ name:'Druidic Focus (Oak Staff)', desc:'Focus for druid spells. Speaks to plants within 30 ft', type:'weapon', magical:true });
+    items.push({ name:'Herbalism Kit', desc:'Can craft healing potions. Advantage on Medicine', type:'tool', magical:false });
+  }
+  if (theme === 'fire' || traits.includes('smith')) {
+    items.push({ name:'Forge Hammer', desc:'1d8+STR. Advantage on checks to break objects', type:'weapon', magical:false });
+  }
+  if (traits.includes('legendary resistance') || cr >= 15) {
+    items.push({ name:'Amulet of Health', desc:'CON score is 19 while wearing. Legendary item', type:'accessory', magical:true, attuned:true, legendary:cr >= 20 });
+  }
+  if (theme === 'pink' || traits.includes('healer') || traits.includes('cleric')) {
+    items.push({ name:'Holy Symbol', desc:'Required for divine spellcasting. +1d4 to healing', type:'accessory', magical:true });
+    items.push({ name:'Healer\'s Kit (×10)', desc:'Stabilize creature as action without Medicine check', type:'consumable', magical:false });
+  }
+
+  // Universal items based on CR
+  items.push({ name:'Belt Pouch', desc:`${Math.round(cr * 15 + 10)} gp, ${Math.round(cr * 5)} sp`, type:'container', magical:false });
+  if (cr >= 5) items.push({ name:'Healing Potion ×2', desc:'Heals 2d4+2 HP each. Standard red liquid', type:'consumable', magical:true });
+  if (cr >= 10) items.push({ name:'Greater Healing Potion', desc:'Heals 4d4+4 HP. Rare glowing rose color', type:'consumable', magical:true, legendary:false });
+
+  return items.slice(0, 10);
+}
+
+function buildInventorySection(c) {
+  const items = c.equipment || inferEquipment(c);
+  if (!items.length) return '';
+
+  const cards = items.map(item => {
+    const cls = [item.attuned ? 'attuned' : item.magical ? 'magical' : ''].filter(Boolean).join(' ');
+    const badges = [
+      item.type === 'weapon' ? '<span class="item-badge weapon">Weapon</span>' : '',
+      item.type === 'armor' ? '<span class="item-badge armor">Armor</span>' : '',
+      item.type === 'consumable' ? '<span class="item-badge consumable">Consumable</span>' : '',
+      item.magical ? '<span class="item-badge magical">Magical</span>' : '',
+      item.attuned ? '<span class="item-badge attuned">⬡ Attuned</span>' : '',
+      item.legendary ? '<span class="item-badge legendary">Legendary</span>' : '',
+    ].filter(Boolean).join('');
+    return `<div class="item-card ${cls}">
+      <div class="item-name">${item.name}</div>
+      <div class="item-desc">${item.desc}</div>
+      ${badges ? `<div class="item-badges">${badges}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  const attunedCount = items.filter(i => i.attuned).length;
+  const attunedStr = attunedCount ? ` <span style="font-size:10px;color:#c9a227">(${attunedCount}/3 attuned)</span>` : '';
+
+  return `
+    <div class="stats-section">
+      <div class="stats-section-title">Equipment & Inventory${attunedStr}</div>
+      <div class="inventory-grid">${cards}</div>
+    </div>`;
+}
+// ────────────────────────────────────────────────────────
 
 // ── ACTIONS & ATTACKS BUILDER ───────────────────────────
 function inferActions(c) {
