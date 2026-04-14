@@ -853,6 +853,29 @@
   }
   .dice-history-clear:hover { color: #cc3333; }
 
+  /* ── Damage Type Buttons ── */
+  .dmg-type-btn {
+    background: #0c0c20;
+    border: 1px solid #1e2040;
+    color: #7a7aaa;
+    border-radius: 12px;
+    padding: 3px 9px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .dmg-type-btn:hover { border-color: #4488ff; color: #4488ff; }
+  .dmg-type-btn.active { background: #4488ff22; border-color: #4488ff; color: #4488ff; }
+  .dmg-type-btn[data-type="fire"].active { background: #dd662222; border-color: #dd6622; color: #dd6622; }
+  .dmg-type-btn[data-type="cold"].active { background: #22bbee22; border-color: #22bbee; color: #22bbee; }
+  .dmg-type-btn[data-type="lightning"].active { background: #eeee2222; border-color: #eeee22; color: #cccc00; }
+  .dmg-type-btn[data-type="acid"].active { background: #88cc2222; border-color: #88cc22; color: #88cc22; }
+  .dmg-type-btn[data-type="poison"].active { background: #88aa2222; border-color: #88aa22; color: #88aa22; }
+  .dmg-type-btn[data-type="psychic"].active { background: #bb44bb22; border-color: #bb44bb; color: #bb44bb; }
+  .dmg-type-btn[data-type="radiant"].active { background: #c9a22722; border-color: #c9a227; color: #c9a227; }
+  .dmg-type-btn[data-type="necrotic"].active { background: #55336622; border-color: #8855aa; color: #8855aa; }
+  .dmg-type-btn[data-type="force"].active { background: #2255ee22; border-color: #2255ee; color: #2255ee; }
+
   /* ── Condition Tracker ── */
   .conditions-row {
     display: flex;
@@ -2279,7 +2302,11 @@
 <!-- Dice Roller Panel -->
 <button class="dice-roller-toggle" onclick="toggleDicePanel()" id="diceToggle">⚄ DICE</button>
 <div class="dice-roller-panel" id="dicePanel">
-  <div class="dice-panel-title">⚄ DICE ROLLER</div>
+  <div style="display:flex;border-bottom:1px solid #1e2040;margin:-20px -20px 14px -20px;padding:0 10px">
+    <div class="qref-tab active" id="diceTab1" onclick="switchDiceTab('roller',this)" style="color:#4488ff;border-bottom-color:#4488ff">Roller</div>
+    <div class="qref-tab" id="diceTab2" onclick="switchDiceTab('damage',this)">Damage Calc</div>
+  </div>
+  <div id="diceTabRoller">
   <div class="dice-modifier-row">
     <span class="dice-mod-label"># Dice:</span>
     <input type="number" id="diceCount" class="dice-count-input" value="1" min="1" max="20">
@@ -2304,7 +2331,42 @@
     <button class="dice-history-clear" onclick="clearDiceHistory()">✕ clear</button>
     <div id="diceHistoryList"></div>
   </div>
-</div>
+  </div><!-- /diceTabRoller -->
+
+  <div id="diceTabDamage" style="display:none">
+    <div style="margin-bottom:10px;font-size:12px;color:#7a7aaa">Enter a damage expression like <code style="color:#4488ff">2d6+4</code> and pick a damage type.</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <input type="text" id="dmgExprInput" placeholder="e.g. 2d8+5" style="flex:1;background:#0a0a1a;border:1px solid #1e2040;border-radius:6px;padding:6px 10px;color:#e0e0ff;font-size:14px;font-family:inherit" onkeydown="if(event.key==='Enter')calcDamage()">
+      <button onclick="calcDamage()" style="background:#4488ff22;border:1px solid #4488ff;color:#4488ff;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:13px">Roll</button>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px" id="dmgTypeRow">
+      <button class="dmg-type-btn active" data-type="slashing" onclick="selectDmgType(this)">⚔ Slashing</button>
+      <button class="dmg-type-btn" data-type="piercing" onclick="selectDmgType(this)">➶ Piercing</button>
+      <button class="dmg-type-btn" data-type="bludgeoning" onclick="selectDmgType(this)">⚒ Bludgeoning</button>
+      <button class="dmg-type-btn" data-type="fire" onclick="selectDmgType(this)">🔥 Fire</button>
+      <button class="dmg-type-btn" data-type="cold" onclick="selectDmgType(this)">❄ Cold</button>
+      <button class="dmg-type-btn" data-type="lightning" onclick="selectDmgType(this)">⚡ Lightning</button>
+      <button class="dmg-type-btn" data-type="acid" onclick="selectDmgType(this)">☣ Acid</button>
+      <button class="dmg-type-btn" data-type="poison" onclick="selectDmgType(this)">☠ Poison</button>
+      <button class="dmg-type-btn" data-type="psychic" onclick="selectDmgType(this)">✦ Psychic</button>
+      <button class="dmg-type-btn" data-type="radiant" onclick="selectDmgType(this)">✸ Radiant</button>
+      <button class="dmg-type-btn" data-type="necrotic" onclick="selectDmgType(this)">☽ Necrotic</button>
+      <button class="dmg-type-btn" data-type="force" onclick="selectDmgType(this)">◈ Force</button>
+    </div>
+    <div id="dmgResult" style="text-align:center;padding:14px 10px;border-radius:8px;background:#0a0a1a;border:1px solid #1e2040;min-height:60px">
+      <div id="dmgResultMain" style="font-size:28px;font-weight:700;color:#4a5272;font-family:'Cinzel',serif">—</div>
+      <div id="dmgResultDetail" style="font-size:11px;color:#4a5272;margin-top:4px"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:8px;border-top:1px solid #1e2040">
+      <span style="font-size:11px;color:#4a5272">Avg: <span id="dmgAvg" style="color:#7a7aaa">—</span></span>
+      <span style="font-size:11px;color:#4a5272">Max: <span id="dmgMax" style="color:#7a7aaa">—</span></span>
+    </div>
+    <div class="dice-history" id="dmgHistory" style="margin-top:10px">
+      <button class="dice-history-clear" onclick="clearDmgHistory()">✕ clear</button>
+      <div id="dmgHistoryList"></div>
+    </div>
+  </div><!-- /diceTabDamage -->
+</div><!-- /dicePanel -->
 
 <!-- Session Log Panel -->
 <button class="session-log-toggle" onclick="toggleSessionLog()" id="sessionLogToggle">
@@ -3961,6 +4023,115 @@ function clearDiceHistory() {
   document.getElementById('diceResultMain').textContent = '—';
   document.getElementById('diceResultMain').className = 'dice-result-main';
   document.getElementById('diceResultDetail').textContent = '';
+}
+
+function switchDiceTab(tab, el) {
+  document.getElementById('diceTabRoller').style.display = tab === 'roller' ? '' : 'none';
+  document.getElementById('diceTabDamage').style.display = tab === 'damage' ? '' : 'none';
+  document.querySelectorAll('#dicePanel .qref-tab').forEach(t => {
+    t.classList.remove('active');
+    t.style.color = '';
+    t.style.borderBottomColor = '';
+  });
+  el.classList.add('active');
+  el.style.color = '#4488ff';
+  el.style.borderBottomColor = '#4488ff';
+}
+
+let dmgHistory = [];
+let activeDmgType = 'slashing';
+
+const DMG_TYPE_COLORS = {
+  slashing:'#cc5555', piercing:'#cc7722', bludgeoning:'#aaaaaa',
+  fire:'#dd6622', cold:'#22bbee', lightning:'#cccc00',
+  acid:'#88cc22', poison:'#88aa22', psychic:'#bb44bb',
+  radiant:'#c9a227', necrotic:'#8855aa', force:'#2255ee'
+};
+
+function selectDmgType(el) {
+  document.querySelectorAll('.dmg-type-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  activeDmgType = el.dataset.type;
+}
+
+function parseDmgExpr(expr) {
+  // Supports: 2d6+4, d8, 3d10-2, 5, 1d20+1d4+3
+  // Returns {rolls, modifier, total, avg, max} or null
+  const clean = expr.replace(/\s/g, '').toLowerCase();
+  let total = 0, avg = 0, max = 0, parts = [], modifier = 0;
+  // Parse all dice and flat modifiers
+  const tokenRe = /([+-]?)(\d*)d(\d+)|([+-]?\d+)(?!d)/g;
+  let hasMatch = false;
+  let m;
+  while ((m = tokenRe.exec(clean)) !== null) {
+    if (m[3] !== undefined) {
+      // dice term
+      hasMatch = true;
+      const sign = m[1] === '-' ? -1 : 1;
+      const count = parseInt(m[2] || '1');
+      const sides = parseInt(m[3]);
+      const diceRolls = Array.from({length: count}, () => Math.floor(Math.random() * sides) + 1);
+      const diceTotal = diceRolls.reduce((a, b) => a + b, 0);
+      total += sign * diceTotal;
+      avg += sign * count * (sides + 1) / 2;
+      max += sign > 0 ? count * sides : count;
+      parts.push(`${sign < 0 ? '−' : ''}${count}d${sides}[${diceRolls.join('+')}]`);
+    } else if (m[4] !== undefined) {
+      // flat modifier
+      hasMatch = true;
+      const val = parseInt(m[4]);
+      total += val;
+      avg += val;
+      max += val;
+      modifier += val;
+      parts.push(`${val >= 0 && parts.length > 0 ? '+' : ''}${val}`);
+    }
+  }
+  if (!hasMatch) return null;
+  return { total, avg: Math.round(avg * 10) / 10, max, parts };
+}
+
+function calcDamage() {
+  const expr = document.getElementById('dmgExprInput').value.trim();
+  if (!expr) return;
+  const result = parseDmgExpr(expr);
+  if (!result) {
+    document.getElementById('dmgResultMain').textContent = '?';
+    document.getElementById('dmgResultDetail').textContent = 'Invalid expression';
+    return;
+  }
+  const color = DMG_TYPE_COLORS[activeDmgType] || '#4488ff';
+  const mainEl = document.getElementById('dmgResultMain');
+  mainEl.textContent = result.total;
+  mainEl.style.color = color;
+  document.getElementById('dmgResultDetail').textContent = result.parts.join(' ') + '  (' + activeDmgType + ')';
+  document.getElementById('dmgResult').style.borderColor = color + '55';
+  document.getElementById('dmgAvg').textContent = result.avg;
+  document.getElementById('dmgMax').textContent = result.max;
+  // History
+  const ts = new Date().toLocaleTimeString('en-US', {hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit'});
+  dmgHistory.unshift({ ts, expr, result: result.total, type: activeDmgType, color });
+  if (dmgHistory.length > 20) dmgHistory.pop();
+  renderDmgHistory();
+  logEntry('damage', `Rolled damage <strong>${expr}</strong> (${activeDmgType}) → <strong style="color:${color}">${result.total}</strong>`);
+}
+
+function renderDmgHistory() {
+  const el = document.getElementById('dmgHistoryList');
+  if (!dmgHistory.length) { el.innerHTML = '<span style="color:#2a2a50">No rolls yet</span>'; return; }
+  el.innerHTML = dmgHistory.map(e =>
+    `<div class="dice-history-entry"><span style="color:#2a2a50">${e.ts}</span> ${e.expr} <span style="color:#4a5272;font-size:10px">(${e.type})</span> → <span style="color:${e.color};font-weight:700">${e.result}</span></div>`
+  ).join('');
+}
+
+function clearDmgHistory() {
+  dmgHistory = [];
+  renderDmgHistory();
+  document.getElementById('dmgResultMain').textContent = '—';
+  document.getElementById('dmgResultMain').style.color = '#4a5272';
+  document.getElementById('dmgResultDetail').textContent = '';
+  document.getElementById('dmgAvg').textContent = '—';
+  document.getElementById('dmgMax').textContent = '—';
 }
 
 // 'D' key toggles dice panel
