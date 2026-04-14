@@ -548,22 +548,61 @@
   }
   .save-name { color: #9098b8; }
   .save-val { color: var(--accent, #c9a227); font-weight: 700; font-family: monospace; }
+  /* ── Skills Panel ── */
   .skills-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 4px;
+    gap: 3px;
   }
   .skill-item {
     font-size: 11px;
     color: #9098b8;
     display: flex;
-    justify-content: space-between;
-    padding: 3px 6px;
-    border-radius: 4px;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.12s;
+    border: 1px solid transparent;
   }
-  .skill-item:hover { background: #06061a; }
-  .skill-name { }
-  .skill-val { color: var(--accent, #c9a227); font-family: monospace; font-weight: 600; }
+  .skill-item:hover { background: #0a0a1e; border-color: var(--accent, #c9a227); color: #dce0f0; }
+  .skill-prof-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    border: 1.5px solid #2a2a4a;
+    background: transparent;
+    flex-shrink: 0;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .skill-prof-dot.proficient {
+    background: var(--accent, #c9a227);
+    border-color: var(--accent, #c9a227);
+    box-shadow: 0 0 6px var(--glow, rgba(201,162,39,0.4));
+  }
+  .skill-prof-dot.expertise {
+    background: var(--accent, #c9a227);
+    border-color: var(--accent, #c9a227);
+    box-shadow: 0 0 8px var(--glow, rgba(201,162,39,0.6));
+    outline: 1.5px solid var(--accent, #c9a227);
+    outline-offset: 2px;
+  }
+  .skill-name { flex: 1; }
+  .skill-ab-tag {
+    font-size: 9px;
+    color: #3a3a5a;
+    letter-spacing: 0.5px;
+  }
+  .skill-val {
+    color: var(--accent, #c9a227);
+    font-family: monospace;
+    font-weight: 600;
+    font-size: 12px;
+    min-width: 26px;
+    text-align: right;
+  }
+  .skill-item:hover .skill-ab-tag { color: #5a5a7a; }
   .traits-list {
     display: flex;
     flex-direction: column;
@@ -3388,26 +3427,46 @@ function buildStatsPanel(c) {
   const wis = ab['WIS'] || {score:10, mod:'+0'};
   const cha = ab['CHA'] || {score:10, mod:'+0'};
 
+  // Determine proficient skills from traits text
+  const traitText = (c.traits || []).join(' ').toLowerCase();
+  const loreText = (c.lore || '').toLowerCase();
+  function inferSkillProf(skillName) {
+    const s = skillName.toLowerCase();
+    // Check if any trait/lore mentions this skill with keywords
+    const profKeywords = ['advantage on ' + s, s + ' check', s + ' proficien', 'expert in ' + s];
+    const isProf = profKeywords.some(k => traitText.includes(k) || loreText.includes(k));
+    // Infer from highlighted abilities: if ability score is highlighted AND skill uses that ability, likely proficient
+    return isProf;
+  }
+  // Build skills with proficiency inference from highlighted abilities
+  const highlightedAbs = new Set((c.abilities || []).filter(([,,,hl]) => hl).map(([n]) => n));
+  function skillProf(ab, skillName) {
+    // If skill's ability is highlighted (proficient), mark skill as proficient
+    if (highlightedAbs.has(ab)) return 'proficient';
+    if (inferSkillProf(skillName)) return 'proficient';
+    return 'none';
+  }
+
   const skills = [
-    {name:'Athletics',    ab:'STR', mod:str.mod},
-    {name:'Acrobatics',   ab:'DEX', mod:dex.mod},
+    {name:'Athletics',      ab:'STR', mod:str.mod},
+    {name:'Acrobatics',     ab:'DEX', mod:dex.mod},
     {name:'Sleight of Hand',ab:'DEX', mod:dex.mod},
-    {name:'Stealth',      ab:'DEX', mod:dex.mod},
-    {name:'Arcana',       ab:'INT', mod:int_.mod},
-    {name:'History',      ab:'INT', mod:int_.mod},
-    {name:'Investigation',ab:'INT', mod:int_.mod},
-    {name:'Nature',       ab:'INT', mod:int_.mod},
-    {name:'Religion',     ab:'INT', mod:int_.mod},
-    {name:'Animal Handling',ab:'WIS',mod:wis.mod},
-    {name:'Insight',      ab:'WIS', mod:wis.mod},
-    {name:'Medicine',     ab:'WIS', mod:wis.mod},
-    {name:'Perception',   ab:'WIS', mod:wis.mod},
-    {name:'Survival',     ab:'WIS', mod:wis.mod},
-    {name:'Deception',    ab:'CHA', mod:cha.mod},
-    {name:'Intimidation', ab:'CHA', mod:cha.mod},
-    {name:'Performance',  ab:'CHA', mod:cha.mod},
-    {name:'Persuasion',   ab:'CHA', mod:cha.mod},
-  ];
+    {name:'Stealth',        ab:'DEX', mod:dex.mod},
+    {name:'Arcana',         ab:'INT', mod:int_.mod},
+    {name:'History',        ab:'INT', mod:int_.mod},
+    {name:'Investigation',  ab:'INT', mod:int_.mod},
+    {name:'Nature',         ab:'INT', mod:int_.mod},
+    {name:'Religion',       ab:'INT', mod:int_.mod},
+    {name:'Animal Handling',ab:'WIS', mod:wis.mod},
+    {name:'Insight',        ab:'WIS', mod:wis.mod},
+    {name:'Medicine',       ab:'WIS', mod:wis.mod},
+    {name:'Perception',     ab:'WIS', mod:wis.mod},
+    {name:'Survival',       ab:'WIS', mod:wis.mod},
+    {name:'Deception',      ab:'CHA', mod:cha.mod},
+    {name:'Intimidation',   ab:'CHA', mod:cha.mod},
+    {name:'Performance',    ab:'CHA', mod:cha.mod},
+    {name:'Persuasion',     ab:'CHA', mod:cha.mod},
+  ].map(sk => ({...sk, prof: skillProf(sk.ab, sk.name)}));
 
   const passivePerc = 10 + parseInt(wis.mod || 0);
 
@@ -3457,11 +3516,13 @@ function buildStatsPanel(c) {
       </div>
     </div>
     <div class="stats-section">
-      <div class="stats-section-title">Skills</div>
+      <div class="stats-section-title">Skills <span style="font-size:10px;color:#4a5272;font-weight:400;font-family:'Inter',sans-serif">— filled dot = proficient · click to roll</span></div>
       <div class="skills-grid">
         ${skills.map(s =>
-          `<div class="skill-item" onclick="rollSkillCheck(${JSON.stringify(s.name)},${JSON.stringify(s.mod)})" title="Roll ${s.name}" style="cursor:pointer">
+          `<div class="skill-item" onclick="rollSkillCheck(${JSON.stringify(s.name)},${JSON.stringify(s.mod)})" title="Roll ${s.name} (d20${s.mod})">
+            <div class="skill-prof-dot ${s.prof}"></div>
             <span class="skill-name">${s.name}</span>
+            <span class="skill-ab-tag">${s.ab}</span>
             <span class="skill-val">${s.mod}</span>
           </div>`
         ).join('')}
