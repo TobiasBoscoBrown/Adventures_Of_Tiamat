@@ -2753,7 +2753,23 @@
 </header>
 
 <div class="toolbar">
-  <input type="text" class="search-box" id="searchBox" placeholder="Search characters by name, title, or lore..." autofocus>
+  <input type="text" class="search-box" id="searchBox" placeholder="🔍 Search name, title, lore, alignment, trait..." autofocus style="width:340px">
+  <select id="crFilter" class="search-box" style="width:auto;padding:10px 12px;cursor:pointer" onchange="renderGrid()" title="Filter by CR range">
+    <option value="all">All CRs</option>
+    <option value="low">CR 0-4 (Low)</option>
+    <option value="mid">CR 5-9 (Medium)</option>
+    <option value="high">CR 10-14 (High)</option>
+    <option value="vhigh">CR 15-19 (Very High)</option>
+    <option value="legendary">CR 20+ (Legendary)</option>
+  </select>
+  <select id="alignFilter" class="search-box" style="width:auto;padding:10px 12px;cursor:pointer" onchange="renderGrid()" title="Filter by alignment">
+    <option value="all">All Alignments</option>
+    <option value="good">Good</option>
+    <option value="neutral">Neutral</option>
+    <option value="evil">Evil</option>
+    <option value="lawful">Lawful</option>
+    <option value="chaotic">Chaotic</option>
+  </select>
   <button class="filter-btn active" data-group="all" onclick="filterGroup('all', this)">All</button>
   <button class="filter-btn" data-group="royals" onclick="filterGroup('royals', this)">Royals</button>
   <button class="filter-btn" data-group="power" onclick="filterGroup('power', this)">Power Players</button>
@@ -3815,7 +3831,33 @@ function filterFavorites(btn) {
   renderGrid();
 }
 
+function matchesCrFilter(c, filter) {
+  const crOrder = {'0':0,'1/8':0.125,'1/4':0.25,'1/2':0.5};
+  const n = crOrder[c.cr] !== undefined ? crOrder[c.cr] : (parseInt(c.cr)||0);
+  if (filter === 'all') return true;
+  if (filter === 'low') return n <= 4;
+  if (filter === 'mid') return n >= 5 && n <= 9;
+  if (filter === 'high') return n >= 10 && n <= 14;
+  if (filter === 'vhigh') return n >= 15 && n <= 19;
+  if (filter === 'legendary') return n >= 20;
+  return true;
+}
+
+function matchesAlignFilter(c, filter) {
+  if (filter === 'all') return true;
+  const align = extractAlignment(c);
+  if (filter === 'good') return align.includes('good');
+  if (filter === 'evil') return align.includes('evil');
+  if (filter === 'neutral') return align.includes('neutral') || align === 'true neutral';
+  if (filter === 'lawful') return align.includes('lawful');
+  if (filter === 'chaotic') return align.includes('chaotic');
+  return true;
+}
+
 function renderGrid() {
+  const crFilter = document.getElementById('crFilter')?.value || 'all';
+  const alignFilter = document.getElementById('alignFilter')?.value || 'all';
+
   filteredChars = UNIQUE_CHARS.filter(c => {
     const matchGroup = currentFilter === 'all' || c.group === currentFilter;
     const matchTheme = !currentTheme || c.theme === currentTheme;
@@ -3823,9 +3865,13 @@ function renderGrid() {
       c.name.toLowerCase().includes(currentSearch) ||
       c.title.toLowerCase().includes(currentSearch) ||
       (c.lore && c.lore.toLowerCase().includes(currentSearch)) ||
-      (c.quote && c.quote.toLowerCase().includes(currentSearch));
+      (c.quote && c.quote.toLowerCase().includes(currentSearch)) ||
+      (c.subtitle && c.subtitle.toLowerCase().includes(currentSearch)) ||
+      (c.traits && c.traits.join(' ').toLowerCase().includes(currentSearch));
     const matchFav = !showOnlyFavorites || isFavorite(c.name);
-    return matchGroup && matchTheme && matchSearch && matchFav;
+    const matchCr = matchesCrFilter(c, crFilter);
+    const matchAlign = matchesAlignFilter(c, alignFilter);
+    return matchGroup && matchTheme && matchSearch && matchFav && matchCr && matchAlign;
   });
   // Sort: favorites first, then by selected sort key
   filteredChars.sort((a, b) => {
