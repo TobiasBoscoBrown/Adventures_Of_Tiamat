@@ -724,6 +724,29 @@
   .item-badge.legendary { background: rgba(255,140,0,0.2); color: #ff8c00; }
   .item-weight { position: absolute; top: 8px; right: 10px; font-size: 9px; color: #3a3a5a; }
 
+  /* ── Speed & Movement Strip ── */
+  .speed-strip {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+  }
+  .speed-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #06061a;
+    border: 1px solid #1e2040;
+    border-radius: 8px;
+    padding: 8px 14px;
+    min-width: 64px;
+    transition: border-color 0.12s;
+  }
+  .speed-tile:hover { border-color: var(--accent, #c9a227); }
+  .speed-icon { font-size: 16px; line-height: 1; margin-bottom: 3px; }
+  .speed-value { font-size: 16px; font-weight: 700; color: #f0e6d3; font-family: 'Cinzel', serif; line-height: 1; }
+  .speed-label { font-size: 9px; color: #4a5272; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+
   .traits-list {
     display: flex;
     flex-direction: column;
@@ -3662,6 +3685,7 @@ function buildStatsPanel(c) {
         <span class="stat-chip"><strong>Passive Perc</strong> ${passivePerc}</span>
       </div>
     </div>
+    ${buildSpeedSection(c)}
     <div class="stats-section">
       <div class="stats-section-title">Ability Scores <span style="font-size:10px;color:#4a5272;font-weight:400;font-family:'Inter',sans-serif">— click to roll</span></div>
       <div class="ability-grid">
@@ -3763,6 +3787,72 @@ function rollSavingThrow(abName, mod) {
   const msg = `${abName} Save: d20(${roll})${modVal>=0?'+':''}${modVal} = ${total}${isCrit?' ★ CRIT!':isFumble?' ☠ FUMBLE':''}`;
   showModalRollResult(msg, isCrit, isFumble, total);
 }
+
+// ── SPEED & MOVEMENT BUILDER ────────────────────────────
+function inferSpeed(c) {
+  const theme = c.theme;
+  const traits = (c.traits || []).join(' ').toLowerCase();
+  const lore = (c.lore || '').toLowerCase();
+  const cr = parseFloat(c.cr) || 0;
+  const speeds = [];
+
+  // Walk speed base
+  let walk = 30;
+  if (theme === 'nature') walk = 40;
+  if (theme === 'stone' || theme === 'orc') walk = 25;
+  if (traits.includes('charge') || traits.includes('dash')) walk = 40;
+  if (cr >= 20) walk = 40;
+
+  speeds.push({ icon: '🚶', label: 'Walk', value: walk + ' ft' });
+
+  // Swim speed
+  if (theme === 'ocean' || traits.includes('swim') || lore.includes('sea') || lore.includes('ocean')) {
+    speeds.push({ icon: '🏊', label: 'Swim', value: '40 ft' });
+  }
+
+  // Fly speed
+  if (traits.includes('fly') || lore.includes('dragon') || c.name === 'Rigod' || cr >= 25) {
+    const flySpeed = cr >= 20 ? '80 ft' : '60 ft';
+    speeds.push({ icon: '🦅', label: 'Fly', value: flySpeed });
+  }
+
+  // Climb speed
+  if (theme === 'nature' || theme === 'stone' || traits.includes('climb')) {
+    speeds.push({ icon: '🧗', label: 'Climb', value: '30 ft' });
+  }
+
+  // Burrow speed
+  if (theme === 'stone' || traits.includes('burrow')) {
+    speeds.push({ icon: '⛏', label: 'Burrow', value: '20 ft' });
+  }
+
+  // Teleport for special characters
+  if (traits.includes('teleport') || lore.includes('teleport')) {
+    speeds.push({ icon: '✨', label: 'Teleport', value: '60 ft' });
+  }
+
+  return speeds;
+}
+
+function buildSpeedSection(c) {
+  const speeds = c.speeds || inferSpeed(c);
+  if (!speeds.length) return '';
+
+  const tiles = speeds.map(s =>
+    `<div class="speed-tile">
+      <div class="speed-icon">${s.icon}</div>
+      <div class="speed-value">${s.value}</div>
+      <div class="speed-label">${s.label}</div>
+    </div>`
+  ).join('');
+
+  return `
+    <div class="stats-section">
+      <div class="stats-section-title">Movement & Speed</div>
+      <div class="speed-strip">${tiles}</div>
+    </div>`;
+}
+// ────────────────────────────────────────────────────────
 
 // ── EQUIPMENT / INVENTORY BUILDER ───────────────────────
 function inferEquipment(c) {
