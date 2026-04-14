@@ -2081,6 +2081,18 @@
     transition: color 0.15s;
   }
   .init-remove-btn:hover { color: #cc3333; }
+  .init-action-pip {
+    font-size: 9px;
+    padding: 2px 5px;
+    border: 1px solid;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 700;
+    background: none;
+    transition: all .15s;
+    line-height: 1.2;
+  }
+  .init-action-pip:hover { opacity: 0.7; }
   .init-add-area {
     padding: 10px;
     border-top: 1px solid #1e2040;
@@ -7244,11 +7256,16 @@ function removeFromInitiative(name) {
 
 function nextTurn() {
   if (!initiativeList.length) return;
+  // Clear action state for the character whose turn is ending
+  const endingChar = initiativeList[currentTurnIdx];
+  if (endingChar) delete turnActionState[endingChar.name];
   currentTurnIdx = (currentTurnIdx + 1) % initiativeList.length;
   if (currentTurnIdx === 0) {
     currentRound++;
     document.getElementById('initRoundBadge').textContent = `Round ${currentRound}`;
     logEntry('combat', `<strong>Round ${currentRound}</strong> begins`);
+    // Clear all action states at start of new round
+    clearTurnActions();
   }
   const active = initiativeList[currentTurnIdx];
   if (active) logEntry('combat', `<strong>${active.name}</strong>'s turn (Init: ${active.initiative})`);
@@ -7260,12 +7277,25 @@ function clearInitiative() {
   initiativeList = [];
   currentTurnIdx = 0;
   currentRound = 1;
+  clearTurnActions();
   document.getElementById('initRoundBadge').textContent = 'Round 1';
   document.getElementById('initiativePanel').classList.remove('open');
   renderInitiative();
   renderGrid();
   updateHud();
 }
+
+// Reaction/Bonus Action tracker state (per name, per round)
+let turnActionState = {}; // { name: { reaction: used, bonus: used, action: used } }
+
+function getTurnState(name) { return turnActionState[name] || {}; }
+function toggleTurnAction(name, type, event) {
+  if (event) event.stopPropagation();
+  if (!turnActionState[name]) turnActionState[name] = {};
+  turnActionState[name][type] = !turnActionState[name][type];
+  renderInitiative();
+}
+function clearTurnActions() { turnActionState = {}; }
 
 function renderInitiative() {
   const el = document.getElementById('initiativeList');
@@ -7278,9 +7308,19 @@ function renderInitiative() {
     const currHp = e.maxHp > 0 ? getCharHP(e.name, e.maxHp) : null;
     const hpText = currHp !== null ? `${currHp}/${e.maxHp}` : '';
     const isDefeated = currHp === 0;
+    const ts = getTurnState(e.name);
+    const actionBtn = (type, label, color) => {
+      const used = ts[type];
+      return `<button class="init-action-pip ${used?'used':''}" onclick="toggleTurnAction(${JSON.stringify(e.name)},'${type}',event)" title="${type} — click to toggle" style="border-color:${used?'#2a2a50':color};color:${used?'#2a2a50':color};background:${used?'transparent':'rgba(0,0,0,0)'};">${used?'○':label}</button>`;
+    };
     return `<div class="init-entry ${isActive ? 'active-turn' : ''} ${isDefeated ? 'defeated' : ''}" title="${e.name}">
       <div class="init-score">${e.initiative}</div>
       <div class="init-name">${e.name}</div>
+      <div style="display:flex;gap:3px;margin-left:auto;margin-right:4px">
+        ${actionBtn('action','A','#4488ff')}
+        ${actionBtn('bonus','B','#88aa22')}
+        ${actionBtn('reaction','R','#dd6622')}
+      </div>
       ${hpText ? `<div class="init-hp-mini">${hpText}</div>` : ''}
       <button class="init-remove-btn" onclick="removeFromInitiative(${JSON.stringify(e.name)})">✕</button>
     </div>`;
