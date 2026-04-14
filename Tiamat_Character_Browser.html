@@ -383,10 +383,157 @@
     font-family: monospace;
   }
 
-  /* ── (tabs removed — modal goes straight to PDF) ── */
+  /* ── Modal tabs ── */
+  .modal-tabs {
+    display: flex;
+    gap: 0;
+    padding: 0 28px;
+    background: #0a0a1e;
+    border-bottom: 1px solid #1e2040;
+  }
+  .modal-tab {
+    padding: 10px 20px;
+    font-size: 13px;
+    color: #4a5272;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    font-family: 'Inter', sans-serif;
+    user-select: none;
+  }
+  .modal-tab:hover { color: #9098b8; }
+  .modal-tab.active { color: var(--accent, #c9a227); border-bottom-color: var(--accent, #c9a227); }
+  .modal-tab-content { display: none; }
+  .modal-tab-content.active { display: block; }
+
+  /* Stats panel in modal */
+  .stats-panel {
+    padding: 20px 28px;
+    overflow-y: auto;
+    max-height: calc(95vh - 120px);
+  }
+  .stats-panel::-webkit-scrollbar { width: 5px; }
+  .stats-panel::-webkit-scrollbar-track { background: transparent; }
+  .stats-panel::-webkit-scrollbar-thumb { background: #2a2a50; border-radius: 2px; }
+  .stats-section {
+    margin-bottom: 20px;
+  }
+  .stats-section-title {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    color: var(--accent, #c9a227);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #1e2040;
+  }
+  .ability-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .ab-box {
+    background: #06061a;
+    border: 1px solid #1e2040;
+    border-radius: 8px;
+    padding: 10px 6px;
+    text-align: center;
+    transition: border-color 0.15s;
+  }
+  .ab-box.hl { border-color: var(--accent, #c9a227); }
+  .ab-box:hover { border-color: var(--accent, #c9a227); cursor: pointer; }
+  .ab-name { font-size: 9px; color: #4a5272; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 3px; }
+  .ab-score { font-size: 22px; font-weight: 700; color: #f0e6d3; display: block; font-family: 'Cinzel', serif; }
+  .ab-mod { font-size: 12px; color: var(--accent, #c9a227); display: block; margin-top: 2px; }
+  .saves-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .save-item {
+    background: #06061a;
+    border: 1px solid #1e2040;
+    border-radius: 6px;
+    padding: 6px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+  }
+  .save-name { color: #9098b8; }
+  .save-val { color: var(--accent, #c9a227); font-weight: 700; font-family: monospace; }
+  .skills-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+  }
+  .skill-item {
+    font-size: 11px;
+    color: #9098b8;
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 6px;
+    border-radius: 4px;
+  }
+  .skill-item:hover { background: #06061a; }
+  .skill-name { }
+  .skill-val { color: var(--accent, #c9a227); font-family: monospace; font-weight: 600; }
+  .traits-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .trait-entry {
+    font-size: 12px;
+    color: #b8c0d8;
+    padding: 6px 10px;
+    background: #06061a;
+    border-left: 2px solid var(--accent, #c9a227);
+    border-radius: 0 6px 6px 0;
+    line-height: 1.5;
+  }
+  .lore-text {
+    font-size: 13px;
+    color: #9098b8;
+    line-height: 1.8;
+    font-style: italic;
+    background: #06061a;
+    border-radius: 8px;
+    padding: 14px;
+    border: 1px solid #1e2040;
+  }
+  .stat-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #06061a;
+    border: 1px solid #1e2040;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 12px;
+    color: #9098b8;
+    margin-right: 6px;
+    margin-bottom: 6px;
+  }
+  .stat-chip strong { color: var(--accent, #c9a227); }
+  .passive-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+  }
+  .roll-indicator {
+    font-size: 10px;
+    color: #2a2a50;
+    margin-top: 3px;
+  }
+
+  /* PDF container */
   .pdf-container {
     width: 100%;
-    height: calc(95vh - 70px);
+    height: calc(95vh - 120px);
     border: none;
     background: #111;
     border-radius: 0 0 16px 16px;
@@ -1209,7 +1356,16 @@
         <button class="modal-close" onclick="closeModal()">&#10005; Close</button>
       </div>
     </div>
-    <div id="modalPdf" style="padding: 0;"></div>
+    <div class="modal-tabs" id="modalTabs">
+      <div class="modal-tab active" data-tab="stats" onclick="switchModalTab('stats', this)">Stats</div>
+      <div class="modal-tab" data-tab="sheet" onclick="switchModalTab('sheet', this)">Character Sheet</div>
+    </div>
+    <div id="modalTabStats" class="modal-tab-content active">
+      <div class="stats-panel" id="statsPanel"></div>
+    </div>
+    <div id="modalTabSheet" class="modal-tab-content">
+      <div id="modalPdf" style="padding: 0;"></div>
+    </div>
   </div>
 </div>
 
@@ -1616,6 +1772,166 @@ function filterTheme(theme, btn) {
   renderGrid();
 }
 
+function switchModalTab(tab, el) {
+  document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.modal-tab-content').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('modalTab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+}
+
+function calcSave(abilityMod, profBonus, hasProficiency) {
+  const mod = parseInt(abilityMod) || 0;
+  return hasProficiency ? mod + profBonus : mod;
+}
+
+function buildStatsPanel(c) {
+  const t = getTheme(c.theme);
+  const prof = c.cr === '30' ? 9 : c.cr === '21' || c.cr === '20' ? 7 : c.cr === '17' || c.cr === '16' ? 6 :
+               c.cr === '15' || c.cr === '14' ? 5 : c.cr === '13' || c.cr === '9' || c.cr === '10' ? 4 :
+               c.cr === '7' || c.cr === '8' ? 3 : c.cr === '5' || c.cr === '6' ? 3 : 2;
+  const maxHp = parseInt(c.hp) || 1;
+  const currHp = getCharHP(c.name, maxHp);
+  const hpPct = currHp / maxHp;
+  const conditions = getCharConditions(c.name);
+  const notes = loadAllNotes()[c.name];
+
+  // Ability score map
+  const ab = {};
+  (c.abilities || []).forEach(([n,s,m]) => ab[n] = { score: s, mod: m });
+  const str = ab['STR'] || {score:10, mod:'+0'};
+  const dex = ab['DEX'] || {score:10, mod:'+0'};
+  const con = ab['CON'] || {score:10, mod:'+0'};
+  const int_ = ab['INT'] || {score:10, mod:'+0'};
+  const wis = ab['WIS'] || {score:10, mod:'+0'};
+  const cha = ab['CHA'] || {score:10, mod:'+0'};
+
+  const skills = [
+    {name:'Athletics',    ab:'STR', mod:str.mod},
+    {name:'Acrobatics',   ab:'DEX', mod:dex.mod},
+    {name:'Sleight of Hand',ab:'DEX', mod:dex.mod},
+    {name:'Stealth',      ab:'DEX', mod:dex.mod},
+    {name:'Arcana',       ab:'INT', mod:int_.mod},
+    {name:'History',      ab:'INT', mod:int_.mod},
+    {name:'Investigation',ab:'INT', mod:int_.mod},
+    {name:'Nature',       ab:'INT', mod:int_.mod},
+    {name:'Religion',     ab:'INT', mod:int_.mod},
+    {name:'Animal Handling',ab:'WIS',mod:wis.mod},
+    {name:'Insight',      ab:'WIS', mod:wis.mod},
+    {name:'Medicine',     ab:'WIS', mod:wis.mod},
+    {name:'Perception',   ab:'WIS', mod:wis.mod},
+    {name:'Survival',     ab:'WIS', mod:wis.mod},
+    {name:'Deception',    ab:'CHA', mod:cha.mod},
+    {name:'Intimidation', ab:'CHA', mod:cha.mod},
+    {name:'Performance',  ab:'CHA', mod:cha.mod},
+    {name:'Persuasion',   ab:'CHA', mod:cha.mod},
+  ];
+
+  const passivePerc = 10 + parseInt(wis.mod || 0);
+
+  const condBadges = conditions.length ?
+    `<div style="margin-bottom:10px">${conditions.map(cn => {
+      const cd = CONDITIONS.find(x => x.name === cn);
+      const cls = cd ? getCondClass(cd.type) : 'cond-debuff';
+      return `<span class="condition-badge ${cls}" style="cursor:default">${cn}</span>`;
+    }).join('')}</div>` : '';
+
+  const noteBox = notes && notes.text ?
+    `<div style="margin-bottom:10px;padding:10px;background:#06061a;border:1px solid rgba(155,109,255,0.3);border-radius:8px;font-size:12px;color:#9098b8;line-height:1.6"><span style="color:#9b6dff;font-weight:600">DM Notes: </span>${notes.text}</div>` : '';
+
+  return `
+    ${condBadges}${noteBox}
+    <div class="stats-section">
+      <div class="stats-section-title">Combat Stats</div>
+      <div style="margin-bottom:12px">
+        <span class="stat-chip"><strong>CR</strong> ${c.cr}</span>
+        <span class="stat-chip"><strong>HP</strong> <span style="color:${hpBarColor(hpPct)}">${currHp}/${maxHp}</span></span>
+        <span class="stat-chip"><strong>AC</strong> ${c.ac}</span>
+        <span class="stat-chip"><strong>Prof</strong> +${prof}</span>
+        <span class="stat-chip"><strong>Passive Perc</strong> ${passivePerc}</span>
+      </div>
+    </div>
+    <div class="stats-section">
+      <div class="stats-section-title">Ability Scores</div>
+      <div class="ability-grid">
+        ${(c.abilities || []).map(([n,s,m,hl]) =>
+          `<div class="ab-box ${hl?'hl':''}" onclick="rollAbilityCheck(${JSON.stringify(n)},${JSON.stringify(m)})" title="Roll ${n} check">
+            <span class="ab-name">${n}</span>
+            <span class="ab-score">${s}</span>
+            <span class="ab-mod">${m}</span>
+            <span class="roll-indicator">click to roll</span>
+          </div>`
+        ).join('')}
+      </div>
+    </div>
+    <div class="stats-section">
+      <div class="stats-section-title">Saving Throws (base ability)</div>
+      <div class="saves-grid">
+        ${[['STR',str],['DEX',dex],['CON',con],['INT',int_],['WIS',wis],['CHA',cha]].map(([n,a]) =>
+          `<div class="save-item"><span class="save-name">${n}</span><span class="save-val">${a.mod}</span></div>`
+        ).join('')}
+      </div>
+    </div>
+    <div class="stats-section">
+      <div class="stats-section-title">Skills</div>
+      <div class="skills-grid">
+        ${skills.map(s =>
+          `<div class="skill-item" onclick="rollSkillCheck(${JSON.stringify(s.name)},${JSON.stringify(s.mod)})" title="Roll ${s.name}" style="cursor:pointer">
+            <span class="skill-name">${s.name}</span>
+            <span class="skill-val">${s.mod}</span>
+          </div>`
+        ).join('')}
+      </div>
+    </div>
+    ${c.traits && c.traits.length ? `
+    <div class="stats-section">
+      <div class="stats-section-title">Traits & Features</div>
+      <div class="traits-list">
+        ${c.traits.map(tr => `<div class="trait-entry">${tr}</div>`).join('')}
+      </div>
+    </div>` : ''}
+    ${c.lore ? `
+    <div class="stats-section">
+      <div class="stats-section-title">Lore</div>
+      <div class="lore-text">${c.lore}</div>
+    </div>` : ''}
+    ${c.quote ? `<div class="modal-quote">"${c.quote}"</div>` : ''}
+  `;
+}
+
+function rollAbilityCheck(abName, mod) {
+  const roll = Math.floor(Math.random() * 20) + 1;
+  const modVal = parseInt(mod) || 0;
+  const total = roll + modVal;
+  const isCrit = roll === 20, isFumble = roll === 1;
+  const msg = `${abName} check: ${roll}${modVal>=0?'+':''}${modVal} = ${total}${isCrit?' ★ CRITICAL!':isFumble?' ☠ Fumble':''}`;
+  showModalRollResult(msg, isCrit, isFumble, total);
+}
+
+function rollSkillCheck(skillName, mod) {
+  const roll = Math.floor(Math.random() * 20) + 1;
+  const modVal = parseInt(mod) || 0;
+  const total = roll + modVal;
+  const isCrit = roll === 20, isFumble = roll === 1;
+  showModalRollResult(`${skillName}: d20(${roll})${modVal>=0?'+':''}${modVal} = ${total}${isCrit?' ★':isFumble?' ☠':''}`, isCrit, isFumble, total);
+}
+
+function showModalRollResult(msg, isCrit, isFumble, total) {
+  let el = document.getElementById('modalRollBanner');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'modalRollBanner';
+    el.style.cssText = 'position:sticky;top:0;z-index:50;padding:10px 20px;text-align:center;font-size:14px;font-weight:700;font-family:Cinzel,serif;border-bottom:1px solid #1e2040;transition:all 0.3s;cursor:pointer;';
+    el.onclick = () => el.style.opacity = '0';
+    document.getElementById('statsPanel').prepend(el);
+  }
+  el.textContent = msg;
+  el.style.background = isCrit ? 'rgba(201,162,39,0.2)' : isFumble ? 'rgba(204,51,51,0.2)' : 'rgba(68,136,255,0.1)';
+  el.style.color = isCrit ? '#c9a227' : isFumble ? '#cc3333' : '#4488ff';
+  el.style.opacity = '1';
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => { if(el) el.style.opacity='0'; }, 4000);
+}
+
 function openModal(idx) {
   currentModalIdx = idx;
   const c = filteredChars[idx];
@@ -1623,10 +1939,18 @@ function openModal(idx) {
   document.getElementById('modalName').textContent = c.name;
   document.getElementById('modalContent').style.setProperty('--accent', t.accent);
 
-  // Build PDF filename from character name and embed it
-  const pdfName = c.name.replace(/\s+/g, '_') + '_Character_Sheet.pdf';
-  const pdfEl = document.getElementById('modalPdf');
-  pdfEl.innerHTML = `<iframe class="pdf-container" src="${pdfName}"></iframe>`;
+  // Build stats panel
+  document.getElementById('statsPanel').innerHTML = buildStatsPanel(c);
+
+  // Build PDF
+  const pdfName = 'Character Sheets/' + c.name.replace(/\s+/g, '_') + '_Character_Sheet.pdf';
+  document.getElementById('modalPdf').innerHTML = `<iframe class="pdf-container" src="${pdfName}"></iframe>`;
+
+  // Default to stats tab
+  document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.modal-tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelector('[data-tab="stats"]').classList.add('active');
+  document.getElementById('modalTabStats').classList.add('active');
 
   document.getElementById('modal').classList.add('open');
 }
