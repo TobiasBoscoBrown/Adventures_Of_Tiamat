@@ -4339,6 +4339,29 @@ function renderGrid() {
     const hpFill = hpBarColor(hpPct);
     const [hpStClass, hpStText] = hpStatusInfo(hpPct);
     const sid = safeId(c.name);
+    // Tooltip live state additions
+    const ttConcSpell = (typeof getConcSpell === 'function') ? getConcSpell(c.name) : null;
+    const ttConds = (typeof getCharConditions === 'function') ? getCharConditions(c.name) : [];
+    const ttLiveHtml = (() => {
+      const parts = [];
+      if (currHp < maxHp) parts.push(`<span style="color:${hpFill}">❤ ${currHp}/${maxHp} HP</span>`);
+      if (ttConcSpell) parts.push(`<span style="color:#c9a227">🔮 ${ttConcSpell}</span>`);
+      if (ttConds.length) parts.push(`<span style="color:#dd8822">⚡ ${ttConds.join(', ')}</span>`);
+      if (!parts.length) return '';
+      return `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;padding-top:6px;border-top:1px solid #1e2040;font-size:11px">${parts.join('')}</div>`;
+    })();
+    // Proficiency bonus for tooltip
+    const crNum = parseFloat(c.cr || 0);
+    const profBonus = crNum >= 17 ? 6 : crNum >= 13 ? 5 : crNum >= 9 ? 4 : crNum >= 5 ? 3 : 2;
+    const ttSavesHtml = (() => {
+      const ab = {};
+      (c.abilities||[]).forEach(([n,s,m,hl]) => { ab[n] = { mod: parseInt(m)||0, hl: hl||0 }; });
+      const saves = Object.entries(ab).map(([n, {mod, hl}]) => {
+        const val = hl ? mod + profBonus : mod;
+        return `<span style="color:${hl?'#c9a227':'#4a5272'}">${n} ${val>=0?'+':''}${val}</span>`;
+      });
+      return `<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:10px;margin-top:6px">${saves.join('')}</div>`;
+    })();
     return `<div class="card" style="--accent:${t.accent};--glow:${t.glow}" onclick="openModal(${i})">
       <div class="card-tooltip" style="--accent:${t.accent}">
         <div class="tt-name">${c.name}</div>
@@ -4347,9 +4370,12 @@ function renderGrid() {
           <div class="tt-stat"><strong>CR</strong> ${c.cr}</div>
           <div class="tt-stat"><strong>HP</strong> ${c.hp}</div>
           <div class="tt-stat"><strong>AC</strong> ${c.ac}</div>
+          <div class="tt-stat"><strong>Prof</strong> +${profBonus}</div>
         </div>
         <div class="tt-abilities">${abHtml}</div>
+        ${ttSavesHtml}
         ${traitHtml}
+        ${ttLiveHtml}
         ${loreSnip ? `<div class="tt-lore">${loreSnip}</div>` : ''}
       </div>
       <div class="card-inner">
