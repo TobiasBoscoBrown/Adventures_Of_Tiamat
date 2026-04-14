@@ -1445,6 +1445,93 @@
     white-space: nowrap;
   }
 
+  /* ── Quick Lore Reference ── */
+  .modal-quick-ref {
+    padding: 14px 28px;
+    border-bottom: 1px solid #1e2040;
+    background: linear-gradient(180deg, rgba(10,10,30,0) 0%, rgba(6,6,26,0.3) 100%);
+  }
+  .quick-ref-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .quick-stat-block {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .quick-stat {
+    background: #06061a;
+    border: 1px solid #1e2040;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: #9098b8;
+  }
+  .quick-stat strong { color: var(--accent, #c9a227); }
+  .quick-abilities {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .quick-ability {
+    background: #0e0e28;
+    border: 1px solid #1e2040;
+    border-radius: 8px;
+    padding: 6px 10px;
+    text-align: center;
+    min-width: 58px;
+  }
+  .quick-ability.hl { border-color: var(--accent, #c9a227); }
+  .quick-ability .ab-name { font-size: 9px; color: #4a5272; display: block; text-transform: uppercase; }
+  .quick-ability .ab-score { font-size: 18px; font-weight: 700; color: #f0e6d3; display: block; }
+  .quick-ability .ab-mod { font-size: 11px; color: var(--accent, #c9a227); display: block; }
+  .quick-traits {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 8px;
+  }
+  .quick-trait {
+    background: rgba(201,162,39,0.08);
+    border: 1px solid rgba(201,162,39,0.2);
+    border-radius: 5px;
+    padding: 3px 8px;
+    font-size: 11px;
+    color: #9098b8;
+  }
+  .quick-lore {
+    font-size: 12px;
+    color: #6070a0;
+    font-style: italic;
+    line-height: 1.5;
+    margin-top: 4px;
+  }
+  .quick-ref-toggle {
+    font-size: 11px;
+    color: #4a5272;
+    cursor: pointer;
+    text-decoration: underline;
+    background: none;
+    border: none;
+    font-family: 'Inter', sans-serif;
+    padding: 0;
+    margin-bottom: 8px;
+    display: block;
+  }
+  .quick-ref-toggle:hover { color: #c9a227; }
+  .quick-ref-body { display: none; }
+  .quick-ref-body.open { display: block; }
+  .modal-subtitle {
+    font-size: 12px;
+    color: #4a5272;
+    margin-top: 2px;
+  }
+
   /* ── Responsive / Mobile ── */
   @media (max-width: 768px) {
     header { padding: 14px 16px; }
@@ -1567,6 +1654,7 @@
         <button class="modal-close" onclick="closeModal()">&#10005; Close</button>
       </div>
     </div>
+    <div id="modalQuickRef"></div>
     <div id="modalCurrency"></div>
     <div id="modalConcentration"></div>
     <div id="modalSpellSlots"></div>
@@ -1785,6 +1873,38 @@ function resetAllHP() {
   if (!confirm('Reset all character HP to maximum?')) return;
   UNIQUE_CHARS.forEach(c => localStorage.removeItem(hpKey(c.name)));
   renderGrid();
+}
+
+/* ── Quick Lore Reference ── */
+function renderQuickRef(char) {
+  const el = document.getElementById('modalQuickRef');
+  if (!el) return;
+  const t = getTheme(char.theme);
+  const abHtml = (char.abilities || []).map(([n,s,m,hl]) =>
+    `<div class="quick-ability${hl?' hl':''}">
+      <span class="ab-name">${n}</span>
+      <span class="ab-score">${s}</span>
+      <span class="ab-mod">${m}</span>
+    </div>`
+  ).join('');
+  const traitsHtml = (char.traits || []).map(tr =>
+    `<span class="quick-trait">${tr}</span>`
+  ).join('');
+  el.innerHTML = `<div class="modal-quick-ref">
+    <div class="modal-subtitle">${char.subtitle || ''}</div>
+    <button class="quick-ref-toggle" onclick="this.nextElementSibling.classList.toggle('open');this.textContent=this.nextElementSibling.classList.contains('open')?'▲ Hide stats':'▼ Show stats &amp; traits'">▼ Show stats &amp; traits</button>
+    <div class="quick-ref-body">
+      <div class="quick-stat-block">
+        <div class="quick-stat"><strong>CR</strong> ${char.cr}</div>
+        <div class="quick-stat"><strong>HP</strong> ${char.hp}</div>
+        <div class="quick-stat"><strong>AC</strong> ${char.ac}</div>
+        <div class="quick-stat" style="font-style:italic;color:var(--accent,#c9a227);">"${char.quote || ''}"</div>
+      </div>
+      <div class="quick-abilities">${abHtml}</div>
+      <div class="quick-traits">${traitsHtml}</div>
+      <div class="quick-lore">${char.lore || ''}</div>
+    </div>
+  </div>`;
 }
 
 /* ── Currency ── */
@@ -2438,6 +2558,8 @@ function openModal(idx) {
   document.getElementById('modalName').textContent = c.name;
   document.getElementById('modalContent').style.setProperty('--accent', t.accent);
 
+  // Quick lore reference panel
+  renderQuickRef(c);
   // Currency panel
   renderCurrencyPanel(c.name);
   // Concentration panel
