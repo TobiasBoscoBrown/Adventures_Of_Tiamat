@@ -383,22 +383,147 @@
     font-family: monospace;
   }
 
-  /* ── (tabs removed — modal goes straight to PDF) ── */
+  /* ── Modal Tabs ── */
+  .modal-tabs {
+    display: flex;
+    border-bottom: 1px solid #1e2040;
+    padding: 0 20px;
+    background: #080818;
+    flex-shrink: 0;
+  }
+  .modal-tab {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #6070a0;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 11px 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: -1px;
+    letter-spacing: 0.3px;
+  }
+  .modal-tab:hover { color: #dce0f0; }
+  .modal-tab.active { color: var(--accent, #c9a227); border-bottom-color: var(--accent, #c9a227); }
+
+  /* ── Stat Block Panel ── */
+  .stat-block-panel {
+    padding: 22px 28px 28px;
+    overflow-y: auto;
+    max-height: calc(95vh - 112px);
+  }
+  .sb-char-title { font-size: 12px; color: var(--accent, #c9a227); font-weight: 500; letter-spacing: 0.5px; margin-bottom: 3px; }
+  .sb-char-sub { font-size: 11px; color: #4a5272; margin-bottom: 14px; }
+  .sb-divider { height: 1px; background: var(--accent, #c9a227); opacity: 0.35; margin: 14px 0; }
+  .sb-core-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+    align-items: stretch;
+  }
+  .sb-core-box {
+    background: #06061a;
+    border: 1px solid #1e2040;
+    border-radius: 10px;
+    padding: 8px 14px;
+    text-align: center;
+    flex: 1;
+    min-width: 70px;
+  }
+  .sb-core-box .cb-val { font-size: 20px; font-weight: 700; color: #f0e6d3; display: block; line-height: 1.1; }
+  .sb-core-box .cb-lbl { font-size: 10px; color: #6070a0; text-transform: uppercase; letter-spacing: 1px; display: block; margin-top: 3px; }
+  .sb-section-title {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    color: var(--accent, #c9a227);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin: 16px 0 8px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #1e2040;
+  }
+  .sb-abilities-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+  }
+  .sb-ab-box {
+    background: #06061a;
+    border: 1px solid #1e2040;
+    border-radius: 10px;
+    padding: 10px 8px;
+    text-align: center;
+    flex: 1;
+    min-width: 62px;
+    position: relative;
+  }
+  .sb-ab-box.save-prof { border-color: var(--accent, #c9a227); }
+  .sb-ab-box .ab-lbl { font-size: 9px; color: #6070a0; text-transform: uppercase; letter-spacing: 1px; }
+  .sb-ab-box .ab-mod-big { font-size: 22px; font-weight: 700; color: #f0e6d3; line-height: 1.1; }
+  .sb-ab-box .ab-score-sm { font-size: 11px; color: #9098b8; }
+  .sb-ab-box .ab-save-note { font-size: 9px; color: var(--accent, #c9a227); margin-top: 2px; }
+  .sb-saves-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+  }
+  .sb-save-pill {
+    background: #06061a;
+    border: 1px solid #1e2040;
+    border-radius: 20px;
+    padding: 5px 13px;
+    font-size: 12px;
+    color: #7080a0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sb-save-pill.prof { border-color: var(--accent, #c9a227); color: #f0e6d3; }
+  .sb-save-pill .sp-name { font-size: 10px; color: #6070a0; }
+  .sb-save-pill.prof .sp-name { color: #9098b8; }
+  .sb-save-pill .sp-bonus { font-weight: 700; font-size: 13px; }
+  .sb-save-pill.prof .sp-bonus { color: var(--accent, #c9a227); }
+  .sb-passive-row { font-size: 12px; color: #9098b8; margin-top: 8px; }
+  .sb-passive-row strong { color: var(--accent, #c9a227); }
+  .sb-quote-box {
+    font-size: 14px;
+    font-style: italic;
+    color: var(--accent, #c9a227);
+    text-align: center;
+    padding: 14px 18px;
+    margin-bottom: 4px;
+    border: 1px solid #1e2040;
+    border-radius: 8px;
+    background: #06061a;
+    line-height: 1.5;
+  }
+  .sb-traits-list { margin-bottom: 4px; }
+  .sb-trait-item {
+    font-size: 12px;
+    color: #b8c0d8;
+    margin-bottom: 7px;
+    line-height: 1.55;
+    padding: 8px 12px;
+    background: #06061a;
+    border-radius: 6px;
+    border-left: 2px solid var(--accent, #c9a227);
+  }
+  .sb-trait-item strong { color: #f0e6d3; }
+  .sb-lore-text { font-size: 13px; line-height: 1.75; color: #9098b8; font-style: italic; }
+
+  /* ── PDF tab ── */
   .pdf-container {
     width: 100%;
-    height: calc(95vh - 70px);
+    height: calc(95vh - 112px);
     border: none;
     background: #111;
     border-radius: 0 0 16px 16px;
-  }
-  .pdf-missing {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 300px;
-    color: #4a5272;
-    font-size: 14px;
-    font-style: italic;
+    display: block;
   }
 </style>
 </head>
@@ -448,7 +573,12 @@
         <button class="modal-close" onclick="closeModal()">&#10005; Close</button>
       </div>
     </div>
-    <div id="modalPdf" style="padding: 0;"></div>
+    <div class="modal-tabs">
+      <button class="modal-tab active" id="tab-btn-stats" onclick="switchTab('stats')">Stat Block</button>
+      <button class="modal-tab" id="tab-btn-sheet" onclick="switchTab('sheet')">Character Sheet PDF</button>
+    </div>
+    <div id="tab-stats"></div>
+    <div id="tab-sheet" style="display:none;"></div>
   </div>
 </div>
 
@@ -618,6 +748,95 @@ function filterTheme(theme, btn) {
   renderGrid();
 }
 
+/* ── Proficiency bonus from CR ── */
+function getProfBonus(cr) {
+  const n = cr === '1/8' ? 0.125 : cr === '1/4' ? 0.25 : cr === '1/2' ? 0.5 : parseFloat(cr) || 0;
+  if (n <= 4)  return 2;
+  if (n <= 8)  return 3;
+  if (n <= 12) return 4;
+  if (n <= 16) return 5;
+  if (n <= 20) return 6;
+  if (n <= 24) return 7;
+  if (n <= 28) return 8;
+  return 9;
+}
+
+/* ── Build the HTML stat block for a character ── */
+function buildStatBlock(c) {
+  const prof = getProfBonus(c.cr);
+  const abs = c.abilities.map(([name, score, mod, saveProficient]) => ({name, score, mod, saveProficient}));
+
+  // Ability score boxes (border highlight = saving throw proficiency)
+  const abBoxes = abs.map(a => `
+    <div class="sb-ab-box${a.saveProficient ? ' save-prof' : ''}">
+      <div class="ab-lbl">${a.name}</div>
+      <div class="ab-mod-big">${a.mod}</div>
+      <div class="ab-score-sm">${a.score}</div>
+      ${a.saveProficient ? `<div class="ab-save-note">save ✦</div>` : ''}
+    </div>`).join('');
+
+  // Saving throw pills
+  const savePills = abs.map(a => {
+    const base = parseInt(a.mod);
+    const bonus = a.saveProficient ? base + prof : base;
+    const sign = bonus >= 0 ? '+' : '';
+    return `<div class="sb-save-pill${a.saveProficient ? ' prof' : ''}">
+      <span class="sp-name">${a.name}</span>
+      <span class="sp-bonus">${sign}${bonus}</span>
+    </div>`;
+  }).join('');
+
+  // Passive perception: 10 + WIS mod (+ prof if WIS save proficient)
+  const wis = abs.find(a => a.name === 'WIS');
+  const wisMod = wis ? parseInt(wis.mod) : 0;
+  const passPerc = 10 + wisMod + (wis && wis.saveProficient ? prof : 0);
+
+  // Traits — split on em-dash for bold name
+  const traitHtml = (c.traits || []).map(tr => {
+    const idx = tr.indexOf('—');
+    if (idx > 0) {
+      return `<div class="sb-trait-item"><strong>${tr.slice(0, idx).trim()}.</strong> ${tr.slice(idx + 1).trim()}</div>`;
+    }
+    return `<div class="sb-trait-item">${tr}</div>`;
+  }).join('');
+
+  return `
+    <div class="stat-block-panel">
+      <div class="sb-char-title">${c.title}</div>
+      <div class="sb-char-sub">${c.subtitle}</div>
+      <div class="sb-divider"></div>
+
+      <div class="sb-core-row">
+        <div class="sb-core-box"><span class="cb-val">${c.cr}</span><span class="cb-lbl">CR</span></div>
+        <div class="sb-core-box"><span class="cb-val">${c.hp}</span><span class="cb-lbl">Hit Points</span></div>
+        <div class="sb-core-box"><span class="cb-val">${c.ac}</span><span class="cb-lbl">Armor Class</span></div>
+        <div class="sb-core-box"><span class="cb-val">+${prof}</span><span class="cb-lbl">Prof Bonus</span></div>
+        <div class="sb-core-box"><span class="cb-val">${passPerc}</span><span class="cb-lbl">Passive Perc</span></div>
+      </div>
+
+      <div class="sb-section-title">Ability Scores</div>
+      <div class="sb-abilities-row">${abBoxes}</div>
+
+      <div class="sb-section-title">Saving Throws</div>
+      <div class="sb-saves-row">${savePills}</div>
+      <div class="sb-passive-row">Highlighted border = saving throw proficiency &nbsp;·&nbsp; <strong>Passive Perception ${passPerc}</strong></div>
+
+      ${c.quote ? `<div class="sb-section-title">Quote</div><div class="sb-quote-box">"${c.quote}"</div>` : ''}
+
+      ${traitHtml ? `<div class="sb-section-title">Traits &amp; Features</div><div class="sb-traits-list">${traitHtml}</div>` : ''}
+
+      ${c.lore ? `<div class="sb-section-title">Background</div><div class="sb-lore-text">${c.lore}</div>` : ''}
+    </div>`;
+}
+
+/* ── Tab switching ── */
+function switchTab(tab) {
+  document.getElementById('tab-stats').style.display  = tab === 'stats' ? '' : 'none';
+  document.getElementById('tab-sheet').style.display  = tab === 'sheet' ? '' : 'none';
+  document.getElementById('tab-btn-stats').classList.toggle('active', tab === 'stats');
+  document.getElementById('tab-btn-sheet').classList.toggle('active', tab === 'sheet');
+}
+
 function openModal(idx) {
   currentModalIdx = idx;
   const c = filteredChars[idx];
@@ -625,11 +844,15 @@ function openModal(idx) {
   document.getElementById('modalName').textContent = c.name;
   document.getElementById('modalContent').style.setProperty('--accent', t.accent);
 
-  // Build PDF filename from character name and embed it
-  const pdfName = c.name.replace(/\s+/g, '_') + '_Character_Sheet.pdf';
-  const pdfEl = document.getElementById('modalPdf');
-  pdfEl.innerHTML = `<iframe class="pdf-container" src="${pdfName}"></iframe>`;
+  // Stat block (always rendered)
+  document.getElementById('tab-stats').innerHTML = buildStatBlock(c);
 
+  // PDF tab (set src but don't force load until user clicks)
+  const pdfName = c.name.replace(/\s+/g, '_') + '_Character_Sheet.pdf';
+  document.getElementById('tab-sheet').innerHTML =
+    `<iframe class="pdf-container" src="${pdfName}"></iframe>`;
+
+  switchTab('stats');
   document.getElementById('modal').classList.add('open');
 }
 
