@@ -817,6 +817,24 @@
     background: rgba(255,255,255,0.02);
     border-radius: 4px;
   }
+  /* ── Spell Book ── */
+  .spell-entry {
+    background: #06061a;
+    border: 1px solid #1e2040;
+    border-radius: 7px;
+    padding: 8px 10px;
+    margin-bottom: 5px;
+    cursor: pointer;
+    transition: border-color 0.12s, background 0.12s;
+  }
+  .spell-entry:hover { border-color: var(--accent, #c9a227); background: #0a0a1e; }
+  .spell-header { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+  .spell-name { font-size: 12px; font-weight: 600; color: #dce0f0; flex: 1; }
+  .spell-school { font-size: 9px; color: #4488ff; background: rgba(68,136,255,0.1); padding: 1px 6px; border-radius: 3px; }
+  .spell-meta { display: flex; gap: 6px; align-items: center; font-size: 10px; color: #9098b8; margin-bottom: 3px; }
+  .spell-desc { font-size: 10px; color: #4a5272; line-height: 1.4; }
+  .spell-entry:hover .spell-desc { color: #7a82a0; }
+
   /* ── Story Panel ── */
   .story-block {
     background: #06061a;
@@ -3950,6 +3968,7 @@ function buildStatsPanel(c) {
       </div>
       <div id="spellSlotsFor_${safeId(c.name)}">${buildSpellSlotsHtml(c)}</div>
     </div>` : ''}
+    ${buildSpellBook(c)}
     <div class="stats-section">
       <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
         <span>Relationships</span>
@@ -3991,6 +4010,175 @@ function rollSavingThrow(abName, mod) {
   const msg = `${abName} Save: d20(${roll})${modVal>=0?'+':''}${modVal} = ${total}${isCrit?' ★ CRIT!':isFumble?' ☠ FUMBLE':''}`;
   showModalRollResult(msg, isCrit, isFumble, total);
 }
+
+// ── SPELL BOOK PANEL ────────────────────────────────────
+const SPELL_LIBRARY = {
+  // Cantrips
+  'Fire Bolt':        { level:0, school:'Evocation', cast:'1 action', range:'120 ft', desc:'A mote of fire. 1d10 fire damage (scales by level).' },
+  'Mage Hand':        { level:0, school:'Conjuration', cast:'1 action', range:'30 ft', desc:'Spectral hand that can manipulate objects up to 10 lbs.' },
+  'Sacred Flame':     { level:0, school:'Evocation', cast:'1 action', range:'60 ft', desc:'DEX save or take 1d8 radiant damage. Ignores cover.' },
+  'Minor Illusion':   { level:0, school:'Illusion', cast:'1 action', range:'30 ft', desc:'Create a sound or image. Lasts 1 minute.' },
+  'Eldritch Blast':   { level:0, school:'Evocation', cast:'1 action', range:'120 ft', desc:'Beam of crackling energy. 1d10 force damage.' },
+  'Toll the Dead':    { level:0, school:'Necromancy', cast:'1 action', range:'60 ft', desc:'WIS save or 1d8 necrotic (1d12 if wounded).' },
+  // Level 1
+  'Magic Missile':    { level:1, school:'Evocation', cast:'1 action', range:'120 ft', desc:'Three darts. Each hits. 1d4+1 force each. Auto-hits.' },
+  'Cure Wounds':      { level:1, school:'Evocation', cast:'1 action', range:'Touch', desc:'Touch to heal 1d8+spellcasting mod HP.' },
+  'Healing Word':     { level:1, school:'Evocation', cast:'Bonus action', range:'60 ft', desc:'Bonus action heal: 1d4+spellcasting mod.' },
+  'Shield':           { level:1, school:'Abjuration', cast:'Reaction', range:'Self', desc:'+5 AC until start of your next turn. Blocks Magic Missile.' },
+  'Chromatic Orb':    { level:1, school:'Evocation', cast:'1 action', range:'90 ft', desc:'3d8 of chosen element: acid/cold/fire/lightning/poison/thunder.' },
+  // Level 2
+  'Misty Step':       { level:2, school:'Conjuration', cast:'Bonus action', range:'Self', desc:'Teleport up to 30 ft to unoccupied space you can see.' },
+  'Hold Person':      { level:2, school:'Enchantment', cast:'1 action', range:'60 ft', desc:'WIS save or paralyzed. Repeat each turn. 1 min concentration.' },
+  'Invisibility':     { level:2, school:'Illusion', cast:'1 action', range:'Touch', desc:'Target invisible until they attack/cast. 1 hour conc.' },
+  'Shatter':          { level:2, school:'Evocation', cast:'1 action', range:'60 ft', desc:'CON save or 3d8 thunder damage, half on success. 10 ft sphere.' },
+  // Level 3
+  'Fireball':         { level:3, school:'Evocation', cast:'1 action', range:'150 ft', desc:'DEX save or 8d6 fire, half on success. 20 ft radius.' },
+  'Counterspell':     { level:3, school:'Abjuration', cast:'Reaction', range:'60 ft', desc:'Automatically negate a spell of 3rd level or lower.' },
+  'Hypnotic Pattern': { level:3, school:'Illusion', cast:'1 action', range:'120 ft', desc:'WIS save or charmed/incapacitated. 1 min concentration.' },
+  'Animate Dead':     { level:3, school:'Necromancy', cast:'1 min', range:'10 ft', desc:'Raise undead servant from corpse. Obeys your commands.' },
+  // Level 4
+  'Banishment':       { level:4, school:'Abjuration', cast:'1 action', range:'60 ft', desc:'CHA save or banished. 1 min conc. Permanent if not native plane.' },
+  'Polymorph':        { level:4, school:'Transmutation', cast:'1 action', range:'60 ft', desc:'WIS save or transform into beast. 1 hour concentration.' },
+  'Greater Invisibility': { level:4, school:'Illusion', cast:'1 action', range:'Touch', desc:'Target invisible even while attacking. 1 min concentration.' },
+  // Level 5
+  'Hold Monster':     { level:5, school:'Enchantment', cast:'1 action', range:'90 ft', desc:'WIS save or paralyzed. Repeat each turn. 1 min concentration.' },
+  'Dominate Person':  { level:5, school:'Enchantment', cast:'1 action', range:'60 ft', desc:'WIS save or charmed/controlled by you. 1 min concentration.' },
+  'Wall of Force':    { level:5, school:'Evocation', cast:'1 action', range:'120 ft', desc:'Invisible wall. Immune to all damage. 10 min concentration.' },
+  // Level 6-9
+  'Disintegrate':     { level:6, school:'Transmutation', cast:'1 action', range:'60 ft', desc:'DEX save or 10d6+40 force damage. Target reduced to dust if killed.' },
+  'Power Word Stun':  { level:8, school:'Enchantment', cast:'1 action', range:'60 ft', desc:'Target with ≤150 HP stunned. Repeat CON save each turn.' },
+  'Wish':             { level:9, school:'Conjuration', cast:'1 action', range:'Self', desc:'The mightiest mortal spell. Duplicate any spell ≤8th level, or reshape reality.' },
+  'Meteor Swarm':     { level:9, school:'Conjuration', cast:'1 action', range:'1 mile', desc:'Four meteors. Each: 20d6 fire + 20d6 bludgeoning. 40 ft radius each.' },
+  // Gravity spells (Djoner)
+  'Gravity Sinkhole':      { level:4, school:'Graviturgy', cast:'1 action', range:'120 ft', desc:'STR save or pulled to center + 5d10 force damage.' },
+  'Pulse Wave':            { level:3, school:'Graviturgy', cast:'1 action', range:'Self', desc:'DEX save: pushed 15 ft OR pulled 15 ft + 6d6 force damage.' },
+  'Immovable Object':      { level:2, school:'Graviturgy', cast:'1 action', range:'Touch', desc:'Object up to 10 lbs. cannot be moved for 1 hour.' },
+  'Magnify Gravity':       { level:1, school:'Graviturgy', cast:'1 action', range:'60 ft', desc:'CON save or 2d8 force. Speed halved until end of next turn.' },
+};
+
+function inferSpells(c) {
+  if (!isSpellcaster(c)) return [];
+  const theme = c.theme;
+  const traits = (c.traits || []).join(' ').toLowerCase();
+  const cr = parseFloat(c.cr) || 0;
+  const spells = [];
+
+  // Cantrips always
+  if (theme === 'arcane') spells.push(...['Fire Bolt', 'Mage Hand', 'Minor Illusion', 'Toll the Dead']);
+  if (theme === 'shadow') spells.push(...['Eldritch Blast', 'Minor Illusion', 'Toll the Dead']);
+  if (theme === 'pink') spells.push(...['Sacred Flame', 'Mage Hand']);
+  if (theme === 'nature') spells.push(...['Mage Hand']);
+
+  // Level 1-2
+  if (cr >= 1) {
+    if (theme === 'arcane') spells.push('Magic Missile', 'Shield', 'Chromatic Orb');
+    if (theme === 'shadow') spells.push('Invisibility', 'Misty Step');
+    if (theme === 'pink') spells.push('Cure Wounds', 'Healing Word', 'Shield');
+    if (theme === 'nature') spells.push('Cure Wounds', 'Healing Word');
+  }
+
+  // Level 3+
+  if (cr >= 5) {
+    if (theme === 'arcane') spells.push('Fireball', 'Counterspell', 'Hold Person');
+    if (theme === 'shadow') spells.push('Hold Person', 'Hypnotic Pattern');
+    if (theme === 'pink') spells.push('Hold Person', 'Animate Dead');
+    if (theme === 'nature') spells.push('Hold Person', 'Animate Dead');
+  }
+
+  // Level 5+
+  if (cr >= 10) {
+    if (theme === 'arcane') spells.push('Dominate Person', 'Wall of Force', 'Banishment');
+    if (theme === 'shadow') spells.push('Dominate Person', 'Hold Monster');
+    if (theme === 'pink') spells.push('Hold Monster', 'Dominate Person');
+  }
+
+  // High CR
+  if (cr >= 16) {
+    spells.push('Disintegrate', 'Power Word Stun');
+  }
+  if (cr >= 20) {
+    spells.push('Wish', 'Meteor Swarm');
+  }
+
+  // Djoner special
+  if (c.name === 'Djoner') {
+    return ['Gravity Sinkhole', 'Pulse Wave', 'Immovable Object', 'Magnify Gravity', 'Banishment', 'Polymorph', 'Misty Step', 'Counterspell', 'Dominate Person', 'Wall of Force'];
+  }
+
+  return [...new Set(spells)].slice(0, 14);
+}
+
+function buildSpellBook(c) {
+  if (!isSpellcaster(c)) return '';
+  const spellNames = inferSpells(c);
+  if (!spellNames.length) return '';
+
+  const ab = {};
+  (c.abilities || []).forEach(([n,s,m]) => ab[n] = parseInt(m)||0);
+  const spellMod = Math.max(ab['INT']||0, ab['WIS']||0, ab['CHA']||0);
+  const prof = c.cr === '30' ? 9 : c.cr === '21' || c.cr === '20' ? 7 : c.cr === '17' || c.cr === '16' ? 6 :
+               c.cr === '15' || c.cr === '14' ? 5 : c.cr === '13' ? 4 : 3;
+  const spellDC = 8 + prof + spellMod;
+  const spellAtk = prof + spellMod >= 0 ? `+${prof + spellMod}` : `${prof + spellMod}`;
+
+  const byLevel = {};
+  spellNames.forEach(name => {
+    const s = SPELL_LIBRARY[name];
+    if (!s) return;
+    if (!byLevel[s.level]) byLevel[s.level] = [];
+    byLevel[s.level].push({ name, ...s });
+  });
+
+  const levelNames = ['Cantrips', '1st Level', '2nd Level', '3rd Level', '4th Level',
+    '5th Level', '6th Level', '7th Level', '8th Level', '9th Level'];
+
+  const sections = Object.keys(byLevel).sort((a,b) => a-b).map(level => {
+    const spells = byLevel[level];
+    const rows = spells.map(s => {
+      const castColor = s.cast.includes('Reaction') ? '#aa66ff' : s.cast.includes('Bonus') ? '#88aa22' : '#9098b8';
+      return `<div class="spell-entry" onclick="rollSpellAttack(${JSON.stringify(s.name)},${JSON.stringify(s.school)},${spellAtk},${spellDC})">
+        <div class="spell-header">
+          <span class="spell-name">${s.name}</span>
+          <span class="spell-school">${s.school}</span>
+        </div>
+        <div class="spell-meta">
+          <span style="color:${castColor}">${s.cast}</span>
+          <span style="color:#4a5272">·</span>
+          <span>${s.range}</span>
+          ${level > 0 ? `<span style="color:#4a5272">·</span><span style="color:#9b6dff;font-size:10px">Slot L${level}</span>` : ''}
+        </div>
+        <div class="spell-desc">${s.desc}</div>
+      </div>`;
+    }).join('');
+
+    return `<div style="margin-bottom:12px">
+      <div style="font-size:10px;color:var(--accent,#c9a227);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid rgba(201,162,39,0.2)">${levelNames[parseInt(level)]||level+'th Level'}</div>
+      ${rows}
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="stats-section">
+      <div class="stats-section-title">
+        Spell Book
+        <span style="font-size:10px;color:#4a5272;font-weight:400;font-family:'Inter',sans-serif"> · DC ${spellDC} · Atk ${spellAtk} · click to roll</span>
+      </div>
+      ${sections}
+    </div>`;
+}
+
+function rollSpellAttack(name, school, atkBonus, dc) {
+  const roll = Math.floor(Math.random() * 20) + 1;
+  const mod = parseInt(atkBonus) || 0;
+  const total = roll + mod;
+  const isCrit = roll === 20, isFumble = roll === 1;
+  const modStr = mod >= 0 ? `+${mod}` : `${mod}`;
+  showModalRollResult(
+    `${name} (${school}): d20(${roll})${modStr}=${total}${isCrit?' ★ CRIT!':isFumble?' ☠ FUMBLE':''}  [DC ${dc}]`,
+    isCrit, isFumble, total
+  );
+}
+// ────────────────────────────────────────────────────────
 
 // ── STORY / BACKGROUND PANEL ────────────────────────────
 const ALIGNMENT_STYLES = {
