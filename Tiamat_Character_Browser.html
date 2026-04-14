@@ -111,7 +111,51 @@
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 20px;
     padding: 30px 40px;
+    transition: all 0.2s;
   }
+
+  /* List view */
+  .grid.view-list {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 16px 40px;
+  }
+  .grid.view-list .card { border-radius: 8px; }
+  .grid.view-list .card-inner { display: flex; align-items: center; }
+  .grid.view-list .card-accent { width: 4px; height: auto; min-height: 60px; flex-shrink: 0; }
+  .grid.view-list .card-body { display: flex; align-items: center; gap: 12px; flex: 1; padding: 10px 14px; flex-wrap: wrap; }
+  .grid.view-list .card-portrait-area { margin-bottom: 0; flex-shrink: 0; }
+  .grid.view-list .card-portrait { width: 44px; height: 44px; }
+  .grid.view-list .card-portrait-info { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex: 1; }
+  .grid.view-list .card-name { font-size: 14px; margin-bottom: 0; }
+  .grid.view-list .card-title { margin-bottom: 0; font-size: 11px; }
+  .grid.view-list .card-subtitle { display: none; }
+  .grid.view-list .card-stats { margin-bottom: 0; }
+  .grid.view-list .card-quote { display: none; }
+  .grid.view-list .conditions-row { display: none; }
+  .grid.view-list .hp-tracker { flex: 1; min-width: 120px; max-width: 200px; margin-top: 0; }
+  .grid.view-list .card-tooltip { display: none; }
+  .grid.view-list .card-group { top: 8px; right: 8px; font-size: 9px; }
+
+  /* Compact view */
+  .grid.view-compact {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+    padding: 20px 40px;
+  }
+  .grid.view-compact .card-body { padding: 10px 12px; }
+  .grid.view-compact .card-portrait-area { gap: 8px; margin-bottom: 6px; }
+  .grid.view-compact .card-portrait { width: 44px; height: 44px; }
+  .grid.view-compact .card-name { font-size: 13px; }
+  .grid.view-compact .card-subtitle { display: none; }
+  .grid.view-compact .card-quote { display: none; }
+  .grid.view-compact .conditions-row { display: none; }
+  .grid.view-compact .card-group { font-size: 9px; top: 8px; right: 8px; }
+  .grid.view-compact .card-stats .mini-stat { font-size: 10px; padding: 2px 5px; }
+  .grid.view-compact .hp-tracker { margin-top: 6px; }
+  .grid.view-compact > div:nth-child(3) button[onclick*="openCondPopup"],
+  .grid.view-compact .card-enc-btn { display: none; }
+  .grid.view-compact .card-notes-btn { display: none; }
 
   /* ── Card ── */
   .card {
@@ -2734,6 +2778,11 @@
   <button class="filter-btn" onclick="openCompareModal()" style="border-color:#4488ff;color:#9098b8;" title="Compare characters side-by-side" id="compareBtn">⚖ Compare <span id="compareCount" style="color:#4488ff"></span></button>
   <button class="filter-btn" onclick="openNpcBuilder()" style="border-color:#44aa44;color:#9098b8;" title="Create a custom NPC">+ NPC</button>
   <span style="color: #333; margin: 0 4px;">|</span>
+  <span style="font-size:11px;color:#4a5272;margin-right:4px">View:</span>
+  <button class="filter-btn view-btn active" id="viewGrid" onclick="setView('grid',this)" title="Grid view">⊞ Grid</button>
+  <button class="filter-btn view-btn" id="viewList" onclick="setView('list',this)" title="List view">☰ List</button>
+  <button class="filter-btn view-btn" id="viewCompact" onclick="setView('compact',this)" title="Compact view">⊡ Compact</button>
+  <span style="color: #333; margin: 0 4px;">|</span>
   <span style="font-size:11px;color:#4a5272;margin-right:4px">Sort:</span>
   <button class="filter-btn sort-btn active" id="sortName" onclick="setSort('name',this)" title="Sort by name">Name</button>
   <button class="filter-btn sort-btn" id="sortCr" onclick="setSort('cr',this)" title="Sort by CR">CR</button>
@@ -3869,6 +3918,18 @@ function renderGrid() {
 
   document.getElementById('totalCount').textContent = UNIQUE_CHARS.length;
   document.getElementById('visibleCount').textContent = filteredChars.length;
+}
+
+let currentView = 'grid';
+function setView(mode, btn) {
+  currentView = mode;
+  document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const grid = document.getElementById('grid');
+  grid.classList.remove('view-list', 'view-compact');
+  if (mode === 'list') grid.classList.add('view-list');
+  if (mode === 'compact') grid.classList.add('view-compact');
+  localStorage.setItem('tiamat_view_mode', mode);
 }
 
 function filterGroup(group, btn) {
