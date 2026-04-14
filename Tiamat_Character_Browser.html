@@ -320,6 +320,86 @@
   }
   .reset-hp-btn:hover { border-color: #cc3333; color: #cc3333; }
 
+  /* ── Conditions ── */
+  .conditions-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 8px 16px 10px;
+    background: rgba(6,6,26,0.4);
+    border-top: 1px solid #1a1a38;
+    cursor: default;
+    min-height: 0;
+  }
+  .conditions-bar:empty { display: none; }
+  .cond-badge {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    cursor: default;
+  }
+  .cond-poisoned   { background: rgba(68,170,68,0.2);  color: #44aa44; border: 1px solid #44aa44; }
+  .cond-stunned    { background: rgba(68,136,255,0.2); color: #4488ff; border: 1px solid #4488ff; }
+  .cond-charmed    { background: rgba(221,68,136,0.2); color: #dd4488; border: 1px solid #dd4488; }
+  .cond-frightened { background: rgba(221,102,34,0.2); color: #dd6622; border: 1px solid #dd6622; }
+  .cond-paralyzed  { background: rgba(136,68,187,0.2); color: #8844bb; border: 1px solid #8844bb; }
+  .cond-prone      { background: rgba(170,136,85,0.2); color: #aa8855; border: 1px solid #aa8855; }
+  .cond-restrained { background: rgba(204,51,51,0.2);  color: #cc3333; border: 1px solid #cc3333; }
+  .cond-blinded    { background: rgba(60,60,100,0.4);  color: #9098b8; border: 1px solid #555; }
+  .cond-deafened   { background: rgba(60,60,100,0.4);  color: #9098b8; border: 1px solid #555; }
+  .cond-invisible  { background: rgba(34,153,187,0.2); color: #2299bb; border: 1px solid #2299bb; }
+  .cond-incapacitated { background: rgba(204,51,51,0.3); color: #ff4444; border: 1px solid #cc3333; }
+  .cond-unconscious { background: rgba(80,0,0,0.5); color: #ff6666; border: 1px solid #cc2222; }
+  .cond-exhaustion  { background: rgba(100,60,0,0.4); color: #ffaa33; border: 1px solid #cc7700; }
+
+  /* Condition toggles in modal */
+  .modal-conditions {
+    padding: 12px 28px;
+    border-bottom: 1px solid #1e2040;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+  .modal-conditions-label {
+    font-size: 11px;
+    color: #4a5272;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-right: 4px;
+  }
+  .cond-toggle {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    border: 1px solid #2a2a50;
+    background: #0e0e28;
+    color: #4a5272;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+  }
+  .cond-toggle:hover { border-color: #c9a227; color: #c9a227; }
+  .cond-toggle.active-poisoned   { background: rgba(68,170,68,0.25);  color: #44aa44; border-color: #44aa44; }
+  .cond-toggle.active-stunned    { background: rgba(68,136,255,0.25); color: #4488ff; border-color: #4488ff; }
+  .cond-toggle.active-charmed    { background: rgba(221,68,136,0.25); color: #dd4488; border-color: #dd4488; }
+  .cond-toggle.active-frightened { background: rgba(221,102,34,0.25); color: #dd6622; border-color: #dd6622; }
+  .cond-toggle.active-paralyzed  { background: rgba(136,68,187,0.25); color: #8844bb; border-color: #8844bb; }
+  .cond-toggle.active-prone      { background: rgba(170,136,85,0.25); color: #aa8855; border-color: #aa8855; }
+  .cond-toggle.active-restrained { background: rgba(204,51,51,0.25);  color: #cc3333; border-color: #cc3333; }
+  .cond-toggle.active-blinded    { background: rgba(144,152,184,0.2); color: #9098b8; border-color: #9098b8; }
+  .cond-toggle.active-deafened   { background: rgba(144,152,184,0.2); color: #9098b8; border-color: #9098b8; }
+  .cond-toggle.active-invisible  { background: rgba(34,153,187,0.25); color: #2299bb; border-color: #2299bb; }
+  .cond-toggle.active-incapacitated { background: rgba(204,51,51,0.35); color: #ff4444; border-color: #cc3333; }
+  .cond-toggle.active-unconscious { background: rgba(80,0,0,0.5); color: #ff6666; border-color: #cc2222; }
+  .cond-toggle.active-exhaustion  { background: rgba(100,60,0,0.4); color: #ffaa33; border-color: #cc7700; }
+
   /* ── Modal ── */
   .modal-overlay {
     display: none;
@@ -537,6 +617,7 @@
         <button class="modal-close" onclick="closeModal()">&#10005; Close</button>
       </div>
     </div>
+    <div id="modalConditions"></div>
     <div id="modalPdf" style="padding: 0;"></div>
   </div>
 </div>
@@ -673,6 +754,47 @@ function resetAllHP() {
   renderGrid();
 }
 
+/* ── Conditions ── */
+const CONDITIONS = [
+  'poisoned','stunned','charmed','frightened','paralyzed',
+  'prone','restrained','blinded','deafened','invisible',
+  'incapacitated','unconscious','exhaustion'
+];
+
+function condKey(name) { return 'tiamat_cond_' + name.replace(/[^a-zA-Z0-9]/g, '_'); }
+
+function getConditions(name) {
+  try { return JSON.parse(localStorage.getItem(condKey(name))) || []; }
+  catch(e) { return []; }
+}
+
+function toggleCondition(name, cond) {
+  const conds = getConditions(name);
+  const idx = conds.indexOf(cond);
+  if (idx >= 0) conds.splice(idx, 1); else conds.push(cond);
+  localStorage.setItem(condKey(name), JSON.stringify(conds));
+  // Update modal toggles
+  const btn = document.getElementById('condtog-' + cond);
+  if (btn) {
+    btn.className = 'cond-toggle' + (conds.includes(cond) ? ' active-' + cond : '');
+  }
+  // Update card badges
+  const sid = safeId(name);
+  const bar = document.getElementById('condsbar-' + sid);
+  if (bar) {
+    bar.innerHTML = conds.map(c => `<span class="cond-badge cond-${c}">${c}</span>`).join('');
+  }
+}
+
+function renderConditionsPanel(name) {
+  const conds = getConditions(name);
+  return `<div class="modal-conditions">
+    <span class="modal-conditions-label">Conditions:</span>
+    ${CONDITIONS.map(c => `<button id="condtog-${c}" class="cond-toggle${conds.includes(c) ? ' active-'+c : ''}"
+      onclick="toggleCondition('${name}', '${c}')">${c}</button>`).join('')}
+  </div>`;
+}
+
 function renderGrid() {
   filteredChars = UNIQUE_CHARS.filter(c => {
     const matchGroup = currentFilter === 'all' || c.group === currentFilter;
@@ -693,6 +815,7 @@ function renderGrid() {
     const curHp = getHP(c.name, maxHp);
     const pct   = maxHp > 0 ? (curHp / maxHp) * 100 : 0;
     const isDead = curHp === 0;
+    const activeConds = getConditions(c.name);
     const abHtml = c.abilities.map(([n,s,m,hl]) =>
       `<div class="tt-ab${hl?' hl':''}"><span>${s}</span>${n}</div>`
     ).join('');
@@ -737,6 +860,9 @@ function renderGrid() {
             <button class="hp-btn hp-btn-plus"  onclick="adjustHP('${c.name}',  +10, '${c.hp}', event)" title="+10 HP">+10</button>
           </div>
         </div>
+        <div class="conditions-bar" id="condsbar-${sid}" onclick="event.stopPropagation()">
+          ${activeConds.map(cond => `<span class="cond-badge cond-${cond}">${cond}</span>`).join('')}
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -773,6 +899,9 @@ function openModal(idx) {
   const t = getTheme(c.theme);
   document.getElementById('modalName').textContent = c.name;
   document.getElementById('modalContent').style.setProperty('--accent', t.accent);
+
+  // Conditions panel
+  document.getElementById('modalConditions').innerHTML = renderConditionsPanel(c.name);
 
   // Build PDF filename from character name and embed it
   const pdfName = c.name.replace(/\s+/g, '_') + '_Character_Sheet.pdf';
