@@ -1564,6 +1564,44 @@
   .cond-status  { background: rgba(201,162,39,0.2); border: 1px solid #c9a227; color: #c9a227; }
   .cond-movement{ background: rgba(34,153,187,0.2); border: 1px solid #2299bb; color: #2299bb; }
   .condition-badge:hover { opacity: 0.7; }
+  /* Concentration badge */
+  .conc-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    background: rgba(201,162,39,0.15);
+    border: 1px solid rgba(201,162,39,0.5);
+    color: #c9a227;
+    cursor: pointer;
+    user-select: none;
+    transition: all .15s;
+    animation: concGlow 2s ease-in-out infinite;
+    white-space: nowrap;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .conc-badge:hover { opacity: 0.7; border-color: #c9a227; }
+  @keyframes concGlow {
+    0%,100% { box-shadow: 0 0 4px rgba(201,162,39,0.3); }
+    50% { box-shadow: 0 0 10px rgba(201,162,39,0.6); }
+  }
+  /* Concentration modal button */
+  .conc-set-btn {
+    background: rgba(201,162,39,0.1);
+    border: 1px solid rgba(201,162,39,0.4);
+    color: #c9a227;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .conc-set-btn:hover { background: rgba(201,162,39,0.2); }
+  .conc-set-btn.active { background: rgba(201,162,39,0.25); border-color: #c9a227; }
   /* Condition popup */
   .cond-popup {
     position: fixed;
@@ -3867,6 +3905,7 @@ function applyHpAction(type) {
     const dmg = currHp - newHp;
     logEntry('damage', `<strong>${popupCharName}</strong> took <strong>${dmg} damage</strong> → ${newHp}/${maxHp} HP${newHp===0?' <strong style="color:#cc3333">⚠ DOWN</strong>':''}`);
     logHpEvent(popupCharName, 'dmg', dmg, currHp, newHp, maxHp);
+    if (typeof checkConcOnDamage === 'function') checkConcOnDamage(popupCharName, dmg);
   } else if (type === 'heal' && newHp !== currHp) {
     const healed = newHp - currHp;
     logEntry('heal', `<strong>${popupCharName}</strong> healed <strong>${healed} HP</strong> → ${newHp}/${maxHp} HP`);
@@ -4076,7 +4115,7 @@ function renderGrid() {
             </div>
           </div>
           ${c.quote ? `<div class="card-quote">"${c.quote}"</div>` : ''}
-          <div class="conditions-row" onclick="event.stopPropagation()">${getConditionBadgesHtml(c.name)}</div>
+          <div class="conditions-row" onclick="event.stopPropagation()">${getConditionBadgesHtml(c.name)}${getConcBadgeHtml(c.name)}</div>
           <div style="display:flex;gap:8px;align-items:center;margin-top:3px" onclick="event.stopPropagation()">
             <button class="card-cond-btn ${hasConditions(c.name)?'has-conds':''}" onclick="openCondPopup(${JSON.stringify(c.name)},event)">⚡ ${hasConditions(c.name)?'Conds':'Condition'}</button>
             <button class="card-enc-btn ${isInActiveEncounter(c.name)?'in-enc':''}" onclick="addCharToActiveEncounter(${JSON.stringify(c.name)},${maxHp})">☩ ${isInActiveEncounter(c.name)?'In Enc':'Encounter'}</button>
@@ -4114,11 +4153,13 @@ function updateHeaderStats() {
   // Count characters DOWN (HP = 0)
   let downCount = 0, condsCount = 0;
   const allConds = loadAllConditions();
+  const allConc = (typeof loadAllConc === 'function') ? loadAllConc() : {};
   UNIQUE_CHARS.forEach(c => {
     const maxHp = parseInt(c.hp) || 1;
     const curr = getCharHP(c.name, maxHp);
     if (curr === 0) downCount++;
-    if (allConds[c.name] && allConds[c.name].length > 0) condsCount++;
+    const condCount = (allConds[c.name] && allConds[c.name].length > 0 ? 1 : 0) + (allConc[c.name] ? 1 : 0);
+    if (condCount > 0) condsCount++;
   });
   const combatCount = initiativeList.length;
 
@@ -4893,10 +4934,12 @@ function buildSpellBook(c) {
     const spells = byLevel[level];
     const rows = spells.map(s => {
       const castColor = s.cast.includes('Reaction') ? '#aa66ff' : s.cast.includes('Bonus') ? '#88aa22' : '#9098b8';
+      const isConc = /concentration/i.test(s.desc);
       return `<div class="spell-entry" onclick="rollSpellAttack(${JSON.stringify(s.name)},${JSON.stringify(s.school)},${spellAtk},${spellDC})">
         <div class="spell-header">
           <span class="spell-name">${s.name}</span>
           <span class="spell-school">${s.school}</span>
+          ${isConc ? `<span style="font-size:9px;color:#c9a227;padding:1px 5px;border:1px solid rgba(201,162,39,.4);border-radius:8px;cursor:pointer;margin-left:auto" onclick="event.stopPropagation();setConc(${JSON.stringify(c.name)},${JSON.stringify(s.name)},event)" title="Set concentration on this spell">🔮</span>` : ''}
         </div>
         <div class="spell-meta">
           <span style="color:${castColor}">${s.cast}</span>
@@ -4914,12 +4957,21 @@ function buildSpellBook(c) {
     </div>`;
   }).join('');
 
+  const concSpell = getConcSpell(c.name);
+  const concSection = concSpell
+    ? `<div style="margin-bottom:10px;display:flex;align-items:center;gap:8px">
+        <span class="conc-badge">🔮 ${concSpell}</span>
+        <button class="conc-set-btn" onclick="clearConc(${JSON.stringify(c.name)},event)">✕ Break</button>
+       </div>`
+    : '';
+
   return `
     <div class="stats-section">
-      <div class="stats-section-title">
-        Spell Book
-        <span style="font-size:10px;color:#4a5272;font-weight:400;font-family:'Inter',sans-serif"> · DC ${spellDC} · Atk ${spellAtk} · click to roll</span>
+      <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>Spell Book <span style="font-size:10px;color:#4a5272;font-weight:400;font-family:'Inter',sans-serif"> · DC ${spellDC} · Atk ${spellAtk} · click to roll</span></span>
+        <button class="conc-set-btn ${concSpell?'active':''}" onclick="openConcPicker(${JSON.stringify(c.name)},event)">🔮 ${concSpell||'Concentrate'}</button>
       </div>
+      ${concSection}
       ${sections}
     </div>`;
 }
@@ -6328,6 +6380,97 @@ function buildSpellSlotsHtml(char) {
 }
 
 initSlots();
+// ────────────────────────────────────────────────────────
+
+// ── CONCENTRATION TRACKER ───────────────────────────────
+const CONC_KEY = 'tiamat_concentration';
+
+function loadAllConc() {
+  try { return JSON.parse(localStorage.getItem(CONC_KEY)) || {}; } catch { return {}; }
+}
+function saveAllConc(data) { localStorage.setItem(CONC_KEY, JSON.stringify(data)); }
+
+function getConcSpell(name) {
+  return loadAllConc()[name] || null;
+}
+
+function setConc(charName, spellName, event) {
+  if (event) event.stopPropagation();
+  const all = loadAllConc();
+  if (all[charName] === spellName) {
+    // Toggle off if same spell clicked again
+    delete all[charName];
+  } else {
+    all[charName] = spellName;
+  }
+  saveAllConc(all);
+  logEntry('roll', `<strong>${charName}</strong> ${all[charName] ? `is concentrating on <strong>${spellName}</strong> 🔮` : `broke concentration`}`);
+  refreshConcDisplay(charName);
+  updateHeaderStats();
+}
+
+function clearConc(charName, event) {
+  if (event) event.stopPropagation();
+  const all = loadAllConc();
+  const had = all[charName];
+  delete all[charName];
+  saveAllConc(all);
+  if (had) logEntry('roll', `<strong>${charName}</strong> broke concentration on <strong>${had}</strong>`);
+  refreshConcDisplay(charName);
+  updateHeaderStats();
+}
+
+function getConcBadgeHtml(name) {
+  const spell = getConcSpell(name);
+  if (!spell) return '';
+  return `<span class="conc-badge" onclick="clearConc(${JSON.stringify(name)},event)" title="Click to break concentration">🔮 ${spell}</span>`;
+}
+
+function refreshConcDisplay(charName) {
+  // Refresh the conditions row on the card
+  const sid = safeId(charName);
+  const card = document.querySelector(`[data-sid="${sid}"]`);
+  const condRow = card?.closest('.card-body')?.querySelector('.conditions-row');
+  if (condRow) condRow.innerHTML = getConditionBadgesHtml(charName) + getConcBadgeHtml(charName);
+  // Refresh spell slots section in modal if open
+  const slotEl = document.getElementById('spellSlotsFor_' + sid);
+  if (slotEl) {
+    const char = UNIQUE_CHARS.find(c => c.name === charName);
+    if (char) slotEl.parentElement.closest('.stats-section').outerHTML = buildSpellBook(char).match(/<div class="stats-section">[\s\S]*<\/div>/)?.[0] || '';
+  }
+}
+
+// Warn about concentration when taking damage
+function checkConcOnDamage(charName, damageAmount) {
+  const spell = getConcSpell(charName);
+  if (!spell || damageAmount <= 0) return;
+  const dc = Math.max(10, Math.floor(damageAmount / 2));
+  logEntry('roll', `<strong style="color:#c9a227">🔮 CONCENTRATION CHECK: ${charName}</strong> must make a DC ${dc} CON save to maintain <em>${spell}</em>`);
+}
+
+function openConcPicker(charName, event) {
+  if (event) event.stopPropagation();
+  const char = UNIQUE_CHARS.find(c => c.name === charName);
+  if (!char) return;
+  const concSpells = Object.keys(SPELL_LIBRARY).filter(n => /concentration/i.test(SPELL_LIBRARY[n].desc));
+  const inferred = inferSpells(char).filter(n => concSpells.includes(n));
+  const current = getConcSpell(charName);
+  const items = inferred.length ? inferred : concSpells.slice(0, 20);
+  const menu = items.map(n => `<div style="padding:4px 8px;cursor:pointer;font-size:12px;color:${n===current?'#c9a227':'#9098b8'};border-radius:4px" onmouseover="this.style.background='#1e2040'" onmouseout="this.style.background=''" onclick="setConc(${JSON.stringify(charName)},${JSON.stringify(n)},event);this.closest('.conc-picker').remove()">${n===current?'✓ ':''} ${n}</div>`).join('');
+  const existing = document.querySelector('.conc-picker');
+  if (existing) existing.remove();
+  const picker = document.createElement('div');
+  picker.className = 'conc-picker';
+  picker.style.cssText = 'position:fixed;background:#0e0e24;border:1px solid rgba(201,162,39,.5);border-radius:10px;padding:8px;z-index:9000;max-height:240px;overflow-y:auto;min-width:180px;box-shadow:0 8px 32px rgba(0,0,0,.8)';
+  picker.innerHTML = `<div style="font-size:10px;color:#c9a227;letter-spacing:1px;padding:0 8px 6px;font-family:Cinzel,serif">🔮 SET CONCENTRATION</div>${menu}${current?`<div style="padding:4px 8px;cursor:pointer;font-size:12px;color:#cc3333;border-radius:4px" onmouseover="this.style.background='#1e2040'" onmouseout="this.style.background=''" onclick="clearConc(${JSON.stringify(charName)},event);this.closest('.conc-picker').remove()">✕ Clear</div>`:''}`;
+  const rect = event.target.getBoundingClientRect();
+  picker.style.left = Math.min(rect.left, window.innerWidth - 200) + 'px';
+  picker.style.top = (rect.bottom + 4) + 'px';
+  document.body.appendChild(picker);
+  setTimeout(() => document.addEventListener('click', function _cls(e) {
+    if (!picker.contains(e.target)) { picker.remove(); document.removeEventListener('click', _cls); }
+  }), 50);
+}
 // ────────────────────────────────────────────────────────
 
 // ── SESSION LOG ─────────────────────────────────────────
