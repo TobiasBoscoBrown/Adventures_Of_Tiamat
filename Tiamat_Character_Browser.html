@@ -817,6 +817,89 @@
     background: rgba(255,255,255,0.02);
     border-radius: 4px;
   }
+  /* ── Story Panel ── */
+  .story-block {
+    background: #06061a;
+    border: 1px solid #1e2040;
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+  }
+  .story-block-title {
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    color: var(--accent, #c9a227);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #1e2040;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .story-text {
+    font-size: 13px;
+    color: #9098b8;
+    line-height: 1.8;
+  }
+  .story-text strong { color: #dce0f0; }
+  .story-text em { color: var(--accent, #c9a227); font-style: italic; }
+  .personality-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .personality-tile {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid #1e2040;
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .personality-tile-title {
+    font-size: 9px;
+    color: #4a5272;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+  .personality-tile-text {
+    font-size: 12px;
+    color: #b8c0d8;
+    line-height: 1.5;
+    font-style: italic;
+  }
+  .alignment-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    border: 1px solid;
+  }
+  .timeline-entry {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+    position: relative;
+  }
+  .timeline-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent, #c9a227);
+    margin-top: 4px;
+    flex-shrink: 0;
+    box-shadow: 0 0 6px var(--glow, rgba(201,162,39,0.4));
+  }
+  .timeline-text {
+    font-size: 12px;
+    color: #9098b8;
+    line-height: 1.5;
+  }
+  .timeline-text strong { color: #dce0f0; }
+
   .lore-text {
     font-size: 13px;
     color: #9098b8;
@@ -2552,12 +2635,16 @@
     <div class="modal-tabs" id="modalTabs" style="display:flex;justify-content:space-between;align-items:center">
       <div style="display:flex">
         <div class="modal-tab active" data-tab="stats" onclick="switchModalTab('stats', this)">Stats</div>
-        <div class="modal-tab" data-tab="sheet" onclick="switchModalTab('sheet', this)">Character Sheet</div>
+        <div class="modal-tab" data-tab="story" onclick="switchModalTab('story', this)">Story</div>
+        <div class="modal-tab" data-tab="sheet" onclick="switchModalTab('sheet', this)">Sheet</div>
       </div>
       <button onclick="printCharCard()" style="background:none;border:1px solid #2a2a50;color:#7a7aaa;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:12px;margin-right:10px;transition:all 0.15s" onmouseover="this.style.borderColor='#4488ff';this.style.color='#4488ff'" onmouseout="this.style.borderColor='#2a2a50';this.style.color='#7a7aaa'">🖨 Print Card</button>
     </div>
     <div id="modalTabStats" class="modal-tab-content active">
       <div class="stats-panel" id="statsPanel"></div>
+    </div>
+    <div id="modalTabStory" class="modal-tab-content">
+      <div class="stats-panel" id="storyPanel"></div>
     </div>
     <div id="modalTabSheet" class="modal-tab-content">
       <div id="modalPdf" style="padding: 0;"></div>
@@ -3838,6 +3925,210 @@ function rollSavingThrow(abName, mod) {
   showModalRollResult(msg, isCrit, isFumble, total);
 }
 
+// ── STORY / BACKGROUND PANEL ────────────────────────────
+const ALIGNMENT_STYLES = {
+  'lawful good':    { bg:'rgba(68,136,255,0.15)', color:'#88aaff', border:'rgba(68,136,255,0.4)' },
+  'neutral good':   { bg:'rgba(68,200,68,0.1)',   color:'#88cc88', border:'rgba(68,200,68,0.3)' },
+  'chaotic good':   { bg:'rgba(100,200,255,0.1)', color:'#88ddff', border:'rgba(100,200,255,0.3)' },
+  'lawful neutral': { bg:'rgba(200,200,200,0.08)',color:'#aaaaaa', border:'rgba(200,200,200,0.2)' },
+  'true neutral':   { bg:'rgba(200,200,200,0.06)',color:'#888888', border:'rgba(200,200,200,0.15)' },
+  'chaotic neutral':{ bg:'rgba(221,136,34,0.1)',  color:'#dd9955', border:'rgba(221,136,34,0.3)' },
+  'lawful evil':    { bg:'rgba(136,34,136,0.15)', color:'#bb77bb', border:'rgba(136,34,136,0.4)' },
+  'neutral evil':   { bg:'rgba(180,40,40,0.12)',  color:'#cc6666', border:'rgba(180,40,40,0.35)' },
+  'chaotic evil':   { bg:'rgba(220,30,30,0.15)',  color:'#ee5555', border:'rgba(220,30,30,0.4)' },
+};
+
+function extractAlignment(c) {
+  const sub = (c.subtitle || '').toLowerCase();
+  const alignments = ['lawful good','neutral good','chaotic good','lawful neutral','true neutral',
+    'chaotic neutral','lawful evil','neutral evil','chaotic evil'];
+  return alignments.find(a => sub.includes(a)) || 'true neutral';
+}
+
+function generatePersonality(c) {
+  const theme = c.theme;
+  const traits = (c.traits || []);
+  const lore = c.lore || '';
+  const align = extractAlignment(c);
+
+  // Infer personality traits from character data
+  const personalities = {
+    royal:   ['Commands respect effortlessly — even enemies pause before speaking to them.',
+               'Carries the weight of generations; every decision echoes through history.'],
+    warrior: ['Speaks plainly and means every word.',
+               'Judges others by their deeds, not their titles.'],
+    arcane:  ['Sees patterns where others see chaos.',
+               'Knowledge is their currency; ignorance is their enemy.'],
+    nature:  ['Comfortable in silence that others find unnerving.',
+               'Measures life in seasons, not years.'],
+    shadow:  ['Every room has three exits. They\'ve already found them.',
+               'Trusts few, watches everyone.'],
+    fire:    ['Passion burns in everything they do — forge, fight, or family.',
+               'Stubborn as the mountains they came from.'],
+    ocean:   ['Has seen things in the deep that changed them forever.',
+               'Speaks to the sea; sometimes it answers.'],
+    stone:   ['Slow to trust but unshakeable when they do.',
+               'Built to outlast empires.'],
+    orc:     ['Strength is respect. Weakness is invitation.',
+               'Their loyalty runs as deep as their grudges.'],
+    pink:    ['Warmth that disarms strangers and heals old wounds.',
+               'Belief in people long after everyone else has given up.'],
+  };
+
+  const ideals = {
+    royal:   'Legacy: What I build must outlast me, or I\'ve built nothing.',
+    warrior: 'Honor: I will not win at any cost — only at the right cost.',
+    arcane:  'Knowledge: Truth, however terrible, is better than comfortable lies.',
+    nature:  'Balance: Every action ripples outward. I am responsible for my ripples.',
+    shadow:  'Survival: The living can regret. The dead cannot.',
+    fire:    'Craft: Excellence is its own prayer. I owe it to my work.',
+    ocean:   'Freedom: The sea belongs to no king. Neither do I.',
+    stone:   'Duty: I swore an oath. I intend to keep it.',
+    orc:     'Strength: Power earned is power deserved.',
+    pink:    'Compassion: Every soul deserves at least one person who believes in them.',
+  };
+
+  const bonds = {
+    royal:   `Their bloodline and kingdom — everything else is secondary.`,
+    warrior: `The people they swore to protect, wherever they are now.`,
+    arcane:  `Their mentor, their library, and the secrets not yet unlocked.`,
+    nature:  `The land itself — forests, rivers, creatures. It remembers them.`,
+    shadow:  `Someone they wronged long ago. The debt still haunts them.`,
+    fire:    `Their craft and those who depend on it.`,
+    ocean:   `A ship, a crew, and the horizon. Always the horizon.`,
+    stone:   `Their ancestors and the promises they made at their graves.`,
+    orc:     `Their tribe, their blood, their war-brothers.`,
+    pink:    `Family — born or chosen — and the quiet moments they protect.`,
+  };
+
+  const flaws = {
+    royal:   `Struggles to ask for help. Rulers don't beg, even when they should.`,
+    warrior: `Violence is always on the table. It's not always the right tool.`,
+    arcane:  `Underestimates what knowledge costs those around them.`,
+    nature:  `Disconnected from civilization — cities feel like cages.`,
+    shadow:  `Trust is a luxury they can't afford and desperately want.`,
+    fire:    `Pride in their craft makes them dismissive of others' contributions.`,
+    ocean:   `The madness of the deep isn't entirely gone. Some days it shows.`,
+    stone:   `Change is the enemy. Even good change.`,
+    orc:     `Sees diplomacy as weakness until the battle is already lost.`,
+    pink:    `Puts others' needs so far above their own that they're drowning quietly.`,
+  };
+
+  return {
+    traits: (personalities[theme] || personalities.royal),
+    ideal: ideals[theme] || ideals.royal,
+    bond: bonds[theme] || bonds.royal,
+    flaw: flaws[theme] || flaws.royal,
+  };
+}
+
+function generateTimeline(c) {
+  const events = [];
+  const sub = c.subtitle || '';
+  const lore = c.lore || '';
+  const traits = (c.traits || []).join(' ');
+
+  // Extract birth year
+  const birthMatch = sub.match(/born\s+(\d+)\s*(a\.t\.|b\.t\.)?/i);
+  if (birthMatch) {
+    const year = birthMatch[1];
+    const era = (birthMatch[2] || 'A.T.').toUpperCase();
+    events.push({ label:`Born ${year} ${era}`, desc:`${c.name} enters the world.` });
+  }
+
+  // Major life events from lore
+  if (lore.includes('poison')) events.push({ label:'The Poisoning', desc:'A betrayal begins in secret, slow and patient as poison.' });
+  if (lore.includes('dragon') && !c.name.includes('Rigod')) events.push({ label:'Dragon Encounter', desc:'A fateful meeting with dragonkind that changed everything.' });
+  if (lore.includes('academy') || lore.includes('university')) events.push({ label:'Years of Study', desc:'Pursued mastery of arcane arts at great personal cost.' });
+  if (lore.includes('united') || lore.includes('unif')) events.push({ label:'Unification', desc:'Brought warring factions under one banner through strength and will.' });
+  if (lore.includes('slum') || lore.includes('orphan')) events.push({ label:'Survival', desc:'Rose from nothing — the streets that raised them also hardened them.' });
+  if (lore.includes('slain') || lore.includes('killed') || traits.includes('slayer')) events.push({ label:'The Kill', desc:'Took a legendary life in battle. The world noticed.' });
+  if (lore.includes('pact') || lore.includes('bargain')) events.push({ label:'The Pact', desc:'Made a deal with a power far beyond mortal understanding.' });
+  if (lore.includes('married') || lore.includes('wife') || lore.includes('husband')) events.push({ label:'Union', desc:'A political or passionate marriage that shaped their fate.' });
+
+  // Current situation
+  events.push({ label:'Present Day', desc: lore.slice(0, 100) + (lore.length > 100 ? '…' : '') });
+
+  return events.slice(0, 6);
+}
+
+function buildStoryPanel(c) {
+  const align = extractAlignment(c);
+  const alignStyle = ALIGNMENT_STYLES[align] || ALIGNMENT_STYLES['true neutral'];
+  const pers = generatePersonality(c);
+  const timeline = generateTimeline(c);
+
+  const alignBadge = `<span class="alignment-badge" style="background:${alignStyle.bg};color:${alignStyle.color};border-color:${alignStyle.border}">${align.replace(/\b\w/g, l => l.toUpperCase())}</span>`;
+
+  const timelineHtml = timeline.map(e =>
+    `<div class="timeline-entry">
+      <div class="timeline-dot"></div>
+      <div class="timeline-text"><strong>${e.label}</strong> — ${e.desc}</div>
+    </div>`
+  ).join('');
+
+  const notes = loadAllNotes()[c.name];
+
+  return `
+    <div style="padding:20px">
+      ${c.quote ? `
+      <div class="story-block" style="border-left:3px solid var(--accent,#c9a227);text-align:center">
+        <div style="font-size:18px;font-style:italic;color:var(--accent,#c9a227);line-height:1.5">"${c.quote}"</div>
+        <div style="font-size:11px;color:#4a5272;margin-top:8px">— ${c.name}</div>
+      </div>` : ''}
+
+      <div class="story-block">
+        <div class="story-block-title">⚖ Alignment & Background</div>
+        ${alignBadge}
+        <div class="story-text">${c.subtitle}</div>
+      </div>
+
+      <div class="story-block">
+        <div class="story-block-title">📖 Backstory</div>
+        <div class="story-text">${c.lore || 'No backstory recorded.'}</div>
+      </div>
+
+      <div class="story-block">
+        <div class="story-block-title">🎭 Personality</div>
+        <div class="personality-grid">
+          <div class="personality-tile">
+            <div class="personality-tile-title">Personality Traits</div>
+            ${pers.traits.map(t => `<div class="personality-tile-text" style="margin-bottom:6px">"${t}"</div>`).join('')}
+          </div>
+          <div class="personality-tile">
+            <div class="personality-tile-title">Ideal</div>
+            <div class="personality-tile-text">"${pers.ideal}"</div>
+          </div>
+          <div class="personality-tile">
+            <div class="personality-tile-title">Bond</div>
+            <div class="personality-tile-text">"${pers.bond}"</div>
+          </div>
+          <div class="personality-tile">
+            <div class="personality-tile-title">Flaw</div>
+            <div class="personality-tile-text">"${pers.flaw}"</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="story-block">
+        <div class="story-block-title">⏳ Timeline</div>
+        ${timelineHtml}
+      </div>
+
+      ${notes && notes.text ? `
+      <div class="story-block" style="border-color:rgba(155,109,255,0.3)">
+        <div class="story-block-title" style="color:#9b6dff">✎ DM Notes</div>
+        <div class="story-text">${notes.text}</div>
+        <button onclick="openNotes(${JSON.stringify(c.name)},${JSON.stringify(c.title)})" style="margin-top:10px;background:none;border:1px solid rgba(155,109,255,0.4);color:#9b6dff;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:11px">Edit Notes</button>
+      </div>` : `
+      <div class="story-block" style="text-align:center;border-style:dashed;border-color:#1e2040">
+        <div style="color:#3a3a5a;font-size:12px;margin-bottom:8px">No DM notes yet</div>
+        <button onclick="openNotes(${JSON.stringify(c.name)},${JSON.stringify(c.title)})" style="background:none;border:1px solid #2a2a50;color:#7a7aaa;border-radius:6px;padding:6px 16px;cursor:pointer;font-size:12px">✎ Add Notes</button>
+      </div>`}
+    </div>`;
+}
+// ────────────────────────────────────────────────────────
+
 // ── FEATURES & TRAITS COMPENDIUM ────────────────────────
 const TRAIT_RULES = {
   'legendary resistance': { type:'legendary', icon:'⬡', rule:'3/Day: When this creature fails a saving throw, it can choose to succeed instead.' },
@@ -4296,6 +4587,9 @@ function openModal(idx) {
 
   // Build stats panel
   document.getElementById('statsPanel').innerHTML = buildStatsPanel(c);
+
+  // Build story panel
+  document.getElementById('storyPanel').innerHTML = buildStoryPanel(c);
 
   // Build PDF
   const pdfName = 'Character Sheets/' + c.name.replace(/\s+/g, '_') + '_Character_Sheet.pdf';
