@@ -2128,6 +2128,13 @@
            onkeydown="if(event.key==='Enter')applyHpAction('heal')">
     <button class="hp-popup-btn-apply heal" onclick="applyHpAction('heal')" title="Heal HP">✚</button>
   </div>
+  <div class="hp-popup-row" style="margin-top:4px;border-top:1px solid #1e2040;padding-top:6px">
+    <input type="number" id="hpTempInput" class="hp-popup-input" placeholder="Temp HP" min="0"
+           style="border-color:#dd8822" onkeydown="if(event.key==='Enter')applyHpAction('temp')">
+    <button class="hp-popup-btn-apply" onclick="applyHpAction('temp')" title="Set Temp HP"
+            style="background:rgba(221,136,34,0.2);border-color:#dd8822;color:#dd8822">⬡</button>
+  </div>
+  <div id="hpTempDisplay" style="font-size:11px;color:#dd8822;text-align:center;min-height:14px;margin-top:2px"></div>
   <button class="hp-popup-full" onclick="applyHpAction('full')">↺ Full HP</button>
 </div>
 
@@ -2553,14 +2560,18 @@ initFavorites();
 // ────────────────────────────────────────────────────────
 
 let hpState = {};
+let tempHpState = {};
 let popupCharName = '';
 let popupCharMax = 0;
 
 function initHp() {
   try { hpState = JSON.parse(localStorage.getItem('tiamat_hp')) || {}; } catch { hpState = {}; }
+  try { tempHpState = JSON.parse(localStorage.getItem('tiamat_temp_hp')) || {}; } catch { tempHpState = {}; }
 }
 function saveHp() { localStorage.setItem('tiamat_hp', JSON.stringify(hpState)); }
+function saveTempHp() { localStorage.setItem('tiamat_temp_hp', JSON.stringify(tempHpState)); }
 function getCharHP(name, maxHp) { return hpState[name] !== undefined ? hpState[name] : maxHp; }
+function getTempHP(name) { return tempHpState[name] || 0; }
 function safeId(name) { return name.replace(/[^a-zA-Z0-9]/g, '_'); }
 
 function hpBarColor(pct) {
@@ -2584,15 +2595,18 @@ function openHpPopup(name, maxHp, event) {
   popupCharMax = maxHp;
   const currHp = getCharHP(name, maxHp);
   const pct = maxHp > 0 ? currHp / maxHp : 0;
+  const tempHp = getTempHP(name);
   document.getElementById('hpPopupCharname').textContent = name;
   document.getElementById('hpPopupCurrent').innerHTML = `${currHp} <span>/ ${maxHp} HP</span>`;
   document.getElementById('hpPopupBarFill').style.width = Math.round(pct * 100) + '%';
   document.getElementById('hpPopupBarFill').style.background = hpBarColor(pct);
   document.getElementById('hpDmgInput').value = '';
   document.getElementById('hpHealInput').value = '';
+  document.getElementById('hpTempInput').value = tempHp > 0 ? tempHp : '';
+  document.getElementById('hpTempDisplay').textContent = tempHp > 0 ? `⬡ ${tempHp} Temp HP active` : '';
   const popup = document.getElementById('hpGlobalPopup');
-  const x = Math.min(Math.max(event.clientX - 125, 10), window.innerWidth - 270);
-  const y = Math.min(Math.max(event.clientY + 12, 10), window.innerHeight - 220);
+  const x = Math.min(Math.max(event.clientX - 125, 10), window.innerWidth - 290);
+  const y = Math.min(Math.max(event.clientY + 12, 10), window.innerHeight - 260);
   popup.style.left = x + 'px';
   popup.style.top = y + 'px';
   popup.classList.add('open');
@@ -2606,14 +2620,38 @@ function applyHpAction(type) {
   const maxHp = popupCharMax;
   const currHp = getCharHP(popupCharName, maxHp);
   let newHp = currHp;
+  let tempHp = getTempHP(popupCharName);
+
   if (type === 'dmg') {
     const val = parseInt(document.getElementById('hpDmgInput').value) || 0;
-    if (val > 0) newHp = Math.max(0, currHp - val);
+    if (val > 0) {
+      // Damage hits temp HP first
+      if (tempHp > 0) {
+        const absorbed = Math.min(tempHp, val);
+        tempHp = Math.max(0, tempHp - val);
+        const remaining = val - absorbed;
+        if (remaining > 0) newHp = Math.max(0, currHp - remaining);
+        tempHpState[popupCharName] = tempHp;
+        saveTempHp();
+        document.getElementById('hpTempDisplay').textContent = tempHp > 0 ? `⬡ ${tempHp} Temp HP active` : '';
+        document.getElementById('hpTempInput').value = tempHp > 0 ? tempHp : '';
+        updateTempHpDisplay(popupCharName);
+      } else {
+        newHp = Math.max(0, currHp - val);
+      }
+    }
     document.getElementById('hpDmgInput').value = '';
   } else if (type === 'heal') {
     const val = parseInt(document.getElementById('hpHealInput').value) || 0;
     if (val > 0) newHp = Math.min(maxHp, currHp + val);
     document.getElementById('hpHealInput').value = '';
+  } else if (type === 'temp') {
+    const val = parseInt(document.getElementById('hpTempInput').value) || 0;
+    tempHpState[popupCharName] = Math.max(0, val);
+    saveTempHp();
+    document.getElementById('hpTempDisplay').textContent = val > 0 ? `⬡ ${val} Temp HP active` : 'Temp HP cleared';
+    updateTempHpDisplay(popupCharName);
+    return;
   } else if (type === 'full') {
     newHp = maxHp;
     closeHpPopup();
@@ -2648,12 +2686,25 @@ function updateHpDisplay(name, maxHp, currHp) {
   if (lbl) lbl.textContent = `${currHp}/${maxHp}`;
   const st = document.querySelector(`[data-sid="${sid}"] .hp-st`);
   if (st) { const [cls, txt] = hpStatusInfo(pct); st.className = `hp-st ${cls}`; st.textContent = txt; }
+  updateTempHpDisplay(name);
+}
+
+function updateTempHpDisplay(name) {
+  const sid = safeId(name);
+  const tempHp = getTempHP(name);
+  const badge = document.querySelector(`[data-sid="${sid}"] .temp-hp-badge`);
+  if (badge) {
+    badge.textContent = tempHp > 0 ? `⬡ +${tempHp}` : '';
+    badge.style.display = tempHp > 0 ? '' : 'none';
+  }
 }
 
 function resetAllHP() {
   if (!confirm('Reset ALL character HP to full?')) return;
   hpState = {};
+  tempHpState = {};
   saveHp();
+  saveTempHp();
   renderGrid();
 }
 
@@ -2744,7 +2795,10 @@ function renderGrid() {
               </div>
               <span class="hp-lbl">${currHp}/${maxHp}</span>
             </div>
-            <span class="hp-st ${hpStClass}">${hpStText}</span>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span class="hp-st ${hpStClass}">${hpStText}</span>
+              <span class="temp-hp-badge" style="font-size:10px;color:#dd8822;${getTempHP(c.name)>0?'':'display:none'}">${getTempHP(c.name)>0?`⬡ +${getTempHP(c.name)}`:''}</span>
+            </div>
           </div>
         </div>
       </div>
