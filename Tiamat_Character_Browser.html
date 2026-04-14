@@ -1532,6 +1532,57 @@
   .card-enc-btn:hover { color: #dd6622; }
   .card-enc-btn.in-enc { color: #dd6622; }
 
+  /* ── Spell Slots ── */
+  .spell-level-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .spell-level-name {
+    font-size: 11px;
+    color: #9098b8;
+    min-width: 30px;
+    font-weight: 600;
+  }
+  .spell-dots {
+    flex: 1;
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+  .spell-dot {
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+    line-height: 1;
+  }
+  .spell-dot.avail { color: #4488ff; }
+  .spell-dot.avail:hover { color: #cc3333; transform: scale(1.2); }
+  .spell-dot.used { color: #2a2a50; }
+  .spell-dot.used:hover { color: #44aa44; transform: scale(1.2); }
+  .spell-count {
+    font-size: 11px;
+    color: #4a5272;
+    font-family: monospace;
+    min-width: 30px;
+    text-align: right;
+  }
+  .spell-reset-btn {
+    background: none;
+    border: 1px solid #2a2a50;
+    color: #4a5272;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-top: 6px;
+    font-family: 'Inter', sans-serif;
+  }
+  .spell-reset-btn:hover { border-color: #4488ff; color: #4488ff; }
+
   /* ── Session Log ── */
   .session-log-panel {
     position: fixed;
@@ -2307,6 +2358,14 @@ function buildStatsPanel(c) {
         ${c.traits.map(tr => `<div class="trait-entry">${tr}</div>`).join('')}
       </div>
     </div>` : ''}
+    ${isSpellcaster(c) ? `
+    <div class="stats-section">
+      <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>Spell Slots</span>
+        <button class="spell-reset-btn" onclick="resetSlots(${JSON.stringify(c.name)},event)">↺ Reset Slots</button>
+      </div>
+      <div id="spellSlotsFor_${safeId(c.name)}">${buildSpellSlotsHtml(c)}</div>
+    </div>` : ''}
     ${c.lore ? `
     <div class="stats-section">
       <div class="stats-section-title">Lore</div>
@@ -2585,6 +2644,112 @@ document.addEventListener('keydown', (e) => {
 document.getElementById('notesModal').addEventListener('click', (e) => {
   if (e.target === document.getElementById('notesModal')) closeNotes();
 });
+// ────────────────────────────────────────────────────────
+
+// ── SPELL SLOT TRACKER ──────────────────────────────────
+// Define spell slot tables for spellcasting NPCs by CR/class
+// Format: { 1:2, 2:1, 3:1, ... } = slots per level
+const SPELL_SLOTS_BY_CR = {
+  3: {1:4,2:2},
+  4: {1:4,2:3},
+  5: {1:4,2:3,3:2},
+  6: {1:4,2:3,3:3},
+  7: {1:4,2:3,3:3,4:1},
+  8: {1:4,2:3,3:3,4:2},
+  9: {1:4,2:3,3:3,4:3,5:1},
+  10:{1:4,2:3,3:3,4:3,5:2},
+  12:{1:4,2:3,3:3,4:3,5:2,6:1},
+  13:{1:4,2:3,3:3,4:3,5:2,6:1,7:1},
+  14:{1:4,2:3,3:3,4:3,5:2,6:1,7:1,8:1},
+  15:{1:4,2:3,3:3,4:3,5:2,6:1,7:1,8:1},
+  16:{1:4,2:3,3:3,4:3,5:2,6:1,7:1,8:1,9:1},
+  17:{1:4,2:3,3:3,4:3,5:2,6:1,7:1,8:1,9:2},
+  20:{1:4,2:3,3:3,4:3,5:2,6:1,7:1,8:1,9:2},
+};
+
+// Spellcasting characters (arcane/pink themes + manual overrides)
+const SPELLCASTING_THEMES = ['arcane', 'pink', 'shadow'];
+
+const SLOTS_KEY = 'tiamat_spell_slots';
+let slotState = {};
+
+function initSlots() {
+  try { slotState = JSON.parse(localStorage.getItem(SLOTS_KEY)) || {}; } catch { slotState = {}; }
+}
+function saveSlots() { localStorage.setItem(SLOTS_KEY, JSON.stringify(slotState)); }
+
+function isSpellcaster(char) {
+  return SPELLCASTING_THEMES.includes(char.theme) || (char.traits || []).some(t => /spell|cast|magic|sorcerer|wizard|cleric|druid/i.test(t));
+}
+
+function getMaxSlotsForChar(char) {
+  const cr = parseFloat(char.cr) || 0;
+  const crKey = Object.keys(SPELL_SLOTS_BY_CR).map(Number).sort((a,b)=>a-b).filter(k => k <= cr).pop();
+  return crKey ? SPELL_SLOTS_BY_CR[crKey] : null;
+}
+
+function getUsedSlots(charName) {
+  return slotState[charName] || {};
+}
+
+function useSlot(charName, level, event) {
+  if (event) event.stopPropagation();
+  const used = getUsedSlots(charName);
+  used[level] = (used[level] || 0) + 1;
+  slotState[charName] = used;
+  saveSlots();
+  logEntry('roll', `<strong>${charName}</strong> used a <strong>level ${level}</strong> spell slot`);
+  refreshSpellSlots(charName);
+}
+
+function recoverSlot(charName, level, event) {
+  if (event) event.stopPropagation();
+  const used = getUsedSlots(charName);
+  if ((used[level] || 0) > 0) { used[level]--; if (used[level] === 0) delete used[level]; }
+  slotState[charName] = used;
+  saveSlots();
+  refreshSpellSlots(charName);
+}
+
+function resetSlots(charName, event) {
+  if (event) event.stopPropagation();
+  delete slotState[charName];
+  saveSlots();
+  refreshSpellSlots(charName);
+}
+
+function refreshSpellSlots(charName) {
+  const container = document.getElementById('spellSlotsFor_' + safeId(charName));
+  if (!container) return;
+  const char = UNIQUE_CHARS.find(c => c.name === charName);
+  if (!char) return;
+  container.innerHTML = buildSpellSlotsHtml(char);
+}
+
+function buildSpellSlotsHtml(char) {
+  const maxSlots = getMaxSlotsForChar(char);
+  if (!maxSlots) return '<div style="font-size:12px;color:#4a5272;font-style:italic">No spell slots tracked (set via ⊕)</div>';
+  const used = getUsedSlots(char.name);
+  const levels = Object.keys(maxSlots).map(Number).sort((a,b)=>a-b);
+  const ordinals = ['','1st','2nd','3rd','4th','5th','6th','7th','8th','9th'];
+
+  return levels.map(lvl => {
+    const max = maxSlots[lvl];
+    const usedCount = used[lvl] || 0;
+    const remaining = max - usedCount;
+    const dots = Array.from({length: max}, (_, i) => {
+      const filled = i < remaining;
+      return `<span class="spell-dot ${filled?'avail':'used'}" onclick="${filled?`useSlot(${JSON.stringify(char.name)},${lvl},event)`:`recoverSlot(${JSON.stringify(char.name)},${lvl},event)`}" title="${filled?'Click to use':'Click to recover'}">${filled?'●':'○'}</span>`;
+    }).join('');
+    return `<div class="spell-level-row">
+      <span class="spell-level-name">${ordinals[lvl]}</span>
+      <span class="spell-dots">${dots}</span>
+      <span class="spell-count">${remaining}/${max}</span>
+    </div>`;
+  }).join('');
+}
+
+initSlots();
 // ────────────────────────────────────────────────────────
 
 // ── SESSION LOG ─────────────────────────────────────────
