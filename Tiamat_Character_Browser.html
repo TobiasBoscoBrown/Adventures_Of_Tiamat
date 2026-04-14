@@ -1602,9 +1602,24 @@ function setHP(name, val, maxHp) {
   if (bar)  { bar.style.width = pct + '%'; bar.className = 'hp-bar ' + hpClass(pct); }
   if (cur)  { cur.textContent = val; }
   const wasDead = card && card.classList.contains('is-dead');
+  const prevVal = getHP(name, maxVal);
+  const delta = val - prevVal;
   if (card) { card.classList.toggle('is-dead', val === 0); }
   if (stamp) { stamp.style.display = val === 0 ? 'block' : 'none'; }
   if (val === 0 && !wasDead) { logCharDeath(name); }
+  // Auto-log significant HP changes (>= 5 damage or any heal)
+  if (Math.abs(delta) >= 5 || delta > 0) {
+    const entries = getSessionLog();
+    const now = new Date();
+    const time = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    const txt = delta < 0
+      ? name + ' took ' + Math.abs(delta) + ' damage (' + val + '/' + maxVal + ' HP)'
+      : name + ' healed ' + delta + ' HP (' + val + '/' + maxVal + ' HP)';
+    entries.unshift({ text: txt, time, id: Date.now() });
+    // Cap log at 200 entries to avoid bloat
+    if (entries.length > 200) entries.pop();
+    localStorage.setItem(sessionLogKey(), JSON.stringify(entries));
+  }
 }
 
 function adjustHP(name, delta, maxHp, event) {
@@ -1820,8 +1835,9 @@ function applyDamage() {
   setHP(diceModalChar.name, cur - lastDiceRoll, diceModalChar.hp);
   const el = document.getElementById('diceResult');
   if (el) { el.style.color = '#cc3333'; setTimeout(() => el.style.color = '', 600); }
-  // Update the modal HP mini display
   updateDiceHPDisplay();
+  // Refresh death saves if HP changed to 0
+  renderDeathSavesPanel(diceModalChar.name);
 }
 
 function applyHeal() {
@@ -1831,6 +1847,7 @@ function applyHeal() {
   const el = document.getElementById('diceResult');
   if (el) { el.style.color = '#44aa44'; setTimeout(() => el.style.color = '', 600); }
   updateDiceHPDisplay();
+  renderDeathSavesPanel(diceModalChar.name);
 }
 
 function updateDiceHPDisplay() {
