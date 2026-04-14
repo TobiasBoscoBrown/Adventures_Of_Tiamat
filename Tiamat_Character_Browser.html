@@ -400,6 +400,59 @@
   .cond-toggle.active-unconscious { background: rgba(80,0,0,0.5); color: #ff6666; border-color: #cc2222; }
   .cond-toggle.active-exhaustion  { background: rgba(100,60,0,0.4); color: #ffaa33; border-color: #cc7700; }
 
+  /* ── DM Notes ── */
+  .modal-notes-section {
+    padding: 14px 28px;
+    border-bottom: 1px solid #1e2040;
+  }
+  .modal-notes-label {
+    font-size: 11px;
+    color: #4a5272;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .notes-saved-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #44aa44;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .notes-saved-dot.visible { opacity: 1; }
+  .dm-notes-textarea {
+    width: 100%;
+    background: #06061a;
+    border: 1px solid #2a2a50;
+    border-radius: 8px;
+    color: #b8c0d8;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    line-height: 1.6;
+    padding: 10px 14px;
+    resize: vertical;
+    min-height: 80px;
+    max-height: 200px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .dm-notes-textarea:focus { border-color: var(--accent, #c9a227); }
+  .dm-notes-textarea::placeholder { color: #2e3558; font-style: italic; }
+  /* Notes indicator on cards */
+  .card-notes-dot {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #c9a227;
+    opacity: 0.8;
+    pointer-events: none;
+  }
+
   /* ── Modal ── */
   .modal-overlay {
     display: none;
@@ -617,6 +670,7 @@
         <button class="modal-close" onclick="closeModal()">&#10005; Close</button>
       </div>
     </div>
+    <div id="modalNotes"></div>
     <div id="modalConditions"></div>
     <div id="modalPdf" style="padding: 0;"></div>
   </div>
@@ -786,6 +840,36 @@ function toggleCondition(name, cond) {
   }
 }
 
+/* ── DM Notes ── */
+function notesKey(name) { return 'tiamat_notes_' + name.replace(/[^a-zA-Z0-9]/g, '_'); }
+
+function getNotes(name) { return localStorage.getItem(notesKey(name)) || ''; }
+
+function saveNote(name, text) {
+  localStorage.setItem(notesKey(name), text);
+  // Show saved dot briefly
+  const dot = document.getElementById('notes-dot');
+  if (dot) { dot.classList.add('visible'); setTimeout(() => dot.classList.remove('visible'), 1500); }
+  // Update card notes indicator
+  const sid = safeId(name);
+  const cardDot = document.getElementById('notesdot-' + sid);
+  if (cardDot) cardDot.style.display = text.trim() ? 'block' : 'none';
+}
+
+function renderNotesPanel(name) {
+  const existing = getNotes(name);
+  return `<div class="modal-notes-section">
+    <div class="modal-notes-label">
+      DM Notes
+      <div class="notes-saved-dot" id="notes-dot"></div>
+    </div>
+    <textarea class="dm-notes-textarea" id="dm-notes-area"
+      placeholder="Session notes, secrets, plot hooks, what happened last time..."
+      oninput="saveNote('${name.replace(/'/g,"\\'")}', this.value)"
+    >${existing}</textarea>
+  </div>`;
+}
+
 function renderConditionsPanel(name) {
   const conds = getConditions(name);
   return `<div class="modal-conditions">
@@ -816,6 +900,7 @@ function renderGrid() {
     const pct   = maxHp > 0 ? (curHp / maxHp) * 100 : 0;
     const isDead = curHp === 0;
     const activeConds = getConditions(c.name);
+    const hasNotes = getNotes(c.name).trim().length > 0;
     const abHtml = c.abilities.map(([n,s,m,hl]) =>
       `<div class="tt-ab${hl?' hl':''}"><span>${s}</span>${n}</div>`
     ).join('');
@@ -823,6 +908,7 @@ function renderGrid() {
     const loreSnip = c.lore ? (c.lore.length > 120 ? c.lore.slice(0,120) + '…' : c.lore) : '';
     return `<div class="card${isDead?' is-dead':''}" id="card-${sid}" style="--accent:${t.accent};--glow:${t.glow}" onclick="openModal(${i})">
       ${isDead ? `<div class="dead-stamp" id="dead-${sid}">DEAD</div>` : `<div class="dead-stamp" id="dead-${sid}" style="display:none">DEAD</div>`}
+      ${hasNotes ? `<div class="card-notes-dot" id="notesdot-${sid}" title="Has DM notes"></div>` : `<div class="card-notes-dot" id="notesdot-${sid}" style="display:none" title="Has DM notes"></div>`}
       <div class="card-tooltip" style="--accent:${t.accent}">
         <div class="tt-name">${c.name}</div>
         <div class="tt-title">${c.title}</div>
@@ -900,6 +986,8 @@ function openModal(idx) {
   document.getElementById('modalName').textContent = c.name;
   document.getElementById('modalContent').style.setProperty('--accent', t.accent);
 
+  // Notes panel
+  document.getElementById('modalNotes').innerHTML = renderNotesPanel(c.name);
   // Conditions panel
   document.getElementById('modalConditions').innerHTML = renderConditionsPanel(c.name);
 
