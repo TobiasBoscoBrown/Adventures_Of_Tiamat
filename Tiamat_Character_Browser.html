@@ -1532,6 +1532,112 @@
   .card-enc-btn:hover { color: #dd6622; }
   .card-enc-btn.in-enc { color: #dd6622; }
 
+  /* ── Session Manager ── */
+  .session-mgr-modal {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 800;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+  }
+  .session-mgr-modal.open { display: flex; }
+  .session-mgr-panel {
+    background: linear-gradient(145deg, #0e0e2a, #0a0a1e);
+    border: 1px solid #9b6dff;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 560px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 50px rgba(0,0,0,0.9), 0 0 30px rgba(155,109,255,0.1);
+  }
+  .session-mgr-header {
+    padding: 18px 22px;
+    border-bottom: 1px solid rgba(155,109,255,0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(155,109,255,0.06);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+  .session-mgr-title {
+    font-family: 'Cinzel', serif;
+    color: #9b6dff;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .session-mgr-body {
+    padding: 20px 22px;
+  }
+  .session-mgr-section {
+    margin-bottom: 22px;
+  }
+  .session-mgr-section-title {
+    font-family: 'Cinzel', serif;
+    font-size: 12px;
+    color: #9b6dff;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(155,109,255,0.2);
+  }
+  .session-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 12px 16px;
+    background: #06061a;
+    border: 1px solid #1e2040;
+    border-radius: 8px;
+    color: #dce0f0;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    text-align: left;
+    transition: all 0.15s;
+    margin-bottom: 8px;
+  }
+  .session-action-btn:hover { border-color: #9b6dff; background: rgba(155,109,255,0.05); }
+  .session-action-btn .action-icon { font-size: 20px; width: 28px; text-align: center; flex-shrink: 0; }
+  .session-action-btn .action-label { font-weight: 600; color: #f0e6d3; display: block; }
+  .session-action-btn .action-desc { font-size: 11px; color: #4a5272; display: block; margin-top: 2px; }
+  .session-action-btn.danger:hover { border-color: #cc3333; background: rgba(204,51,51,0.05); }
+  .session-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .session-stat-card {
+    background: #06061a;
+    border: 1px solid #1e2040;
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+  }
+  .session-stat-val {
+    font-size: 24px;
+    font-weight: 700;
+    color: #9b6dff;
+    font-family: 'Cinzel', serif;
+    display: block;
+  }
+  .session-stat-lbl {
+    font-size: 10px;
+    color: #4a5272;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: block;
+    margin-top: 3px;
+  }
+
   /* ── Spell Slots ── */
   .spell-level-row {
     display: flex;
@@ -1727,6 +1833,7 @@
   <h1>ADVENTURES OF <span>TIAMAT</span> — Character Browser</h1>
   <div class="header-stats">
     <button class="encounter-open-btn" onclick="openEncounterBuilder()">⚔ Encounters</button>
+    <button class="encounter-open-btn" onclick="openSessionManager()" style="border-color:#9b6dff;color:#9b6dff">💾 Session</button>
     <div class="stat-badge"><strong id="totalCount">0</strong> Characters</div>
     <div class="stat-badge"><strong id="visibleCount">0</strong> Showing</div>
   </div>
@@ -1826,6 +1933,53 @@
     <input type="text" id="initCustomName" class="init-add-input" placeholder="Custom creature name...">
     <input type="number" id="initCustomScore" class="init-add-input" placeholder="Init" style="width:50px;flex:none;">
     <button class="init-add-btn" onclick="addCustomToInitiative()">+ Add</button>
+  </div>
+</div>
+
+<!-- Session Manager Modal -->
+<div class="session-mgr-modal" id="sessionMgrModal">
+  <div class="session-mgr-panel">
+    <div class="session-mgr-header">
+      <div class="session-mgr-title">💾 Session Manager</div>
+      <button class="modal-close" onclick="closeSessionManager()">✕ Close</button>
+    </div>
+    <div class="session-mgr-body">
+      <div class="session-mgr-section">
+        <div class="session-mgr-section-title">Current State</div>
+        <div class="session-stats-grid" id="sessionStatsGrid"></div>
+      </div>
+      <div class="session-mgr-section">
+        <div class="session-mgr-section-title">Save & Load</div>
+        <button class="session-action-btn" onclick="exportSessionState()">
+          <span class="action-icon">⬇</span>
+          <div><span class="action-label">Export Session State</span><span class="action-desc">Download everything as a .json file — HP, conditions, notes, spell slots, encounters, log</span></div>
+        </button>
+        <button class="session-action-btn" onclick="document.getElementById('importFileInput').click()">
+          <span class="action-icon">⬆</span>
+          <div><span class="action-label">Import Session State</span><span class="action-desc">Load a previously saved .json session file</span></div>
+        </button>
+        <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="importSessionState(this)">
+      </div>
+      <div class="session-mgr-section">
+        <div class="session-mgr-section-title">Reset Options</div>
+        <button class="session-action-btn danger" onclick="confirmReset('hp')">
+          <span class="action-icon">❤</span>
+          <div><span class="action-label">Reset All HP</span><span class="action-desc">Restore every NPC to full HP</span></div>
+        </button>
+        <button class="session-action-btn danger" onclick="confirmReset('conditions')">
+          <span class="action-icon">⚡</span>
+          <div><span class="action-label">Clear All Conditions</span><span class="action-desc">Remove all conditions from all characters</span></div>
+        </button>
+        <button class="session-action-btn danger" onclick="confirmReset('slots')">
+          <span class="action-icon">✦</span>
+          <div><span class="action-label">Reset All Spell Slots</span><span class="action-desc">Restore all spell slots (long rest)</span></div>
+        </button>
+        <button class="session-action-btn danger" onclick="confirmReset('all')">
+          <span class="action-icon">🗑</span>
+          <div><span class="action-label">Full Session Reset</span><span class="action-desc">Clear HP, conditions, spell slots, and log. Keep notes and encounters.</span></div>
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -2643,6 +2797,120 @@ document.addEventListener('keydown', (e) => {
 // Click outside notes modal to close
 document.getElementById('notesModal').addEventListener('click', (e) => {
   if (e.target === document.getElementById('notesModal')) closeNotes();
+});
+// ────────────────────────────────────────────────────────
+
+// ── SESSION MANAGER ─────────────────────────────────────
+function openSessionManager() {
+  renderSessionStats();
+  document.getElementById('sessionMgrModal').classList.add('open');
+}
+function closeSessionManager() {
+  document.getElementById('sessionMgrModal').classList.remove('open');
+}
+
+function renderSessionStats() {
+  const hpEntries = Object.keys(hpState).length;
+  const condEntries = Object.values(loadAllConditions()).flat().length;
+  const noteCount = Object.keys(loadAllNotes()).length;
+  const encCount = Object.keys(encounters).length;
+  const slotCount = Object.keys(slotState).length;
+  const logCount2 = sessionLog.length;
+  document.getElementById('sessionStatsGrid').innerHTML = `
+    <div class="session-stat-card"><span class="session-stat-val">${hpEntries}</span><span class="session-stat-lbl">HP tracked</span></div>
+    <div class="session-stat-card"><span class="session-stat-val">${condEntries}</span><span class="session-stat-lbl">Conditions</span></div>
+    <div class="session-stat-card"><span class="session-stat-val">${noteCount}</span><span class="session-stat-lbl">Notes</span></div>
+    <div class="session-stat-card"><span class="session-stat-val">${encCount}</span><span class="session-stat-lbl">Encounters</span></div>
+    <div class="session-stat-card"><span class="session-stat-val">${slotCount}</span><span class="session-stat-lbl">Spell tracked</span></div>
+    <div class="session-stat-card"><span class="session-stat-val">${logCount2}</span><span class="session-stat-lbl">Log entries</span></div>
+  `;
+}
+
+function exportSessionState() {
+  const state = {
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    campaign: 'Adventures of Tiamat',
+    hp: hpState,
+    conditions: loadAllConditions(),
+    notes: loadAllNotes(),
+    spellSlots: slotState,
+    encounters: encounters,
+    sessionLog: sessionLog.slice(0, 200),
+    initiative: {
+      list: initiativeList,
+      currentTurnIdx,
+      currentRound
+    }
+  };
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const d = new Date().toLocaleDateString().replace(/\//g,'-');
+  a.download = `tiamat_session_${d}.json`;
+  a.click();
+  logEntry('note', `Session state exported to file`);
+}
+
+function importSessionState(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const state = JSON.parse(e.target.result);
+      if (!state.campaign && !state.version) { alert('Not a valid Tiamat session file.'); return; }
+      if (!confirm(`Import session from ${state.exportedAt ? new Date(state.exportedAt).toLocaleString() : 'unknown date'}?\n\nThis will overwrite your current HP, conditions, and spell slots.\nNotes and encounters will be merged.`)) return;
+
+      // Apply state
+      if (state.hp) { hpState = state.hp; saveHp(); }
+      if (state.conditions) localStorage.setItem(COND_KEY, JSON.stringify(state.conditions));
+      if (state.notes) localStorage.setItem(NOTES_KEY, JSON.stringify({...loadAllNotes(), ...state.notes}));
+      if (state.spellSlots) { slotState = state.spellSlots; saveSlots(); }
+      if (state.encounters) { encounters = {...encounters, ...state.encounters}; saveEncounters(); }
+      if (state.sessionLog) {
+        sessionLog = [...state.sessionLog, ...sessionLog].slice(0, 200);
+        saveSessionLog();
+      }
+      if (state.initiative && state.initiative.list) {
+        initiativeList = state.initiative.list;
+        currentTurnIdx = state.initiative.currentTurnIdx || 0;
+        currentRound = state.initiative.currentRound || 1;
+        document.getElementById('initRoundBadge').textContent = `Round ${currentRound}`;
+        renderInitiative();
+        if (initiativeList.length) openInitiativePanel();
+      }
+      renderGrid();
+      renderSessionStats();
+      closeSessionManager();
+      logEntry('note', `Session state imported from file`);
+      alert('Session imported successfully!');
+    } catch(err) { alert('Failed to import: ' + err.message); }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+function confirmReset(type) {
+  const labels = {
+    hp: 'Reset all HP to full?',
+    conditions: 'Clear all conditions from all characters?',
+    slots: 'Reset all spell slots (long rest)?',
+    all: 'Full session reset? (HP, conditions, slots, log)\n\nNotes and encounters will be kept.'
+  };
+  if (!confirm(labels[type])) return;
+  if (type === 'hp' || type === 'all') { hpState = {}; saveHp(); }
+  if (type === 'conditions' || type === 'all') { localStorage.removeItem(COND_KEY); }
+  if (type === 'slots' || type === 'all') { slotState = {}; saveSlots(); }
+  if (type === 'all') { sessionLog = []; saveSessionLog(); }
+  renderGrid();
+  renderSessionStats();
+  logEntry('note', `Session ${type} reset performed`);
+}
+
+// Click outside to close
+document.getElementById('sessionMgrModal').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('sessionMgrModal')) closeSessionManager();
 });
 // ────────────────────────────────────────────────────────
 
