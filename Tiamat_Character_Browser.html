@@ -747,19 +747,75 @@
   .speed-value { font-size: 16px; font-weight: 700; color: #f0e6d3; font-family: 'Cinzel', serif; line-height: 1; }
   .speed-label { font-size: 9px; color: #4a5272; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
 
+  /* ── Features & Traits Compendium ── */
   .traits-list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 5px;
   }
   .trait-entry {
-    font-size: 12px;
-    color: #b8c0d8;
-    padding: 6px 10px;
     background: #06061a;
-    border-left: 2px solid var(--accent, #c9a227);
-    border-radius: 0 6px 6px 0;
-    line-height: 1.5;
+    border: 1px solid #1e2040;
+    border-left: 3px solid var(--accent, #c9a227);
+    border-radius: 0 8px 8px 0;
+    overflow: hidden;
+    transition: border-color 0.12s;
+  }
+  .trait-entry:hover { border-color: var(--accent, #c9a227); }
+  .trait-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .trait-icon { font-size: 13px; flex-shrink: 0; }
+  .trait-name {
+    flex: 1;
+    font-size: 12px;
+    color: #dce0f0;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .trait-type-badge {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .trait-type-passive { background: rgba(100,160,100,0.2); color: #88bb88; }
+  .trait-type-active  { background: rgba(204,51,51,0.2); color: #cc6666; }
+  .trait-type-legendary { background: rgba(255,140,0,0.2); color: #ff8c00; }
+  .trait-type-reaction { background: rgba(136,68,221,0.2); color: #aa66ff; }
+  .trait-type-bonus   { background: rgba(68,170,68,0.2); color: #66aa66; }
+  .trait-expand-arrow {
+    font-size: 10px;
+    color: #3a3a5a;
+    transition: transform 0.15s;
+    flex-shrink: 0;
+  }
+  .trait-entry.expanded .trait-expand-arrow { transform: rotate(90deg); color: var(--accent,#c9a227); }
+  .trait-body {
+    display: none;
+    padding: 0 12px 10px;
+    border-top: 1px solid #1e2040;
+  }
+  .trait-entry.expanded .trait-body { display: block; }
+  .trait-desc {
+    font-size: 11px;
+    color: #7a82a0;
+    line-height: 1.6;
+    padding-top: 8px;
+  }
+  .trait-rule {
+    font-size: 10px;
+    color: #4a5272;
+    font-style: italic;
+    margin-top: 5px;
+    padding: 4px 8px;
+    background: rgba(255,255,255,0.02);
+    border-radius: 4px;
   }
   .lore-text {
     font-size: 13px;
@@ -3731,13 +3787,7 @@ function buildStatsPanel(c) {
         ).join('')}
       </div>
     </div>
-    ${c.traits && c.traits.length ? `
-    <div class="stats-section">
-      <div class="stats-section-title">Traits & Features</div>
-      <div class="traits-list">
-        ${c.traits.map(tr => `<div class="trait-entry">${tr}</div>`).join('')}
-      </div>
-    </div>` : ''}
+    ${buildTraitsSection(c)}
     ${isSpellcaster(c) ? `
     <div class="stats-section">
       <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
@@ -3787,6 +3837,92 @@ function rollSavingThrow(abName, mod) {
   const msg = `${abName} Save: d20(${roll})${modVal>=0?'+':''}${modVal} = ${total}${isCrit?' ★ CRIT!':isFumble?' ☠ FUMBLE':''}`;
   showModalRollResult(msg, isCrit, isFumble, total);
 }
+
+// ── FEATURES & TRAITS COMPENDIUM ────────────────────────
+const TRAIT_RULES = {
+  'legendary resistance': { type:'legendary', icon:'⬡', rule:'3/Day: When this creature fails a saving throw, it can choose to succeed instead.' },
+  'multiattack': { type:'active', icon:'⚔', rule:'This creature can attack multiple times when it takes the Attack action on its turn.' },
+  'relentless': { type:'passive', icon:'🛡', rule:'If damage reduces to 0 HP, make a Constitution save (DC 5 + damage taken). On success, drop to 1 HP instead.' },
+  'aggressive': { type:'bonus', icon:'⚡', rule:'Bonus action: Move up to your speed toward a hostile creature you can see.' },
+  'poison': { type:'active', icon:'☠', rule:'Creature is poisoned until end of next turn unless they succeed on a DC 15 CON save.' },
+  'invisible': { type:'active', icon:'👁', rule:'Cannot be targeted by attacks. Attacks against invisible creatures have disadvantage.' },
+  'charm': { type:'active', icon:'💫', rule:'Charmed creature cannot attack the charmer. Charmer has advantage on Persuasion checks against charmed creature.' },
+  'concentration': { type:'passive', icon:'🔮', rule:'Maintaining a concentration spell: taking damage requires DC 10 CON save (or half damage taken, whichever is higher) or lose the spell.' },
+  'wild shape': { type:'active', icon:'🐺', rule:'Magically assume the shape of a beast. Retain personality and ability to speak.' },
+  'legendary action': { type:'legendary', icon:'★', rule:'Can take 3 legendary actions per round, choosing from available options. Only one legendary action option can be used at a time.' },
+  'advantage': { type:'passive', icon:'↑', rule:'Roll two d20s and use the higher result.' },
+  'proficien': { type:'passive', icon:'●', rule:'Add proficiency bonus to this roll. Current bonus: +2 to +9 based on CR.' },
+  'resistance': { type:'passive', icon:'🛡', rule:'Take half damage from this damage type.' },
+  'immune': { type:'passive', icon:'◆', rule:'Take no damage from this damage type or are unaffected by this condition.' },
+  'darkvision': { type:'passive', icon:'👁', rule:'Can see in dim light within range as if bright light, in darkness as if dim light. Cannot discern color in darkness.' },
+  'magic resistance': { type:'passive', icon:'✦', rule:'Advantage on saving throws against spells and other magical effects.' },
+};
+
+function enrichTrait(traitStr) {
+  const lower = traitStr.toLowerCase();
+  let type = 'passive', icon = '◆', rule = null;
+
+  for (const [key, data] of Object.entries(TRAIT_RULES)) {
+    if (lower.includes(key)) {
+      type = data.type;
+      icon = data.icon;
+      rule = data.rule;
+      break;
+    }
+  }
+
+  // Detect active/reaction from text patterns
+  if (!rule) {
+    if (lower.includes('/day') || lower.includes('/rest') || lower.includes('/turn')) type = 'active';
+    if (lower.includes('reaction') || lower.includes('when') && lower.includes('attack')) type = 'reaction';
+    if (lower.includes('bonus action')) type = 'bonus';
+    if (lower.includes('advantage')) { icon = '↑'; }
+  }
+
+  // Build description from trait text
+  const parts = traitStr.split('—');
+  const name = parts[0].trim();
+  const desc = parts.length > 1 ? parts.slice(1).join('—').trim() : null;
+
+  return { name, desc, type, icon, rule };
+}
+
+function buildTraitsSection(c) {
+  if (!c.traits || !c.traits.length) return '';
+
+  const entries = c.traits.map((traitStr, idx) => {
+    const { name, desc, type, icon, rule } = enrichTrait(traitStr);
+    const typeClass = { passive:'trait-type-passive', active:'trait-type-active',
+      legendary:'trait-type-legendary', reaction:'trait-type-reaction', bonus:'trait-type-bonus' }[type] || 'trait-type-passive';
+    const hasDesc = desc || rule;
+    return `
+      <div class="trait-entry" id="trait_${safeId(c.name)}_${idx}">
+        <div class="trait-header" ${hasDesc?`onclick="toggleTrait('trait_${safeId(c.name)}_${idx}')"`:'style="cursor:default"'}>
+          <span class="trait-icon">${icon}</span>
+          <span class="trait-name">${name}</span>
+          <span class="trait-type-badge ${typeClass}">${type}</span>
+          ${hasDesc ? '<span class="trait-expand-arrow">▶</span>' : ''}
+        </div>
+        ${hasDesc ? `
+        <div class="trait-body">
+          ${desc ? `<div class="trait-desc">${desc}</div>` : ''}
+          ${rule ? `<div class="trait-rule">📖 Rule: ${rule}</div>` : ''}
+        </div>` : ''}
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="stats-section">
+      <div class="stats-section-title">Features & Traits <span style="font-size:10px;color:#4a5272;font-weight:400;font-family:'Inter',sans-serif">— click to expand rules</span></div>
+      <div class="traits-list">${entries}</div>
+    </div>`;
+}
+
+function toggleTrait(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('expanded');
+}
+// ────────────────────────────────────────────────────────
 
 // ── SPEED & MOVEMENT BUILDER ────────────────────────────
 function inferSpeed(c) {
