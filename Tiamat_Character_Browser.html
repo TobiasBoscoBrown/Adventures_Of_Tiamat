@@ -1098,6 +1098,85 @@
   }
   .combat-stat-box.rollable:hover .combat-stat-label { color: var(--accent, #c9a227); }
 
+  /* ── Legendary Tracker Bar ── */
+  .legendary-bar {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 8px 20px;
+    background: rgba(201,162,39,0.05);
+    border-bottom: 1px solid rgba(201,162,39,0.15);
+    flex-wrap: wrap;
+  }
+  .legendary-tracker {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .legendary-tracker-label {
+    font-size: 11px;
+    color: #c9a227;
+    font-family: 'Cinzel', serif;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+  .leg-pip {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid #c9a227;
+    background: rgba(201,162,39,0.2);
+    cursor: pointer;
+    transition: all .15s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    color: #c9a227;
+  }
+  .leg-pip:hover { transform: scale(1.15); }
+  .leg-pip.used {
+    background: transparent;
+    border-color: #2a2a50;
+    color: #2a2a50;
+  }
+  .leg-pip.used::after { content: '○'; }
+  .leg-pip:not(.used)::after { content: '★'; }
+  .leg-res-pip {
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+    border: 2px solid #9b6dff;
+    background: rgba(155,109,255,0.2);
+    cursor: pointer;
+    transition: all .15s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    color: #9b6dff;
+  }
+  .leg-res-pip:hover { transform: scale(1.15); }
+  .leg-res-pip.used {
+    background: transparent;
+    border-color: #2a2a50;
+    color: #2a2a50;
+  }
+  .leg-res-pip.used::after { content: '○'; }
+  .leg-res-pip:not(.used)::after { content: '⬡'; }
+  .legendary-reset-btn {
+    font-size: 10px;
+    color: #4a5272;
+    background: none;
+    border: 1px solid #1e2040;
+    border-radius: 4px;
+    padding: 2px 6px;
+    cursor: pointer;
+    transition: color .15s;
+    margin-left: auto;
+  }
+  .legendary-reset-btn:hover { color: #c9a227; border-color: #c9a227; }
+
   .stat-chip {
     display: inline-flex;
     align-items: center;
@@ -2975,6 +3054,7 @@
       </div>
     </div>
     <div class="modal-combat-bar" id="modalCombatBar"></div>
+    <div id="modalLegendaryBar" style="display:none"></div>
     <div class="modal-tabs" id="modalTabs" style="display:flex;justify-content:space-between;align-items:center">
       <div style="display:flex">
         <div class="modal-tab active" data-tab="stats" onclick="switchModalTab('stats', this)">Stats</div>
@@ -5748,6 +5828,11 @@ function openModal(idx) {
 
   // Build quick combat stats bar
   document.getElementById('modalCombatBar').innerHTML = buildCombatBar(c);
+  // Build legendary tracker bar (for boss-tier creatures)
+  const legHtml = buildLegendaryBarHtml(c);
+  const legBar = document.getElementById('modalLegendaryBar');
+  legBar.style.display = legHtml ? '' : 'none';
+  legBar.innerHTML = legHtml;
 
   // Build stats panel
   document.getElementById('statsPanel').innerHTML = buildStatsPanel(c);
@@ -6478,6 +6563,93 @@ function buildSpellSlotsHtml(char) {
 }
 
 initSlots();
+// ────────────────────────────────────────────────────────
+
+// ── LEGENDARY TRACKER ────────────────────────────────────
+const LEGEND_KEY = 'tiamat_legendary';
+let legendState = {};
+
+function initLegend() {
+  try { legendState = JSON.parse(localStorage.getItem(LEGEND_KEY)) || {}; } catch { legendState = {}; }
+}
+function saveLegend() { localStorage.setItem(LEGEND_KEY, JSON.stringify(legendState)); }
+
+function getLegendData(name) { return legendState[name] || { la: 0, lr: 0 }; }
+
+function getMaxLA(char) {
+  // Detect from traits: "Legendary Actions (X/Round)" or default 3 for CR15+
+  const t = (char.traits || []).join(' ');
+  const m = t.match(/legendary actions?\s*\((\d+)/i);
+  if (m) return parseInt(m[1]);
+  return parseFloat(char.cr || 0) >= 15 ? 3 : 0;
+}
+
+function getMaxLR(char) {
+  // Detect from traits: "Legendary Resistance (X/Day)"
+  const t = (char.traits || []).join(' ');
+  const m = t.match(/legendary resistance\s*\((\d+)/i);
+  if (m) return parseInt(m[1]);
+  return parseFloat(char.cr || 0) >= 17 ? 3 : 0;
+}
+
+function useLegendary(charName, type, event) {
+  if (event) event.stopPropagation();
+  const d = getLegendData(charName);
+  if (type === 'la') d.la = Math.min(d.la + 1, 9);
+  else d.lr = Math.min(d.lr + 1, 9);
+  legendState[charName] = d;
+  saveLegend();
+  renderLegendaryBar(charName);
+}
+
+function recoverLegendary(charName, type, event) {
+  if (event) event.stopPropagation();
+  const d = getLegendData(charName);
+  if (type === 'la') d.la = Math.max(0, d.la - 1);
+  else d.lr = Math.max(0, d.lr - 1);
+  legendState[charName] = d;
+  saveLegend();
+  renderLegendaryBar(charName);
+}
+
+function resetLegendary(charName, event) {
+  if (event) event.stopPropagation();
+  delete legendState[charName];
+  saveLegend();
+  renderLegendaryBar(charName);
+}
+
+function buildLegendaryBarHtml(char) {
+  const maxLA = getMaxLA(char);
+  const maxLR = getMaxLR(char);
+  if (!maxLA && !maxLR) return '';
+  const d = getLegendData(char.name);
+  const laPips = maxLA ? Array.from({length: maxLA}, (_, i) => {
+    const used = i < d.la;
+    return `<span class="leg-pip${used?' used':''}" onclick="${used?`recoverLegendary(${JSON.stringify(char.name)},'la',event)`:`useLegendary(${JSON.stringify(char.name)},'la',event)`}" title="${used?'Click to recover':'Click to use'}"></span>`;
+  }).join('') : '';
+  const lrPips = maxLR ? Array.from({length: maxLR}, (_, i) => {
+    const used = i < d.lr;
+    return `<span class="leg-res-pip${used?' used':''}" onclick="${used?`recoverLegendary(${JSON.stringify(char.name)},'lr',event)`:`useLegendary(${JSON.stringify(char.name)},'lr',event)`}" title="${used?'Click to recover':'Click to use resistance'}"></span>`;
+  }).join('') : '';
+  return `<div class="legendary-bar">
+    ${maxLA ? `<div class="legendary-tracker"><span class="legendary-tracker-label">★ Legendary Actions</span><span style="font-size:10px;color:#4a5272">(${maxLA-d.la}/${maxLA})</span>${laPips}</div>` : ''}
+    ${maxLR ? `<div class="legendary-tracker"><span class="legendary-tracker-label" style="color:#9b6dff">⬡ Legendary Resistance</span><span style="font-size:10px;color:#4a5272">(${maxLR-d.lr}/${maxLR})</span>${lrPips}</div>` : ''}
+    <button class="legendary-reset-btn" onclick="resetLegendary(${JSON.stringify(char.name)},event)">↺ New Round/Day</button>
+  </div>`;
+}
+
+function renderLegendaryBar(charName) {
+  const el = document.getElementById('modalLegendaryBar');
+  if (!el) return;
+  const char = UNIQUE_CHARS.find(c => c.name === charName);
+  if (!char) return;
+  const html = buildLegendaryBarHtml(char);
+  el.style.display = html ? '' : 'none';
+  el.innerHTML = html;
+}
+
+initLegend();
 // ────────────────────────────────────────────────────────
 
 // ── CONCENTRATION TRACKER ───────────────────────────────
