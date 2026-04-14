@@ -238,48 +238,45 @@
     display: none;
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.85);
+    background: rgba(0,0,0,0.9);
     z-index: 200;
     justify-content: center;
-    align-items: center;
-    padding: 20px;
+    align-items: flex-start;
+    padding: 0;
   }
   .modal-overlay.open { display: flex; }
   .modal {
-    background: #0a0a1e;
-    border: 1px solid #333;
-    border-radius: 16px;
-    max-width: 95vw;
+    background: #08081a;
     width: 100%;
-    max-height: 95vh;
+    height: 100vh;
     overflow: hidden;
     position: relative;
+    display: flex;
+    flex-direction: column;
   }
   .modal-header {
-    padding: 24px 28px;
+    padding: 10px 24px;
     border-bottom: 1px solid #1e2040;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    position: sticky;
-    top: 0;
     background: #0a0a1e;
     z-index: 10;
-    border-radius: 16px 16px 0 0;
+    flex-shrink: 0;
   }
   .modal-header h2 {
     font-family: 'Cinzel', serif;
     color: #f0e6d3;
-    font-size: 24px;
+    font-size: 20px;
   }
   .modal-close {
     background: none;
     border: 1px solid #333;
     color: #9098b8;
     border-radius: 8px;
-    padding: 8px 14px;
+    padding: 6px 12px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 13px;
     transition: all 0.2s;
   }
   .modal-close:hover { border-color: #cc3333; color: #cc3333; }
@@ -292,74 +289,109 @@
     border: 1px solid #333;
     color: #c9a227;
     border-radius: 8px;
-    padding: 8px 16px;
+    padding: 6px 14px;
     cursor: pointer;
     font-size: 13px;
     transition: all 0.2s;
   }
   .modal-nav button:hover { background: #c9a227; color: #06061a; }
-  .modal-body { padding: 24px 28px; }
-  .modal-section {
-    margin-bottom: 20px;
-  }
-  .modal-section h3 {
-    font-family: 'Cinzel', serif;
-    font-size: 14px;
-    color: var(--accent, #c9a227);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 10px;
-    padding-bottom: 6px;
-    border-bottom: 1px solid #1e2040;
-  }
-  .ability-row {
+
+  /* ── PDF Canvas Viewer ── */
+  #modalPdf {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
     display: flex;
-    gap: 10px;
-    margin-bottom: 12px;
-    flex-wrap: wrap;
-  }
-  .ability-chip {
-    background: #0e0e28;
-    border: 1px solid #1e2040;
-    border-radius: 8px;
-    padding: 8px 12px;
-    text-align: center;
-    min-width: 70px;
-  }
-  .ability-chip.highlight { border-color: var(--accent, #c9a227); }
-  .ability-chip .ab-name { font-size: 10px; color: #9098b8; display: block; }
-  .ability-chip .ab-score { font-size: 20px; font-weight: 700; color: #f0e6d3; display: block; }
-  .ability-chip .ab-mod { font-size: 12px; color: var(--accent, #c9a227); display: block; }
-  .trait-item {
-    margin-bottom: 8px;
-    font-size: 13px;
-    line-height: 1.5;
-    color: #b8c0d8;
-  }
-  .trait-item strong { color: #f0e6d3; }
-  .modal-quote {
-    font-size: 16px;
-    font-style: italic;
-    color: var(--accent, #c9a227);
-    text-align: center;
-    padding: 16px;
-    margin-bottom: 16px;
-    border: 1px solid #1e2040;
-    border-radius: 8px;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 0;
+    gap: 16px;
     background: #06061a;
   }
-  .modal-lore {
-    font-size: 13px;
-    line-height: 1.7;
+  .pdf-page {
+    position: relative;
+    box-shadow: 0 4px 30px rgba(0,0,0,0.6);
+    border: 1px solid #1e2040;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .pdf-page canvas {
+    display: block;
+  }
+  .text-layer {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    overflow: hidden;
+  }
+  .text-layer span {
+    position: absolute;
+    color: transparent;
+    white-space: pre;
+    cursor: default;
+    line-height: 1;
+  }
+  .text-layer span.has-tooltip {
+    cursor: help;
+    border-radius: 3px;
+    transition: background 0.15s;
+  }
+  .text-layer span.has-tooltip:hover {
+    background: rgba(201, 162, 39, 0.25);
+    color: transparent;
+  }
+
+  /* ── Tooltip ── */
+  .spell-tooltip {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    max-width: 380px;
+    background: #12103a;
+    border: 1px solid #c9a227;
+    border-radius: 10px;
+    padding: 14px 16px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.8);
+    pointer-events: none;
+  }
+  .spell-tooltip.visible { display: block; }
+  .spell-tooltip .tt-spell-name {
+    font-family: 'Cinzel', serif;
+    font-size: 15px;
+    color: #c9a227;
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+  .spell-tooltip .tt-spell-meta {
+    font-size: 11px;
     color: #9098b8;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #1e2040;
+    padding-bottom: 6px;
+  }
+  .spell-tooltip .tt-spell-desc {
+    font-size: 12px;
+    color: #dce0f0;
+    line-height: 1.5;
+  }
+
+  .pdf-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 300px;
+    color: #c9a227;
+    font-family: 'Cinzel', serif;
+    font-size: 16px;
+  }
+  .pdf-missing {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 300px;
+    color: #4a5272;
+    font-size: 14px;
     font-style: italic;
   }
-  .stat-line {
-    font-size: 13px;
-    margin-bottom: 4px;
-    color: #b8c0d8;
-  }
-  .stat-line strong { color: var(--accent, #c9a227); }
 
   .keyboard-hint {
     position: fixed;
@@ -381,24 +413,6 @@
     font-size: 11px;
     color: #9098b8;
     font-family: monospace;
-  }
-
-  /* ── (tabs removed — modal goes straight to PDF) ── */
-  .pdf-container {
-    width: 100%;
-    height: calc(95vh - 70px);
-    border: none;
-    background: #111;
-    border-radius: 0 0 16px 16px;
-  }
-  .pdf-missing {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 300px;
-    color: #4a5272;
-    font-size: 14px;
-    font-style: italic;
   }
 </style>
 </head>
@@ -448,8 +462,13 @@
         <button class="modal-close" onclick="closeModal()">&#10005; Close</button>
       </div>
     </div>
-    <div id="modalPdf" style="padding: 0;"></div>
+    <div id="modalPdf"></div>
   </div>
+</div>
+<div class="spell-tooltip" id="spellTooltip">
+  <div class="tt-spell-name" id="ttName"></div>
+  <div class="tt-spell-meta" id="ttMeta"></div>
+  <div class="tt-spell-desc" id="ttDesc"></div>
 </div>
 
 <div class="keyboard-hint">
@@ -618,23 +637,349 @@ function filterTheme(theme, btn) {
   renderGrid();
 }
 
-function openModal(idx) {
+// ── PDF.js setup ──
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ── D&D Spell / Condition / Feature Database ──
+const DND_DB = {
+  // ─── CANTRIPS ───
+  "ray of frost":       { level:"Cantrip", school:"Evocation", time:"1 action", range:"60 ft.", desc:"A frigid beam of blue-white light streaks toward a creature. Make a ranged spell attack — on hit, it takes cold damage and its speed is reduced by 10 ft. until your next turn. Damage scales with level." },
+  "chill touch":        { level:"Cantrip", school:"Necromancy", time:"1 action", range:"120 ft.", desc:"A ghostly skeletal hand strikes a creature. On hit, it takes necrotic damage and can't regain hit points until your next turn. If the target is undead, it also has disadvantage on attacks against you." },
+  "mage hand":          { level:"Cantrip", school:"Conjuration", time:"1 action", range:"30 ft.", desc:"A spectral floating hand appears. You can use it to manipulate objects, open unlocked doors/containers, stow or retrieve items, or pour out a vial. It can't attack, activate magic items, or carry more than 10 lbs." },
+  "prestidigitation":   { level:"Cantrip", school:"Transmutation", time:"1 action", range:"10 ft.", desc:"A minor magical trick. Create a sensory effect, light/snuff a small flame, clean/soil a small object, chill/warm/flavor material, create a small mark or symbol, or create a trinket that lasts until your next turn." },
+  "minor illusion":     { level:"Cantrip", school:"Illusion", time:"1 action", range:"30 ft.", desc:"Create a sound or an image of an object within range that lasts 1 minute. The illusion can't create light, sound (if image), or physical interaction. Investigation check reveals it as illusion." },
+  "fire bolt":          { level:"Cantrip", school:"Evocation", time:"1 action", range:"120 ft.", desc:"Hurl a mote of fire at a creature or object. Make a ranged spell attack — on hit, the target takes fire damage. A flammable object hit ignites if it isn't being worn or carried. Damage scales with level." },
+  "eldritch blast":     { level:"Cantrip", school:"Evocation", time:"1 action", range:"120 ft.", desc:"A beam of crackling energy streaks toward a creature. Make a ranged spell attack — on hit, it takes force damage. At higher levels, you fire additional beams (2 at 5th, 3 at 11th, 4 at 17th)." },
+  "sacred flame":       { level:"Cantrip", school:"Evocation", time:"1 action", range:"60 ft.", desc:"Flame-like radiance descends on a creature you can see. The target must succeed on a DEX save or take radiant damage. The target gains no benefit from cover. Damage scales with level." },
+  "toll the dead":      { level:"Cantrip", school:"Necromancy", time:"1 action", range:"60 ft.", desc:"You point at a creature and the sound of a dolorous bell fills the air. The target must succeed on a WIS save or take necrotic damage — d12 if it's already missing HP, d8 otherwise." },
+  "guidance":           { level:"Cantrip", school:"Divination", time:"1 action", range:"Touch", desc:"You touch one willing creature. Once before the spell ends, the target can roll a d4 and add the number to one ability check of its choice. Concentration, up to 1 minute." },
+  "thaumaturgy":        { level:"Cantrip", school:"Transmutation", time:"1 action", range:"30 ft.", desc:"You manifest a minor wonder within range — booming voice, trembling ground, flickering flames, slamming doors, or altered eye appearance. Up to 3 effects active at once, lasting 1 minute." },
+  "light":              { level:"Cantrip", school:"Evocation", time:"1 action", range:"Touch", desc:"An object you touch sheds bright light in a 20 ft. radius and dim light for an additional 20 ft. Lasts 1 hour. If used on an object held by a hostile creature, it can make a DEX save to resist." },
+  "message":            { level:"Cantrip", school:"Transmutation", time:"1 action", range:"120 ft.", desc:"You whisper a message to a creature within range. Only the target hears it and can reply in a whisper only you can hear. You can cast through solid objects if you're familiar with the target." },
+  "mending":            { level:"Cantrip", school:"Transmutation", time:"1 minute", range:"Touch", desc:"Repair a single break or tear in an object you touch — a broken chain link, two halves of a key, a torn cloak. The break can be no larger than 1 foot in any dimension." },
+  "spare the dying":    { level:"Cantrip", school:"Necromancy", time:"1 action", range:"Touch", desc:"You touch a living creature that has 0 hit points. The creature becomes stable. This spell has no effect on undead or constructs." },
+  "vicious mockery":    { level:"Cantrip", school:"Enchantment", time:"1 action", range:"60 ft.", desc:"You unleash a string of insults laced with enchantment. If the target can hear you, it must succeed on a WIS save or take psychic damage and have disadvantage on its next attack roll." },
+  "shocking grasp":     { level:"Cantrip", school:"Evocation", time:"1 action", range:"Touch", desc:"Lightning springs from your hand. Make a melee spell attack (advantage if target wears metal armor). On hit, the target takes lightning damage and can't take reactions until its next turn." },
+  "poison spray":       { level:"Cantrip", school:"Conjuration", time:"1 action", range:"10 ft.", desc:"You project a puff of noxious gas at a creature within range. The target must succeed on a CON save or take poison damage." },
+  "druidcraft":         { level:"Cantrip", school:"Transmutation", time:"1 action", range:"30 ft.", desc:"Whispering to nature spirits, you create a tiny, harmless sensory effect that predicts weather, make a flower bloom, create a puff of wind, or light/snuff a small flame." },
+  "true strike":        { level:"Cantrip", school:"Divination", time:"1 action", range:"30 ft.", desc:"You gain insight into the target's defenses. On your next turn, you gain advantage on your first attack roll against the target. Concentration, 1 round." },
+  "blade ward":         { level:"Cantrip", school:"Abjuration", time:"1 action", range:"Self", desc:"You extend your hand and trace a sigil of warding in the air. Until the end of your next turn, you have resistance against bludgeoning, piercing, and slashing damage from weapon attacks." },
+  // ─── 1ST LEVEL ───
+  "shield":             { level:"1st", school:"Abjuration", time:"1 reaction", range:"Self", desc:"An invisible barrier of magical force appears and protects you. Until the start of your next turn, you have a +5 bonus to AC, including against the triggering attack, and take no damage from Magic Missile." },
+  "mage armor":         { level:"1st", school:"Abjuration", time:"1 action", range:"Touch", desc:"You touch a willing creature not wearing armor and a protective magical force surrounds it. The target's base AC becomes 13 + DEX modifier. Lasts 8 hours. No concentration." },
+  "magic missile":      { level:"1st", school:"Evocation", time:"1 action", range:"120 ft.", desc:"Three glowing darts of magical force strike automatically — no attack roll needed. Each dart deals 1d4+1 force damage. You can direct them at one creature or several. +1 dart per slot level above 1st." },
+  "ice knife":          { level:"1st", school:"Conjuration", time:"1 action", range:"60 ft.", desc:"You create a shard of ice and fling it at a target. Make a ranged spell attack for 1d10 piercing, then it explodes — each creature within 5 ft. makes a DEX save or takes 2d6 cold damage." },
+  "cure wounds":        { level:"1st", school:"Evocation", time:"1 action", range:"Touch", desc:"A creature you touch regains hit points equal to 1d8 + your spellcasting modifier. No effect on undead or constructs. Heals an additional 1d8 per slot level above 1st." },
+  "healing word":       { level:"1st", school:"Evocation", time:"1 bonus action", range:"60 ft.", desc:"A creature of your choice within range regains hit points equal to 1d4 + your spellcasting modifier. No effect on undead or constructs. Great for picking up downed allies from range." },
+  "detect magic":       { level:"1st", school:"Divination", time:"1 action", range:"Self (30 ft.)", desc:"For the duration, you sense the presence of magic within 30 ft. You can use your action to see a faint aura around any visible magical creature/object and learn its school. Concentration, 10 min." },
+  "thunderwave":        { level:"1st", school:"Evocation", time:"1 action", range:"Self (15 ft. cube)", desc:"A wave of thunderous force sweeps out from you. Each creature in a 15 ft. cube makes a CON save — on fail, 2d8 thunder damage and pushed 10 ft. On success, half damage and not pushed." },
+  "guiding bolt":       { level:"1st", school:"Evocation", time:"1 action", range:"120 ft.", desc:"A flash of light streaks toward a creature. On hit, 4d6 radiant damage and the next attack roll against this target before your next turn has advantage (the target glimmers)." },
+  "bless":              { level:"1st", school:"Enchantment", time:"1 action", range:"30 ft.", desc:"You bless up to three creatures. Whenever a target makes an attack roll or saving throw before the spell ends, it can roll a d4 and add the number. Concentration, up to 1 minute." },
+  "command":            { level:"1st", school:"Enchantment", time:"1 action", range:"60 ft.", desc:"You speak a one-word command to a creature you can see. The target must succeed on a WIS save or follow the command on its next turn. Common commands: Approach, Drop, Flee, Grovel, Halt." },
+  "inflict wounds":     { level:"1st", school:"Necromancy", time:"1 action", range:"Touch", desc:"Make a melee spell attack. On hit, the target takes 3d10 necrotic damage. One of the highest single-target damage spells at 1st level. +1d10 per slot level above 1st." },
+  "sanctuary":          { level:"1st", school:"Abjuration", time:"1 bonus action", range:"30 ft.", desc:"You ward a creature within range. Until the spell ends, any creature that targets the warded creature with an attack must first make a WIS save. On fail, it must choose a new target or lose the attack." },
+  "faerie fire":        { level:"1st", school:"Evocation", time:"1 action", range:"60 ft.", desc:"Objects and creatures in a 20 ft. cube are outlined in light. Affected creatures have no benefit from being invisible, and attack rolls against them have advantage. DEX save to resist." },
+  "sleep":              { level:"1st", school:"Enchantment", time:"1 action", range:"90 ft.", desc:"Magical slumber. Roll 5d8 — starting with the creature with the lowest HP, each creature falls unconscious until the spell ends, the sleeper takes damage, or someone shakes them awake." },
+  "charm person":       { level:"1st", school:"Enchantment", time:"1 action", range:"30 ft.", desc:"You attempt to charm a humanoid. It must make a WIS save (advantage if you or your companions are fighting it). On fail, it is charmed by you and regards you as a friendly acquaintance. 1 hour." },
+  "disguise self":      { level:"1st", school:"Illusion", time:"1 action", range:"Self", desc:"You make yourself — including your clothing, armor, weapons, and belongings — look different until the spell ends or you dismiss it. You can change your height by up to 1 foot. 1 hour." },
+  "absorb elements":    { level:"1st", school:"Abjuration", time:"1 reaction", range:"Self", desc:"When you take acid, cold, fire, lightning, or thunder damage, you gain resistance to that damage type until your next turn. Also, your first melee attack next turn deals an extra 1d6 of that type." },
+  "find familiar":      { level:"1st", school:"Conjuration", time:"1 hour (ritual)", range:"10 ft.", desc:"You summon a spirit that takes an animal form — owl, cat, hawk, etc. It acts on its own turn but obeys your commands. You can see through its eyes and deliver touch spells through it." },
+  "hex":                { level:"1st", school:"Enchantment", time:"1 bonus action", range:"90 ft.", desc:"You curse a creature. You deal an extra 1d6 necrotic damage whenever you hit the cursed target with an attack. You also choose one ability — the target has disadvantage on checks with that ability." },
+  "hunter's mark":      { level:"1st", school:"Divination", time:"1 bonus action", range:"90 ft.", desc:"You choose a creature you can see and mystically mark it. You deal an extra 1d6 damage whenever you hit the marked target with a weapon attack. You also have advantage on Perception/Survival to find it." },
+  "identify":           { level:"1st", school:"Divination", time:"1 minute (ritual)", range:"Touch", desc:"You learn a magic item's properties, how to use them, how many charges it has, and whether any spells are affecting it. You also learn what spells are affecting a creature you touch." },
+  "feather fall":       { level:"1st", school:"Transmutation", time:"1 reaction", range:"60 ft.", desc:"Choose up to five falling creatures. A falling creature's rate of descent slows to 60 ft. per round. If the creature lands before the spell ends, it takes no falling damage." },
+  "chromatic orb":      { level:"1st", school:"Evocation", time:"1 action", range:"90 ft.", desc:"You hurl a sphere of energy at a creature. Choose acid, cold, fire, lightning, poison, or thunder. Make a ranged spell attack — on hit, 3d8 damage of the chosen type." },
+  "silvery barbs":      { level:"1st", school:"Enchantment", time:"1 reaction", range:"60 ft.", desc:"When a creature you can see succeeds on an attack, ability check, or save, you force it to reroll and use the lower result. Then you grant advantage on the next attack, check, or save to an ally." },
+  "catapult":           { level:"1st", school:"Transmutation", time:"1 action", range:"60 ft.", desc:"Choose an object weighing 1–5 lbs that isn't being worn or carried. It flies in a straight line up to 90 ft. A creature in the path makes a DEX save or takes 3d8 bludgeoning damage." },
+  "witch bolt":         { level:"1st", school:"Evocation", time:"1 action", range:"30 ft.", desc:"A sustained arc of blue crackling energy. Make a ranged spell attack — on hit, 1d12 lightning damage. On subsequent turns, you can use your action to automatically deal 1d12 again without rolling to hit." },
+  // ─── 2ND LEVEL ───
+  "misty step":         { level:"2nd", school:"Conjuration", time:"1 bonus action", range:"Self", desc:"Briefly surrounded by silvery mist, you teleport up to 30 ft. to an unoccupied space that you can see. One of the best escape/positioning spells in the game." },
+  "hold person":        { level:"2nd", school:"Enchantment", time:"1 action", range:"60 ft.", desc:"Choose a humanoid within range. The target must succeed on a WIS save or be paralyzed for the duration. At the end of each turn, the target can make another WIS save to end the effect. Concentration, 1 min." },
+  "levitate":           { level:"2nd", school:"Transmutation", time:"1 action", range:"60 ft.", desc:"One creature or loose object of your choice within range rises vertically up to 20 ft. and remains suspended. The target can move only by pulling on fixed objects. CON save if unwilling. Concentration, 10 min." },
+  "immovable object":   { level:"2nd", school:"Transmutation", time:"1 action", range:"Touch", desc:"You touch an object weighing ≤ 10 lbs and cause it to become fixed in place. It can hold up to 4,000 lbs. You and chosen creatures can move the object normally. A password can end the effect." },
+  "spiritual weapon":   { level:"2nd", school:"Evocation", time:"1 bonus action", range:"60 ft.", desc:"You create a floating spectral weapon within range. On the turn you cast it and as a bonus action on subsequent turns, you can move it and make a melee spell attack for 1d8 + spellcasting mod force damage." },
+  "lesser restoration":{ level:"2nd", school:"Abjuration", time:"1 action", range:"Touch", desc:"You touch a creature and can end either one disease or one condition afflicting it. The condition can be blinded, deafened, paralyzed, or poisoned." },
+  "prayer of healing":  { level:"2nd", school:"Evocation", time:"10 minutes", range:"30 ft.", desc:"Up to six creatures of your choice within range each regain hit points equal to 2d8 + your spellcasting modifier. Great for out-of-combat healing. No effect on undead or constructs." },
+  "moonbeam":           { level:"2nd", school:"Evocation", time:"1 action", range:"120 ft.", desc:"A silvery beam of pale light shines down in a 5 ft. radius, 40 ft. high cylinder. Creatures entering or starting a turn there make a CON save — fail: 2d10 radiant damage. Shapechangers have disadvantage." },
+  "darkness":           { level:"2nd", school:"Evocation", time:"1 action", range:"60 ft.", desc:"Magical darkness spreads from a point within range to fill a 15 ft. radius sphere. Darkvision can't see through it, and nonmagical light can't illuminate it. Concentration, 10 min." },
+  "shatter":            { level:"2nd", school:"Evocation", time:"1 action", range:"60 ft.", desc:"A sudden loud ringing noise erupts from a point. Each creature in a 10 ft. radius sphere makes a CON save — fail: 3d8 thunder damage (half on success). Made of inorganic material? Disadvantage on the save." },
+  "silence":            { level:"2nd", school:"Illusion", time:"1 action", range:"120 ft.", desc:"For the duration, no sound can be created within or pass through a 20 ft. radius sphere. Creatures are immune to thunder damage and are deafened while entirely inside. Verbal spell components are impossible." },
+  "web":                { level:"2nd", school:"Conjuration", time:"1 action", range:"60 ft.", desc:"You conjure a mass of sticky webbing. Creatures starting a turn in the webs or entering them must make a DEX save or be restrained. The webs are flammable. Concentration, 1 hour." },
+  "invisibility":       { level:"2nd", school:"Illusion", time:"1 action", range:"Touch", desc:"A creature you touch becomes invisible until the spell ends. Anything the target is wearing or carrying is invisible as long as it's on the target. The spell ends if the target attacks or casts a spell." },
+  "mirror image":       { level:"2nd", school:"Illusion", time:"1 action", range:"Self", desc:"Three illusory duplicates of yourself appear. When attacked, roll to determine if the attack hits a duplicate instead (AC 10 + DEX mod). A hit destroys the duplicate. Lasts 1 minute, no concentration." },
+  "scorching ray":      { level:"2nd", school:"Evocation", time:"1 action", range:"120 ft.", desc:"You create three rays of fire and hurl them at targets within range. You can direct them at one target or several. Make a ranged spell attack for each — on hit, 2d6 fire damage per ray." },
+  "suggestion":         { level:"2nd", school:"Enchantment", time:"1 action", range:"30 ft.", desc:"You suggest a course of activity (limited to a sentence or two) to a creature that can hear and understand you. The suggestion must sound reasonable. WIS save or the target pursues the course of action." },
+  "enlarge/reduce":     { level:"2nd", school:"Transmutation", time:"1 action", range:"30 ft.", desc:"You cause a creature or object to grow larger or smaller. Enlarged: advantage on STR checks/saves, +1d4 weapon damage. Reduced: disadvantage on STR, -1d4 weapon damage. Concentration, 1 min." },
+  "pass without trace": { level:"2nd", school:"Abjuration", time:"1 action", range:"Self", desc:"A veil of shadows and silence radiates from you. For the duration, each creature you choose within 30 ft. has +10 bonus to Stealth checks and can't be tracked except by magical means." },
+  // ─── 3RD LEVEL ───
+  "counterspell":       { level:"3rd", school:"Abjuration", time:"1 reaction", range:"60 ft.", desc:"You attempt to interrupt a creature in the process of casting a spell. If the spell is 3rd level or lower, it automatically fails. For higher levels, make an ability check (DC 10 + spell level)." },
+  "fly":                { level:"3rd", school:"Transmutation", time:"1 action", range:"Touch", desc:"You touch a willing creature. The target gains a flying speed of 60 ft. for the duration. When the spell ends, the target falls if still aloft. Concentration, up to 10 minutes." },
+  "slow":               { level:"3rd", school:"Transmutation", time:"1 action", range:"120 ft.", desc:"Alter time around up to six creatures in a 40 ft. cube. WIS save or: speed halved, -2 AC, -2 DEX saves, no reactions, only one attack per turn, and casting a spell might be delayed. Concentration, 1 min." },
+  "pulse wave":         { level:"3rd", school:"Evocation", time:"1 action", range:"Self (30 ft. cone)", desc:"You create intense pressure, wave of gravity, or suction in a 30 ft. cone. Each creature makes a CON save — fail: 6d6 force damage and pushed/pulled 15 ft. On success, half damage and not moved." },
+  "fireball":           { level:"3rd", school:"Evocation", time:"1 action", range:"150 ft.", desc:"A bright streak flashes and detonates in a 20 ft. radius sphere. Each creature makes a DEX save — fail: 8d6 fire damage (half on success). Ignites flammable objects. The classic blaster spell." },
+  "lightning bolt":     { level:"3rd", school:"Evocation", time:"1 action", range:"Self (100 ft. line)", desc:"A stroke of lightning forms a 100 ft. long, 5 ft. wide line. Each creature in the line makes a DEX save — fail: 8d6 lightning damage (half on success). Ignites flammable objects." },
+  "haste":              { level:"3rd", school:"Transmutation", time:"1 action", range:"30 ft.", desc:"Choose a willing creature. Its speed doubles, it gains +2 AC, advantage on DEX saves, and an additional action each turn (limited to Attack (1 only), Dash, Disengage, Hide, or Use Object). Concentration, 1 min." },
+  "dispel magic":       { level:"3rd", school:"Abjuration", time:"1 action", range:"120 ft.", desc:"Choose a creature, object, or magical effect. Any spell of 3rd level or lower on the target ends. For each spell of 4th level or higher, make an ability check (DC 10 + spell level) to end it." },
+  "revivify":           { level:"3rd", school:"Necromancy", time:"1 action", range:"Touch", desc:"You touch a creature that has died within the last minute. That creature returns to life with 1 HP. This spell can't return to life a creature that has died of old age, nor restore missing body parts. Costs 300 gp in diamonds." },
+  "spirit guardians":   { level:"3rd", school:"Conjuration", time:"1 action", range:"Self (15 ft.)", desc:"You call forth spirits to protect you. Hostile creatures that start their turn or enter the area for the first time must make a WIS save — fail: 3d8 radiant/necrotic damage (half on success). Their speed is halved. Concentration, 10 min." },
+  "animate dead":       { level:"3rd", school:"Necromancy", time:"1 minute", range:"10 ft.", desc:"Create an undead servant. Choose a pile of bones or a corpse to become a skeleton or zombie. It obeys your verbal commands. You must recast this spell within 24 hours to maintain control." },
+  "fear":               { level:"3rd", school:"Illusion", time:"1 action", range:"Self (30 ft. cone)", desc:"You project a phantasmal image of a creature's worst fears. Each creature in a 30 ft. cone must succeed on a WIS save or drop whatever it's holding and become frightened. It must Dash away each turn." },
+  "hypnotic pattern":   { level:"3rd", school:"Illusion", time:"1 action", range:"120 ft.", desc:"A twisting pattern of colors weaves through the air in a 30 ft. cube. WIS save or become charmed — the creature is incapacitated and has speed 0. Effect ends if the creature takes damage or is shaken awake." },
+  "bestow curse":       { level:"3rd", school:"Necromancy", time:"1 action", range:"Touch", desc:"You touch a creature and it must succeed on a WIS save or be cursed. Choose the nature: disadvantage on an ability's checks/saves, disadvantage attacking you, WIS save each turn or waste action, or extra 1d8 necrotic on your hits." },
+  "sleet storm":        { level:"3rd", school:"Conjuration", time:"1 action", range:"150 ft.", desc:"Freezing rain and sleet fall in a 40 ft. radius, 20 ft. high cylinder. The ground is difficult terrain. Concentration checks are hard, and creatures entering or starting in the area must make a DEX save or fall prone." },
+  "remove curse":       { level:"3rd", school:"Abjuration", time:"1 action", range:"Touch", desc:"At your touch, all curses affecting one creature or object end. If the object is a cursed magic item, the curse remains, but the spell breaks the owner's attunement so it can be removed or discarded." },
+  "tongues":            { level:"3rd", school:"Divination", time:"1 action", range:"Touch", desc:"This spell grants the creature you touch the ability to understand any spoken language it hears. When the target speaks, any creature that knows at least one language can understand it." },
+  "mass healing word":  { level:"3rd", school:"Evocation", time:"1 bonus action", range:"60 ft.", desc:"Up to six creatures of your choice within range each regain hit points equal to 1d4 + your spellcasting ability modifier. No effect on undead or constructs." },
+  // ─── 4TH LEVEL ───
+  "dimension door":     { level:"4th", school:"Conjuration", time:"1 action", range:"500 ft.", desc:"You teleport from your current location to any spot within range. You can bring one willing creature of your size or smaller. If you'd arrive in an occupied space, you both take 4d6 force damage." },
+  "gravity sinkhole":   { level:"4th", school:"Evocation", time:"1 action", range:"120 ft.", desc:"A 20 ft. radius sphere of crushing gravitational force centered on a point. Each creature makes a CON save — fail: 5d10 force damage and pulled to the center. Success: half damage, not pulled." },
+  "banishment":         { level:"4th", school:"Abjuration", time:"1 action", range:"60 ft.", desc:"You attempt to send one creature to another plane. CHA save or be banished. If native to the current plane, it goes to a harmless demiplane and returns when the spell ends. If not native, it might not return." },
+  "greater invisibility":{ level:"4th", school:"Illusion", time:"1 action", range:"Touch", desc:"You or a creature you touch becomes invisible until the spell ends. Unlike regular Invisibility, attacking or casting spells doesn't end this spell. Concentration, up to 1 minute." },
+  "polymorph":          { level:"4th", school:"Transmutation", time:"1 action", range:"60 ft.", desc:"Transform a creature into a new beast form. The target's game statistics (including HP) are replaced by the beast's. When it drops to 0 HP, it reverts to its original form. WIS save if unwilling." },
+  "wall of fire":       { level:"4th", school:"Evocation", time:"1 action", range:"120 ft.", desc:"You create a wall of fire on a solid surface. One side deals 5d8 fire damage to each creature within 10 ft. or that enters. Passing through the wall costs 5d8 fire damage. Concentration, 1 min." },
+  "ice storm":          { level:"4th", school:"Evocation", time:"1 action", range:"300 ft.", desc:"A hail of rock-hard ice pounds to the ground in a 20 ft. radius, 40 ft. high cylinder. Each creature makes a DEX save — fail: 2d8 bludgeoning + 4d6 cold (half on success). Area becomes difficult terrain." },
+  "blight":             { level:"4th", school:"Necromancy", time:"1 action", range:"30 ft.", desc:"Necromantic energy washes over a creature. CON save — fail: 8d8 necrotic damage (half on success). Plant creatures have disadvantage and take max damage. Nonmagical plants wither and die." },
+  "death ward":         { level:"4th", school:"Abjuration", time:"1 action", range:"Touch", desc:"You touch a creature and grant it a ward against death. The first time the target would drop to 0 HP, it drops to 1 HP instead. If the target is subjected to an effect that would kill it instantly, that effect is negated. 8 hours, no concentration." },
+  "freedom of movement":{ level:"4th", school:"Abjuration", time:"1 action", range:"Touch", desc:"You touch a willing creature. For the duration, the target's movement is unaffected by difficult terrain, and spells/effects can't reduce its speed, paralyze it, or restrain it. It can also spend 5 ft. of movement to escape nonmagical restraints." },
+  "phantasmal killer":  { level:"4th", school:"Illusion", time:"1 action", range:"120 ft.", desc:"You tap into the nightmares of a creature and create an illusory manifestation of its deepest fears. WIS save or become frightened. At end of each turn, the target makes a WIS save — on fail, 4d10 psychic damage." },
+  // ─── 5TH LEVEL ───
+  "telekinesis":        { level:"5th", school:"Transmutation", time:"1 action", range:"60 ft.", desc:"You gain the ability to move or manipulate creatures or objects by thought. You can exert fine control on objects or try to move a creature — contested check. You can move targets up to 30 ft. per round. Concentration, 10 min." },
+  "wall of force":      { level:"5th", school:"Evocation", time:"1 action", range:"120 ft.", desc:"An invisible wall of force springs into existence. It can be a dome, sphere, or flat panels. Nothing can physically pass through it. It is immune to all damage and can't be dispelled by Dispel Magic (only Disintegrate). Concentration, 10 min." },
+  "cone of cold":       { level:"5th", school:"Evocation", time:"1 action", range:"Self (60 ft. cone)", desc:"A blast of cold air erupts from your hands. Each creature in a 60 ft. cone makes a CON save — fail: 8d8 cold damage (half on success). A creature killed by this spell becomes a frozen statue." },
+  "greater restoration":{ level:"5th", school:"Abjuration", time:"1 action", range:"Touch", desc:"You imbue a creature with positive energy to undo one debilitating effect: reduce an exhaustion level, end charmed/petrified, end a curse, end any ability score reduction, or end one max HP reduction effect." },
+  "raise dead":         { level:"5th", school:"Necromancy", time:"1 hour", range:"Touch", desc:"You return a dead creature to life (dead no more than 10 days). It returns with 1 HP. This spell neutralizes any poisons and cures nonmagical diseases. It can't restore missing body parts. Costs 500 gp diamond." },
+  "hold monster":       { level:"5th", school:"Enchantment", time:"1 action", range:"90 ft.", desc:"Like Hold Person but works on any creature. The target must succeed on a WIS save or be paralyzed for the duration. At the end of each turn, it can make another WIS save. Concentration, 1 min." },
+  "animate objects":    { level:"5th", school:"Transmutation", time:"1 action", range:"120 ft.", desc:"Objects come to life at your command. Choose up to 10 nonmagical objects not being worn or carried. They become creatures that act on your initiative and attack as commanded. Concentration, 1 min." },
+  "cloudkill":          { level:"5th", school:"Conjuration", time:"1 action", range:"120 ft.", desc:"A sphere of poisonous yellow-green fog spreads 20 ft. radius. Creatures starting their turn in the fog make a CON save — fail: 5d8 poison (half on success). The fog moves 10 ft. away from you each round." },
+  "scrying":            { level:"5th", school:"Divination", time:"10 minutes", range:"Self", desc:"You can see and hear a particular creature you choose on the same plane. The target makes a WIS save (modified by familiarity and connections). On fail, you can see the target and its surroundings for 10 min." },
+  "destructive wave":   { level:"5th", school:"Evocation", time:"1 action", range:"Self (30 ft.)", desc:"You strike the ground, creating a burst of divine energy. Each creature you choose within 30 ft. makes a CON save — fail: 5d6 thunder + 5d6 radiant/necrotic damage and knocked prone. Half on success." },
+  "mass cure wounds":   { level:"5th", school:"Evocation", time:"1 action", range:"60 ft.", desc:"Choose up to six creatures in a 30 ft. radius sphere. Each one regains hit points equal to 3d8 + your spellcasting ability modifier. No effect on undead or constructs." },
+  "steel wind strike":  { level:"5th", school:"Conjuration", time:"1 action", range:"30 ft.", desc:"You flourish your weapon and vanish to strike like the wind. Make a melee spell attack against up to five creatures within range. On hit: 6d10 force damage each. You then teleport to an unoccupied space within 5 ft. of one target." },
+  "synaptic static":    { level:"5th", school:"Enchantment", time:"1 action", range:"120 ft.", desc:"Psychic energy explodes in a 20 ft. radius. Each creature makes an INT save — fail: 8d6 psychic damage (half on success). After failing, the target subtracts 1d6 from attack rolls, ability checks, and CON saves for concentration." },
+  "dawn":               { level:"5th", school:"Evocation", time:"1 action", range:"60 ft.", desc:"The light of dawn shines down on a location you specify. Each creature in a 30 ft. radius, 40 ft. high cylinder when the spell appears or starts its turn there makes a CON save — fail: 4d10 radiant." },
+  // ─── 6TH LEVEL ───
+  "globe of invulnerability":{ level:"6th", school:"Abjuration", time:"1 action", range:"Self (10 ft.)", desc:"An immobile, faintly shimmering barrier springs into existence in a 10 ft. radius around you. Any spell of 5th level or lower cast from outside the barrier can't affect creatures or objects within it. Concentration, 1 min." },
+  "gravity fissure":    { level:"6th", school:"Evocation", time:"1 action", range:"Self (100 ft. line)", desc:"You manifest a ravine of gravitational energy in a 100 ft. long, 5 ft. wide line. Each creature in the line makes a CON save — fail: 8d8 force damage (half on success). Creatures within 10 ft. of the line are pulled toward it." },
+  "scatter":            { level:"6th", school:"Conjuration", time:"1 action", range:"30 ft.", desc:"The air shimmers around up to five creatures of your choice within range. An unwilling target makes a WIS save to resist. Each target is teleported to an unoccupied space you can see within 120 ft." },
+  "heal":               { level:"6th", school:"Evocation", time:"1 action", range:"60 ft.", desc:"Choose a creature within range. A surge of positive energy washes through the creature, causing it to regain 70 hit points. This spell also ends blindness, deafness, and any diseases affecting the target." },
+  "harm":               { level:"6th", school:"Necromancy", time:"1 action", range:"60 ft.", desc:"You unleash a virulent disease on a creature within range. The target must make a CON save — fail: 14d6 necrotic damage (half on success). The target's HP maximum can't be reduced below 1 by this spell." },
+  "sunbeam":            { level:"6th", school:"Evocation", time:"1 action", range:"Self (60 ft. line)", desc:"A beam of brilliant light flashes from your hand in a 5 ft. wide, 60 ft. long line. Each creature makes a CON save — fail: 6d8 radiant damage and blinded. Undead/oozes have disadvantage. You can re-fire each turn." },
+  "disintegrate":       { level:"6th", school:"Transmutation", time:"1 action", range:"60 ft.", desc:"A thin green ray springs from your finger. Make a ranged spell attack. DEX save — fail: 10d6+40 force damage. If this reduces the target to 0 HP, it is disintegrated (turned to fine gray dust)." },
+  "chain lightning":    { level:"6th", school:"Evocation", time:"1 action", range:"150 ft.", desc:"You create a bolt of lightning that arcs toward a target, then jumps to up to 3 additional targets within 30 ft. of the first. Each target makes a DEX save — fail: 10d8 lightning damage (half on success)." },
+  "blade barrier":      { level:"6th", school:"Evocation", time:"1 action", range:"90 ft.", desc:"You create a vertical wall of whirling, razor-sharp blades. A creature passing through the wall or starting its turn there makes a DEX save — fail: 6d10 slashing damage (half on success). Concentration, 10 min." },
+  "word of recall":     { level:"6th", school:"Conjuration", time:"1 action", range:"5 ft.", desc:"You and up to five willing creatures within 5 ft. are instantly teleported to a previously designated sanctuary. Each creature appears in the nearest unoccupied space to the spot you designated when you prepared the sanctuary." },
+  "mental prison":      { level:"6th", school:"Illusion", time:"1 action", range:"60 ft.", desc:"You attempt to bind a creature in an illusory cell. INT save — fail: 5d10 psychic damage and it perceives illusory hazards surrounding it. If it moves or is forced to move, it takes 10d10 psychic damage and the spell ends." },
+  // ─── 7TH LEVEL ───
+  "reverse gravity":    { level:"7th", school:"Transmutation", time:"1 action", range:"100 ft.", desc:"This spell reverses gravity in a 50 ft. radius, 100 ft. high cylinder. All creatures and objects fall upward. When the spell ends, everything falls back down. Concentration, up to 1 minute." },
+  "teleport":           { level:"7th", school:"Conjuration", time:"1 action", range:"10 ft.", desc:"This spell instantly transports you and up to eight willing creatures to a destination you specify. The accuracy depends on how familiar you are with the destination — from perfect transport to mishaps." },
+  "divine word":        { level:"7th", school:"Evocation", time:"1 bonus action", range:"30 ft.", desc:"You utter a divine word, imbued with power. Each creature you choose that can hear you must make a CHA save. Based on remaining HP: ≤20 HP = killed, ≤30 = blinded/deafened/stunned, ≤40 = deafened/blinded, ≤50 = deafened." },
+  "resurrection":       { level:"7th", school:"Necromancy", time:"1 hour", range:"Touch", desc:"You touch a dead creature that has been dead for no more than a century. It is restored to life with all its hit points. It cures poisons, diseases, and curses (but not magical curses from items). Costs 1,000 gp diamond." },
+  "forcecage":          { level:"7th", school:"Evocation", time:"1 action", range:"100 ft.", desc:"An immobile, invisible, cube-shaped prison of magical force springs into existence. It can be a cage (barred) or a box (solid). A creature inside can't leave by nonmagical means. CHA save to teleport out. 1 hour, no concentration." },
+  "fire storm":         { level:"7th", school:"Evocation", time:"1 action", range:"150 ft.", desc:"A storm of roaring flame appears. You shape ten 10 ft. cubes within range. Each creature in the area makes a DEX save — fail: 7d10 fire damage (half on success). You can designate areas the fire doesn't damage." },
+  "plane shift":        { level:"7th", school:"Conjuration", time:"1 action", range:"Touch", desc:"You and up to eight willing creatures link hands and are transported to a different plane of existence. You can also banish an unwilling creature — make a melee spell attack, then the creature makes a CHA save." },
+  "simulacrum":         { level:"7th", school:"Illusion", time:"12 hours", range:"Touch", desc:"You create an illusory duplicate of a beast or humanoid. The duplicate is partially real, has half the creature's max HP, and lacks the ability to learn or become more powerful. It obeys your commands." },
+  // ─── 8TH LEVEL ───
+  "dark star":          { level:"8th", school:"Evocation", time:"1 action", range:"150 ft.", desc:"A 40 ft. radius sphere of crushing gravitational force and total darkness. Creatures starting their turn inside make a CON save — fail: 8d10 force damage (half on success). The area is difficult terrain, magical darkness, and silence." },
+  "dominate monster":   { level:"8th", school:"Enchantment", time:"1 action", range:"60 ft.", desc:"You attempt to charm any creature you can see. WIS save or be charmed. You have a telepathic link and can command the creature. It gets a new save each time it takes damage. Concentration, up to 1 hour." },
+  "antimagic field":    { level:"8th", school:"Abjuration", time:"1 action", range:"Self (10 ft.)", desc:"A 10 ft. radius invisible sphere of antimagic surrounds you. Within the sphere, spells can't be cast, summoned creatures disappear, and magic items become mundane. Concentration, 1 hour." },
+  "feeblemind":         { level:"8th", school:"Enchantment", time:"1 action", range:"150 ft.", desc:"You blast the mind of a creature. INT save — fail: 4d6 psychic damage and the creature's INT and CHA become 1. It can't cast spells, activate magic items, or understand language. Save every 30 days to end." },
+  "sunburst":           { level:"8th", school:"Evocation", time:"1 action", range:"150 ft.", desc:"Brilliant sunlight flashes in a 60 ft. radius sphere. Each creature makes a CON save — fail: 12d6 radiant damage and blinded for 1 minute (half damage and not blinded on success)." },
+  "holy aura":          { level:"8th", school:"Abjuration", time:"1 action", range:"Self", desc:"Divine light washes out from you. Creatures of your choice within 30 ft. have advantage on all saving throws, and other creatures have disadvantage on attack rolls against them. Fiends/undead that hit must make a CON save or be blinded." },
+  "earthquake":         { level:"8th", school:"Evocation", time:"1 action", range:"500 ft.", desc:"You create a seismic disturbance in a 100 ft. radius. Each creature on the ground must make a DEX save or be knocked prone. Fissures open, structures collapse. Concentration, 1 minute." },
+  "power word stun":    { level:"8th", school:"Enchantment", time:"1 action", range:"60 ft.", desc:"You speak a word of power that can overwhelm the mind of one creature. If the target has 150 HP or fewer, it is stunned. Otherwise, the spell has no effect. The stunned target makes a CON save each turn to end." },
+  "maze":               { level:"8th", school:"Conjuration", time:"1 action", range:"60 ft.", desc:"You banish a creature into a labyrinthine demiplane. It remains there for the duration. Each turn, the target can use its action to attempt a DC 20 INT check to escape. Concentration, 10 min." },
+  "telepathy":          { level:"8th", school:"Evocation", time:"1 action", range:"Unlimited", desc:"You create a telepathic link between yourself and a willing creature familiar to you. The communication can cross any distance and even across planes. 24 hours." },
+  // ─── 9TH LEVEL ───
+  "ravenous void":      { level:"9th", school:"Evocation", time:"1 action", range:"1000 ft.", desc:"You create a 20 ft. radius sphere of destructive gravitational force. Creatures that start in or enter the area must make STR save — fail: 5d10 force damage and restrained. Concentration. Pulls creatures within 100 ft. toward it." },
+  "wish":               { level:"9th", school:"Conjuration", time:"1 action", range:"Self", desc:"The mightiest spell a mortal creature can cast. State your wish and the GM determines the outcome. The basic use is to duplicate any 8th level or lower spell. More ambitious wishes may have unexpected consequences." },
+  "meteor swarm":       { level:"9th", school:"Evocation", time:"1 action", range:"1 mile", desc:"Blazing orbs of fire plummet to four different points you can see. Each creature in a 40 ft. radius sphere of each point makes a DEX save — fail: 20d6 fire + 20d6 bludgeoning (half on success). Devastating." },
+  "true polymorph":     { level:"9th", school:"Transmutation", time:"1 action", range:"30 ft.", desc:"Choose a creature or nonmagical object. You transform it into a different creature or object. The transformation lasts for the duration, or until it drops to 0 HP. If you concentrate for the full duration, the transformation becomes permanent." },
+  "power word kill":    { level:"9th", school:"Enchantment", time:"1 action", range:"60 ft.", desc:"You utter a word of power that can compel one creature you can see to die instantly. If the creature you choose has 100 HP or fewer, it dies. Otherwise, the spell has no effect." },
+  "mass heal":          { level:"9th", school:"Evocation", time:"1 action", range:"60 ft.", desc:"A flood of healing energy flows from you. You restore up to 700 hit points, divided among any number of creatures within range. Also cures all diseases and ends blindness and deafness." },
+  "gate":               { level:"9th", school:"Conjuration", time:"1 action", range:"60 ft.", desc:"You conjure a portal linking an unoccupied space to a precise location on a different plane of existence. You can also use it to summon a specific creature by name (it is pulled through the portal)." },
+  "time stop":          { level:"9th", school:"Transmutation", time:"1 action", range:"Self", desc:"You briefly stop the flow of time for everyone but yourself. You take 1d4+1 turns in a row, during which you can take actions. The spell ends early if you affect another creature or an object another creature is carrying." },
+  "foresight":          { level:"9th", school:"Divination", time:"1 minute", range:"Touch", desc:"You grant a creature the ability to see into the immediate future. For the duration, the target can't be surprised, has advantage on attack rolls, ability checks, and saving throws, and other creatures have disadvantage on attacks against it. 8 hours, no concentration." },
+  "prismatic wall":     { level:"9th", school:"Abjuration", time:"1 action", range:"60 ft.", desc:"A shimmering, multicolored plane of light forms a wall. Each of its seven layers has a different effect, from dealing fire/acid/lightning/poison/cold damage to petrification to banishment. Each layer must be destroyed in order." },
+
+  // ─── D&D CONDITIONS ───
+  "blinded":            { level:"Condition", school:"", time:"", range:"", desc:"A blinded creature can't see and automatically fails any ability check that requires sight. Attack rolls against the creature have advantage, and the creature's attack rolls have disadvantage." },
+  "charmed":            { level:"Condition", school:"", time:"", range:"", desc:"A charmed creature can't attack the charmer or target the charmer with harmful abilities or magical effects. The charmer has advantage on any ability check to interact socially with the creature." },
+  "deafened":           { level:"Condition", school:"", time:"", range:"", desc:"A deafened creature can't hear and automatically fails any ability check that requires hearing." },
+  "frightened":         { level:"Condition", school:"", time:"", range:"", desc:"A frightened creature has disadvantage on ability checks and attack rolls while the source of its fear is within line of sight. The creature can't willingly move closer to the source of its fear." },
+  "grappled":           { level:"Condition", school:"", time:"", range:"", desc:"A grappled creature's speed becomes 0, and it can't benefit from any bonus to its speed. The condition ends if the grappler is incapacitated or if the creature is moved outside the grappler's reach." },
+  "incapacitated":      { level:"Condition", school:"", time:"", range:"", desc:"An incapacitated creature can't take actions or reactions." },
+  "invisible":          { level:"Condition", school:"", time:"", range:"", desc:"An invisible creature is impossible to see without the aid of magic or a special sense. The creature has advantage on attack rolls, and attack rolls against the creature have disadvantage." },
+  "paralyzed":          { level:"Condition", school:"", time:"", range:"", desc:"A paralyzed creature is incapacitated and can't move or speak. The creature automatically fails STR and DEX saves. Attack rolls against it have advantage. Any melee hit from within 5 ft. is a critical hit." },
+  "petrified":          { level:"Condition", school:"", time:"", range:"", desc:"A petrified creature is transformed into a solid inanimate substance. It is incapacitated, can't move/speak, and is unaware. Attack rolls against it have advantage. It has resistance to all damage and is immune to poison and disease." },
+  "poisoned":           { level:"Condition", school:"", time:"", range:"", desc:"A poisoned creature has disadvantage on attack rolls and ability checks." },
+  "prone":              { level:"Condition", school:"", time:"", range:"", desc:"A prone creature's only movement option is to crawl (costs extra movement). The creature has disadvantage on attack rolls. Melee attacks within 5 ft. have advantage against it; ranged attacks have disadvantage." },
+  "restrained":         { level:"Condition", school:"", time:"", range:"", desc:"A restrained creature's speed becomes 0. Attack rolls against the creature have advantage. The creature's attack rolls have disadvantage. The creature has disadvantage on DEX saving throws." },
+  "stunned":            { level:"Condition", school:"", time:"", range:"", desc:"A stunned creature is incapacitated, can't move, and can speak only falteringly. The creature automatically fails STR and DEX saves. Attack rolls against the creature have advantage." },
+  "unconscious":        { level:"Condition", school:"", time:"", range:"", desc:"An unconscious creature is incapacitated, can't move or speak, is unaware, drops whatever it's holding, and falls prone. Attack rolls against it have advantage. Melee hits within 5 ft. are critical hits. It fails STR and DEX saves." },
+  "exhaustion":         { level:"Condition", school:"", time:"", range:"", desc:"Exhaustion has 6 levels. 1: Disadvantage on ability checks. 2: Speed halved. 3: Disadvantage on attacks and saves. 4: HP max halved. 5: Speed reduced to 0. 6: Death. Long rest reduces by 1 level." },
+  "concentration":      { level:"Mechanic", school:"", time:"", range:"", desc:"Some spells require you to maintain concentration. You lose concentration if: you cast another concentration spell, take damage and fail a CON save (DC 10 or half the damage, whichever is higher), you're incapacitated, or you die." },
+};
+
+// Build a sorted list of keys (longest first for matching priority)
+const DND_KEYS = Object.keys(DND_DB).sort((a, b) => b.length - a.length);
+
+function findTooltipMatch(text) {
+  const lower = text.toLowerCase().trim()
+    .replace(/^[•\-–—]\s*/, '')       // strip bullet prefixes
+    .replace(/\s*[—–\-:].+$/, '');     // strip description after dash/colon
+  if (lower.length < 3) return null;
+  for (const key of DND_KEYS) {
+    if (lower === key || lower.startsWith(key + ' ') || lower.startsWith(key + ',') || lower.startsWith(key + '.')) {
+      const entry = DND_DB[key];
+      return { name: key.replace(/\b\w/g, c => c.toUpperCase()), ...entry };
+    }
+  }
+  // Also check if the entire text exactly matches
+  for (const key of DND_KEYS) {
+    if (lower.includes(key) && key.length >= 4) {
+      const entry = DND_DB[key];
+      return { name: key.replace(/\b\w/g, c => c.toUpperCase()), ...entry };
+    }
+  }
+  return null;
+}
+
+// ── Matrix math helper ──
+function transformPoint(m1, m2) {
+  return [
+    m1[0]*m2[0] + m1[2]*m2[1],
+    m1[1]*m2[0] + m1[3]*m2[1],
+    m1[0]*m2[2] + m1[2]*m2[3],
+    m1[1]*m2[2] + m1[3]*m2[3],
+    m1[0]*m2[4] + m1[2]*m2[5] + m1[4],
+    m1[1]*m2[4] + m1[3]*m2[5] + m1[5]
+  ];
+}
+
+// ── PDF Rendering ──
+async function renderPdf(pdfName, container) {
+  container.innerHTML = '<div class="pdf-loading">Loading character sheet...</div>';
+  try {
+    const pdf = await pdfjsLib.getDocument(pdfName).promise;
+    container.innerHTML = '';
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const baseViewport = page.getViewport({ scale: 1 });
+      const scale = Math.min((container.clientWidth - 40) / baseViewport.width, 2.0);
+      const viewport = page.getViewport({ scale });
+
+      // Page container
+      const pageDiv = document.createElement('div');
+      pageDiv.className = 'pdf-page';
+      pageDiv.style.width = viewport.width + 'px';
+      pageDiv.style.height = viewport.height + 'px';
+
+      // Canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width * (window.devicePixelRatio || 1);
+      canvas.height = viewport.height * (window.devicePixelRatio || 1);
+      canvas.style.width = viewport.width + 'px';
+      canvas.style.height = viewport.height + 'px';
+      const ctx = canvas.getContext('2d');
+      ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      pageDiv.appendChild(canvas);
+
+      // Text layer
+      const textContent = await page.getTextContent();
+      const textLayer = document.createElement('div');
+      textLayer.className = 'text-layer';
+
+      for (const item of textContent.items) {
+        if (!item.str || !item.str.trim()) continue;
+
+        const tx = transformPoint(viewport.transform, item.transform);
+        const fontSize = Math.sqrt(tx[0]*tx[0] + tx[1]*tx[1]);
+        const x = tx[4];
+        const y = tx[5] - fontSize;
+
+        const span = document.createElement('span');
+        span.style.left = x + 'px';
+        span.style.top = y + 'px';
+        span.style.fontSize = fontSize + 'px';
+        span.style.height = (fontSize * 1.2) + 'px';
+        if (item.width) {
+          span.style.width = (item.width * scale) + 'px';
+        }
+        span.textContent = item.str;
+
+        // Check for tooltip match
+        const match = findTooltipMatch(item.str);
+        if (match) {
+          span.classList.add('has-tooltip');
+          span.dataset.ttName = match.name;
+          span.dataset.ttLevel = match.level;
+          span.dataset.ttSchool = match.school || '';
+          span.dataset.ttTime = match.time || '';
+          span.dataset.ttRange = match.range || '';
+          span.dataset.ttDesc = match.desc;
+        }
+
+        textLayer.appendChild(span);
+      }
+
+      pageDiv.appendChild(textLayer);
+      container.appendChild(pageDiv);
+    }
+  } catch(err) {
+    container.innerHTML = '<div class="pdf-missing">No character sheet found.</div>';
+    console.error('PDF load error:', err);
+  }
+}
+
+// ── Tooltip Hover ──
+const tooltipEl = document.getElementById('spellTooltip');
+document.addEventListener('mouseover', (e) => {
+  const span = e.target.closest('.has-tooltip');
+  if (!span) return;
+  const meta = [];
+  if (span.dataset.ttLevel) meta.push(span.dataset.ttLevel);
+  if (span.dataset.ttSchool) meta.push(span.dataset.ttSchool);
+  if (span.dataset.ttTime) meta.push('Cast: ' + span.dataset.ttTime);
+  if (span.dataset.ttRange) meta.push('Range: ' + span.dataset.ttRange);
+  document.getElementById('ttName').textContent = span.dataset.ttName;
+  document.getElementById('ttMeta').textContent = meta.join('  ·  ');
+  document.getElementById('ttDesc').textContent = span.dataset.ttDesc;
+  tooltipEl.classList.add('visible');
+
+  const rect = span.getBoundingClientRect();
+  let left = rect.left + rect.width / 2 - 190;
+  let top = rect.top - 10;
+  // Position above span
+  tooltipEl.style.left = Math.max(8, Math.min(left, window.innerWidth - 400)) + 'px';
+  tooltipEl.style.top = 'auto';
+  tooltipEl.style.bottom = (window.innerHeight - top) + 'px';
+});
+document.addEventListener('mouseout', (e) => {
+  if (e.target.closest && e.target.closest('.has-tooltip')) {
+    tooltipEl.classList.remove('visible');
+  }
+});
+
+// ── Modal ──
+async function openModal(idx) {
   currentModalIdx = idx;
   const c = filteredChars[idx];
   const t = getTheme(c.theme);
   document.getElementById('modalName').textContent = c.name;
   document.getElementById('modalContent').style.setProperty('--accent', t.accent);
-
-  // Build PDF filename from character name and embed it
-  const pdfName = c.name.replace(/\s+/g, '_') + '_Character_Sheet.pdf';
-  const pdfEl = document.getElementById('modalPdf');
-  pdfEl.innerHTML = `<iframe class="pdf-container" src="${pdfName}"></iframe>`;
-
   document.getElementById('modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  const pdfName = c.name.replace(/\s+/g, '_') + '_Character_Sheet.pdf';
+  await renderPdf(pdfName, document.getElementById('modalPdf'));
 }
 
 function closeModal() {
   document.getElementById('modal').classList.remove('open');
+  document.getElementById('modalPdf').innerHTML = '';
+  document.body.style.overflow = '';
   currentModalIdx = -1;
 }
 
