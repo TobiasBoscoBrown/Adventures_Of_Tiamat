@@ -438,6 +438,129 @@
   .cond-toggle.active-unconscious { background: rgba(80,0,0,0.5); color: #ff6666; border-color: #cc2222; }
   .cond-toggle.active-exhaustion  { background: rgba(100,60,0,0.4); color: #ffaa33; border-color: #cc7700; }
 
+  /* ── Session Log ── */
+  .session-log-fab {
+    position: fixed;
+    bottom: 140px;
+    right: 20px;
+    background: #12103a;
+    color: #c9a227;
+    border: 2px solid #c9a227;
+    border-radius: 50%;
+    width: 52px;
+    height: 52px;
+    font-size: 22px;
+    cursor: pointer;
+    z-index: 180;
+    box-shadow: 0 4px 20px rgba(201,162,39,0.2);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .session-log-fab:hover { transform: scale(1.1); background: #1a183a; }
+  .session-log-panel {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 360px;
+    background: #0a0a1e;
+    border-right: 2px solid #c9a227;
+    z-index: 300;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    box-shadow: 8px 0 40px rgba(0,0,0,0.7);
+  }
+  .session-log-panel.open { transform: translateX(0); }
+  .session-log-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid #1e2040;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(135deg, #0a0a20, #12103a);
+  }
+  .session-log-header h3 {
+    font-family: 'Cinzel', serif;
+    color: #c9a227;
+    font-size: 16px;
+    letter-spacing: 1px;
+  }
+  .session-log-entries {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+  }
+  .session-log-entry {
+    padding: 10px 16px;
+    border-bottom: 1px solid #0e0e1e;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .session-log-entry:hover { background: rgba(255,255,255,0.02); }
+  .session-log-time {
+    font-size: 10px;
+    color: #4a5272;
+    white-space: nowrap;
+    padding-top: 2px;
+    min-width: 48px;
+  }
+  .session-log-text {
+    font-size: 13px;
+    color: #b8c0d8;
+    line-height: 1.4;
+    flex: 1;
+  }
+  .session-log-rm {
+    background: none;
+    border: none;
+    color: #2a2a4a;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0 4px;
+    transition: color 0.15s;
+    flex-shrink: 0;
+  }
+  .session-log-rm:hover { color: #cc3333; }
+  .session-log-input-row {
+    padding: 12px 16px 8px;
+    border-top: 1px solid #1e2040;
+    display: flex;
+    gap: 8px;
+  }
+  .session-log-input {
+    flex: 1;
+    background: #06061a;
+    border: 1px solid #2a2a50;
+    border-radius: 6px;
+    color: #dce0f0;
+    font-size: 13px;
+    padding: 8px 12px;
+    font-family: 'Inter', sans-serif;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .session-log-input:focus { border-color: #c9a227; }
+  .session-log-input::placeholder { color: #2e3558; font-style: italic; }
+  .session-log-save-btn {
+    background: #c9a227;
+    border: none;
+    border-radius: 6px;
+    color: #06061a;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+  .session-log-save-btn:hover { background: #e0b530; }
+
   /* ── Initiative Tracker ── */
   .init-fab {
     position: fixed;
@@ -1074,6 +1197,22 @@
   <kbd>&#8592;</kbd> <kbd>&#8594;</kbd> Navigate &nbsp; <kbd>Esc</kbd> Close &nbsp; <kbd>/</kbd> Search
 </div>
 
+<!-- Session Log Panel -->
+<div class="session-log-panel" id="sessionLogPanel">
+  <div class="session-log-header">
+    <h3>📜 Session Log</h3>
+    <button class="init-close-btn" onclick="toggleSessionLog()">✕</button>
+  </div>
+  <div class="session-log-entries" id="sessionLogEntries"></div>
+  <div class="session-log-input-row">
+    <input class="session-log-input" id="sessionLogInput" type="text" placeholder="Log an event... (Enter to save)" maxlength="300"
+      onkeydown="if(event.key==='Enter')addSessionEntry()">
+    <button class="session-log-save-btn" onclick="addSessionEntry()">+ Log</button>
+  </div>
+  <button class="init-clear-btn" onclick="clearSessionLog()" style="margin:8px 16px 12px;">Clear All Entries</button>
+</div>
+<button class="session-log-fab" onclick="toggleSessionLog()" title="Session Log">📜</button>
+
 <!-- Initiative Tracker FAB & Panel -->
 <button class="init-fab" onclick="toggleInitPanel()" title="Initiative Tracker (⚔)">⚔</button>
 
@@ -1214,8 +1353,10 @@ function setHP(name, val, maxHp) {
   const stamp = document.getElementById('dead-' + sid);
   if (bar)  { bar.style.width = pct + '%'; bar.className = 'hp-bar ' + hpClass(pct); }
   if (cur)  { cur.textContent = val; }
+  const wasDead = card && card.classList.contains('is-dead');
   if (card) { card.classList.toggle('is-dead', val === 0); }
   if (stamp) { stamp.style.display = val === 0 ? 'block' : 'none'; }
+  if (val === 0 && !wasDead) { logCharDeath(name); }
 }
 
 function adjustHP(name, delta, maxHp, event) {
@@ -1574,6 +1715,68 @@ function navChar(dir) {
   if (next < 0) next = filteredChars.length - 1;
   if (next >= filteredChars.length) next = 0;
   openModal(next);
+}
+
+/* ── Session Log ── */
+function sessionLogKey() { return 'tiamat_session_log'; }
+
+function getSessionLog() {
+  try { return JSON.parse(localStorage.getItem(sessionLogKey())) || []; }
+  catch(e) { return []; }
+}
+
+function toggleSessionLog() {
+  document.getElementById('sessionLogPanel').classList.toggle('open');
+  renderSessionLog();
+}
+
+function addSessionEntry() {
+  const input = document.getElementById('sessionLogInput');
+  const text = (input.value || '').trim();
+  if (!text) return;
+  const entries = getSessionLog();
+  const now = new Date();
+  const time = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  entries.unshift({ text, time, id: Date.now() });
+  localStorage.setItem(sessionLogKey(), JSON.stringify(entries));
+  input.value = '';
+  renderSessionLog();
+}
+
+function removeSessionEntry(id) {
+  const entries = getSessionLog().filter(e => e.id !== id);
+  localStorage.setItem(sessionLogKey(), JSON.stringify(entries));
+  renderSessionLog();
+}
+
+function clearSessionLog() {
+  if (!confirm('Clear all session log entries?')) return;
+  localStorage.removeItem(sessionLogKey());
+  renderSessionLog();
+}
+
+function renderSessionLog() {
+  const entries = getSessionLog();
+  const el = document.getElementById('sessionLogEntries');
+  if (!el) return;
+  if (entries.length === 0) {
+    el.innerHTML = `<div style="padding:24px;text-align:center;color:#4a5272;font-size:13px;font-style:italic;">No entries yet. Log events as they happen!</div>`;
+    return;
+  }
+  el.innerHTML = entries.map(e => `
+    <div class="session-log-entry">
+      <span class="session-log-time">${e.time}</span>
+      <span class="session-log-text">${e.text}</span>
+      <button class="session-log-rm" onclick="removeSessionEntry(${e.id})" title="Remove">✕</button>
+    </div>`).join('');
+}
+
+function logCharDeath(name) {
+  const entries = getSessionLog();
+  const now = new Date();
+  const time = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  entries.unshift({ text: '\u{1F480} ' + name + ' has fallen!', time, id: Date.now() });
+  localStorage.setItem(sessionLogKey(), JSON.stringify(entries));
 }
 
 /* ── Initiative Tracker ── */
