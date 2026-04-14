@@ -15,6 +15,7 @@
     color: #dce0f0;
     font-family: 'Inter', sans-serif;
     min-height: 100vh;
+    padding-bottom: 38px;
   }
 
   /* ── Header ── */
@@ -362,16 +363,8 @@
   .stat-line strong { color: var(--accent, #c9a227); }
 
   .keyboard-hint {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: #0e0e28;
-    border: 1px solid #333;
-    border-radius: 8px;
-    padding: 10px 16px;
     font-size: 11px;
     color: #4a5272;
-    z-index: 50;
   }
   .keyboard-hint kbd {
     background: #1e2040;
@@ -2652,8 +2645,16 @@
   </div>
 </div>
 
-<div class="keyboard-hint">
-  <kbd>&#8592;</kbd> <kbd>&#8594;</kbd> Navigate &nbsp; <kbd>Esc</kbd> Close &nbsp; <kbd>/</kbd> Search &nbsp; <kbd>D</kbd> Dice &nbsp; <kbd>L</kbd> Log
+<div id="sessionHud" style="position:fixed;bottom:0;left:0;right:0;background:#06061a;border-top:1px solid #1e2040;padding:6px 20px;display:flex;align-items:center;gap:20px;z-index:49;font-size:11px;flex-wrap:wrap">
+  <div class="keyboard-hint" style="position:static;background:none;border:none;padding:0;margin:0;font-size:11px;flex-shrink:0">
+    <kbd>&#8592;</kbd><kbd>&#8594;</kbd> Nav &nbsp; <kbd>Esc</kbd> Close &nbsp; <kbd>/</kbd> Search &nbsp; <kbd>D</kbd> Dice &nbsp; <kbd>L</kbd> Log
+  </div>
+  <div style="flex:1;display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:flex-end">
+    <span id="hudDate" style="color:#c9a22788;cursor:pointer" onclick="openCalendar()" title="Open Calendar">📅 —</span>
+    <span id="hudWeather" style="color:#4488ff88;cursor:pointer" onclick="openWeather()" title="Open Weather">☁ —</span>
+    <span id="hudCombat" style="color:#cc333388" title="Combat status">⚔ —</span>
+    <span id="hudEncounter" style="color:#44aa4488" title="Active encounter">☩ —</span>
+  </div>
 </div>
 
 <script>
@@ -4340,6 +4341,7 @@ function nextTurn() {
   const active = initiativeList[currentTurnIdx];
   if (active) logEntry('combat', `<strong>${active.name}</strong>'s turn (Init: ${active.initiative})`);
   renderInitiative();
+  updateHud();
 }
 
 function clearInitiative() {
@@ -4350,6 +4352,7 @@ function clearInitiative() {
   document.getElementById('initiativePanel').classList.remove('open');
   renderInitiative();
   renderGrid();
+  updateHud();
 }
 
 function renderInitiative() {
@@ -5038,6 +5041,54 @@ function clearXpBudget() {
   xpMonsters = [];
   recalcXp();
 }
+// ────────────────────────────────────────────────────────
+
+// ── SESSION HUD ──────────────────────────────────────────
+function updateHud() {
+  // Date
+  const hudDate = document.getElementById('hudDate');
+  if (hudDate) {
+    const { day, month, year } = calState;
+    hudDate.textContent = `📅 ${day} ${CAL_MONTHS[month]} ${year}`;
+    hudDate.style.color = '#c9a22799';
+  }
+  // Weather
+  const hudWeather = document.getElementById('hudWeather');
+  if (hudWeather) {
+    const w = WEATHER_DATA[weatherState.type];
+    hudWeather.textContent = w ? `${w.icon} ${w.label}` : '☁ No weather';
+    hudWeather.style.color = w ? w.color + '99' : '#4488ff44';
+  }
+  // Combat
+  const hudCombat = document.getElementById('hudCombat');
+  if (hudCombat) {
+    if (initiativeList && initiativeList.length > 0) {
+      const curr = initiativeList[currentTurnIdx];
+      hudCombat.textContent = `⚔ Round ${currentRound} · ${curr ? curr.name : '—'}`;
+      hudCombat.style.color = '#cc3333cc';
+    } else {
+      hudCombat.textContent = '⚔ No combat';
+      hudCombat.style.color = '#cc333344';
+    }
+  }
+  // Active encounter
+  const hudEnc = document.getElementById('hudEncounter');
+  if (hudEnc) {
+    const enc = activeEncounterId ? encounters[activeEncounterId] : null;
+    hudEnc.textContent = enc ? `☩ ${enc.name} (${enc.chars.length})` : '☩ No encounter';
+    hudEnc.style.color = enc ? '#44aa44cc' : '#44aa4444';
+  }
+}
+
+// Patch renderCalendar, saveWeather, renderInitiative, etc. to also call updateHud
+const _origSaveWeather = saveWeather;
+saveWeather = function() { _origSaveWeather(); updateHud(); };
+const _origAdvCal = advanceCalendar;
+advanceCalendar = function(a, u) { _origAdvCal(a, u); updateHud(); };
+const _origSetCalDate = setCalDate;
+setCalDate = function() { _origSetCalDate(); updateHud(); };
+
+updateHud();
 // ────────────────────────────────────────────────────────
 
 renderGrid();
