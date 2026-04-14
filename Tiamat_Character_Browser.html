@@ -1390,7 +1390,10 @@
     font-size: 11px;
     color: #4a5272;
     z-index: 50;
+    cursor: pointer;
+    transition: border-color 0.2s;
   }
+  .keyboard-hint:hover { border-color: #c9a227; }
   .keyboard-hint kbd {
     background: #1e2040;
     border: 1px solid #333;
@@ -1399,6 +1402,47 @@
     font-size: 11px;
     color: #9098b8;
     font-family: monospace;
+  }
+  /* Keyboard shortcuts help overlay */
+  .shortcuts-panel {
+    position: fixed;
+    bottom: 60px;
+    right: 20px;
+    background: #0e0e28;
+    border: 1px solid #c9a227;
+    border-radius: 12px;
+    padding: 16px 20px;
+    z-index: 400;
+    display: none;
+    min-width: 260px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+  }
+  .shortcuts-panel.open { display: block; }
+  .shortcuts-panel h4 {
+    font-family: 'Cinzel', serif;
+    color: #c9a227;
+    font-size: 13px;
+    margin-bottom: 12px;
+    letter-spacing: 1px;
+  }
+  .shortcut-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    gap: 16px;
+  }
+  .shortcut-desc { font-size: 12px; color: #9098b8; }
+  .shortcut-keys { display: flex; gap: 4px; }
+  .shortcut-keys kbd {
+    background: #1e2040;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 10px;
+    color: #c9a227;
+    font-family: monospace;
+    white-space: nowrap;
   }
 
   /* ── Responsive / Mobile ── */
@@ -1534,8 +1578,20 @@
   </div>
 </div>
 
-<div class="keyboard-hint">
-  <kbd>&#8592;</kbd> <kbd>&#8594;</kbd> Navigate &nbsp; <kbd>Esc</kbd> Close &nbsp; <kbd>/</kbd> Search
+<div class="keyboard-hint" onclick="toggleShortcutsPanel()" title="Click to see all shortcuts">
+  <kbd>&#8592;</kbd> <kbd>&#8594;</kbd> <kbd>Esc</kbd> <kbd>/</kbd> <kbd>?</kbd>
+</div>
+<div class="shortcuts-panel" id="shortcutsPanel">
+  <h4>⌨ Keyboard Shortcuts</h4>
+  <div class="shortcut-row"><span class="shortcut-desc">Focus search</span><div class="shortcut-keys"><kbd>/</kbd></div></div>
+  <div class="shortcut-row"><span class="shortcut-desc">Next character</span><div class="shortcut-keys"><kbd>→</kbd></div></div>
+  <div class="shortcut-row"><span class="shortcut-desc">Prev character</span><div class="shortcut-keys"><kbd>←</kbd></div></div>
+  <div class="shortcut-row"><span class="shortcut-desc">Close modal</span><div class="shortcut-keys"><kbd>Esc</kbd></div></div>
+  <div class="shortcut-row"><span class="shortcut-desc">Toggle initiative</span><div class="shortcut-keys"><kbd>I</kbd></div></div>
+  <div class="shortcut-row"><span class="shortcut-desc">Toggle session log</span><div class="shortcut-keys"><kbd>L</kbd></div></div>
+  <div class="shortcut-row"><span class="shortcut-desc">Next turn (initiative)</span><div class="shortcut-keys"><kbd>N</kbd></div></div>
+  <div class="shortcut-row"><span class="shortcut-desc">Roll d20</span><div class="shortcut-keys"><kbd>D</kbd></div></div>
+  <div class="shortcut-row"><span class="shortcut-desc">Show shortcuts</span><div class="shortcut-keys"><kbd>?</kbd></div></div>
 </div>
 
 <!-- Session Log Panel -->
@@ -2621,13 +2677,28 @@ document.getElementById('searchBox').addEventListener('input', (e) => {
   renderGrid();
 });
 
+function toggleShortcutsPanel() {
+  document.getElementById('shortcutsPanel').classList.toggle('open');
+}
+
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeModal();
-  if (e.key === 'ArrowLeft' && currentModalIdx >= 0) navChar(-1);
+  const tag = document.activeElement.tagName;
+  const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+  if (e.key === 'Escape') {
+    closeModal();
+    document.getElementById('shortcutsPanel').classList.remove('open');
+  }
+  if (e.key === 'ArrowLeft'  && currentModalIdx >= 0) navChar(-1);
   if (e.key === 'ArrowRight' && currentModalIdx >= 0) navChar(1);
-  if (e.key === '/' && currentModalIdx < 0 && document.activeElement !== document.getElementById('searchBox')) {
-    e.preventDefault();
-    document.getElementById('searchBox').focus();
+  if (!inInput) {
+    if (e.key === '/') { e.preventDefault(); document.getElementById('searchBox').focus(); }
+    if (e.key === '?') toggleShortcutsPanel();
+    if (e.key === 'i' || e.key === 'I') toggleInitPanel();
+    if (e.key === 'l' || e.key === 'L') toggleSessionLog();
+    if (e.key === 'n' || e.key === 'N') initNextTurn();
+    if ((e.key === 'd' || e.key === 'D') && currentModalIdx >= 0) {
+      rollDice(20);
+    }
   }
 });
 
