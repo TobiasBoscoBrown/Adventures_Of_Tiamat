@@ -1997,6 +1997,95 @@
     color: #4a5272;
     padding: 0 4px;
   }
+
+  /* ── Party Health Panel ── */
+  .health-panel {
+    position: fixed;
+    top: 80px;
+    left: 20px;
+    background: linear-gradient(145deg, #0e0e2a, #0a0a1e);
+    border: 1px solid rgba(204,51,51,0.5);
+    border-radius: 16px;
+    width: 300px;
+    z-index: 300;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.9), 0 0 30px rgba(204,51,51,0.08);
+    display: none;
+    overflow: hidden;
+    max-height: calc(100vh - 100px);
+    flex-direction: column;
+  }
+  .health-panel.open { display: flex; }
+  .health-panel-header {
+    padding: 12px 14px;
+    background: rgba(204,51,51,0.08);
+    border-bottom: 1px solid rgba(204,51,51,0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .health-panel-title {
+    font-family: 'Cinzel', serif;
+    color: #cc3333;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+  .health-panel-body {
+    overflow-y: auto;
+    flex: 1;
+    padding: 8px 0;
+  }
+  .health-panel-body::-webkit-scrollbar { width: 4px; }
+  .health-panel-body::-webkit-scrollbar-track { background: transparent; }
+  .health-panel-body::-webkit-scrollbar-thumb { background: #2a2a50; border-radius: 2px; }
+  .hp-row {
+    display: flex;
+    align-items: center;
+    padding: 5px 12px;
+    gap: 8px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .hp-row:hover { background: rgba(255,255,255,.03); }
+  .hp-row-name {
+    flex: 1;
+    font-size: 12px;
+    color: #9098b8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .hp-row-name.down { color: #ff6666; font-weight: 700; }
+  .hp-row-bar-wrap {
+    width: 80px;
+    height: 6px;
+    background: #1e2040;
+    border-radius: 3px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .hp-row-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width .3s;
+  }
+  .hp-row-val {
+    font-size: 11px;
+    color: #6a7098;
+    min-width: 44px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .hp-row-val.down { color: #ff6666; }
+  .hp-group-label {
+    font-size: 10px;
+    color: #4a5272;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 6px 12px 2px;
+    font-family: 'Cinzel', serif;
+  }
   /* Add-to-initiative button on cards */
   .card-init-btn {
     position: absolute;
@@ -2763,6 +2852,7 @@
     <button class="encounter-open-btn" onclick="openWeather()" style="border-color:#4488ff;color:#88aaff">☁ Weather</button>
     <button class="encounter-open-btn" onclick="openXpBudget()" style="border-color:#dd6622;color:#dd6622">⚖ XP Budget</button>
     <button class="encounter-open-btn" onclick="openSessionManager()" style="border-color:#9b6dff;color:#9b6dff">💾 Session</button>
+    <button class="encounter-open-btn" onclick="toggleHealthPanel()" style="border-color:#cc3333;color:#cc3333" id="healthPanelBtn">❤ Party HP</button>
     <div class="stat-badge"><strong id="totalCount">0</strong> Characters</div>
     <div class="stat-badge"><strong id="visibleCount">0</strong> Showing</div>
     <div class="stat-badge stat-live" id="statDown" onclick="filterToDown()" title="Click to show downed characters" style="display:none"><strong id="downCount">0</strong> ⚠ Down</div>
@@ -3012,6 +3102,20 @@
     <input type="text" id="initCustomName" class="init-add-input" placeholder="Custom creature name...">
     <input type="number" id="initCustomScore" class="init-add-input" placeholder="Init" style="width:50px;flex:none;">
     <button class="init-add-btn" onclick="addCustomToInitiative()">+ Add</button>
+  </div>
+</div>
+
+<!-- Party Health Panel -->
+<div class="health-panel" id="healthPanel">
+  <div class="health-panel-header">
+    <span class="health-panel-title">❤ PARTY HEALTH</span>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button class="init-ctrl-btn" onclick="resetAllHP()" title="Reset all HP to full" style="font-size:11px">⟳ Full Rest</button>
+      <button class="init-ctrl-btn" onclick="toggleHealthPanel()" style="font-size:14px;padding:2px 8px">✕</button>
+    </div>
+  </div>
+  <div class="health-panel-body" id="healthPanelBody">
+    <div style="text-align:center;color:#4a5272;font-size:12px;padding:20px">Loading...</div>
   </div>
 </div>
 
@@ -4030,6 +4134,8 @@ function updateHeaderStats() {
   elDown.classList.toggle('stat-pulse', downCount > 0);
   elConds.style.display = condsCount > 0 ? '' : 'none';
   elCombat.style.display = combatCount > 0 ? '' : 'none';
+  // Refresh health panel if open
+  if (typeof healthPanelOpen !== 'undefined' && healthPanelOpen && typeof renderHealthPanel === 'function') renderHealthPanel();
 }
 
 // Filter grid to show only downed characters
@@ -6513,6 +6619,76 @@ function getDexBonus(name) {
 function openInitiativePanel() {
   document.getElementById('initiativePanel').classList.add('open');
 }
+
+// ── Party Health Panel ──────────────────────────────────
+let healthPanelOpen = false;
+
+function toggleHealthPanel() {
+  healthPanelOpen = !healthPanelOpen;
+  const panel = document.getElementById('healthPanel');
+  panel.classList.toggle('open', healthPanelOpen);
+  const btn = document.getElementById('healthPanelBtn');
+  if (btn) {
+    btn.style.background = healthPanelOpen ? 'rgba(204,51,51,.15)' : '';
+    btn.style.color = healthPanelOpen ? '#ff6666' : '#cc3333';
+  }
+  if (healthPanelOpen) renderHealthPanel();
+}
+
+function renderHealthPanel() {
+  const el = document.getElementById('healthPanelBody');
+  if (!el) return;
+
+  // Group chars: down first, then by group
+  const groups = {};
+  UNIQUE_CHARS.forEach(c => {
+    const maxHp = parseInt(c.hp) || 1;
+    const currHp = getCharHP(c.name, maxHp);
+    const pct = maxHp > 0 ? currHp / maxHp : 0;
+    const isDown = currHp === 0;
+    const grp = isDown ? '__down__' : (c.group || 'misc');
+    if (!groups[grp]) groups[grp] = [];
+    groups[grp].push({ c, maxHp, currHp, pct, isDown });
+  });
+
+  const groupOrder = ['__down__', 'royals', 'power', 'colorful', 'kubi', 'gondor', 'misc'];
+  const groupLabels = { __down__: '⚠ DOWNED', royals: 'Royals', power: 'Power Players',
+    colorful: 'Colorful NPCs', kubi: 'Kubi Conspiracy', gondor: 'Gondor', misc: 'Misc' };
+
+  let html = '';
+  groupOrder.forEach(grp => {
+    const entries = groups[grp];
+    if (!entries || !entries.length) return;
+    html += `<div class="hp-group-label">${groupLabels[grp] || grp}</div>`;
+    entries.sort((a, b) => a.pct - b.pct); // lowest HP first within group
+    entries.forEach(({ c, maxHp, currHp, pct, isDown }) => {
+      const color = isDown ? '#cc3333' : pct >= 0.5 ? '#44aa44' : pct >= 0.25 ? '#dd8822' : '#cc3333';
+      const dispName = c.name.length > 20 ? c.name.slice(0, 19) + '…' : c.name;
+      html += `<div class="hp-row" onclick="openModal(UNIQUE_CHARS.findIndex(x=>x.name===${JSON.stringify(c.name)}))" title="${c.name} — click to open">
+        <span class="hp-row-name${isDown ? ' down' : ''}">${dispName}</span>
+        <div class="hp-row-bar-wrap"><div class="hp-row-bar" style="width:${Math.round(pct*100)}%;background:${color}"></div></div>
+        <span class="hp-row-val${isDown ? ' down' : ''}">${currHp}/${maxHp}</span>
+      </div>`;
+    });
+  });
+  // Any extra groups not in the order list
+  Object.keys(groups).forEach(grp => {
+    if (!groupOrder.includes(grp)) {
+      html += `<div class="hp-group-label">${grp}</div>`;
+      groups[grp].forEach(({ c, maxHp, currHp, pct, isDown }) => {
+        const color = isDown ? '#cc3333' : pct >= 0.5 ? '#44aa44' : pct >= 0.25 ? '#dd8822' : '#cc3333';
+        html += `<div class="hp-row" onclick="openModal(UNIQUE_CHARS.findIndex(x=>x.name===${JSON.stringify(c.name)}))" title="${c.name}">
+          <span class="hp-row-name${isDown ? ' down' : ''}">${c.name}</span>
+          <div class="hp-row-bar-wrap"><div class="hp-row-bar" style="width:${Math.round(pct*100)}%;background:${color}"></div></div>
+          <span class="hp-row-val${isDown ? ' down' : ''}">${currHp}/${maxHp}</span>
+        </div>`;
+      });
+    }
+  });
+  el.innerHTML = html || '<div style="text-align:center;color:#4a5272;font-size:12px;padding:20px">All characters at full HP</div>';
+}
+
+// Health panel is refreshed via updateHeaderStats hook in saveHp
 
 function rollAllInitiative() {
   initiativeList.forEach(e => {
