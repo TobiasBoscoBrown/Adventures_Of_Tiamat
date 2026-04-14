@@ -2145,9 +2145,12 @@
         <button class="modal-close" onclick="closeModal()">&#10005; Close</button>
       </div>
     </div>
-    <div class="modal-tabs" id="modalTabs">
-      <div class="modal-tab active" data-tab="stats" onclick="switchModalTab('stats', this)">Stats</div>
-      <div class="modal-tab" data-tab="sheet" onclick="switchModalTab('sheet', this)">Character Sheet</div>
+    <div class="modal-tabs" id="modalTabs" style="display:flex;justify-content:space-between;align-items:center">
+      <div style="display:flex">
+        <div class="modal-tab active" data-tab="stats" onclick="switchModalTab('stats', this)">Stats</div>
+        <div class="modal-tab" data-tab="sheet" onclick="switchModalTab('sheet', this)">Character Sheet</div>
+      </div>
+      <button onclick="printCharCard()" style="background:none;border:1px solid #2a2a50;color:#7a7aaa;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:12px;margin-right:10px;transition:all 0.15s" onmouseover="this.style.borderColor='#4488ff';this.style.color='#4488ff'" onmouseout="this.style.borderColor='#2a2a50';this.style.color='#7a7aaa'">🖨 Print Card</button>
     </div>
     <div id="modalTabStats" class="modal-tab-content active">
       <div class="stats-panel" id="statsPanel"></div>
@@ -2997,6 +3000,77 @@ function switchModalTab(tab, el) {
   document.querySelectorAll('.modal-tab-content').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
   document.getElementById('modalTab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+}
+
+function printCharCard() {
+  if (currentModalIdx < 0) return;
+  const c = filteredChars[currentModalIdx];
+  const t = getTheme(c.theme);
+  const maxHp = parseInt(c.hp) || 1;
+  const currHp = getCharHP(c.name, maxHp);
+  const prof = c.cr === '30' ? 9 : c.cr === '21' || c.cr === '20' ? 7 : c.cr === '17' || c.cr === '16' ? 6 :
+               c.cr === '15' || c.cr === '14' ? 5 : c.cr === '13' || c.cr === '9' || c.cr === '10' ? 4 :
+               c.cr === '7' || c.cr === '8' ? 3 : 2;
+  const ab = {};
+  (c.abilities || []).forEach(([n,s,m]) => ab[n] = {score:s, mod:m});
+  const wis = ab['WIS'] || {score:10, mod:'+0'};
+  const passivePerc = 10 + parseInt(wis.mod || 0);
+  const conditions = getCharConditions(c.name);
+  const rels = getRelationships(c.name);
+  const notes = loadAllNotes()[c.name];
+
+  const abHtml = (c.abilities || []).map(([n,s,m,hl]) =>
+    `<div style="text-align:center;border:1px solid ${hl?t.accent:'#ccc'};border-radius:6px;padding:6px 4px;background:${hl?'#fff8e0':'#f9f9f9'}">
+      <div style="font-size:10px;font-weight:700;color:#333">${n}</div>
+      <div style="font-size:20px;font-weight:900;color:${hl?t.accent:'#222'}">${s}</div>
+      <div style="font-size:13px;color:#555">${m}</div>
+    </div>`
+  ).join('');
+
+  const win = window.open('', '_blank', 'width=700,height=900');
+  win.document.write(`<!DOCTYPE html><html><head>
+    <title>${c.name} — Tiamat Stat Block</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+      *{margin:0;padding:0;box-sizing:border-box}
+      body{font-family:'Inter',sans-serif;background:#fff;color:#222;padding:20px;max-width:650px;margin:0 auto}
+      h1{font-family:'Cinzel',serif;font-size:22px;color:${t.accent};border-bottom:2px solid ${t.accent};padding-bottom:6px;margin-bottom:2px}
+      .subtitle{font-size:12px;color:#666;margin-bottom:12px}
+      .stat-row{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+      .stat-chip{background:#f0f0f0;border:1px solid #ddd;border-radius:6px;padding:4px 10px;font-size:12px}
+      .stat-chip strong{color:${t.accent}}
+      .ab-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:10px 0}
+      .section-title{font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:${t.accent};letter-spacing:1px;border-bottom:1px solid ${t.accent}44;padding-bottom:3px;margin:10px 0 6px}
+      .trait{font-size:12px;margin-bottom:4px;padding-left:10px;border-left:2px solid ${t.accent}55}
+      .lore{font-size:12px;color:#444;line-height:1.6}
+      .quote{font-style:italic;color:#666;font-size:12px;border-left:3px solid ${t.accent};padding-left:10px;margin:10px 0}
+      .cond-badge{display:inline-block;font-size:10px;background:#fee;border:1px solid #c44;color:#c44;border-radius:10px;padding:2px 8px;margin:2px}
+      .rel-badge{display:inline-block;font-size:10px;background:#f0f4ff;border:1px solid #99b;color:#445;border-radius:10px;padding:2px 8px;margin:2px}
+      .note-box{background:#f9f0ff;border:1px solid #c9a;border-radius:6px;padding:8px;font-size:12px;color:#444;margin:8px 0}
+      @media print{@page{margin:1cm}button{display:none}}
+    </style>
+  </head><body>
+    <h1>${c.name}</h1>
+    <div class="subtitle">${c.title}${c.subtitle ? ' · ' + c.subtitle : ''}</div>
+    <div class="stat-row">
+      <div class="stat-chip"><strong>CR</strong> ${c.cr}</div>
+      <div class="stat-chip"><strong>HP</strong> ${currHp}/${maxHp}</div>
+      <div class="stat-chip"><strong>AC</strong> ${c.ac}</div>
+      <div class="stat-chip"><strong>Prof</strong> +${prof}</div>
+      <div class="stat-chip"><strong>Passive Perc</strong> ${passivePerc}</div>
+    </div>
+    ${conditions.length ? `<div class="section-title">Conditions</div><div>${conditions.map(cn => `<span class="cond-badge">${cn}</span>`).join('')}</div>` : ''}
+    <div class="section-title">Ability Scores</div>
+    <div class="ab-grid">${abHtml}</div>
+    ${c.traits && c.traits.length ? `<div class="section-title">Traits & Features</div>${c.traits.map(tr => `<div class="trait">${tr}</div>`).join('')}` : ''}
+    ${rels.length ? `<div class="section-title">Relationships</div><div>${rels.map(r => `<span class="rel-badge">${REL_ICONS[r.type]||''} ${r.target} (${r.type})</span>`).join('')}</div>` : ''}
+    ${notes && notes.text ? `<div class="section-title">DM Notes</div><div class="note-box">${notes.text}</div>` : ''}
+    ${c.lore ? `<div class="section-title">Lore</div><div class="lore">${c.lore}</div>` : ''}
+    ${c.quote ? `<div class="quote">"${c.quote}"</div>` : ''}
+    <div style="margin-top:20px;font-size:10px;color:#aaa;text-align:right">Adventures of Tiamat · Printed ${new Date().toLocaleDateString()}</div>
+    <script>window.onload=()=>window.print()<\/script>
+  </body></html>`);
+  win.document.close();
 }
 
 function calcSave(abilityMod, profBonus, hasProficiency) {
