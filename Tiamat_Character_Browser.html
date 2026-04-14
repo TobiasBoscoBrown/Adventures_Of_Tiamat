@@ -706,6 +706,96 @@
   }
   .dice-history-clear:hover { color: #cc3333; }
 
+  /* ── Condition Tracker ── */
+  .conditions-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+    min-height: 0;
+  }
+  .condition-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  /* Condition colors by type */
+  .cond-debuff  { background: rgba(204,51,51,0.2);  border: 1px solid #cc3333; color: #cc3333; }
+  .cond-control { background: rgba(136,68,187,0.2); border: 1px solid #8844bb; color: #aa66dd; }
+  .cond-status  { background: rgba(201,162,39,0.2); border: 1px solid #c9a227; color: #c9a227; }
+  .cond-movement{ background: rgba(34,153,187,0.2); border: 1px solid #2299bb; color: #2299bb; }
+  .condition-badge:hover { opacity: 0.7; }
+  /* Condition popup */
+  .cond-popup {
+    position: fixed;
+    background: #12103a;
+    border: 1px solid #cc3333;
+    border-radius: 12px;
+    padding: 14px;
+    z-index: 500;
+    width: 260px;
+    display: none;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.9);
+  }
+  .cond-popup.open { display: block; }
+  .cond-popup-title {
+    font-family: 'Cinzel', serif;
+    color: #cc3333;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .cond-popup-title button {
+    background: none;
+    border: none;
+    color: #4a5272;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0;
+  }
+  .cond-popup-title button:hover { color: #cc3333; }
+  .cond-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+  }
+  .cond-toggle {
+    padding: 5px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    cursor: pointer;
+    background: #06061a;
+    border: 1px solid #2a2a50;
+    color: #9098b8;
+    text-align: left;
+    transition: all 0.15s;
+    font-family: 'Inter', sans-serif;
+  }
+  .cond-toggle:hover { border-color: #cc3333; color: #cc3333; }
+  .cond-toggle.active-cond { background: rgba(204,51,51,0.15); border-color: #cc3333; color: #f0e6d3; }
+  /* Condition button on card */
+  .card-cond-btn {
+    font-size: 10px;
+    color: #4a5272;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    margin-top: 3px;
+    transition: color 0.15s;
+    display: block;
+  }
+  .card-cond-btn:hover { color: #cc3333; }
+  .card-cond-btn.has-conds { color: #cc3333; }
+
   /* ── Character Notes ── */
   .notes-modal {
     position: fixed;
@@ -1169,6 +1259,15 @@
   </div>
 </div>
 
+<!-- Condition Picker Popup -->
+<div class="cond-popup" id="condPopup">
+  <div class="cond-popup-title">
+    <span id="condPopupName">Conditions</span>
+    <button onclick="closeCondPopup()">×</button>
+  </div>
+  <div class="cond-grid" id="condGrid"></div>
+</div>
+
 <!-- Character Notes Modal -->
 <div class="notes-modal" id="notesModal">
   <div class="notes-panel">
@@ -1472,7 +1571,11 @@ function renderGrid() {
             <div class="mini-stat"><strong>AC</strong> ${c.ac}</div>
           </div>
           ${c.quote ? `<div class="card-quote">"${c.quote}"</div>` : ''}
-          <button class="card-notes-btn ${hasNotes(c.name)?'has-notes':''}" onclick="event.stopPropagation();openNotes(${JSON.stringify(c.name)},${JSON.stringify(c.title)})" title="DM Notes">${hasNotes(c.name)?'✎ Notes':'✎ Add note'}</button>
+          <div class="conditions-row" onclick="event.stopPropagation()">${getConditionBadgesHtml(c.name)}</div>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:3px" onclick="event.stopPropagation()">
+            <button class="card-cond-btn ${hasConditions(c.name)?'has-conds':''}" onclick="openCondPopup(${JSON.stringify(c.name)},event)">⚡ ${hasConditions(c.name)?'Conditions':'Add condition'}</button>
+            <button class="card-notes-btn ${hasNotes(c.name)?'has-notes':''}" onclick="openNotes(${JSON.stringify(c.name)},${JSON.stringify(c.title)})" title="DM Notes">${hasNotes(c.name)?'✎ Notes':'✎ Add note'}</button>
+          </div>
           <div class="hp-tracker" data-sid="${sid}" onclick="event.stopPropagation()">
             <div class="hp-row" onclick="openHpPopup(${JSON.stringify(c.name)},${maxHp},event)" title="Click to adjust HP">
               <div class="hp-bar-bg">
@@ -1565,6 +1668,110 @@ document.addEventListener('click', (e) => {
 document.getElementById('modal').addEventListener('click', (e) => {
   if (e.target === document.getElementById('modal')) closeModal();
 });
+
+// ── CONDITION TRACKER ───────────────────────────────────
+const CONDITIONS = [
+  { name: 'Blinded',      type: 'debuff'   },
+  { name: 'Charmed',      type: 'control'  },
+  { name: 'Deafened',     type: 'debuff'   },
+  { name: 'Exhausted',    type: 'status'   },
+  { name: 'Frightened',   type: 'control'  },
+  { name: 'Grappled',     type: 'movement' },
+  { name: 'Incapacitated',type: 'control'  },
+  { name: 'Invisible',    type: 'status'   },
+  { name: 'Paralyzed',    type: 'control'  },
+  { name: 'Petrified',    type: 'control'  },
+  { name: 'Poisoned',     type: 'debuff'   },
+  { name: 'Prone',        type: 'movement' },
+  { name: 'Restrained',   type: 'movement' },
+  { name: 'Stunned',      type: 'control'  },
+  { name: 'Unconscious',  type: 'control'  },
+  { name: 'Concentration',type: 'status'   },
+];
+
+const COND_KEY = 'tiamat_conditions';
+let condPopupChar = '';
+
+function loadAllConditions() {
+  try { return JSON.parse(localStorage.getItem(COND_KEY)) || {}; } catch { return {}; }
+}
+function saveAllConditions(data) { localStorage.setItem(COND_KEY, JSON.stringify(data)); }
+
+function getCharConditions(name) {
+  return loadAllConditions()[name] || [];
+}
+
+function hasConditions(name) {
+  return getCharConditions(name).length > 0;
+}
+
+function getCondClass(type) {
+  const map = { debuff: 'cond-debuff', control: 'cond-control', status: 'cond-status', movement: 'cond-movement' };
+  return map[type] || 'cond-debuff';
+}
+
+function getConditionBadgesHtml(name) {
+  const conds = getCharConditions(name);
+  if (!conds.length) return '';
+  return conds.map(cname => {
+    const cd = CONDITIONS.find(c => c.name === cname);
+    const cls = cd ? getCondClass(cd.type) : 'cond-debuff';
+    return `<span class="condition-badge ${cls}" onclick="openCondPopup(${JSON.stringify(name)},event)" title="Click to manage conditions">${cname}</span>`;
+  }).join('');
+}
+
+function openCondPopup(name, event) {
+  event.stopPropagation();
+  condPopupChar = name;
+  document.getElementById('condPopupName').textContent = name + ' — Conditions';
+  const active = getCharConditions(name);
+  document.getElementById('condGrid').innerHTML = CONDITIONS.map(c =>
+    `<button class="cond-toggle ${active.includes(c.name)?'active-cond':''}" onclick="toggleCondition(${JSON.stringify(c.name)})">${c.name}</button>`
+  ).join('');
+  const popup = document.getElementById('condPopup');
+  const x = Math.min(Math.max(event.clientX - 130, 10), window.innerWidth - 280);
+  const y = Math.min(Math.max(event.clientY + 8, 10), window.innerHeight - 320);
+  popup.style.left = x + 'px';
+  popup.style.top = y + 'px';
+  popup.classList.add('open');
+}
+
+function closeCondPopup() {
+  document.getElementById('condPopup').classList.remove('open');
+}
+
+function toggleCondition(condName) {
+  const all = loadAllConditions();
+  const conds = all[condPopupChar] || [];
+  const idx = conds.indexOf(condName);
+  if (idx >= 0) conds.splice(idx, 1);
+  else conds.push(condName);
+  if (conds.length) all[condPopupChar] = conds;
+  else delete all[condPopupChar];
+  saveAllConditions(all);
+  // Update the button appearance immediately
+  document.querySelectorAll('#condGrid .cond-toggle').forEach(btn => {
+    btn.classList.toggle('active-cond', conds.includes(btn.textContent));
+  });
+  // Update the card without full re-render
+  const sid = safeId(condPopupChar);
+  const maxHp = parseInt((UNIQUE_CHARS.find(c => c.name === condPopupChar) || {}).hp || '1');
+  const condRow = document.querySelector(`[data-sid="${sid}"] ~ .conditions-row, [data-sid="${sid}"]`)?.closest('.card-body')?.querySelector('.conditions-row');
+  if (condRow) condRow.innerHTML = getConditionBadgesHtml(condPopupChar);
+  // Update cond button
+  const condBtn = document.querySelector(`[data-sid="${sid}"]`)?.closest('.card-body')?.querySelector('.card-cond-btn');
+  if (condBtn) {
+    condBtn.className = `card-cond-btn ${conds.length ? 'has-conds' : ''}`;
+    condBtn.textContent = `⚡ ${conds.length ? 'Conditions' : 'Add condition'}`;
+  }
+}
+
+// Click outside to close condition popup
+document.addEventListener('click', (e) => {
+  const cp = document.getElementById('condPopup');
+  if (cp.classList.contains('open') && !cp.contains(e.target)) closeCondPopup();
+});
+// ────────────────────────────────────────────────────────
 
 // ── CHARACTER NOTES ─────────────────────────────────────
 const NOTES_KEY = 'tiamat_notes';
