@@ -2653,6 +2653,49 @@
     margin-bottom: 8px;
   }
   .session-action-btn:hover { border-color: #9b6dff; background: rgba(155,109,255,0.05); }
+  /* Quest Tracker */
+  .quest-filter {
+    background: #0e0e24; border: 1px solid #2a2a50; color: #7a7aaa;
+    border-radius: 14px; padding: 4px 12px; font-size: 11px; cursor: pointer; transition: all .15s;
+  }
+  .quest-filter.active, .quest-filter:hover { border-color: #ffaa44; color: #ffaa44; background: rgba(255,170,68,.08); }
+  .quest-card {
+    background: #06061a; border: 1px solid #1e2040; border-radius: 10px;
+    padding: 12px 14px; margin-bottom: 8px; transition: border-color .15s;
+  }
+  .quest-card:hover { border-color: #2a2a50; }
+  .quest-card.quest-completed { opacity: 0.55; }
+  .quest-card.quest-failed { opacity: 0.4; }
+  .quest-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .quest-name { font-size: 14px; font-weight: 600; color: #e0e0ff; flex: 1; }
+  .quest-type-badge {
+    font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; white-space: nowrap;
+  }
+  .qt-main  { background: rgba(201,162,39,.15); border: 1px solid rgba(201,162,39,.4); color: #c9a227; }
+  .qt-side  { background: rgba(68,136,255,.12); border: 1px solid rgba(68,136,255,.3); color: #4488ff; }
+  .qt-personal { background: rgba(155,109,255,.12); border: 1px solid rgba(155,109,255,.3); color: #9b6dff; }
+  .qt-bounty { background: rgba(204,51,51,.12); border: 1px solid rgba(204,51,51,.3); color: #cc3333; }
+  .qt-explore { background: rgba(68,170,68,.12); border: 1px solid rgba(68,170,68,.3); color: #44aa44; }
+  .quest-desc { font-size: 12px; color: #7a7aaa; margin-bottom: 8px; line-height: 1.4; }
+  .quest-status-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .quest-status-btn {
+    font-size: 10px; padding: 2px 8px; border-radius: 10px; border: 1px solid;
+    cursor: pointer; transition: all .15s; background: none;
+  }
+  .qs-active  { border-color: #ffaa44; color: #ffaa44; }
+  .qs-active.selected, .qs-active:hover { background: rgba(255,170,68,.2); }
+  .qs-done    { border-color: #44aa44; color: #44aa44; }
+  .qs-done.selected, .qs-done:hover { background: rgba(68,170,68,.2); }
+  .qs-failed  { border-color: #cc3333; color: #cc3333; }
+  .qs-failed.selected, .qs-failed:hover { background: rgba(204,51,51,.2); }
+  .quest-obj-list { margin-top: 8px; }
+  .quest-obj { display: flex; align-items: flex-start; gap: 6px; margin-bottom:4px; font-size: 12px; color: #9098b8; cursor: pointer; }
+  .quest-obj input[type=checkbox] { accent-color: #ffaa44; margin-top: 2px; flex-shrink:0; }
+  .quest-obj-done { text-decoration: line-through; color: #4a5272; }
+  .quest-add-obj { font-size: 11px; color: #4a5272; cursor: pointer; display: flex; align-items: center; gap: 4px; margin-top: 4px; background:none; border:none; }
+  .quest-add-obj:hover { color: #ffaa44; }
+  .quest-del-btn { font-size: 11px; color: #4a5272; cursor: pointer; background:none; border:none; margin-left: auto; }
+  .quest-del-btn:hover { color: #cc3333; }
   .session-action-btn .action-icon { font-size: 20px; width: 28px; text-align: center; flex-shrink: 0; }
   .session-action-btn .action-label { font-weight: 600; color: #f0e6d3; display: block; }
   .session-action-btn .action-desc { font-size: 11px; color: #4a5272; display: block; margin-top: 2px; }
@@ -2970,6 +3013,7 @@
     <button class="encounter-open-btn" onclick="openXpBudget()" style="border-color:#dd6622;color:#dd6622">⚖ XP Budget</button>
     <button class="encounter-open-btn" onclick="openSessionManager()" style="border-color:#9b6dff;color:#9b6dff">💾 Session</button>
     <button class="encounter-open-btn" onclick="toggleHealthPanel()" style="border-color:#cc3333;color:#cc3333" id="healthPanelBtn">❤ Party HP</button>
+    <button class="encounter-open-btn" onclick="openQuestTracker()" style="border-color:#ffaa44;color:#ffaa44" id="questBtn">📜 Quests</button>
     <div class="stat-badge"><strong id="totalCount">0</strong> Characters</div>
     <div class="stat-badge"><strong id="visibleCount">0</strong> Showing</div>
     <div class="stat-badge stat-live" id="statDown" onclick="filterToDown()" title="Click to show downed characters" style="display:none"><strong id="downCount">0</strong> ⚠ Down</div>
@@ -3641,6 +3685,42 @@
       <button onclick="addRelationship()" style="background:#4488ff22;border:1px solid #4488ff;color:#4488ff;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:13px">+ Add</button>
     </div>
     <div id="relEditorList" style="min-height:60px;max-height:280px;overflow-y:auto;border:1px solid #1e2040;border-radius:8px;padding:8px;background:#0a0a1a"></div>
+  </div>
+</div>
+
+<!-- Quest Tracker Modal -->
+<div class="modal-backdrop" id="questModal" onclick="if(event.target===this)closeQuestTracker()" style="display:none;align-items:center;justify-content:center">
+  <div class="session-manager-content" style="max-width:700px;width:96%">
+    <div class="session-manager-header">
+      <div class="session-manager-title">📜 QUEST TRACKER</div>
+      <button class="modal-close" onclick="closeQuestTracker()">✕</button>
+    </div>
+
+    <!-- Add quest -->
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <input type="text" id="questNameInput" placeholder="Quest or objective name..." style="flex:2;min-width:180px;background:#06061a;border:1px solid #2a2a50;border-radius:8px;padding:8px 12px;color:#e0e0ff;font-size:13px;outline:none" onkeydown="if(event.key==='Enter')addQuest()">
+      <input type="text" id="questDescInput" placeholder="Brief description..." style="flex:3;min-width:160px;background:#06061a;border:1px solid #2a2a50;border-radius:8px;padding:8px 12px;color:#e0e0ff;font-size:13px;outline:none" onkeydown="if(event.key==='Enter')addQuest()">
+      <select id="questTypeSelect" style="background:#06061a;border:1px solid #2a2a50;border-radius:8px;padding:8px 10px;color:#e0e0ff;font-size:12px;cursor:pointer">
+        <option value="main">Main Quest</option>
+        <option value="side">Side Quest</option>
+        <option value="personal">Personal</option>
+        <option value="bounty">Bounty</option>
+        <option value="explore">Exploration</option>
+      </select>
+      <button onclick="addQuest()" style="background:rgba(255,170,68,.15);border:1px solid #ffaa44;color:#ffaa44;border-radius:8px;padding:8px 16px;cursor:pointer;font-size:13px">+ Add Quest</button>
+    </div>
+
+    <!-- Quest filter tabs -->
+    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+      <button class="quest-filter active" data-filter="all" onclick="filterQuests('all',this)">All</button>
+      <button class="quest-filter" data-filter="active" onclick="filterQuests('active',this)">Active</button>
+      <button class="quest-filter" data-filter="main" onclick="filterQuests('main',this)">Main</button>
+      <button class="quest-filter" data-filter="side" onclick="filterQuests('side',this)">Side</button>
+      <button class="quest-filter" data-filter="completed" onclick="filterQuests('completed',this)">Completed</button>
+      <button class="quest-filter" data-filter="failed" onclick="filterQuests('failed',this)">Failed</button>
+    </div>
+
+    <div id="questList" style="max-height:440px;overflow-y:auto"></div>
   </div>
 </div>
 
@@ -7975,6 +8055,135 @@ const _origSetCalDate = setCalDate;
 setCalDate = function() { _origSetCalDate(); updateHud(); };
 
 updateHud();
+// ────────────────────────────────────────────────────────
+
+// ── QUEST TRACKER ────────────────────────────────────────
+const QUEST_KEY = 'tiamat_quests';
+let questFilter = 'all';
+
+function loadQuests() {
+  try { return JSON.parse(localStorage.getItem(QUEST_KEY)) || []; } catch { return []; }
+}
+function saveQuests(qs) { localStorage.setItem(QUEST_KEY, JSON.stringify(qs)); }
+
+function openQuestTracker() {
+  document.getElementById('questModal').style.display = 'flex';
+  renderQuestList();
+}
+function closeQuestTracker() {
+  document.getElementById('questModal').style.display = 'none';
+}
+
+function addQuest() {
+  const name = document.getElementById('questNameInput').value.trim();
+  const desc = document.getElementById('questDescInput').value.trim();
+  const type = document.getElementById('questTypeSelect').value;
+  if (!name) return;
+  const qs = loadQuests();
+  qs.unshift({ id: Date.now().toString(), name, desc, type, status: 'active', objectives: [], added: new Date().toLocaleDateString() });
+  saveQuests(qs);
+  document.getElementById('questNameInput').value = '';
+  document.getElementById('questDescInput').value = '';
+  renderQuestList();
+  updateQuestBadge();
+}
+
+function filterQuests(f, btn) {
+  questFilter = f;
+  document.querySelectorAll('.quest-filter').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderQuestList();
+}
+
+function setQuestStatus(id, status) {
+  const qs = loadQuests();
+  const q = qs.find(x => x.id === id);
+  if (q) { q.status = status; saveQuests(qs); renderQuestList(); updateQuestBadge(); }
+}
+
+function deleteQuest(id) {
+  const qs = loadQuests().filter(x => x.id !== id);
+  saveQuests(qs);
+  renderQuestList();
+  updateQuestBadge();
+}
+
+function addObjective(id) {
+  const text = prompt('Objective:');
+  if (!text) return;
+  const qs = loadQuests();
+  const q = qs.find(x => x.id === id);
+  if (q) { q.objectives = q.objectives || []; q.objectives.push({ text, done: false }); saveQuests(qs); renderQuestList(); }
+}
+
+function toggleObjective(qId, oIdx) {
+  const qs = loadQuests();
+  const q = qs.find(x => x.id === qId);
+  if (q && q.objectives[oIdx] !== undefined) {
+    q.objectives[oIdx].done = !q.objectives[oIdx].done;
+    saveQuests(qs);
+    renderQuestList();
+  }
+}
+
+function updateQuestBadge() {
+  const qs = loadQuests();
+  const active = qs.filter(q => q.status === 'active').length;
+  const btn = document.getElementById('questBtn');
+  if (btn) {
+    btn.textContent = active > 0 ? `📜 Quests (${active})` : '📜 Quests';
+    btn.style.background = active > 0 ? 'rgba(255,170,68,.1)' : '';
+  }
+}
+
+function renderQuestList() {
+  const qs = loadQuests();
+  const el = document.getElementById('questList');
+  if (!el) return;
+
+  const TYPE_COLORS = { main:'qt-main', side:'qt-side', personal:'qt-personal', bounty:'qt-bounty', explore:'qt-explore' };
+  const TYPE_LABELS = { main:'⚔ Main', side:'◆ Side', personal:'♥ Personal', bounty:'☠ Bounty', explore:'🗺 Explore' };
+  const STATUS_LABELS = { active:'Active', completed:'Completed', failed:'Failed' };
+
+  const filtered = qs.filter(q => {
+    if (questFilter === 'all') return true;
+    if (questFilter === 'active') return q.status === 'active';
+    if (questFilter === 'completed') return q.status === 'completed';
+    if (questFilter === 'failed') return q.status === 'failed';
+    return q.type === questFilter;
+  });
+
+  if (!filtered.length) {
+    el.innerHTML = `<div style="text-align:center;color:#4a5272;padding:40px;font-size:13px">${questFilter==='all'?'No quests yet. Add one above.':'No quests matching this filter.'}</div>`;
+    return;
+  }
+
+  el.innerHTML = filtered.map(q => {
+    const objs = (q.objectives || []).map((o, i) =>
+      `<label class="quest-obj"><input type="checkbox" ${o.done?'checked':''} onchange="toggleObjective('${q.id}',${i})"><span class="${o.done?'quest-obj-done':''}">${o.text}</span></label>`
+    ).join('');
+
+    return `<div class="quest-card ${q.status==='completed'?'quest-completed':q.status==='failed'?'quest-failed':''}">
+      <div class="quest-header">
+        <span class="quest-name">${q.name}</span>
+        <span class="quest-type-badge ${TYPE_COLORS[q.type]||'qt-side'}">${TYPE_LABELS[q.type]||q.type}</span>
+        <span style="font-size:10px;color:#4a5272">${q.added||''}</span>
+        <button class="quest-del-btn" onclick="deleteQuest('${q.id}')" title="Delete quest">🗑</button>
+      </div>
+      ${q.desc ? `<div class="quest-desc">${q.desc}</div>` : ''}
+      ${objs ? `<div class="quest-obj-list">${objs}</div>` : ''}
+      <div class="quest-status-row">
+        <span style="font-size:10px;color:#4a5272">Status:</span>
+        <button class="quest-status-btn qs-active ${q.status==='active'?'selected':''}" onclick="setQuestStatus('${q.id}','active')">Active</button>
+        <button class="quest-status-btn qs-done ${q.status==='completed'?'selected':''}" onclick="setQuestStatus('${q.id}','completed')">✓ Completed</button>
+        <button class="quest-status-btn qs-failed ${q.status==='failed'?'selected':''}" onclick="setQuestStatus('${q.id}','failed')">✕ Failed</button>
+        <button class="quest-add-obj" onclick="addObjective('${q.id}')">+ objective</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+updateQuestBadge();
 // ────────────────────────────────────────────────────────
 
 renderGrid();
