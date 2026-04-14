@@ -51,6 +51,22 @@
     color: #9098b8;
   }
   .stat-badge strong { color: #c9a227; }
+  .stat-badge.stat-live { cursor: pointer; transition: border-color .2s, background .2s; }
+  .stat-badge.stat-live:hover { background: #14142e; }
+  #statDown { border-color: #cc3333 !important; }
+  #statDown strong { color: #ff6666 !important; }
+  #statDown:hover { background: rgba(204,51,51,.12) !important; }
+  #statConds { border-color: #dd8822 !important; }
+  #statConds strong { color: #ffaa44 !important; }
+  #statConds:hover { background: rgba(221,136,34,.12) !important; }
+  #statCombat { border-color: #4488ff !important; }
+  #statCombat strong { color: #88bbff !important; }
+  #statCombat:hover { background: rgba(68,136,255,.12) !important; }
+  .stat-badge.stat-pulse { animation: statPulse 1.4s ease-in-out infinite; }
+  @keyframes statPulse {
+    0%,100% { box-shadow: 0 0 0 0 transparent; }
+    50% { box-shadow: 0 0 8px 2px currentColor; }
+  }
 
   /* ── Search & Filter Bar ── */
   .toolbar {
@@ -2749,6 +2765,9 @@
     <button class="encounter-open-btn" onclick="openSessionManager()" style="border-color:#9b6dff;color:#9b6dff">💾 Session</button>
     <div class="stat-badge"><strong id="totalCount">0</strong> Characters</div>
     <div class="stat-badge"><strong id="visibleCount">0</strong> Showing</div>
+    <div class="stat-badge stat-live" id="statDown" onclick="filterToDown()" title="Click to show downed characters" style="display:none"><strong id="downCount">0</strong> ⚠ Down</div>
+    <div class="stat-badge stat-live" id="statConds" onclick="filterToConditions()" title="Click to show characters with conditions" style="display:none"><strong id="condsCount">0</strong> ⚡ Conditions</div>
+    <div class="stat-badge stat-live" id="statCombat" onclick="openInitiativePanel()" title="Click to open initiative tracker" style="display:none"><strong id="combatCount">0</strong> ⚔ In Combat</div>
   </div>
 </header>
 
@@ -3647,7 +3666,7 @@ function initHp() {
   try { tempHpState = JSON.parse(localStorage.getItem('tiamat_temp_hp')) || {}; } catch { tempHpState = {}; }
   try { deathSaveState = JSON.parse(localStorage.getItem('tiamat_death_saves')) || {}; } catch { deathSaveState = {}; }
 }
-function saveHp() { localStorage.setItem('tiamat_hp', JSON.stringify(hpState)); }
+function saveHp() { localStorage.setItem('tiamat_hp', JSON.stringify(hpState)); if (typeof updateHeaderStats === 'function') updateHeaderStats(); }
 function saveTempHp() { localStorage.setItem('tiamat_temp_hp', JSON.stringify(tempHpState)); }
 function saveDeathSaves() { localStorage.setItem('tiamat_death_saves', JSON.stringify(deathSaveState)); }
 function getDeathSaves(name) { return deathSaveState[name] || {successes:0, failures:0}; }
@@ -3858,16 +3877,33 @@ function renderGrid() {
   const crFilter = document.getElementById('crFilter')?.value || 'all';
   const alignFilter = document.getElementById('alignFilter')?.value || 'all';
 
+  // Special live-dashboard filters
+  const box = document.getElementById('searchBox');
+  let downFilterNames = null, condsFilterNames = null;
+  if (currentSearch === '_down_') {
+    try { downFilterNames = JSON.parse(box.getAttribute('data-down-filter') || 'null'); } catch {}
+  }
+  if (currentSearch === '_conds_') {
+    try { condsFilterNames = JSON.parse(box.getAttribute('data-conds-filter') || 'null'); } catch {}
+  }
+
   filteredChars = UNIQUE_CHARS.filter(c => {
     const matchGroup = currentFilter === 'all' || c.group === currentFilter;
     const matchTheme = !currentTheme || c.theme === currentTheme;
-    const matchSearch = !currentSearch ||
-      c.name.toLowerCase().includes(currentSearch) ||
-      c.title.toLowerCase().includes(currentSearch) ||
-      (c.lore && c.lore.toLowerCase().includes(currentSearch)) ||
-      (c.quote && c.quote.toLowerCase().includes(currentSearch)) ||
-      (c.subtitle && c.subtitle.toLowerCase().includes(currentSearch)) ||
-      (c.traits && c.traits.join(' ').toLowerCase().includes(currentSearch));
+    let matchSearch;
+    if (downFilterNames) {
+      matchSearch = downFilterNames.includes(c.name);
+    } else if (condsFilterNames) {
+      matchSearch = condsFilterNames.includes(c.name);
+    } else {
+      matchSearch = !currentSearch ||
+        c.name.toLowerCase().includes(currentSearch) ||
+        c.title.toLowerCase().includes(currentSearch) ||
+        (c.lore && c.lore.toLowerCase().includes(currentSearch)) ||
+        (c.quote && c.quote.toLowerCase().includes(currentSearch)) ||
+        (c.subtitle && c.subtitle.toLowerCase().includes(currentSearch)) ||
+        (c.traits && c.traits.join(' ').toLowerCase().includes(currentSearch));
+    }
     const matchFav = !showOnlyFavorites || isFavorite(c.name);
     const matchCr = matchesCrFilter(c, crFilter);
     const matchAlign = matchesAlignFilter(c, alignFilter);
@@ -3967,6 +4003,75 @@ function renderGrid() {
 
   document.getElementById('totalCount').textContent = UNIQUE_CHARS.length;
   document.getElementById('visibleCount').textContent = filteredChars.length;
+  updateHeaderStats();
+}
+
+function updateHeaderStats() {
+  // Count characters DOWN (HP = 0)
+  let downCount = 0, condsCount = 0;
+  const allConds = loadAllConditions();
+  UNIQUE_CHARS.forEach(c => {
+    const maxHp = parseInt(c.hp) || 1;
+    const curr = getCharHP(c.name, maxHp);
+    if (curr === 0) downCount++;
+    if (allConds[c.name] && allConds[c.name].length > 0) condsCount++;
+  });
+  const combatCount = initiativeList.length;
+
+  const elDown = document.getElementById('statDown');
+  const elConds = document.getElementById('statConds');
+  const elCombat = document.getElementById('statCombat');
+
+  document.getElementById('downCount').textContent = downCount;
+  document.getElementById('condsCount').textContent = condsCount;
+  document.getElementById('combatCount').textContent = combatCount;
+
+  elDown.style.display = downCount > 0 ? '' : 'none';
+  elDown.classList.toggle('stat-pulse', downCount > 0);
+  elConds.style.display = condsCount > 0 ? '' : 'none';
+  elCombat.style.display = combatCount > 0 ? '' : 'none';
+}
+
+// Filter grid to show only downed characters
+let _prevSearchForDown = null;
+function filterToDown() {
+  const box = document.getElementById('searchBox');
+  if (_prevSearchForDown !== null && box.value === '_down_') {
+    box.value = _prevSearchForDown;
+    box.placeholder = '🔍 Search name, title, lore, alignment, trait...';
+    _prevSearchForDown = null;
+  } else {
+    _prevSearchForDown = box.value;
+    const downNames = UNIQUE_CHARS.filter(c => {
+      const maxHp = parseInt(c.hp) || 1;
+      return getCharHP(c.name, maxHp) === 0;
+    }).map(c => c.name);
+    box.setAttribute('data-down-filter', JSON.stringify(downNames));
+    box.value = '_down_';
+    box.placeholder = '⚠ Showing downed characters — click ⚠ Down badge to clear';
+  }
+  currentSearch = box.value.toLowerCase().trim();
+  renderGrid();
+}
+
+// Filter grid to show characters with active conditions
+let _prevSearchForConds = null;
+function filterToConditions() {
+  const box = document.getElementById('searchBox');
+  if (_prevSearchForConds !== null && box.value === '_conds_') {
+    box.value = _prevSearchForConds;
+    box.placeholder = '🔍 Search name, title, lore, alignment, trait...';
+    _prevSearchForConds = null;
+  } else {
+    _prevSearchForConds = box.value;
+    const allConds = loadAllConditions();
+    const condNames = UNIQUE_CHARS.filter(c => allConds[c.name] && allConds[c.name].length > 0).map(c => c.name);
+    box.setAttribute('data-conds-filter', JSON.stringify(condNames));
+    box.value = '_conds_';
+    box.placeholder = '⚡ Showing conditioned characters — click ⚡ Conditions badge to clear';
+  }
+  currentSearch = box.value.toLowerCase().trim();
+  renderGrid();
 }
 
 let currentView = 'grid';
@@ -5422,6 +5527,9 @@ function navChar(dir) {
 
 document.getElementById('searchBox').addEventListener('input', (e) => {
   currentSearch = e.target.value.toLowerCase().trim();
+  // Clear special dashboard filters if user types normally
+  if (currentSearch !== '_down_') { _prevSearchForDown = null; e.target.removeAttribute('data-down-filter'); }
+  if (currentSearch !== '_conds_') { _prevSearchForConds = null; e.target.removeAttribute('data-conds-filter'); }
   renderGrid();
 });
 
@@ -5555,6 +5663,7 @@ function toggleCondition(condName) {
   if (conds.length) all[condPopupChar] = conds;
   else delete all[condPopupChar];
   saveAllConditions(all);
+  updateHeaderStats();
   // Update the button appearance immediately
   document.querySelectorAll('#condGrid .cond-toggle').forEach(btn => {
     btn.classList.toggle('active-cond', conds.includes(btn.textContent));
@@ -6391,6 +6500,7 @@ function toggleInitiative(name, maxHp) {
   }
   renderInitiative();
   renderGrid();
+  updateHeaderStats();
 }
 
 function getDexBonus(name) {
@@ -6434,6 +6544,7 @@ function removeFromInitiative(name) {
   if (currentTurnIdx >= initiativeList.length) currentTurnIdx = 0;
   renderInitiative();
   renderGrid();
+  updateHeaderStats();
 }
 
 function nextTurn() {
