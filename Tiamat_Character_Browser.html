@@ -1451,6 +1451,11 @@
       <input class="init-input" id="initRollInput" type="number" min="1" max="30" placeholder="Init" title="Initiative roll">
       <button class="init-add-btn" onclick="initAddSelected()">Add</button>
     </div>
+    <div class="init-add-row" style="margin-top:4px;">
+      <input class="init-input" id="aoeInput" type="number" min="1" max="999" placeholder="DMG" title="AoE damage amount" style="flex:1;width:auto;">
+      <button class="init-add-btn" style="background:#cc3333;flex:1;" onclick="initAoeDamage()" title="Deal damage to all combatants">&#128165; AoE DMG</button>
+      <button class="init-add-btn" style="background:#44aa44;flex:1;" onclick="initAoeHeal()" title="Heal all combatants">&#10084; Heal All</button>
+    </div>
     <button class="init-next-btn" onclick="initNextTurn()">▶ NEXT TURN</button>
     <button class="init-clear-btn" onclick="initClearAll()">Clear All Combatants</button>
   </div>
@@ -2287,6 +2292,30 @@ function initClearAll() {
   initCombatants = []; initCurrentIdx = -1; initRound = 1;
   saveInit();
   renderInitList();
+}
+
+function initAoeDamage() {
+  const val = parseInt(document.getElementById('aoeInput').value);
+  if (!val || val <= 0) return;
+  initCombatants.forEach(c => {
+    const cur = getHP(c.name, c.maxHp);
+    setHP(c.name, cur - val, c.maxHp);
+  });
+  saveInit();
+  renderInitList();
+  document.getElementById('aoeInput').value = '';
+}
+
+function initAoeHeal() {
+  const val = parseInt(document.getElementById('aoeInput').value);
+  if (!val || val <= 0) return;
+  initCombatants.forEach(c => {
+    const cur = getHP(c.name, c.maxHp);
+    setHP(c.name, cur + val, c.maxHp);
+  });
+  saveInit();
+  renderInitList();
+  document.getElementById('aoeInput').value = '';
 }
 
 function populateInitSelect() {
