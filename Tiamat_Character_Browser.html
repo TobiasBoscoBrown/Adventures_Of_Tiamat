@@ -852,6 +852,67 @@
     opacity: 0.8;
   }
 
+  /* ── Currency Tracker ── */
+  .currency-section {
+    padding: 12px 28px;
+    border-bottom: 1px solid #1e2040;
+  }
+  .currency-header {
+    font-size: 11px;
+    color: #c9a227;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .currency-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .currency-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .currency-label {
+    font-size: 11px;
+    font-weight: 700;
+    min-width: 22px;
+    text-align: center;
+    border-radius: 50%;
+    width: 24px; height: 24px;
+    line-height: 24px;
+    flex-shrink: 0;
+  }
+  .currency-label.pp { background: #b0c0e0; color: #06061a; }
+  .currency-label.gp { background: #c9a227; color: #06061a; }
+  .currency-label.ep { background: #8899bb; color: #fff; }
+  .currency-label.sp { background: #9098b8; color: #06061a; }
+  .currency-label.cp { background: #a06030; color: #fff; }
+  .currency-input {
+    background: #06061a;
+    border: 1px solid #2a2a50;
+    border-radius: 5px;
+    color: #f0e6d3;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 4px 8px;
+    font-family: 'Inter', sans-serif;
+    outline: none;
+    width: 70px;
+    text-align: center;
+    transition: border-color 0.2s;
+  }
+  .currency-input:focus { border-color: #c9a227; }
+  .currency-total {
+    font-size: 11px;
+    color: #9098b8;
+    margin-left: 4px;
+  }
+  .currency-total strong { color: #c9a227; }
+
   /* ── Concentration ── */
   .concentration-section {
     padding: 10px 28px;
@@ -1426,6 +1487,7 @@
         <button class="modal-close" onclick="closeModal()">&#10005; Close</button>
       </div>
     </div>
+    <div id="modalCurrency"></div>
     <div id="modalConcentration"></div>
     <div id="modalSpellSlots"></div>
     <div id="modalDeathSaves" class="death-saves-section"></div>
@@ -1631,6 +1693,56 @@ function resetAllHP() {
   if (!confirm('Reset all character HP to maximum?')) return;
   UNIQUE_CHARS.forEach(c => localStorage.removeItem(hpKey(c.name)));
   renderGrid();
+}
+
+/* ── Currency ── */
+function currKey(name) { return 'tiamat_curr_' + name.replace(/[^a-zA-Z0-9]/g, '_'); }
+
+function getCurrency(name) {
+  try { return JSON.parse(localStorage.getItem(currKey(name))) || {pp:0,gp:0,ep:0,sp:0,cp:0}; }
+  catch(e) { return {pp:0,gp:0,ep:0,sp:0,cp:0}; }
+}
+
+function setCurrency(name, field, val) {
+  const curr = getCurrency(name);
+  curr[field] = Math.max(0, parseInt(val) || 0);
+  localStorage.setItem(currKey(name), JSON.stringify(curr));
+  // Update total in GP
+  const totalGp = document.getElementById('curr-total-' + safeId(name));
+  if (totalGp) totalGp.textContent = currencyTotalGP(curr).toFixed(2) + ' gp total';
+}
+
+function currencyTotalGP(curr) {
+  return (curr.pp || 0) * 10 + (curr.gp || 0) + (curr.ep || 0) * 0.5 + (curr.sp || 0) * 0.1 + (curr.cp || 0) * 0.01;
+}
+
+function renderCurrencyPanel(name) {
+  const el = document.getElementById('modalCurrency');
+  if (!el) return;
+  const curr = getCurrency(name);
+  const sid  = safeId(name);
+  const COINS = [
+    {f:'pp', label:'PP', title:'Platinum (10 gp each)'},
+    {f:'gp', label:'GP', title:'Gold'},
+    {f:'ep', label:'EP', title:'Electrum (0.5 gp each)'},
+    {f:'sp', label:'SP', title:'Silver (0.1 gp each)'},
+    {f:'cp', label:'CP', title:'Copper (0.01 gp each)'},
+  ];
+  const coinsHtml = COINS.map(({f,label,title}) =>
+    `<div class="currency-item" title="${title}">
+      <span class="currency-label ${f}">${label}</span>
+      <input class="currency-input" type="number" min="0" value="${curr[f]||0}"
+        onchange="setCurrency('${name.replace(/'/g,"\\'")}','${f}',this.value)"
+        title="${title}">
+    </div>`
+  ).join('');
+  el.innerHTML = `<div class="currency-section">
+    <div class="currency-header">&#x1F4B0; Coin Purse</div>
+    <div class="currency-row">
+      ${coinsHtml}
+      <span class="currency-total" id="curr-total-${sid}">${currencyTotalGP(curr).toFixed(2)} gp total</span>
+    </div>
+  </div>`;
 }
 
 /* ── Concentration ── */
@@ -1892,6 +2004,7 @@ function exportSessionData() {
       ['ds',    'tiamat_ds_'   + safeName],
       ['ss',    'tiamat_ss_'   + safeName],
       ['conc',  'tiamat_conc_' + safeName],
+      ['curr',  'tiamat_curr_' + safeName],
     ];
     keys.forEach(([field, key]) => {
       const val = localStorage.getItem(key);
@@ -1929,6 +2042,7 @@ function importSessionData(event) {
         if (charData.ds    !== undefined) localStorage.setItem('tiamat_ds_'    + safeName, charData.ds);
         if (charData.ss    !== undefined) localStorage.setItem('tiamat_ss_'    + safeName, charData.ss);
         if (charData.conc  !== undefined) localStorage.setItem('tiamat_conc_'  + safeName, charData.conc);
+        if (charData.curr  !== undefined) localStorage.setItem('tiamat_curr_'  + safeName, charData.curr);
       });
       if (data.favorites)      localStorage.setItem('tiamat_favorites',    data.favorites);
       if (data.initiative)     localStorage.setItem('tiamat_initiative',   data.initiative);
@@ -2206,6 +2320,8 @@ function openModal(idx) {
   document.getElementById('modalName').textContent = c.name;
   document.getElementById('modalContent').style.setProperty('--accent', t.accent);
 
+  // Currency panel
+  renderCurrencyPanel(c.name);
   // Concentration panel
   renderConcentrationPanel(c.name);
   // Spell slots panel
