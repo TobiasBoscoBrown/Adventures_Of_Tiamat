@@ -1426,6 +1426,10 @@
   <div class="header-stats">
     <div class="stat-badge"><strong id="totalCount">0</strong> Characters</div>
     <div class="stat-badge"><strong id="visibleCount">0</strong> Showing</div>
+    <div class="stat-badge" id="statWounded" title="Wounded characters (HP < 50%)" style="display:none"><strong id="woundedCount" style="color:#ffaa22">0</strong> Wounded</div>
+    <div class="stat-badge" id="statDead" title="Dead characters (HP = 0)" style="display:none"><strong id="deadCount" style="color:#cc3333">0</strong> Dead</div>
+    <div class="stat-badge" id="statConc" title="Characters concentrating" style="display:none"><strong id="concCount" style="color:#9b6dff">0</strong> Conc.</div>
+    <div class="stat-badge" id="statConds" title="Characters with conditions" style="display:none"><strong id="condsCount" style="color:#dd6622">0</strong> Conditions</div>
   </div>
 </header>
 
@@ -2058,6 +2062,31 @@ function importSessionData(event) {
   event.target.value = '';
 }
 
+/* ── Header Stats ── */
+function updateHeaderStats() {
+  let wounded = 0, dead = 0, conc = 0, withConds = 0;
+  UNIQUE_CHARS.forEach(c => {
+    const max = parseInt(c.hp) || 0;
+    const cur = getHP(c.name, max);
+    const pct = max > 0 ? cur / max * 100 : 0;
+    if (cur === 0) dead++;
+    else if (pct < 50) wounded++;
+    if (getConcentration(c.name)) conc++;
+    if (getConditions(c.name).length > 0) withConds++;
+  });
+  const show = (id, badgeId, count) => {
+    const badge = document.getElementById(badgeId);
+    const numEl = document.getElementById(id);
+    if (!badge || !numEl) return;
+    numEl.textContent = count;
+    badge.style.display = count > 0 ? '' : 'none';
+  };
+  show('woundedCount', 'statWounded', wounded);
+  show('deadCount',    'statDead',    dead);
+  show('concCount',    'statConc',    conc);
+  show('condsCount',   'statConds',   withConds);
+}
+
 /* ── CR Filter ── */
 let crMin = 0, crMax = 30;
 
@@ -2289,6 +2318,7 @@ function renderGrid() {
 
   document.getElementById('totalCount').textContent = UNIQUE_CHARS.length;
   document.getElementById('visibleCount').textContent = filteredChars.length;
+  updateHeaderStats();
 }
 
 function filterGroup(group, btn) {
