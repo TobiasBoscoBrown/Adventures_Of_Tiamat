@@ -400,6 +400,242 @@
   .cond-toggle.active-unconscious { background: rgba(80,0,0,0.5); color: #ff6666; border-color: #cc2222; }
   .cond-toggle.active-exhaustion  { background: rgba(100,60,0,0.4); color: #ffaa33; border-color: #cc7700; }
 
+  /* ── Initiative Tracker ── */
+  .init-fab {
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    background: #c9a227;
+    color: #06061a;
+    border: none;
+    border-radius: 50%;
+    width: 52px;
+    height: 52px;
+    font-size: 22px;
+    cursor: pointer;
+    z-index: 180;
+    box-shadow: 0 4px 20px rgba(201,162,39,0.4);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+  }
+  .init-fab:hover { transform: scale(1.1); background: #e0b530; }
+  .init-panel {
+    position: fixed;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 320px;
+    background: #0a0a1e;
+    border-left: 2px solid #c9a227;
+    z-index: 300;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    box-shadow: -8px 0 40px rgba(0,0,0,0.7);
+  }
+  .init-panel.open { transform: translateX(0); }
+  .init-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid #1e2040;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(135deg, #0a0a20, #12103a);
+  }
+  .init-header h3 {
+    font-family: 'Cinzel', serif;
+    color: #c9a227;
+    font-size: 16px;
+    letter-spacing: 1px;
+  }
+  .init-close-btn {
+    background: none;
+    border: 1px solid #333;
+    color: #9098b8;
+    border-radius: 6px;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+  }
+  .init-close-btn:hover { border-color: #cc3333; color: #cc3333; }
+  .init-round {
+    padding: 8px 20px;
+    border-bottom: 1px solid #1e2040;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #06061a;
+    font-size: 13px;
+    color: #9098b8;
+  }
+  .init-round strong { color: #c9a227; font-size: 18px; }
+  .init-round-btn {
+    background: #0e0e28;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 4px 10px;
+    color: #c9a227;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.15s;
+  }
+  .init-round-btn:hover { background: #c9a227; color: #06061a; }
+  .init-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+  }
+  .init-entry {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-bottom: 1px solid #0e0e1e;
+    transition: background 0.15s;
+    cursor: pointer;
+  }
+  .init-entry.active-turn {
+    background: rgba(201,162,39,0.1);
+    border-left: 3px solid #c9a227;
+    padding-left: 13px;
+  }
+  .init-entry:hover { background: rgba(255,255,255,0.03); }
+  .init-num {
+    background: #1e2040;
+    border-radius: 4px;
+    padding: 3px 7px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #c9a227;
+    min-width: 36px;
+    text-align: center;
+  }
+  .init-name {
+    flex: 1;
+    font-size: 13px;
+    color: #dce0f0;
+    font-family: 'Cinzel', serif;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .init-hp-mini {
+    font-size: 11px;
+    color: #9098b8;
+    white-space: nowrap;
+  }
+  .init-hp-mini.wounded { color: #ffaa22; }
+  .init-hp-mini.critical { color: #cc3333; }
+  .init-hp-mini.dead { color: #660000; }
+  .init-rm {
+    background: none;
+    border: none;
+    color: #333;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 5px;
+    transition: color 0.15s;
+  }
+  .init-rm:hover { color: #cc3333; }
+  .init-add-section {
+    padding: 12px 16px;
+    border-top: 1px solid #1e2040;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .init-add-row {
+    display: flex;
+    gap: 6px;
+  }
+  .init-select {
+    flex: 1;
+    background: #0e0e28;
+    border: 1px solid #333;
+    border-radius: 6px;
+    color: #dce0f0;
+    font-size: 12px;
+    padding: 7px 10px;
+    font-family: 'Inter', sans-serif;
+    outline: none;
+  }
+  .init-select:focus { border-color: #c9a227; }
+  .init-input {
+    width: 60px;
+    background: #0e0e28;
+    border: 1px solid #333;
+    border-radius: 6px;
+    color: #c9a227;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 7px 8px;
+    font-family: 'Inter', sans-serif;
+    outline: none;
+    text-align: center;
+  }
+  .init-input:focus { border-color: #c9a227; }
+  .init-add-btn {
+    background: #c9a227;
+    border: none;
+    border-radius: 6px;
+    color: #06061a;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 7px 14px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+  .init-add-btn:hover { background: #e0b530; }
+  .init-clear-btn {
+    background: transparent;
+    border: 1px solid #333;
+    border-radius: 6px;
+    color: #4a5272;
+    font-size: 11px;
+    padding: 6px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.15s;
+    width: 100%;
+  }
+  .init-clear-btn:hover { border-color: #cc3333; color: #cc3333; }
+  .init-next-btn {
+    background: #0e0e28;
+    border: 1px solid #c9a227;
+    border-radius: 6px;
+    color: #c9a227;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 7px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.15s;
+    width: 100%;
+    letter-spacing: 1px;
+  }
+  .init-next-btn:hover { background: #c9a227; color: #06061a; }
+  .init-card-btn {
+    background: #0e0e28;
+    border: 1px solid #2a2a50;
+    border-radius: 6px;
+    color: #7a82a0;
+    font-size: 11px;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.2s;
+    width: 100%;
+  }
+  .init-card-btn:hover { border-color: #c9a227; color: #c9a227; background: rgba(201,162,39,0.08); }
+
   /* ── DM Notes ── */
   .modal-notes-section {
     padding: 14px 28px;
@@ -680,6 +916,33 @@
   <kbd>&#8592;</kbd> <kbd>&#8594;</kbd> Navigate &nbsp; <kbd>Esc</kbd> Close &nbsp; <kbd>/</kbd> Search
 </div>
 
+<!-- Initiative Tracker FAB & Panel -->
+<button class="init-fab" onclick="toggleInitPanel()" title="Initiative Tracker (⚔)">⚔</button>
+
+<div class="init-panel" id="initPanel">
+  <div class="init-header">
+    <h3>⚔ Initiative Tracker</h3>
+    <button class="init-close-btn" onclick="toggleInitPanel()">✕</button>
+  </div>
+  <div class="init-round">
+    <span>Round</span><strong id="initRound">1</strong>
+    <button class="init-round-btn" onclick="initNextTurn()">Next Turn ▶</button>
+    <button class="init-round-btn" onclick="initReset()">Reset</button>
+  </div>
+  <div class="init-list" id="initList"></div>
+  <div class="init-add-section">
+    <div class="init-add-row">
+      <select class="init-select" id="initCharSelect">
+        <option value="">— Add character —</option>
+      </select>
+      <input class="init-input" id="initRollInput" type="number" min="1" max="30" placeholder="Init" title="Initiative roll">
+      <button class="init-add-btn" onclick="initAddSelected()">Add</button>
+    </div>
+    <button class="init-next-btn" onclick="initNextTurn()">▶ NEXT TURN</button>
+    <button class="init-clear-btn" onclick="initClearAll()">Clear All Combatants</button>
+  </div>
+</div>
+
 <script>
 const THEMES = {
   royal:   { accent: '#c9a227', glow: 'rgba(201,162,39,0.2)' },
@@ -933,6 +1196,9 @@ function renderGrid() {
             <div class="mini-stat"><strong>AC</strong> ${c.ac}</div>
           </div>
           ${c.quote ? `<div class="card-quote">"${c.quote}"</div>` : ''}
+          <div style="margin-top:10px">
+            <button class="init-card-btn" onclick="event.stopPropagation();initAddChar('${c.name.replace(/'/g,"\\'")}')">⚔ Add to Initiative</button>
+          </div>
         </div>
         <div class="hp-tracker" onclick="event.stopPropagation()">
           <div class="hp-bar-wrap">
@@ -1012,6 +1278,118 @@ function navChar(dir) {
   openModal(next);
 }
 
+/* ── Initiative Tracker ── */
+let initCombatants = [];  // [{name, init, maxHp}]
+let initCurrentIdx = -1;
+let initRound = 1;
+
+function toggleInitPanel() {
+  document.getElementById('initPanel').classList.toggle('open');
+}
+
+function initKey() { return 'tiamat_initiative'; }
+
+function saveInit() {
+  localStorage.setItem(initKey(), JSON.stringify({ combatants: initCombatants, current: initCurrentIdx, round: initRound }));
+}
+
+function loadInit() {
+  try {
+    const data = JSON.parse(localStorage.getItem(initKey()));
+    if (data) { initCombatants = data.combatants || []; initCurrentIdx = data.current ?? -1; initRound = data.round || 1; }
+  } catch(e) {}
+}
+
+function renderInitList() {
+  const list = document.getElementById('initList');
+  if (!list) return;
+  document.getElementById('initRound').textContent = initRound;
+  if (initCombatants.length === 0) {
+    list.innerHTML = `<div style="padding:24px;text-align:center;color:#4a5272;font-size:13px;font-style:italic;">Add characters to start combat</div>`;
+    return;
+  }
+  list.innerHTML = initCombatants.map((c, i) => {
+    const curHp = getHP(c.name, c.maxHp);
+    const pct   = c.maxHp > 0 ? curHp / c.maxHp * 100 : 0;
+    const hpCls = pct > 50 ? '' : pct > 25 ? 'wounded' : curHp > 0 ? 'critical' : 'dead';
+    const isActive = i === initCurrentIdx;
+    return `<div class="init-entry${isActive ? ' active-turn' : ''}" onclick="initSetTurn(${i})">
+      <div class="init-num">${c.init}</div>
+      <div class="init-name">${c.name}</div>
+      <div class="init-hp-mini ${hpCls}">${curHp}/${c.maxHp} HP</div>
+      <button class="init-rm" onclick="event.stopPropagation();initRemove(${i})" title="Remove">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function initAddSelected() {
+  const sel   = document.getElementById('initCharSelect');
+  const roll  = document.getElementById('initRollInput');
+  const name  = sel.value;
+  if (!name) return;
+  const char  = UNIQUE_CHARS.find(c => c.name === name);
+  if (!char) return;
+  const initVal = parseInt(roll.value) || Math.ceil(Math.random() * 20);
+  initCombatants.push({ name: char.name, init: initVal, maxHp: parseInt(char.hp) || 0 });
+  initCombatants.sort((a, b) => b.init - a.init);
+  if (initCurrentIdx < 0 && initCombatants.length === 1) initCurrentIdx = 0;
+  roll.value = '';
+  sel.value = '';
+  saveInit();
+  renderInitList();
+}
+
+function initAddChar(name) {
+  const char = UNIQUE_CHARS.find(c => c.name === name);
+  if (!char) return;
+  const initVal = Math.ceil(Math.random() * 20);
+  initCombatants.push({ name: char.name, init: initVal, maxHp: parseInt(char.hp) || 0 });
+  initCombatants.sort((a, b) => b.init - a.init);
+  if (initCurrentIdx < 0) initCurrentIdx = 0;
+  saveInit();
+  renderInitList();
+  document.getElementById('initPanel').classList.add('open');
+}
+
+function initNextTurn() {
+  if (initCombatants.length === 0) return;
+  initCurrentIdx = (initCurrentIdx + 1) % initCombatants.length;
+  if (initCurrentIdx === 0) initRound++;
+  saveInit();
+  renderInitList();
+}
+
+function initSetTurn(i) { initCurrentIdx = i; saveInit(); renderInitList(); }
+
+function initRemove(i) {
+  initCombatants.splice(i, 1);
+  if (initCurrentIdx >= initCombatants.length) initCurrentIdx = 0;
+  if (initCombatants.length === 0) initCurrentIdx = -1;
+  saveInit();
+  renderInitList();
+}
+
+function initReset() {
+  initCurrentIdx = initCombatants.length > 0 ? 0 : -1;
+  initRound = 1;
+  saveInit();
+  renderInitList();
+}
+
+function initClearAll() {
+  if (initCombatants.length && !confirm('Clear all combatants?')) return;
+  initCombatants = []; initCurrentIdx = -1; initRound = 1;
+  saveInit();
+  renderInitList();
+}
+
+function populateInitSelect() {
+  const sel = document.getElementById('initCharSelect');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Add character —</option>' +
+    UNIQUE_CHARS.map(c => `<option value="${c.name}">${c.name} (CR ${c.cr})</option>`).join('');
+}
+
 document.getElementById('searchBox').addEventListener('input', (e) => {
   currentSearch = e.target.value.toLowerCase().trim();
   renderGrid();
@@ -1032,6 +1410,9 @@ document.getElementById('modal').addEventListener('click', (e) => {
 });
 
 renderGrid();
+loadInit();
+populateInitSelect();
+renderInitList();
 </script>
 </body>
 </html>
