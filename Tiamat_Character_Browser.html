@@ -817,6 +817,43 @@
     background: rgba(255,255,255,0.02);
     border-radius: 4px;
   }
+  /* ── Character Comparison ── */
+  .compare-table {
+    border-collapse: collapse;
+    min-width: 100%;
+  }
+  .compare-table th, .compare-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #1e2040;
+    font-size: 12px;
+    text-align: left;
+    min-width: 140px;
+  }
+  .compare-table th {
+    background: #06061a;
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+  .compare-row-label {
+    background: #08081e;
+    color: #4a5272;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+    position: sticky;
+    left: 0;
+    min-width: 100px;
+    border-right: 1px solid #1e2040;
+  }
+  .compare-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .compare-winner { color: #44aa44; font-weight: 700; }
+  .compare-loser  { color: #cc3333; }
+
   /* ── Spell Book ── */
   .spell-entry {
     background: #06061a;
@@ -2669,6 +2706,7 @@
   <span style="color: #333; margin: 0 4px;">|</span>
   <button class="filter-btn" onclick="resetAllHP()" style="border-color:#cc3333;color:#cc3333;" title="Reset all NPC HP to maximum">↺ Reset All HP</button>
   <button class="filter-btn" id="favFilterBtn" onclick="filterFavorites(this)" style="border-color:#c9a227;color:#9098b8;" title="Show only favorited characters">★ Favorites</button>
+  <button class="filter-btn" onclick="openCompareModal()" style="border-color:#4488ff;color:#9098b8;" title="Compare characters side-by-side" id="compareBtn">⚖ Compare <span id="compareCount" style="color:#4488ff"></span></button>
   <span style="color: #333; margin: 0 4px;">|</span>
   <span style="font-size:11px;color:#4a5272;margin-right:4px">Sort:</span>
   <button class="filter-btn sort-btn active" id="sortName" onclick="setSort('name',this)" title="Sort by name">Name</button>
@@ -2716,6 +2754,20 @@
     <div id="modalTabSheet" class="modal-tab-content">
       <div id="modalPdf" style="padding: 0;"></div>
     </div>
+  </div>
+</div>
+
+<!-- Character Compare Modal -->
+<div class="modal-overlay" id="compareModal" style="display:none" onclick="if(event.target===this)closeCompareModal()">
+  <div style="background:#0a0a1e;border:1px solid #333;border-radius:16px;max-width:98vw;width:1100px;max-height:90vh;overflow:hidden;position:relative;display:flex;flex-direction:column">
+    <div style="padding:16px 24px;border-bottom:1px solid #1e2040;display:flex;justify-content:space-between;align-items:center;background:#0a0a1e">
+      <h2 style="font-family:'Cinzel',serif;color:#4488ff;font-size:18px">⚖ Character Comparison</h2>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div id="compareSelectArea" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+        <button onclick="closeCompareModal()" style="background:none;border:1px solid #333;color:#9098b8;border-radius:8px;padding:6px 12px;cursor:pointer">✕ Close</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto;overflow-y:auto;flex:1" id="compareContent"></div>
   </div>
 </div>
 
@@ -3656,6 +3708,7 @@ function renderGrid() {
           <div class="card-group">${c.group}</div>
           <button onclick="event.stopPropagation();toggleFavorite(${JSON.stringify(c.name)},event)" title="${isFavorite(c.name)?'Unfavorite':'Favorite'}" style="position:absolute;top:38px;right:14px;background:none;border:none;font-size:14px;cursor:pointer;padding:0;z-index:10;color:${isFavorite(c.name)?'#c9a227':'#2a2a50'};transition:color 0.15s">${isFavorite(c.name)?'★':'☆'}</button>
           <button class="card-init-btn ${isInInitiative(c.name)?'in-init':''}" onclick="event.stopPropagation();toggleInitiative(${JSON.stringify(c.name)},${maxHp})" title="${isInInitiative(c.name)?'Remove from initiative':'Add to initiative'}">⚔</button>
+          <button class="card-init-btn ${isInCompare(c.name)?'in-init':''}` + `" onclick="event.stopPropagation();toggleCompare(${JSON.stringify(c.name)})" title="${isInCompare(c.name)?'Remove from comparison':'Add to compare'}" style="right:68px;font-size:11px;${isInCompare(c.name)?'border-color:#4488ff;color:#4488ff':'border-color:#2a2a50;color:#3a3a6a'}">⚖</button>
           <div class="card-portrait-area">
             <div class="card-portrait" onclick="event.stopPropagation();openModal(${i})" title="Open ${c.name}">${getPortraitSvg(c)}</div>
             <div class="card-portrait-info">
@@ -4010,6 +4063,104 @@ function rollSavingThrow(abName, mod) {
   const msg = `${abName} Save: d20(${roll})${modVal>=0?'+':''}${modVal} = ${total}${isCrit?' ★ CRIT!':isFumble?' ☠ FUMBLE':''}`;
   showModalRollResult(msg, isCrit, isFumble, total);
 }
+
+// ── CHARACTER COMPARISON ────────────────────────────────
+let compareSet = new Set();
+
+function toggleCompare(name) {
+  if (compareSet.has(name)) compareSet.delete(name);
+  else {
+    if (compareSet.size >= 4) { // max 4 at once
+      const first = compareSet.values().next().value;
+      compareSet.delete(first);
+    }
+    compareSet.add(name);
+  }
+  document.getElementById('compareCount').textContent = compareSet.size > 0 ? `(${compareSet.size})` : '';
+  renderGrid(); // refresh card compare buttons
+}
+
+function isInCompare(name) { return compareSet.has(name); }
+
+function openCompareModal() {
+  const chars = [...compareSet].map(name => UNIQUE_CHARS.find(c => c.name === name)).filter(Boolean);
+  const modal = document.getElementById('compareModal');
+  modal.style.display = 'flex';
+
+  // Add character selector
+  const selectArea = document.getElementById('compareSelectArea');
+  selectArea.innerHTML = UNIQUE_CHARS.map(c =>
+    `<button onclick="toggleCompareFromModal(${JSON.stringify(c.name)})" id="cmp_${safeId(c.name)}" style="background:${compareSet.has(c.name)?'rgba(68,136,255,0.2)':'#0e0e28'};border:1px solid ${compareSet.has(c.name)?'#4488ff':'#333'};color:${compareSet.has(c.name)?'#4488ff':'#9098b8'};border-radius:5px;padding:3px 8px;cursor:pointer;font-size:10px;transition:all 0.1s">${c.name}</button>`
+  ).join('');
+
+  renderCompareTable(chars);
+}
+
+function toggleCompareFromModal(name) {
+  toggleCompare(name);
+  openCompareModal();
+}
+
+function renderCompareTable(chars) {
+  const content = document.getElementById('compareContent');
+  if (!chars.length) {
+    content.innerHTML = '<div style="padding:40px;text-align:center;color:#4a5272">Select characters above to compare</div>';
+    return;
+  }
+
+  const crOrder = ['0','1/8','1/4','1/2','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25','26','27','28','29','30'];
+  const getCR = c => crOrder.indexOf(c.cr);
+  const getAb = (c, ab) => { const a = (c.abilities||[]).find(([n])=>n===ab); return a ? parseInt(a[2])||0 : 0; };
+
+  const rows = [
+    { label:'CR',     vals: chars.map(c => ({ v: c.cr, n: getCR(c) })) },
+    { label:'HP',     vals: chars.map(c => ({ v: c.hp, n: parseInt(c.hp)||0 })) },
+    { label:'AC',     vals: chars.map(c => ({ v: c.ac, n: parseInt(c.ac)||0 })) },
+    { label:'Group',  vals: chars.map(c => ({ v: c.group, n: 0 })) },
+    { label:'Theme',  vals: chars.map(c => ({ v: c.theme, n: 0 })) },
+    { label:'STR',    vals: chars.map(c => ({ v: getAb(c,'STR')>=0?`+${getAb(c,'STR')}`:getAb(c,'STR'), n: getAb(c,'STR') })) },
+    { label:'DEX',    vals: chars.map(c => ({ v: getAb(c,'DEX')>=0?`+${getAb(c,'DEX')}`:getAb(c,'DEX'), n: getAb(c,'DEX') })) },
+    { label:'CON',    vals: chars.map(c => ({ v: getAb(c,'CON')>=0?`+${getAb(c,'CON')}`:getAb(c,'CON'), n: getAb(c,'CON') })) },
+    { label:'INT',    vals: chars.map(c => ({ v: getAb(c,'INT')>=0?`+${getAb(c,'INT')}`:getAb(c,'INT'), n: getAb(c,'INT') })) },
+    { label:'WIS',    vals: chars.map(c => ({ v: getAb(c,'WIS')>=0?`+${getAb(c,'WIS')}`:getAb(c,'WIS'), n: getAb(c,'WIS') })) },
+    { label:'CHA',    vals: chars.map(c => ({ v: getAb(c,'CHA')>=0?`+${getAb(c,'CHA')}`:getAb(c,'CHA'), n: getAb(c,'CHA') })) },
+    { label:'Spells', vals: chars.map(c => ({ v: isSpellcaster(c) ? 'Yes ✦' : 'No', n: isSpellcaster(c) ? 1 : 0 })) },
+    { label:'Alignment', vals: chars.map(c => ({ v: extractAlignment(c), n:0 })) },
+    { label:'Quote',  vals: chars.map(c => ({ v: `"${(c.quote||'').slice(0,60)}${c.quote&&c.quote.length>60?'…':''}"`, n:0 })) },
+  ];
+
+  const headers = chars.map(c => {
+    const t = getTheme(c.theme);
+    return `<th style="color:${t.accent};border-bottom:2px solid ${t.accent}">
+      <div style="font-size:14px;margin-bottom:2px">${getPortraitSvg(c).replace('viewBox="0 0 100 100"','viewBox="0 0 100 100" width="32" height="32" style="border-radius:50%"')}</div>
+      ${c.name}
+    </th>`;
+  }).join('');
+
+  const tableRows = rows.map(row => {
+    const nums = row.vals.map(v => v.n);
+    const max = Math.max(...nums);
+    const min = Math.min(...nums);
+    const cells = row.vals.map((v, i) => {
+      let cls = '';
+      if (nums.every(n => n === 0)) cls = ''; // non-numeric row
+      else if (v.n === max && max !== min) cls = 'compare-winner';
+      else if (v.n === min && max !== min) cls = 'compare-loser';
+      return `<td class="${cls}">${v.v}</td>`;
+    }).join('');
+    return `<tr><td class="compare-row-label">${row.label}</td>${cells}</tr>`;
+  }).join('');
+
+  content.innerHTML = `<table class="compare-table">
+    <thead><tr><th class="compare-row-label" style="background:#06061a;color:#4488ff">Stat</th>${headers}</tr></thead>
+    <tbody>${tableRows}</tbody>
+  </table>`;
+}
+
+function closeCompareModal() {
+  document.getElementById('compareModal').style.display = 'none';
+}
+// ────────────────────────────────────────────────────────
 
 // ── SPELL BOOK PANEL ────────────────────────────────────
 const SPELL_LIBRARY = {
