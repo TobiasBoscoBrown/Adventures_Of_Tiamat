@@ -1422,15 +1422,19 @@
   /* Condition popup */
   .cond-popup {
     position: fixed;
-    background: #12103a;
+    background: #0e0e24;
     border: 1px solid #cc3333;
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 14px;
     z-index: 500;
-    width: 260px;
+    width: 340px;
+    max-height: 70vh;
+    overflow-y: auto;
     display: none;
-    box-shadow: 0 8px 40px rgba(0,0,0,0.9);
+    box-shadow: 0 12px 50px rgba(0,0,0,0.95);
   }
+  .cond-popup::-webkit-scrollbar { width: 4px; }
+  .cond-popup::-webkit-scrollbar-thumb { background: #2a2a50; border-radius: 2px; }
   .cond-popup.open { display: block; }
   .cond-popup-title {
     font-family: 'Cinzel', serif;
@@ -1456,6 +1460,46 @@
     grid-template-columns: 1fr 1fr;
     gap: 5px;
   }
+  /* ── Condition Cards (upgraded) ── */
+  .cond-card {
+    background: #06061a;
+    border: 1px solid #1e2040;
+    border-radius: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: border-color 0.12s, background 0.12s;
+    margin-bottom: 5px;
+  }
+  .cond-card:hover { background: #0a0a1e; border-color: #4a5272; }
+  .cond-card.cond-card-active { background: rgba(200,50,50,0.05); }
+  .cond-card-header {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .cond-card-icon { font-size: 14px; }
+  .cond-card-name { flex: 1; font-size: 12px; font-weight: 600; color: #9098b8; transition: color 0.12s; }
+  .cond-card-type {
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .cond-card-effects {
+    margin: 6px 0 0 21px;
+    padding: 0;
+    list-style: none;
+  }
+  .cond-card-effects li {
+    font-size: 10px;
+    color: #4a5272;
+    line-height: 1.5;
+    padding: 1px 0;
+  }
+  .cond-card-effects li::before { content: '• '; color: #3a3a5a; }
+  .cond-card.cond-card-active .cond-card-effects li { color: #7a7a9a; }
+
   .cond-toggle {
     padding: 5px 8px;
     border-radius: 6px;
@@ -4644,22 +4688,42 @@ document.getElementById('modal').addEventListener('click', (e) => {
 
 // ── CONDITION TRACKER ───────────────────────────────────
 const CONDITIONS = [
-  { name: 'Blinded',      type: 'debuff'   },
-  { name: 'Charmed',      type: 'control'  },
-  { name: 'Deafened',     type: 'debuff'   },
-  { name: 'Exhausted',    type: 'status'   },
-  { name: 'Frightened',   type: 'control'  },
-  { name: 'Grappled',     type: 'movement' },
-  { name: 'Incapacitated',type: 'control'  },
-  { name: 'Invisible',    type: 'status'   },
-  { name: 'Paralyzed',    type: 'control'  },
-  { name: 'Petrified',    type: 'control'  },
-  { name: 'Poisoned',     type: 'debuff'   },
-  { name: 'Prone',        type: 'movement' },
-  { name: 'Restrained',   type: 'movement' },
-  { name: 'Stunned',      type: 'control'  },
-  { name: 'Unconscious',  type: 'control'  },
-  { name: 'Concentration',type: 'status'   },
+  { name:'Blinded',       type:'debuff',   icon:'👁',  color:'#9098b8',
+    effects:['Automatically fail ability checks requiring sight','Attack rolls against you have advantage','Your attack rolls have disadvantage'] },
+  { name:'Charmed',       type:'control',  icon:'💫',  color:'#aa66dd',
+    effects:['Cannot attack or target the charmer with harmful abilities','Charmer has advantage on social checks against you'] },
+  { name:'Deafened',      type:'debuff',   icon:'👂',  color:'#9098b8',
+    effects:['Cannot hear','Automatically fail ability checks requiring hearing'] },
+  { name:'Exhausted',     type:'status',   icon:'💀',  color:'#c9a227',
+    effects:['Level 1: Disadvantage on ability checks','Level 2: Speed halved','Level 3: Disadvantage on attacks and saves','Level 4: HP max halved','Level 5: Speed drops to 0','Level 6: Death'] },
+  { name:'Frightened',    type:'control',  icon:'😨',  color:'#aa66dd',
+    effects:['Disadvantage on ability checks while source is in sight','Cannot willingly move closer to source of fear'] },
+  { name:'Grappled',      type:'movement', icon:'✊',  color:'#2299bb',
+    effects:['Speed becomes 0','Grapple ends if grappler is incapacitated','Grapple ends if you are moved beyond grappler reach'] },
+  { name:'Incapacitated', type:'control',  icon:'⚡',  color:'#aa66dd',
+    effects:['Cannot take actions','Cannot take reactions'] },
+  { name:'Invisible',     type:'status',   icon:'👻',  color:'#c9a227',
+    effects:['Impossible to see without special sense','Attackers have disadvantage against you','Your attacks have advantage','Can attempt to hide'] },
+  { name:'Paralyzed',     type:'control',  icon:'🧊',  color:'#aa66dd',
+    effects:['Incapacitated — no actions or reactions','Cannot move or speak','Automatically fail STR and DEX saves','Attacks against have advantage','Hits within 5 ft are critical hits'] },
+  { name:'Petrified',     type:'control',  icon:'🪨',  color:'#aa66dd',
+    effects:['Transformed to stone along with carried items','Weight increases ×10','Incapacitated, cannot move or speak','Unaware of surroundings','Attacks against have advantage','Immune to poison and disease while petrified'] },
+  { name:'Poisoned',      type:'debuff',   icon:'☠',  color:'#cc3333',
+    effects:['Disadvantage on attack rolls','Disadvantage on ability checks'] },
+  { name:'Prone',         type:'movement', icon:'⬇',  color:'#2299bb',
+    effects:['Your attacks have disadvantage','Attacks against have advantage (within 5 ft) or disadvantage (beyond 5 ft)','Must spend half speed to stand up'] },
+  { name:'Restrained',    type:'movement', icon:'⛓',  color:'#2299bb',
+    effects:['Speed becomes 0','Your attack rolls have disadvantage','Attacks against you have advantage','Disadvantage on DEX saves'] },
+  { name:'Stunned',       type:'control',  icon:'💥',  color:'#aa66dd',
+    effects:['Incapacitated — no actions or reactions','Cannot move','Can only speak falteringly','Automatically fail STR and DEX saves','Attacks against have advantage'] },
+  { name:'Unconscious',   type:'control',  icon:'💤',  color:'#aa66dd',
+    effects:['Incapacitated and cannot move or speak','Drop whatever held, fall prone','Automatically fail STR and DEX saves','Attacks against have advantage','Any hit from attacker within 5 ft = critical hit'] },
+  { name:'Concentration', type:'status',   icon:'🔮',  color:'#c9a227',
+    effects:['Maintaining a concentration spell','Taking damage: DC 10 CON save or lose the spell','Can only concentrate on one spell at a time','Incapacitation breaks concentration'] },
+  { name:'Burning',       type:'debuff',   icon:'🔥',  color:'#dd6622',
+    effects:['Take 1d6 fire damage at start of each turn','Action to extinguish (drop prone + roll)'] },
+  { name:'Bleeding',      type:'debuff',   icon:'💔',  color:'#cc3333',
+    effects:['Take damage equal to your CON modifier at start of each turn (min 1)','Medicine DC 10 to staunch as action'] },
 ];
 
 const COND_KEY = 'tiamat_conditions';
@@ -4698,9 +4762,19 @@ function openCondPopup(name, event) {
   condPopupChar = name;
   document.getElementById('condPopupName').textContent = name + ' — Conditions';
   const active = getCharConditions(name);
-  document.getElementById('condGrid').innerHTML = CONDITIONS.map(c =>
-    `<button class="cond-toggle ${active.includes(c.name)?'active-cond':''}" onclick="toggleCondition(${JSON.stringify(c.name)})">${c.name}</button>`
-  ).join('');
+  document.getElementById('condGrid').innerHTML = CONDITIONS.map(c => {
+    const isActive = active.includes(c.name);
+    const typeClass = {debuff:'cond-debuff',control:'cond-control',status:'cond-status',movement:'cond-movement'}[c.type]||'cond-debuff';
+    const effectsHtml = (c.effects || []).map(e => `<li>${e}</li>`).join('');
+    return `<div class="cond-card ${isActive?'cond-card-active':''}" onclick="toggleCondition(${JSON.stringify(c.name)});this.classList.toggle('cond-card-active')" style="border-color:${isActive?c.color:'#1e2040'}">
+      <div class="cond-card-header">
+        <span class="cond-card-icon">${c.icon||'◆'}</span>
+        <span class="cond-card-name" style="color:${isActive?c.color:'#9098b8'}">${c.name}</span>
+        <span class="cond-card-type ${typeClass}">${c.type}</span>
+      </div>
+      ${c.effects && c.effects.length ? `<ul class="cond-card-effects">${effectsHtml}</ul>` : ''}
+    </div>`;
+  }).join('');
   const popup = document.getElementById('condPopup');
   const x = Math.min(Math.max(event.clientX - 130, 10), window.innerWidth - 280);
   const y = Math.min(Math.max(event.clientY + 8, 10), window.innerHeight - 320);
