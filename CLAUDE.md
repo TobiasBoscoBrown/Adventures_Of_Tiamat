@@ -97,7 +97,19 @@ Core character browser, search/filter, dark theme, tooltips, view modes.
 - Iter 157: Dungeon Room Generator — instant boxed-text room descriptions + DM notes
 - Iter 158: Spell Slot Reference Table — all 3 caster types (full/half/warlock) levels 1-20
 - Iter 159: Location Generator — taverns, shops, temples for improv urban play
-- Iter 160: Character Level-Up Workflow — HP gain (roll/avg), prof bonus, features per level ← CURRENT
+- Iter 160: Character Level-Up Workflow — HP gain (roll/avg), prof bonus, features per level
+
+### Iterations 161–170
+- Iter 161: DM Quick Reference Screen — conditions, actions, cover, DCs in one overlay
+- Iter 162: Full Spell Compendium — 80+ spells filterable by level, school, class
+- Iter 163: Critical Hit & Fumble Tables — 80 dramatic effects for nat 20s and nat 1s
+- Iter 164: Session Quick Facts Board — pin color-coded facts during play
+- Iter 165: Roll Probability Calculator — live % chance for any DC + modifier + adv/disadv
+- Iter 166: Villain Scheme Tracker — track antagonist plans, progress, minions, locations
+- Iter 167: Party Role & Balance Analyzer — coverage analysis and encounter design tips
+- Iter 168: Downtime Activity Tracker — log between-session activities (PHB rules)
+- Iter 169: DM Secrets Panel — per-character hidden notes in BG tab + Secrets Board
+- Iter 170: Character Arc Tracker — story arcs, goals, key moments, progress per NPC/PC ← CURRENT
 
 ## Features Currently Implemented (What We Have)
 - Character browser: search, filter by category/theme, view modes (grid/compact/list)
