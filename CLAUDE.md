@@ -109,7 +109,19 @@ Core character browser, search/filter, dark theme, tooltips, view modes.
 - Iter 167: Party Role & Balance Analyzer — coverage analysis and encounter design tips
 - Iter 168: Downtime Activity Tracker — log between-session activities (PHB rules)
 - Iter 169: DM Secrets Panel — per-character hidden notes in BG tab + Secrets Board
-- Iter 170: Character Arc Tracker — story arcs, goals, key moments, progress per NPC/PC ← CURRENT
+- Iter 170: Character Arc Tracker — story arcs, goals, key moments, progress per NPC/PC
+
+### Iterations 171–180
+- Iter 171: Spell Range & Area Reference — cones/spheres/lines in grid squares
+- Iter 172: Proficiency Checker — instantly see who has a skill/tool proficiency
+- Iter 173: Encounter Morale System — group WIS saves for flee/surrender conditions
+- Iter 174: Homebrew Item Builder — create/save custom magic items with full properties
+- Iter 175: NPC Initial Reaction Table — d20 + CHA mod for first impressions + roleplay hints
+- Iter 176: XP Split Calculator — divide XP among party with full/half/absent shares
+- Iter 177: Encounter Hook Generator — narrative hooks with motive + complication + twist
+- Iter 178: Caster Combat Card — per-NPC spell sheet with attack bonus, save DC, roll buttons
+- Iter 179: Session Achievement Badges — award roleplay/combat badges to characters
+- Iter 180: Campaign Stats Dashboard — visual overview of all campaign data and totals ← CURRENT
 
 ## Features Currently Implemented (What We Have)
 - Character browser: search, filter by category/theme, view modes (grid/compact/list)
