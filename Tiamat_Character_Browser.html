@@ -4745,6 +4745,49 @@ let sortAscending = true;
 
 function getTheme(t) { return THEMES[t] || THEMES.royal; }
 
+// ══════════════════════════════════════════════════════════
+// ITERATION 83: Custom Character Portraits — users can set a
+//   custom emoji or image URL as a character's portrait.
+//   Stored per character in localStorage. Right-click card
+//   portrait or use modal button to set.
+// ══════════════════════════════════════════════════════════
+const PORTRAIT_KEY = 'tiamat_portraits';
+function loadPortraits() { try { return JSON.parse(localStorage.getItem(PORTRAIT_KEY)) || {}; } catch { return {}; } }
+function savePortrait(name, val) {
+  const d = loadPortraits();
+  if (val) d[name] = val; else delete d[name];
+  localStorage.setItem(PORTRAIT_KEY, JSON.stringify(d));
+}
+function getCustomPortrait(name) { return loadPortraits()[name] || null; }
+function openPortraitPicker(charName) {
+  const current = getCustomPortrait(charName);
+  const val = prompt(
+    `Set portrait for ${charName}:\n\nEnter either:\n• An emoji (e.g. 🐉 🧙‍♀️ ⚔ 🧝)\n• An image URL (https://...)\n• Leave empty to reset to default\n\nCurrent: ${current || '(default SVG)'}`,
+    current || ''
+  );
+  if (val === null) return; // cancelled
+  savePortrait(charName, val.trim() || null);
+  renderGrid();
+  showToast(`Portrait updated for ${charName}`, '#c9a227');
+  // Refresh modal if open
+  if (currentModalIdx >= 0 && filteredChars[currentModalIdx]?.name === charName) {
+    const modalPortrait = document.getElementById('modalPortraitArea');
+    if (modalPortrait) modalPortrait.innerHTML = buildPortraitHtml(filteredChars[currentModalIdx]);
+  }
+}
+function buildPortraitHtml(c) {
+  const custom = getCustomPortrait(c.name);
+  const nameJ = JSON.stringify(c.name);
+  if (custom) {
+    const isUrl = custom.startsWith('http');
+    const content = isUrl
+      ? `<img src="${custom}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none'" alt="${c.name}">`
+      : `<div style="font-size:52px;line-height:1;display:flex;align-items:center;justify-content:center;width:100%;height:100%">${custom}</div>`;
+    return `<div style="position:relative;cursor:pointer" onclick="openPortraitPicker(${nameJ})" title="Click to change portrait">${content}</div>`;
+  }
+  return `<div style="cursor:pointer" onclick="openPortraitPicker(${nameJ})" title="Click to set custom portrait">${getPortraitSvg(c)}</div>`;
+}
+
 // ── PORTRAIT SYSTEM ─────────────────────────────────────
 function getPortraitSvg(c, size) {
   const t = getTheme(c.theme);
@@ -5278,7 +5321,7 @@ function renderGrid() {
           <button class="card-init-btn ${isInInitiative(c.name)?'in-init':''}" onclick="event.stopPropagation();toggleInitiative(${JSON.stringify(c.name)},${maxHp})" title="${isInInitiative(c.name)?'Remove from initiative':'Add to initiative'}">⚔</button>
           <button class="card-init-btn ${isInCompare(c.name)?'in-init':''}` + `" onclick="event.stopPropagation();toggleCompare(${JSON.stringify(c.name)})" title="${isInCompare(c.name)?'Remove from comparison':'Add to compare'}" style="right:68px;font-size:11px;${isInCompare(c.name)?'border-color:#4488ff;color:#4488ff':'border-color:#2a2a50;color:#3a3a6a'}">⚖</button>
           <div class="card-portrait-area">
-            <div class="card-portrait" onclick="event.stopPropagation();openModal(${i})" title="Open ${c.name}">${getPortraitSvg(c)}</div>
+            <div class="card-portrait" onclick="event.stopPropagation();openModal(${i})" title="Open ${c.name}">${(() => { const cp = getCustomPortrait(c.name); if (cp) { return cp.startsWith('http') ? `<img src="${cp}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : `<div style="font-size:${cp.length>2?30:48}px;display:flex;align-items:center;justify-content:center;width:100%;height:100%">${cp}</div>`; } return getPortraitSvg(c); })()}</div>
             <div class="card-portrait-info">
               <div class="card-name">${c.name}</div>
               <div class="card-title">${c.title}</div>
@@ -7638,7 +7681,21 @@ function openModal(idx) {
   document.getElementById('modalName').textContent = c.name;
   document.getElementById('modalSubtitle').textContent = c.title;
   if (typeof renderModalTags === 'function') renderModalTags(c.name);
-  document.getElementById('modalPortrait').innerHTML = getPortraitSvg(c);
+  // Use custom portrait if set
+  const modalPortEl = document.getElementById('modalPortrait');
+  const customP = getCustomPortrait(c.name);
+  if (customP) {
+    if (customP.startsWith('http')) {
+      modalPortEl.innerHTML = `<img src="${customP}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.parentElement.innerHTML=getPortraitSvg(filteredChars[currentModalIdx])">`;
+    } else {
+      modalPortEl.innerHTML = `<div style="font-size:52px;display:flex;align-items:center;justify-content:center;width:100%;height:100%">${customP}</div>`;
+    }
+  } else {
+    modalPortEl.innerHTML = getPortraitSvg(c);
+  }
+  modalPortEl.title = 'Click to set custom portrait';
+  modalPortEl.style.cursor = 'pointer';
+  modalPortEl.onclick = () => openPortraitPicker(c.name);
   document.getElementById('modalPortrait').style.setProperty('--accent', t.accent);
   document.getElementById('modalPortrait').style.border = `3px solid ${t.accent}`;
   document.getElementById('modalPortrait').style.boxShadow = `0 0 20px ${t.glow}`;
