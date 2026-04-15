@@ -6142,6 +6142,7 @@ function buildStatsPanel(c) {
     ${buildDamageDefenseSection(c)}
     ${buildHpSparkline(c)}
     ${typeof buildWoundsSection === 'function' ? buildWoundsSection(c.name) : ''}
+    ${typeof buildClassAbilitiesSection === 'function' ? buildClassAbilitiesSection(c) : ''}
     ${buildConcentrationSection(c)}
     ${buildSpeedSection(c)}
     <div class="stats-section">
@@ -23640,6 +23641,156 @@ function _saveImprovNpcAsCustom(name, race, occ, motive, secret) {
   if (typeof renderGrid === 'function') renderGrid();
   showToast(`${name} added to character grid`, '#44cc88');
   document.getElementById('improvNpcOverlay')?.remove();
+}
+// Iter 144: Class Ability Resource Tracker — track limited-use class features
+// (Action Surge, Second Wind, Channel Divinity, Wild Shape, Bardic Inspiration,
+// Ki Points, Rage, etc.) per character. Stored in localStorage, reset on rest.
+
+const CLASS_ABILITIES_KEY = 'tiamat_class_abilities';
+
+// Common class abilities by keyword in title/lore
+const CLASS_ABILITY_TEMPLATES = {
+  'Fighter':  [
+    { name:'Action Surge', max:1, reset:'short', desc:'Take an additional action on your turn' },
+    { name:'Second Wind', max:1, reset:'short', desc:'Regain 1d10 + level HP as a bonus action' },
+    { name:'Indomitable', max:1, reset:'long', desc:'Reroll a failed saving throw' },
+  ],
+  'Paladin':  [
+    { name:'Divine Smite', max:0, reset:'long', desc:'Expend a spell slot to add radiant damage on hit', freeform:true },
+    { name:'Lay on Hands', max:5, reset:'long', desc:'Pool of HP to heal: 5 × paladin level' },
+    { name:'Divine Sense', max:1, reset:'long', desc:'Detect celestials, fiends, undead within 60 ft' },
+  ],
+  'Barbarian':[
+    { name:'Rage', max:2, reset:'long', desc:'Advantage on STR checks/saves, +2 damage, resistance to physical damage (1 min)' },
+    { name:'Reckless Attack', max:0, reset:'turn', desc:'Advantage on attacks this turn (enemies have advantage vs you)', freeform:true },
+  ],
+  'Wizard':   [
+    { name:'Arcane Recovery', max:1, reset:'long', desc:'Recover spell slots equal to half level (rounded up)' },
+  ],
+  'Sorcerer': [
+    { name:'Sorcery Points', max:2, reset:'long', desc:'Meta-magic fuel — Flexible Casting, create slots' },
+  ],
+  'Bard':     [
+    { name:'Bardic Inspiration', max:3, reset:'long', desc:'Grant d6/d8/d10/d12 bonus die to ally roll' },
+    { name:'Song of Rest', max:0, reset:'short', desc:'Party heals extra 1d6 on short rest', freeform:true },
+  ],
+  'Cleric':   [
+    { name:'Channel Divinity', max:1, reset:'short', desc:'Turn Undead or domain-specific channel effect' },
+  ],
+  'Druid':    [
+    { name:'Wild Shape', max:2, reset:'short', desc:'Transform into a beast CR ≤ 1/4 (or higher at later levels)' },
+    { name:'Wild Surge', max:0, reset:'long', desc:'Wild Magic druid effect', freeform:true },
+  ],
+  'Monk':     [
+    { name:'Ki Points', max:3, reset:'short', desc:'Spend for Flurry of Blows, Patient Defense, Step of the Wind' },
+    { name:'Stunning Strike', max:0, reset:'short', desc:'Spend 1 Ki — target makes CON save or stunned until next turn', freeform:true },
+  ],
+  'Ranger':   [
+    { name:"Hunter's Mark", max:0, reset:'long', desc:'Concentration spell: +1d6 damage vs marked target', freeform:true },
+    { name:'Favored Enemy', max:0, reset:'long', desc:'Advantage on survival checks to track favored enemy type', freeform:true },
+  ],
+  'Rogue':    [
+    { name:'Sneak Attack', max:0, reset:'turn', desc:'Extra damage when you have advantage or an ally is adjacent', freeform:true },
+    { name:'Evasion', max:0, reset:'long', desc:'On DEX save with half damage, take none instead (full on fail)', freeform:true },
+    { name:'Uncanny Dodge', max:0, reset:'turn', desc:'Use reaction: halve damage from one attack', freeform:true },
+  ],
+  'Warlock':  [
+    { name:'Hex', max:0, reset:'long', desc:'1d6 extra necrotic damage + disadvantage on ability check', freeform:true },
+    { name:"Eldritch Invocations", max:0, reset:'long', desc:'Passive—check individual invocation for use limits', freeform:true },
+  ],
+};
+
+function _detectClass(c) {
+  const title = (c.title || '').toLowerCase();
+  const lore = (c.lore || '').toLowerCase();
+  const text = title + ' ' + lore;
+  return Object.keys(CLASS_ABILITY_TEMPLATES).find(cls => text.includes(cls.toLowerCase())) || null;
+}
+
+function loadClassAbilities(name) {
+  try { return JSON.parse(localStorage.getItem(CLASS_ABILITIES_KEY + '_' + name)) || null; } catch { return null; }
+}
+function saveClassAbilities(name, data) { localStorage.setItem(CLASS_ABILITIES_KEY + '_' + name, JSON.stringify(data)); }
+
+function _initClassAbilities(c) {
+  const cls = _detectClass(c);
+  if (!cls) return [];
+  const templates = CLASS_ABILITY_TEMPLATES[cls] || [];
+  return templates.filter(t => !t.freeform).map(t => ({
+    name: t.name, max: t.max, used: 0, reset: t.reset, desc: t.desc,
+  }));
+}
+
+function buildClassAbilitiesSection(c) {
+  let abilities = loadClassAbilities(c.name);
+  if (!abilities) {
+    abilities = _initClassAbilities(c);
+    if (abilities.length) saveClassAbilities(c.name, abilities);
+  }
+  if (!abilities.length) return '';
+
+  const nameJ = JSON.stringify(c.name);
+  const sid = typeof safeId === 'function' ? safeId(c.name) : c.name.replace(/\W/g,'_');
+  const RESET_COLORS = { short:'#4488ff', long:'#44cc88', turn:'#c9a227' };
+  const RESET_LABELS = { short:'Short Rest', long:'Long Rest', turn:'Per Turn' };
+
+  const abilRows = abilities.map((ab, i) => {
+    const remaining = ab.max - ab.used;
+    const pips = Array.from({length: ab.max}, (_, k) => {
+      const filled = k < remaining;
+      return `<span onclick="useClassAbility(${nameJ},${i},${filled?-1:1})" title="${filled?'Mark used':'Restore 1'}"
+        style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${filled?RESET_COLORS[ab.reset]||'#c9a227':'#1a1a2a'};border:1px solid ${RESET_COLORS[ab.reset]||'#c9a227'};cursor:pointer;transition:background 0.15s"></span>`;
+    }).join('');
+
+    const noMax = ab.max === 0;
+    return `<div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid #0d0d1a;margin-bottom:0">
+      <div style="flex:1">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+          <span style="font-size:12px;font-weight:700;color:#dce0f0">${escHtml(ab.name)}</span>
+          <span style="font-size:9px;padding:1px 5px;border-radius:3px;background:${RESET_COLORS[ab.reset]||'#c9a227'}22;border:1px solid ${RESET_COLORS[ab.reset]||'#c9a227'}44;color:${RESET_COLORS[ab.reset]||'#c9a227'}">${RESET_LABELS[ab.reset]||'Rest'}</span>
+        </div>
+        <div style="font-size:10px;color:#4a5272;line-height:1.4;margin-bottom:4px">${escHtml(ab.desc)}</div>
+        ${noMax ? '' : `<div style="display:flex;gap:4px;align-items:center">${pips}<span style="font-size:10px;color:#4a5272;margin-left:4px">${remaining}/${ab.max}</span></div>`}
+      </div>
+      ${noMax ? '' : `<button onclick="useClassAbility(${nameJ},${i},-1)" title="Use 1" style="background:rgba(204,51,51,0.1);border:1px solid #cc333344;color:#cc6666;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:11px;white-space:nowrap;flex-shrink:0${remaining<=0?';opacity:0.4;cursor:not-allowed':''}">Use</button>`}
+    </div>`;
+  }).join('');
+
+  return `<div class="stats-section" id="classAbilitiesSection_${sid}">
+    <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
+      ⚡ Class Abilities
+      <div style="display:flex;gap:4px">
+        <button onclick="resetClassAbilities(${nameJ},'short')" style="background:none;border:1px solid #4488ff44;color:#4488ff;border-radius:4px;padding:1px 6px;cursor:pointer;font-size:9px" title="Reset short-rest abilities">☽</button>
+        <button onclick="resetClassAbilities(${nameJ},'long')" style="background:none;border:1px solid #44cc8844;color:#44cc88;border-radius:4px;padding:1px 6px;cursor:pointer;font-size:9px" title="Reset all abilities (long rest)">☀</button>
+      </div>
+    </div>
+    ${abilRows}
+  </div>`;
+}
+
+function useClassAbility(name, idx, delta) {
+  // delta: -1 = use one, +1 = restore one
+  const abilities = loadClassAbilities(name) || [];
+  if (!abilities[idx]) return;
+  const ab = abilities[idx];
+  ab.used = Math.max(0, Math.min(ab.max, ab.used - delta));
+  saveClassAbilities(name, abilities);
+  const sid = typeof safeId === 'function' ? safeId(name) : name.replace(/\W/g,'_');
+  const section = document.getElementById('classAbilitiesSection_' + sid);
+  const c = UNIQUE_CHARS.find(x => x.name === name);
+  if (section && c) section.outerHTML = buildClassAbilitiesSection(c);
+}
+
+function resetClassAbilities(name, restType) {
+  const abilities = loadClassAbilities(name) || [];
+  abilities.forEach(ab => {
+    if (restType === 'long' || ab.reset === restType) ab.used = 0;
+  });
+  saveClassAbilities(name, abilities);
+  const sid = typeof safeId === 'function' ? safeId(name) : name.replace(/\W/g,'_');
+  const section = document.getElementById('classAbilitiesSection_' + sid);
+  const c = UNIQUE_CHARS.find(x => x.name === name);
+  if (section && c) section.outerHTML = buildClassAbilitiesSection(c);
 }
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
