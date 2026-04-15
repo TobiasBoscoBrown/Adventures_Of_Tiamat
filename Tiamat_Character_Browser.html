@@ -3711,6 +3711,7 @@
   <button class="filter-btn" onclick="openTempHpPanel()" style="border-color:#ddaa22;color:#ddaa22;" title="Temp HP Panel — manage temporary HP for all characters">⬡ Temp HP</button>
   <button class="filter-btn" onclick="openTreasureGenerator()" style="border-color:#c9a227;color:#c9a227;" title="Random treasure generator by CR">💎 Treasure</button>
   <button class="filter-btn" onclick="openMagicItemGen()" style="border-color:#cc44cc;color:#cc44cc;" title="Magic Item Generator — random items by rarity">✨ Magic Items</button>
+  <button class="filter-btn" onclick="openMerchantGen()" style="border-color:#aa8833;color:#aa8833;" title="Merchant Generator — random shop with inventory and prices">🏪 Shop</button>
   <button class="filter-btn" onclick="openRandomEncTable()" style="border-color:#cc8844;color:#cc8844;" title="Random Encounter Table — roll by terrain">🎲 Enc Table</button>
   <button class="filter-btn" onclick="openCampaignTimeline()" style="border-color:#44cc88;color:#44cc88;" title="Campaign timeline — track key events">📅 Timeline</button>
   <button class="filter-btn" onclick="openWeatherPanel()" style="border-color:#2299bb;color:#2299bb;" title="Weather &amp; Environment — ambient conditions affecting gameplay">🌤 Weather</button>
@@ -18461,6 +18462,143 @@ const MAGIC_ITEMS = {
 };
 
 const RARITY_COLORS = {Common:'#c8d0e8',Uncommon:'#44cc44',Rare:'#4488ff',VeryRare:'#aa44ff',Legendary:'#cc8833'};
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 113: Merchant/Shop Generator — random shops with
+//   inventory, prices, and haggability. 5 shop types.
+//   Toolbar: 🏪 Shop
+// ══════════════════════════════════════════════════════════
+const SHOP_TYPES = {
+  'General Store': {
+    items: [
+      {name:'Torch',price:'1cp',desc:'1hr light, 20ft radius'},{name:'Rope (50ft)',price:'1gp',desc:'Hempen, 250lb limit'},
+      {name:'Rations (1 day)',price:'5sp',desc:'Trail rations, dried meat'},{name:'Waterskin',price:'2sp',desc:'Holds 4 pints'},
+      {name:'Backpack',price:'2gp',desc:'Holds 30lbs / 1 cu ft'},{name:'Crowbar',price:'2gp',desc:'+2 STR check to break'},
+      {name:'Tinderbox',price:'5sp',desc:'Start fire in 1 min'},{name:'Bedroll',price:'1gp',desc:'Sleep comfortably'},
+      {name:'Shovel',price:'2gp',desc:'Dig 1 cu ft/min'},{name:'Signal Whistle',price:'5cp',desc:'Heard up to 600ft'},
+      {name:'Healing Potion',price:'50gp',desc:'Regain 2d4+2 HP'},{name:'Antitoxin',price:'50gp',desc:'Adv vs poison for 1hr'},
+    ],
+  },
+  'Blacksmith': {
+    items: [
+      {name:'Longsword',price:'15gp',desc:'1d8 slashing, versatile (1d10)'},{name:'Shortsword',price:'10gp',desc:'1d6 piercing, finesse'},
+      {name:'Dagger',price:'2gp',desc:'1d4 piercing, thrown 20/60'},{name:'Handaxe',price:'5gp',desc:'1d6 slashing, thrown'},
+      {name:'Chain Mail',price:'75gp',desc:'AC 16, STR 13, disadv Stealth'},{name:'Leather Armor',price:'10gp',desc:'AC 11 + DEX'},
+      {name:'Shield',price:'10gp',desc:'+2 AC'},{name:'Crossbow (light)',price:'25gp',desc:'1d8 piercing, 80/320ft'},
+      {name:'Arrows ×20',price:'1gp',desc:'Standard arrows'},{name:'Javelin',price:'5sp',desc:'1d6 piercing, 30/120ft'},
+    ],
+  },
+  'Alchemist': {
+    items: [
+      {name:'Healing Potion',price:'50gp',desc:'2d4+2 HP'},{name:'Potion of Greater Healing',price:'100gp',desc:'4d4+4 HP'},
+      {name:'Alchemist\'s Fire',price:'50gp',desc:'1d4 fire on hit, persists'},{name:'Acid (vial)',price:'25gp',desc:'2d6 acid splash'},
+      {name:'Antitoxin',price:'50gp',desc:'Adv vs poison 1hr'},{name:'Oil (flask)',price:'1sp',desc:'Coat weapon or splash 5ft'},
+      {name:'Perfume (vial)',price:'5gp',desc:'Adv Persuasion (social)'},{name:'Poison (basic)',price:'100gp',desc:'2d4+2 poison on hit'},
+      {name:'Potion of Speed',price:'150gp',desc:'Haste for 1 min'},{name:'Smoke Bomb',price:'10gp',desc:'20ft smoke cloud, 1 min'},
+    ],
+  },
+  'Magic Shop': {
+    items: [
+      {name:'Spell Scroll (1st)',price:'75gp',desc:'Cast a 1st-level spell once'},{name:'Spell Scroll (2nd)',price:'150gp',desc:'Cast a 2nd-level spell'},
+      {name:'Spell Scroll (3rd)',price:'300gp',desc:'Cast a 3rd-level spell'},{name:'Arcane Focus (wand)',price:'10gp',desc:'Spellcasting focus'},
+      {name:'Component Pouch',price:'25gp',desc:'Contains all non-costly components'},{name:'Spellbook (blank)',price:'50gp',desc:'100 pages'},
+      {name:'Crystal Ball (cheap)',price:'1000gp',desc:'Scrying focus, no bonus'},{name:'Candle of the Deep',price:'150gp',desc:'Common magic item'},
+      {name:'Pearl (200gp)',price:'200gp',desc:'Identify material component'},{name:'Incense (1 block)',price:'5sp',desc:'Commune material component'},
+    ],
+  },
+  'Black Market': {
+    items: [
+      {name:'Assassin\'s Blood',price:'150gp',desc:'Poison: 1d12+7 poison DMG'},{name:'Truth Serum',price:'150gp',desc:'DC 11 CON or speak truth'},
+      {name:'Malice Poison',price:'250gp',desc:'DC 15 CON or blinded'},{name:'Midnight Tears',price:'1500gp',desc:'Delayed, lethal poison'},
+      {name:'Forgery Kit',price:'150gp',desc:'Create fake documents'},{name:'Disguise Kit',price:'25gp',desc:'Create disguises'},
+      {name:'Thieves\' Tools',price:'25gp',desc:'Pick locks, disarm traps'},{name:'Stolen Signet Ring',price:'50gp',desc:'Forged identity'},
+      {name:'Counterfeit Coin (10)',price:'5gp',desc:'Difficult to detect, DEX DC 14'},{name:'Sending Stone (one-way)',price:'2000gp',desc:'Send messages, can\'t receive'},
+    ],
+  },
+};
+
+const MERCHANT_NAMES = ['Aldric the Bold','Bellatrix Silverweave','Corvin Dustpocket','Dolanna Gemworth','Erwin the Haggler','Fionn Thistlewick','Garthok One-Eye','Hessa Moonmender'];
+const SHOP_QUIRKS = ['Noticeably smells of pipe smoke','Has a very loud parrot companion','Only accepts exact change','Speaks in rhyming couplets','Clearly suspicious of magic','Offers free tea with every purchase','Has too many cats','Keeps glancing at the door nervously'];
+
+function openMerchantGen() {
+  const existing = document.getElementById('merchantGenOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'merchantGenOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto;';
+  const shopTypes = Object.keys(SHOP_TYPES);
+  ov.innerHTML = `
+    <div style="background:#151c2e;border:1px solid #aa8833;border-radius:12px;width:660px;max-width:100%;padding:24px;color:#c8d0e8;font-family:'Inter',sans-serif;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-size:18px;font-weight:700;color:#aa8833;">🏪 Merchant Generator</div>
+        <button onclick="document.getElementById('merchantGenOverlay').remove()" style="background:#2a3358;border:none;color:#c8d0e8;border-radius:6px;padding:6px 14px;cursor:pointer;">✕ Close</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
+        <select id="merchantType" style="background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:8px;color:#c8d0e8;font-size:13px;">
+          <option value="">Random Type</option>
+          ${shopTypes.map(t => `<option>${t}</option>`).join('')}
+        </select>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:#9098b8;cursor:pointer;">
+          <input type="checkbox" id="merchantHaggle" checked> Prices vary ±20%
+        </label>
+        <button onclick="generateMerchant()" style="background:#aa8833;border:none;color:#fff;border-radius:6px;padding:8px 18px;cursor:pointer;font-weight:700;margin-left:auto;">🎲 New Shop</button>
+      </div>
+      <div id="merchantResult" style="max-height:60vh;overflow-y:auto;"></div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  generateMerchant();
+}
+
+function generateMerchant() {
+  const result = document.getElementById('merchantResult');
+  if (!result) return;
+  const typeKey = document.getElementById('merchantType')?.value || '';
+  const shopTypes = Object.keys(SHOP_TYPES);
+  const type = typeKey || shopTypes[Math.floor(Math.random() * shopTypes.length)];
+  const shop = SHOP_TYPES[type];
+  const haggle = document.getElementById('merchantHaggle')?.checked;
+  const name = MERCHANT_NAMES[Math.floor(Math.random() * MERCHANT_NAMES.length)];
+  const quirk = SHOP_QUIRKS[Math.floor(Math.random() * SHOP_QUIRKS.length)];
+  // Pick 6-10 random items
+  const count = 6 + Math.floor(Math.random() * 5);
+  const shuffled = [...shop.items].sort(() => Math.random() - 0.5).slice(0, count);
+
+  result.innerHTML = `
+    <div style="background:#0e1422;border:1px solid #aa883344;border-radius:8px;padding:14px;margin-bottom:10px;">
+      <div style="font-size:15px;font-weight:700;color:#aa8833;">${name}'s ${type}</div>
+      <div style="font-size:12px;color:#9098b8;font-style:italic;margin-top:3px;">"${quirk}"</div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead>
+        <tr style="background:#1e2744;color:#9098b8;text-align:left;">
+          <th style="padding:7px 10px;border-bottom:1px solid #2a3358;">Item</th>
+          <th style="padding:7px 10px;border-bottom:1px solid #2a3358;">Description</th>
+          <th style="padding:7px 10px;border-bottom:1px solid #2a3358;text-align:right;">Price</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${shuffled.map((item, i) => {
+          let price = item.price;
+          if (haggle) {
+            // Vary price ±20%
+            const mult = 0.8 + Math.random() * 0.4;
+            const parsedGp = parseFloat(item.price) || 0;
+            const unit = item.price.replace(/[\d.]/g,'').trim();
+            price = (parsedGp * mult).toFixed(parsedGp < 10 ? 1 : 0) + unit;
+          }
+          return `<tr style="background:${i%2===0?'#0e1422':'#111827'};">
+            <td style="padding:7px 10px;font-weight:600;color:#c8d0e8;">${item.name}</td>
+            <td style="padding:7px 10px;color:#9098b8;font-size:11px;">${item.desc}</td>
+            <td style="padding:7px 10px;text-align:right;color:#c9a227;font-weight:600;">${price}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+    <div style="margin-top:10px;font-size:11px;color:#4a5272;">Merchant attitude: ${['Friendly','Neutral','Gruff','Suspicious','Enthusiastic'][Math.floor(Math.random()*5)]} · Haggling DC: ${10+Math.floor(Math.random()*8)}</div>
+  `;
+}
 
 function openMagicItemGen() {
   const existing = document.getElementById('magicItemGenOverlay');
