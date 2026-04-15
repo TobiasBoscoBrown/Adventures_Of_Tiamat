@@ -3513,6 +3513,7 @@
     <button class="encounter-open-btn" onclick="openQuestTracker()" style="border-color:#ffaa44;color:#ffaa44" id="questBtn">📜 Quests</button>
     <button class="encounter-open-btn" onclick="openTheaterMode()" style="border-color:#44aacc;color:#44aacc" title="Theater mode — fullscreen battle board for second screen">🎭 Theater</button>
     <button class="encounter-open-btn" onclick="toggleXpPanel()" style="border-color:#c9a227;color:#c9a227" id="xpTrackerBtn" title="Party XP & Level Tracker — award XP, track level progress">⭐ XP</button>
+    <button class="encounter-open-btn" onclick="togglePassivesPanel()" style="border-color:#9b6dff;color:#9b6dff" id="passivesBtn" title="Passive Perception, Investigation & Insight for all characters">👁 Passives</button>
     <button class="encounter-open-btn" onclick="toggleGroupRoll()" style="border-color:#5588dd;color:#5588dd" id="groupRollBtn" title="Roll any skill/ability for all visible characters at once">🎲 Group Roll</button>
     <button class="encounter-open-btn" onclick="toggleRestPanel()" style="border-color:#23b478;color:#23b478" id="restBtn" title="Short Rest / Long Rest — spend hit dice or restore all resources">🌙 Rest</button>
     <button class="encounter-open-btn" onclick="toggleLootPanel()" style="border-color:#c9a227;color:#c9a227" id="lootBtn" title="Party Loot & Treasury">💰 Loot</button>
@@ -4378,6 +4379,20 @@
 <div class="cond-tooltip" id="condTooltip"></div>
 
 <!-- XP & Level Tracker Panel -->
+<div id="passivesPanel" style="position:fixed;top:60px;right:20px;width:340px;max-height:80vh;background:linear-gradient(160deg,#080312,#0f0820);border:1px solid rgba(155,109,255,0.4);border-radius:14px;z-index:350;display:none;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.9);overflow:hidden">
+  <div style="padding:10px 14px;border-bottom:1px solid rgba(155,109,255,0.25);display:flex;justify-content:space-between;align-items:center;background:rgba(155,109,255,0.04);flex-shrink:0">
+    <span style="font-family:'Cinzel',serif;color:#9b6dff;font-size:13px;font-weight:700;letter-spacing:1px">👁 PASSIVE SCORES</span>
+    <div style="display:flex;gap:6px;align-items:center">
+      <select id="passivesScopeFilter" onchange="renderPassivesPanel()" style="background:#0d0a20;border:1px solid rgba(155,109,255,0.3);color:#9098b8;border-radius:6px;padding:3px 6px;font-size:11px">
+        <option value="all">All</option>
+        <option value="party">Party</option>
+        <option value="visible">Visible</option>
+      </select>
+      <button onclick="togglePassivesPanel()" style="background:none;border:1px solid #2a1a40;color:#4a2a70;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px">✕</button>
+    </div>
+  </div>
+  <div style="overflow-y:auto;flex:1" id="passivesPanelBody"></div>
+</div>
 <div id="groupRollPanel" style="position:fixed;top:60px;right:20px;width:340px;max-height:80vh;background:linear-gradient(160deg,#050a18,#0a1128);border:1px solid rgba(85,136,221,0.4);border-radius:14px;z-index:349;display:none;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.9);overflow:hidden">
   <div style="padding:10px 14px;border-bottom:1px solid rgba(85,136,221,0.25);display:flex;justify-content:space-between;align-items:center;background:rgba(85,136,221,0.04);flex-shrink:0">
     <span style="font-family:'Cinzel',serif;color:#5588dd;font-size:13px;font-weight:700;letter-spacing:1px">🎲 GROUP SKILL CHECK</span>
@@ -13081,6 +13096,61 @@ function doGroupRoll() {
   document.getElementById('groupRollResults').innerHTML = html;
   logEntry('roll', `🎲 <strong>Group ${skillName}${advLabel}</strong> check — ${results.length} characters. High: <strong>${results[0].name} (${results[0].total})</strong>`);
   playSound?.('roll');
+}
+
+// ── PASSIVE SCORES PANEL ──────────────────────────────────
+let passivesPanelOpen = false;
+function togglePassivesPanel() {
+  passivesPanelOpen = !passivesPanelOpen;
+  const panel = document.getElementById('passivesPanel');
+  panel.style.display = passivesPanelOpen ? 'flex' : 'none';
+  const btn = document.getElementById('passivesBtn');
+  if (btn) { btn.style.background = passivesPanelOpen ? 'rgba(155,109,255,.15)' : ''; btn.style.color = passivesPanelOpen ? '#bb99ff' : '#9b6dff'; }
+  if (passivesPanelOpen) renderPassivesPanel();
+}
+
+function renderPassivesPanel() {
+  const el = document.getElementById('passivesPanelBody');
+  if (!el) return;
+  const scope = (document.getElementById('passivesScopeFilter') || {value:'all'}).value;
+  let chars = UNIQUE_CHARS;
+  if (scope === 'party') chars = getPartyChars();
+  else if (scope === 'visible') chars = UNIQUE_CHARS.filter(c => { const card = document.querySelector(`[data-name="${CSS.escape(c.name)}"]`); return !card || card.style.display !== 'none'; });
+
+  function getMod(char, ab) { const e = (char.abilities||[]).find(a=>a[0]===ab); return e ? (parseInt(e[2])||0) : 0; }
+
+  // Sort by passive perception descending
+  const rows = chars.map(c => {
+    const wis = getMod(c, 'WIS');
+    const int_ = getMod(c, 'INT');
+    const pp = 10 + wis;
+    const pi = 10 + int_;
+    const pinsight = 10 + wis;
+    return { name: c.name, pp, pi, pinsight };
+  }).sort((a, b) => b.pp - a.pp);
+
+  if (!rows.length) { el.innerHTML = '<div style="text-align:center;color:#4a5272;font-size:12px;padding:20px">No characters</div>'; return; }
+
+  let html = `<table style="width:100%;border-collapse:collapse;font-size:11px">
+    <tr style="color:#4a2a80;font-size:10px;font-weight:600;letter-spacing:.5px;border-bottom:1px solid rgba(155,109,255,.15)">
+      <th style="padding:6px 14px;text-align:left">CHARACTER</th>
+      <th style="padding:6px 8px;text-align:center" title="Passive Perception = 10 + WIS">👁 PERC</th>
+      <th style="padding:6px 8px;text-align:center" title="Passive Investigation = 10 + INT">🔍 INVEST</th>
+      <th style="padding:6px 14px;text-align:center" title="Passive Insight = 10 + WIS">💡 INSIGHT</th>
+    </tr>`;
+  rows.forEach((r, idx) => {
+    const isHighPerc = r.pp === rows[0].pp;
+    const rowBg = idx % 2 === 0 ? 'rgba(155,109,255,.02)' : '';
+    html += `<tr style="border-top:1px solid rgba(155,109,255,.06);background:${rowBg}">
+      <td style="padding:5px 14px;color:#9098b8;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px">${escHtml(r.name.length>18?r.name.slice(0,17)+'…':r.name)}</td>
+      <td style="padding:5px 8px;text-align:center;color:${isHighPerc?'#9b6dff':'#c0c8e8'};font-weight:${isHighPerc?700:400}">${r.pp}</td>
+      <td style="padding:5px 8px;text-align:center;color:#8888cc">${r.pi}</td>
+      <td style="padding:5px 14px;text-align:center;color:#8888cc">${r.pinsight}</td>
+    </tr>`;
+  });
+  html += `</table>`;
+  html += `<div style="padding:6px 14px;font-size:9px;color:#3a2a60;border-top:1px solid rgba(155,109,255,.08)">Passive = 10 + ability mod. Does not include proficiency bonus.</div>`;
+  el.innerHTML = html;
 }
 
 function toggleRestPanel() {
