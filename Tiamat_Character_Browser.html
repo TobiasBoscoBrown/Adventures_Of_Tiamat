@@ -3538,6 +3538,42 @@
   .loot-log-entry { padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
   .loot-log-entry.add { color: #44aa44; }
   .loot-log-entry.rem { color: #cc3333; }
+  /* ITERATION 87: Dice Roller Panel */
+  #dicePanel {
+    position: fixed; bottom: 60px; right: 18px; width: 280px;
+    background: #13162a; border: 1px solid rgba(221,102,34,0.4);
+    border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    z-index: 900; padding: 14px; display: none; flex-direction: column; gap: 10px;
+  }
+  #dicePanel.open { display: flex; }
+  .dice-header { display:flex; justify-content:space-between; align-items:center; }
+  .dice-title { font-family:'Cinzel',serif; font-size:13px; font-weight:700; color:#dd6622; letter-spacing:1px; }
+  .dice-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+  .die-btn {
+    background: rgba(221,102,34,0.1); border: 1px solid rgba(221,102,34,0.4);
+    color: #dd6622; border-radius: 8px; padding: 8px 4px; font-size: 13px;
+    font-family:'Cinzel',serif; font-weight:700; cursor:pointer; text-align:center;
+    transition: all 0.15s;
+  }
+  .die-btn:hover { background: rgba(221,102,34,0.3); }
+  .die-btn.adv { background: rgba(68,170,68,0.1); border-color: rgba(68,170,68,0.5); color:#44aa44; }
+  .die-btn.dis { background: rgba(204,51,51,0.1); border-color: rgba(204,51,51,0.5); color:#cc3333; }
+  .dice-controls { display:flex; gap:6px; align-items:center; }
+  .dice-count-label { color:#6a7299; font-size:11px; }
+  .dice-mod-input, .dice-count-input {
+    background: #0d0f1e; border: 1px solid rgba(221,102,34,0.3); color:#e8e0d0;
+    border-radius:6px; padding:4px 6px; font-size:12px; width:50px; text-align:center;
+  }
+  .dice-result-box {
+    background: rgba(221,102,34,0.07); border: 1px solid rgba(221,102,34,0.2);
+    border-radius:8px; padding:10px; text-align:center; min-height:60px;
+  }
+  .dice-result-total { font-size:36px; font-weight:900; font-family:'Cinzel',serif; color:#dd6622; line-height:1; }
+  .dice-result-detail { font-size:11px; color:#6a7299; margin-top:4px; }
+  .dice-history { max-height:120px; overflow-y:auto; display:flex; flex-direction:column; gap:3px; }
+  .dice-history-entry { font-size:11px; color:#6a7299; display:flex; justify-content:space-between; padding:2px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+  .dice-history-entry .dh-total { color:#dd6622; font-weight:700; }
+  .dice-adv-row { display:flex; gap:6px; }
 </style>
 </head>
 <body>
@@ -3566,6 +3602,7 @@
     <button class="encounter-open-btn" onclick="toggleSlotDashboard()" style="border-color:#4488ff;color:#4488ff" id="slotDashBtn" title="Party Spell Slot Dashboard — all casters' slots at a glance">✦ Slots</button>
     <button class="encounter-open-btn" onclick="openCondPicker()" style="border-color:#aa66dd;color:#aa66dd" title="Quick Condition Picker — search & apply conditions to any character">⚡ Cond</button>
     <button class="encounter-open-btn" onclick="openCampaignDashboard()" style="border-color:#9b6dff;color:#9b6dff" title="Campaign Dashboard — full campaign state at a glance">📊 Dashboard</button>
+    <button class="encounter-open-btn" onclick="toggleDicePanel()" id="dicePanelBtn" style="border-color:#dd6622;color:#dd6622" title="Dice Roller — roll any die with modifier, advantage/disadvantage, history">🎲 Dice</button>
     <div class="stat-badge"><strong id="totalCount">0</strong> Characters</div>
     <div class="stat-badge"><strong id="visibleCount">0</strong> Showing</div>
     <div class="stat-badge stat-live" id="statDown" onclick="filterToDown()" title="Click to show downed characters" style="display:none"><strong id="downCount">0</strong> ⚠ Down</div>
@@ -3930,6 +3967,40 @@
   <div class="health-panel-body" id="healthPanelBody">
     <div style="text-align:center;color:#4a5272;font-size:12px;padding:20px">Loading...</div>
   </div>
+</div>
+
+<!-- Dice Roller Panel (Iteration 87) -->
+<div id="dicePanel">
+  <div class="dice-header">
+    <span class="dice-title">🎲 DICE ROLLER</span>
+    <button onclick="toggleDicePanel()" style="background:none;border:none;color:#6a7299;font-size:16px;cursor:pointer;line-height:1">✕</button>
+  </div>
+  <div class="dice-controls">
+    <span class="dice-count-label">Count:</span>
+    <input type="number" id="diceCount" class="dice-count-input" value="1" min="1" max="20" />
+    <span class="dice-count-label">Mod:</span>
+    <input type="number" id="diceMod" class="dice-mod-input" value="0" />
+  </div>
+  <div class="dice-adv-row">
+    <button class="die-btn adv" style="flex:1;font-size:11px" onclick="setDiceMode('adv')" id="diceAdvBtn">▲ Advantage</button>
+    <button class="die-btn" style="flex:1;font-size:11px;background:rgba(100,100,120,0.1);border-color:rgba(100,100,120,0.4);color:#6a7299" onclick="setDiceMode('normal')" id="diceNormBtn">● Normal</button>
+    <button class="die-btn dis" style="flex:1;font-size:11px" onclick="setDiceMode('dis')" id="diceDisBtn">▼ Disadv</button>
+  </div>
+  <div class="dice-grid">
+    <button class="die-btn" onclick="rollDice(4)">d4</button>
+    <button class="die-btn" onclick="rollDice(6)">d6</button>
+    <button class="die-btn" onclick="rollDice(8)">d8</button>
+    <button class="die-btn" onclick="rollDice(10)">d10</button>
+    <button class="die-btn" onclick="rollDice(12)">d12</button>
+    <button class="die-btn" onclick="rollDice(20)">d20</button>
+    <button class="die-btn" onclick="rollDice(100)">d100</button>
+    <button class="die-btn" onclick="rollCustomDice()" style="font-size:10px">Custom</button>
+  </div>
+  <div class="dice-result-box" id="diceResultBox">
+    <div class="dice-result-total" id="diceResultTotal">—</div>
+    <div class="dice-result-detail" id="diceResultDetail">Roll a die above</div>
+  </div>
+  <div class="dice-history" id="diceHistory"></div>
 </div>
 
 <!-- Inspiration & Awards Panel (Iteration 77) -->
@@ -9577,6 +9648,73 @@ function removeAward(idx) {
   const awards = loadAwards();
   awards.splice(idx, 1);
   saveAwards(awards);
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 87: Dice Roller Panel — floating panel with d4–d100,
+//   count, modifier, advantage/disadvantage, roll history.
+// ══════════════════════════════════════════════════════════
+let dicePanelOpen = false;
+let diceMode = 'normal'; // 'adv' | 'normal' | 'dis'
+let diceHistory = [];
+
+function toggleDicePanel() {
+  dicePanelOpen = !dicePanelOpen;
+  const p = document.getElementById('dicePanel');
+  if (dicePanelOpen) { p.classList.add('open'); } else { p.classList.remove('open'); }
+  const btn = document.getElementById('dicePanelBtn');
+  if (btn) btn.style.background = dicePanelOpen ? '#dd6622' : '';
+  if (btn) btn.style.color = dicePanelOpen ? '#fff' : '';
+}
+
+function setDiceMode(mode) {
+  diceMode = mode;
+  const btns = { adv: document.getElementById('diceAdvBtn'), norm: document.getElementById('diceNormBtn'), dis: document.getElementById('diceDisBtn') };
+  if (btns.adv) { btns.adv.style.opacity = mode==='adv' ? '1' : '0.4'; }
+  if (btns.norm) { btns.norm.style.opacity = mode==='normal' ? '1' : '0.4'; }
+  if (btns.dis) { btns.dis.style.opacity = mode==='dis' ? '1' : '0.4'; }
+}
+
+function rollDice(sides) {
+  const count = Math.max(1, parseInt(document.getElementById('diceCount').value)||1);
+  const mod = parseInt(document.getElementById('diceMod').value)||0;
+  let rolls = [];
+  if (sides === 20 && diceMode !== 'normal') {
+    const r1 = Math.ceil(Math.random()*20), r2 = Math.ceil(Math.random()*20);
+    const chosen = diceMode==='adv' ? Math.max(r1,r2) : Math.min(r1,r2);
+    rolls = [chosen];
+    const label = diceMode==='adv' ? '▲adv' : '▼dis';
+    const total = chosen + mod;
+    document.getElementById('diceResultTotal').textContent = total;
+    document.getElementById('diceResultDetail').textContent = `[${r1},${r2}]${label} → ${chosen}${mod>=0?'+':''}${mod}`;
+    addDiceHistory(`${count}d${sides}${label}`, rolls, mod, total);
+    return;
+  }
+  for (let i=0;i<count;i++) rolls.push(Math.ceil(Math.random()*sides));
+  const rawSum = rolls.reduce((a,b)=>a+b,0);
+  const total = rawSum + mod;
+  document.getElementById('diceResultTotal').textContent = total;
+  const rollStr = count > 1 ? `[${rolls.join(',')}]=${rawSum}` : `[${rolls[0]}]`;
+  document.getElementById('diceResultDetail').textContent = `${count}d${sides} ${rollStr}${mod!==0?(mod>=0?'+':'')+mod+' = '+total:''}`;
+  addDiceHistory(`${count}d${sides}`, rolls, mod, total);
+}
+
+function rollCustomDice() {
+  const s = prompt('Enter sides (e.g. 4, 6, 10, 20, 100):','6');
+  const sides = parseInt(s);
+  if (!isNaN(sides) && sides >= 2) rollDice(sides);
+}
+
+function addDiceHistory(label, rolls, mod, total) {
+  diceHistory.unshift({ label, rolls, mod, total, ts: new Date().toLocaleTimeString() });
+  if (diceHistory.length > 15) diceHistory.pop();
+  const el = document.getElementById('diceHistory');
+  if (!el) return;
+  el.innerHTML = diceHistory.map(h =>
+    `<div class="dice-history-entry"><span>${h.ts} — ${h.label}${h.mod!==0?(h.mod>=0?'+':'')+h.mod:''}</span><span class="dh-total">${h.total}</span></div>`
+  ).join('');
+  // Log to session log
+  logEntry('roll', `🎲 Rolled ${label}${mod!==0?(mod>=0?'+':'')+mod:''} = **${total}**`);
 }
 
 // ══════════════════════════════════════════════════════════
