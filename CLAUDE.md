@@ -85,7 +85,19 @@ Core character browser, search/filter, dark theme, tooltips, view modes.
 - Iter 147: Spell Upcast Calculator — calculate scaled spell damage at higher slots
 - Iter 148: Session Timer — live duration counter in HUD (pause/resume/reset)
 - Iter 149: Skill Contest Roller — opposed skill check between two characters
-- Iter 150: Character Background Panel — Traits/Ideals/Bonds/Flaws tab in modal ← CURRENT
+- Iter 150: Character Background Panel — Traits/Ideals/Bonds/Flaws tab in modal
+
+### Iterations 151–160
+- Iter 151: Magic Item Compendium — 65+ items with rarity, attunement, give-to-character
+- Iter 152: Feat Compendium — 48 feats with prerequisites, stored per character
+- Iter 153: Random Encounter Generator — 6 terrains × 3 CR tiers, add to initiative
+- Iter 154: Appearance Tracker — Age/Height/Hair/Eyes/Skin/Features/Voice/Mannerisms
+- Iter 155: Class Features Quick Reference — all 12 PHB classes, level-gated features
+- Iter 156: Race Features Reference — all 10 PHB races, ASI/speed/size/traits
+- Iter 157: Dungeon Room Generator — instant boxed-text room descriptions + DM notes
+- Iter 158: Spell Slot Reference Table — all 3 caster types (full/half/warlock) levels 1-20
+- Iter 159: Location Generator — taverns, shops, temples for improv urban play
+- Iter 160: Character Level-Up Workflow — HP gain (roll/avg), prof bonus, features per level ← CURRENT
 
 ## Features Currently Implemented (What We Have)
 - Character browser: search, filter by category/theme, view modes (grid/compact/list)
@@ -130,7 +142,10 @@ Core character browser, search/filter, dark theme, tooltips, view modes.
 - [x] World map with character locations (Iter 131)
 - [x] Character XP & level tracking (Iter 133)
 - [x] Backgrounds (Traits/Ideals/Bonds/Flaws) — Iter 150
-- [ ] Character progression (level up workflow)
+- [x] Character progression / Level-Up workflow (Iter 160)
+- [x] Magic Item Compendium (Iter 151)
+- [x] Feat Compendium (Iter 152)
+- [x] Race & Class Feature References (Iters 155-156)
 - [ ] Spell compendium with full descriptions
 - [ ] Monster stat block generator
 - [ ] NPC relationship strength (like/dislike/trust meter)
