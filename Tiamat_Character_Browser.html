@@ -3738,6 +3738,12 @@
   <button class="filter-btn" onclick="openTreasureGenerator()" style="border-color:#c9a227;color:#c9a227;" title="Random treasure generator by CR">💎 Treasure</button>
   <button class="filter-btn" onclick="openMagicItemGen()" style="border-color:#cc44cc;color:#cc44cc;" title="Magic Item Generator — random items by rarity">✨ Magic Items</button>
   <button class="filter-btn" onclick="openMerchantGen()" style="border-color:#aa8833;color:#aa8833;" title="Merchant Generator — random shop with inventory and prices">🏪 Shop</button>
+  <button class="filter-btn" onclick="openPotionPanel()" style="border-color:#cc4488;color:#cc4488;" title="Potion Quick-Use — drink potions, roll healing dice, track quantities">🧪 Potions</button>
+  <button class="filter-btn" onclick="openAmmoPanel('',event)" style="border-color:#aa8833;color:#aa8833;" title="Ammunition Tracker — track arrows, bolts and ranged ammo per character">🏹 Ammo</button>
+  <button class="filter-btn" onclick="openFeatBrowser()" style="border-color:#44cc88;color:#44cc88;" title="Feat Browser — searchable PHB feat reference with prerequisites and descriptions">📖 Feats</button>
+  <button class="filter-btn" onclick="openBackgroundBrowser()" style="border-color:#c9a227;color:#c9a227;" title="Background Browser — searchable PHB background reference with skills, features, and equipment">📜 BGs</button>
+  <button class="filter-btn" onclick="openRaceBrowser()" style="border-color:#9b6dff;color:#9b6dff;" title="Race Browser — PHB races and subraces with traits, ASIs, and darkvision">🧝 Races</button>
+  <button class="filter-btn" onclick="openClassBrowser()" style="border-color:#cc4444;color:#cc4444;" title="Class Browser — all 13 PHB classes with features and subclass options">⚔ Classes</button>
   <button class="filter-btn" onclick="openRandomEncTable()" style="border-color:#cc8844;color:#cc8844;" title="Random Encounter Table — roll by terrain">🎲 Enc Table</button>
   <button class="filter-btn" onclick="openCampaignTimeline()" style="border-color:#44cc88;color:#44cc88;" title="Campaign timeline — track key events">📅 Timeline</button>
   <button class="filter-btn" onclick="openWeatherPanel()" style="border-color:#2299bb;color:#2299bb;" title="Weather &amp; Environment — ambient conditions affecting gameplay">🌤 Weather</button>
@@ -6158,6 +6164,7 @@ function buildStatsPanel(c) {
     </div>
     ${buildMulticlassSection(c)}
     ${buildInventorySection(c)}
+    ${buildAmmoSection(c)}
     ${buildAttunementSection(c)}
     ${buildCompanionsSection(c)}
     ${buildInspirationSection(c)}
@@ -6176,6 +6183,7 @@ function buildStatsPanel(c) {
       <div id="spellSlotsFor_${safeId(c.name)}">${buildSpellSlotsHtml(c)}</div>
     </div>` : ''}
     ${buildSpellBook(c)}
+    ${buildSpellPrepSection(c)}
     ${buildHomebrewSpells(c)}
     ${buildComponentPouch(c)}
     ${buildSpellCombos(c)}
@@ -21020,472 +21028,852 @@ function convertLootCoins() {
 
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Iter 103: Condition detail popup — click a condition badge to see full rules
-// ─────────────────────────────────────────────────────────────────────────────
-function showCondDetailPopup(condName) {
-  const cd = getAllConditions?.().find(c => c.name === condName) || CONDITIONS.find(c => c.name === condName);
-  if (!cd) return;
-  const existing = document.getElementById('condDetailPopup');
-  if (existing) existing.remove();
-  const overlay = document.createElement('div');
-  overlay.id = 'condDetailPopup';
-  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9850;display:flex;align-items:center;justify-content:center';
-  overlay.addEventListener('click', e => { if(e.target===overlay) overlay.remove(); });
-  const cls = getCondClass?.(cd.type) || 'cond-debuff';
-  const effectHtml = (cd.effects||[]).map(e => `<li style="margin-bottom:6px;color:#b8c0d8">${escHtml(e)}</li>`).join('');
-  overlay.innerHTML = `
-    <div style="background:#0d0d1e;border:1px solid ${cd.color||'#9098b8'};border-radius:14px;padding:24px;max-width:400px;width:90%;box-shadow:0 12px 40px rgba(0,0,0,.8)" onclick="event.stopPropagation()">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
-        <span style="font-size:28px">${cd.icon||'⚡'}</span>
-        <div>
-          <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:700;color:${cd.color||'#9098b8'}">${escHtml(cd.name)}</div>
-          <div style="font-size:10px;color:#4a5272;text-transform:uppercase;letter-spacing:1px">${cd.type||'condition'}</div>
-        </div>
-        <button onclick="document.getElementById('condDetailPopup').remove()" style="margin-left:auto;background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
-      </div>
-      <ul style="list-style:disc;padding-left:18px;font-size:12px;line-height:1.7">${effectHtml}</ul>
-      <div style="margin-top:14px;text-align:center;font-size:10px;color:#2a2a50">Click backdrop to close</div>
-    </div>`;
-  document.body.appendChild(overlay);
+// ══════════════════════════════════════════════════════════
+// ITERATION 114: Spell Preparation Manager — daily prepared
+//   spell list for Cleric/Wizard/Druid/Paladin characters.
+//   Shows all known spells (from spellbook) with checkboxes
+//   to mark prepared, tracks the max prepared count, and
+//   persists across sessions. Cantrips always prepared.
+//   Integrated: in buildStatsPanel between buildSpellBook
+//   and buildHomebrewSpells for spellcasters.
+// ══════════════════════════════════════════════════════════
+const SPELL_PREP_KEY = 'tiamat_spell_prep';
+
+// Classes that use spell preparation (vs known spells)
+const PREPARED_CASTER_HINTS = ['cleric','druid','wizard','paladin','prepared','prepares'];
+
+function isPreparedCaster(c) {
+  const traits = (c.traits || []).join(' ').toLowerCase();
+  const name = (c.name || '').toLowerCase();
+  return PREPARED_CASTER_HINTS.some(h => traits.includes(h) || name.includes(h));
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Iter 92: Quick HP adjustment (±1, ±5) directly from card buttons
-// ─────────────────────────────────────────────────────────────────────────────
-function quickHpAdj(name, maxHp, delta) {
-  const curr = getCharHP(name, maxHp);
-  const newHp = Math.max(0, Math.min(maxHp, curr + delta));
-  hpState[name] = newHp;
-  saveHp();
-  const sid = safeId(name);
-  const pct = maxHp > 0 ? newHp / maxHp : 0;
-  const fillEl = document.querySelector(`[data-sid="${sid}"] .hp-fill`);
-  const lblEl  = document.querySelector(`[data-sid="${sid}"] .hp-lbl`);
-  const stEl   = document.querySelector(`[data-sid="${sid}"] .hp-st`);
-  if (fillEl) { fillEl.style.width = Math.round(pct*100)+'%'; fillEl.style.background = hpBarColor(pct); }
-  if (lblEl)  { lblEl.textContent = newHp+'/'+maxHp; }
-  if (stEl)   { const [cls,txt] = hpStatusInfo(pct); stEl.className='hp-st '+cls; stEl.textContent=txt; }
-  logEntry(delta < 0 ? 'dmg' : 'heal', `<strong>${escHtml(name)}</strong> HP: ${curr} → ${newHp} (${delta>0?'+':''}${delta})`);
-  updateHeaderStats();
+function getSpellPrep(charName) {
+  const all = JSON.parse(localStorage.getItem(SPELL_PREP_KEY) || '{}');
+  return all[charName] || { prepared: [] };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Iter 93: Personality Traits storage & helpers (Traits/Ideals/Bonds/Flaws)
-// ─────────────────────────────────────────────────────────────────────────────
-const PERSONALITY_KEY = 'tiamat_personality';
-function loadPersonality(name) {
-  try { return JSON.parse(localStorage.getItem(PERSONALITY_KEY) || '{}')[name] || {}; } catch { return {}; }
-}
-function savePersonality(name, data) {
-  try {
-    const all = JSON.parse(localStorage.getItem(PERSONALITY_KEY) || '{}');
-    all[name] = data;
-    localStorage.setItem(PERSONALITY_KEY, JSON.stringify(all));
-  } catch {}
-}
-function buildPersonalitySection(c) {
-  const p = loadPersonality(c.name);
-  const sid = safeId(c.name);
-  const fields = [
-    { key:'traits',  label:'Personality Traits', placeholder:'How this character behaves, mannerisms, habits…' },
-    { key:'ideals',  label:'Ideals',              placeholder:'What drives them — principles, beliefs, goals…' },
-    { key:'bonds',   label:'Bonds',               placeholder:'Connections to people, places, duties…' },
-    { key:'flaws',   label:'Flaws',               placeholder:'Weaknesses, fears, vices, blind spots…' },
-  ];
-  const fieldHtml = fields.map(f => `
-    <div class="trait-field">
-      <div class="trait-field-label">${f.label}</div>
-      <textarea id="pf_${f.key}_${sid}" placeholder="${f.placeholder}" rows="3" onchange="savePersonalityField(${JSON.stringify(c.name)},${JSON.stringify(f.key)},this.value)">${escHtml(p[f.key]||'')}</textarea>
-    </div>`).join('');
-  return `
-    <div class="stats-section">
-      <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
-        <span>Characteristics</span>
-        <span style="font-size:10px;color:#4a5272;font-weight:400">D&D Beyond style — auto-saved</span>
-      </div>
-      <div class="trait-field-grid">${fieldHtml}</div>
-    </div>`;
-}
-function savePersonalityField(name, key, value) {
-  const p = loadPersonality(name);
-  p[key] = value;
-  savePersonality(name, p);
+function saveSpellPrep(charName, data) {
+  const all = JSON.parse(localStorage.getItem(SPELL_PREP_KEY) || '{}');
+  all[charName] = data;
+  localStorage.setItem(SPELL_PREP_KEY, JSON.stringify(all));
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Iter 94: Ability check roller also shows rich popup
-// ─────────────────────────────────────────────────────────────────────────────
-// Wrap the existing rollAbilityCheck to also show a visual popup
-const _origRollAbilityCheck = typeof rollAbilityCheck !== 'undefined' ? rollAbilityCheck : null;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Iter 95: Custom Weapons — add/save per character, persistent in localStorage
-// ─────────────────────────────────────────────────────────────────────────────
-const WEAPONS_KEY = 'tiamat_weapons';
-function loadWeapons(name) {
-  try { return JSON.parse(localStorage.getItem(WEAPONS_KEY) || '{}')[name] || []; } catch { return []; }
-}
-function saveWeapons(name, weapons) {
-  try {
-    const all = JSON.parse(localStorage.getItem(WEAPONS_KEY) || '{}');
-    all[name] = weapons;
-    localStorage.setItem(WEAPONS_KEY, JSON.stringify(all));
-  } catch {}
-}
-function addWeapon(name) {
-  const sid = safeId(name);
-  const wname = document.getElementById(`wname_${sid}`)?.value.trim();
-  const whit  = document.getElementById(`whit_${sid}`)?.value.trim();
-  const wdmg  = document.getElementById(`wdmg_${sid}`)?.value.trim();
-  const wtype = document.getElementById(`wtype_${sid}`)?.value.trim();
-  const wrange= document.getElementById(`wrange_${sid}`)?.value.trim();
-  if (!wname) return;
-  const weapons = loadWeapons(name);
-  weapons.push({ name: wname, hit: whit||'+0', dmg: wdmg||'1d6', dtype: wtype||'', range: wrange||'5 ft', type:'attack' });
-  saveWeapons(name, weapons);
-  renderWeaponsSection(name);
-  // Clear inputs
-  ['wname','whit','wdmg','wtype','wrange'].forEach(f => { const el = document.getElementById(`${f}_${sid}`); if(el) el.value=''; });
-}
-function deleteWeapon(name, idx) {
-  const weapons = loadWeapons(name);
-  weapons.splice(idx, 1);
-  saveWeapons(name, weapons);
-  renderWeaponsSection(name);
-}
-function renderWeaponsSection(name) {
-  const sid = safeId(name);
-  const container = document.getElementById(`weaponsList_${sid}`);
-  if (!container) return;
-  const weapons = loadWeapons(name);
-  if (!weapons.length) { container.innerHTML = '<div style="font-size:11px;color:#2a2a50;font-style:italic;padding:4px 0">No custom weapons — add one below</div>'; return; }
-  container.innerHTML = `<table class="actions-table" style="margin-bottom:4px">
-    <thead><tr><th>Weapon</th><th>Hit</th><th>Damage</th><th>Range</th><th></th><th></th></tr></thead>
-    <tbody>${weapons.map((w,i) => `
-      <tr class="action-row">
-        <td><span class="action-name">${escHtml(w.name)}</span></td>
-        <td><span class="action-hit">${escHtml(w.hit)}</span></td>
-        <td><span class="action-dmg">${escHtml(w.dmg)}</span> <span style="font-size:10px;color:#4a5272">${escHtml(w.dtype||'')}</span></td>
-        <td><span class="action-range">${escHtml(w.range||'—')}</span></td>
-        <td><button class="action-roll-btn" onclick="rollActionAttack(${JSON.stringify(w)})">🎲 Roll</button></td>
-        <td><button onclick="deleteWeapon(${JSON.stringify(name)},${i})" style="background:none;border:none;color:#cc3333;cursor:pointer;font-size:12px" title="Delete">✕</button></td>
-      </tr>`).join('')}
-    </tbody></table>`;
-}
-function buildWeaponsSection(c) {
-  const sid = safeId(c.name);
-  return `
-    <div class="stats-section">
-      <div class="stats-section-title">Custom Weapons <span style="font-size:10px;color:#4a5272;font-weight:400;font-family:'Inter',sans-serif">— persistent, click 🎲 to roll</span></div>
-      <div id="weaponsList_${sid}"></div>
-      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:4px;margin-top:6px;align-items:center">
-        <input id="wname_${sid}" class="npc-input" style="padding:4px 8px;font-size:11px" placeholder="Name (e.g. Longsword)">
-        <input id="whit_${sid}"  class="npc-input" style="padding:4px 8px;font-size:11px" placeholder="+5 hit">
-        <input id="wdmg_${sid}"  class="npc-input" style="padding:4px 8px;font-size:11px" placeholder="1d8+3">
-        <input id="wtype_${sid}" class="npc-input" style="padding:4px 8px;font-size:11px" placeholder="slashing">
-        <input id="wrange_${sid}"class="npc-input" style="padding:4px 8px;font-size:11px" placeholder="5 ft">
-        <button onclick="addWeapon(${JSON.stringify(c.name)})" style="background:rgba(68,136,255,0.15);border:1px solid #4488ff;color:#4488ff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;white-space:nowrap">+ Add</button>
-      </div>
-    </div>`;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Iter 96: Character appearance/description fields (Height, Weight, Age, Eyes, etc.)
-// ─────────────────────────────────────────────────────────────────────────────
-const APPEARANCE_KEY = 'tiamat_appearance';
-function loadAppearance(name) {
-  try { return JSON.parse(localStorage.getItem(APPEARANCE_KEY) || '{}')[name] || {}; } catch { return {}; }
-}
-function saveAppearanceField(name, key, value) {
-  try {
-    const all = JSON.parse(localStorage.getItem(APPEARANCE_KEY) || '{}');
-    if (!all[name]) all[name] = {};
-    all[name][key] = value;
-    localStorage.setItem(APPEARANCE_KEY, JSON.stringify(all));
-  } catch {}
-}
-function buildAppearanceSection(c) {
-  const a = loadAppearance(c.name);
-  const sid = safeId(c.name);
-  const fields = [
-    {key:'age',   label:'Age',    placeholder:'e.g. 45'},
-    {key:'height',label:'Height', placeholder:'e.g. 5\'10"'},
-    {key:'weight',label:'Weight', placeholder:'e.g. 180 lbs'},
-    {key:'eyes',  label:'Eyes',   placeholder:'e.g. Green'},
-    {key:'skin',  label:'Skin',   placeholder:'e.g. Tan'},
-    {key:'hair',  label:'Hair',   placeholder:'e.g. Brown'},
-  ];
-  const fieldHtml = fields.map(f => `
-    <div style="display:flex;flex-direction:column;gap:3px">
-      <div style="font-size:9px;color:#9098b8;text-transform:uppercase;letter-spacing:1px">${f.label}</div>
-      <input value="${escHtml(a[f.key]||'')}" placeholder="${f.placeholder}"
-        style="background:#06061a;border:1px solid #1e2040;border-radius:4px;padding:4px 8px;color:#dce0f0;font-size:11px;font-family:'Inter',sans-serif;outline:none;width:100%"
-        onchange="saveAppearanceField(${JSON.stringify(c.name)},${JSON.stringify(f.key)},this.value)"
-        onfocus="this.style.borderColor='#4488ff'" onblur="this.style.borderColor='#1e2040'">
-    </div>`).join('');
-  return `
-    <div class="stats-section">
-      <div class="stats-section-title">Physical Description</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px">${fieldHtml}</div>
-    </div>`;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Iter 97: Spell DC / Spellcasting details badge in combat bar
-// ─────────────────────────────────────────────────────────────────────────────
-// Already handled in buildCombatBar — this iter adds tooltip descriptions to each box
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Iter 98: Initiative auto-roll — clicking "Add to Initiative" now rolls d20
-// ─────────────────────────────────────────────────────────────────────────────
-const _origToggleInitiative = typeof toggleInitiative !== 'undefined' ? toggleInitiative : null;
-function toggleInitiativeWithRoll(name, maxHp) {
-  // If not in initiative, auto-roll init and show result
-  if (typeof isInInitiative === 'function' && !isInInitiative(name)) {
-    const dexMod = (() => {
-      const c = UNIQUE_CHARS.find(x=>x.name===name);
-      if (!c) return 0;
-      const ab = {}; (c.abilities||[]).forEach(([n,s,m])=>ab[n]={mod:parseInt(m)||0});
-      return ab['DEX']?.mod || 0;
-    })();
-    const roll = Math.floor(Math.random()*20)+1;
-    const total = roll + dexMod;
-    const modStr = dexMod>=0?`+${dexMod}`:`${dexMod}`;
-    logEntry('roll', `⚔ <strong>${escHtml(name)}</strong> Initiative: d20(${roll})${modStr}=<strong>${total}</strong>`);
-    showToast?.(`⚔ ${name} Initiative: ${total}`, '#4488ff');
+function togglePrepListSpell(charName, spellName, evt) {
+  if (evt) evt.stopPropagation();
+  const data = getSpellPrep(charName);
+  const idx = data.prepared.indexOf(spellName);
+  if (idx >= 0) {
+    data.prepared.splice(idx, 1);
+  } else {
+    data.prepared.push(spellName);
   }
-  if (typeof _origToggleInitiative === 'function') _origToggleInitiative(name, maxHp);
+  saveSpellPrep(charName, data);
+  refreshPrepListSection(charName);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Iter 99: "See Also" improvements — show relationship type icons
-// Already exists in buildSeeAlso — this iter patches it to add type badges
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Iter 100: Party Stat Summary — quick overview of all party members
-// ─────────────────────────────────────────────────────────────────────────────
-function openPartySummary() {
-  const existing = document.getElementById('partySummaryOverlay');
-  if (existing) { existing.remove(); return; }
-  const party = typeof getPartyChars === 'function' ? getPartyChars() : UNIQUE_CHARS.slice(0,6);
-  const rows = party.map(c => {
-    const maxHp = parseInt(c.hp)||1;
-    const currHp = getCharHP(c.name, maxHp);
-    const pct = currHp/maxHp;
-    const barColor = hpBarColor(pct);
-    const conds = typeof getCharConditions === 'function' ? getCharConditions(c.name) : [];
-    const concSpell = typeof getConcSpell === 'function' ? getConcSpell(c.name) : null;
-    const ab = {}; (c.abilities||[]).forEach(([n,s,m,hl])=>ab[n]={score:parseInt(s)||10,mod:parseInt(m)||0,hl:!!hl});
-    const prof = parseFloat(c.cr||0)>=17?6:parseFloat(c.cr||0)>=13?5:parseFloat(c.cr||0)>=9?4:parseFloat(c.cr||0)>=5?3:2;
-    const passPerc = 10+(ab['WIS']?.mod||0)+prof;
-    return `<tr style="border-bottom:1px solid #1e2040">
-      <td style="padding:6px 8px;font-weight:600;font-size:12px;color:#dce0f0">${escHtml(c.name)}</td>
-      <td style="padding:6px 8px;font-size:11px;color:#9098b8">${c.cr}</td>
-      <td style="padding:6px 8px;min-width:120px">
-        <div style="display:flex;align-items:center;gap:6px">
-          <div style="flex:1;height:6px;background:#1a1a35;border-radius:3px;overflow:hidden">
-            <div style="width:${Math.round(pct*100)}%;height:100%;background:${barColor};border-radius:3px"></div>
-          </div>
-          <span style="font-size:11px;color:${barColor};white-space:nowrap">${currHp}/${maxHp}</span>
-        </div>
-      </td>
-      <td style="padding:6px 8px;font-size:11px;color:#9098b8">${c.ac}</td>
-      <td style="padding:6px 8px;font-size:11px;color:#9098b8">${passPerc}</td>
-      <td style="padding:6px 8px;font-size:11px;color:#dd8822">${conds.length ? conds.join(', ') : '—'}</td>
-      <td style="padding:6px 8px;font-size:11px;color:#c9a227">${concSpell ? '🔮 '+concSpell : '—'}</td>
-    </tr>`;
-  }).join('');
-  const overlay = document.createElement('div');
-  overlay.id = 'partySummaryOverlay';
-  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9800;display:flex;align-items:flex-start;justify-content:center;padding-top:6vh;overflow-y:auto';
-  overlay.addEventListener('click', e => { if(e.target===overlay) overlay.remove(); });
-  overlay.innerHTML = `
-    <div style="background:#0d0d1e;border:1px solid #c9a227;border-radius:16px;padding:24px;min-width:600px;max-width:90vw;box-shadow:0 12px 50px rgba(0,0,0,.85)">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <div style="font-family:'Cinzel',serif;font-size:18px;color:#c9a227;font-weight:700">Party Summary</div>
-        <button onclick="document.getElementById('partySummaryOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
-      </div>
-      <table style="width:100%;border-collapse:collapse">
-        <thead><tr style="border-bottom:2px solid #1e2040">
-          <th style="padding:6px 8px;text-align:left;font-size:10px;color:#9098b8;font-weight:600;text-transform:uppercase;letter-spacing:1px">Name</th>
-          <th style="padding:6px 8px;text-align:left;font-size:10px;color:#9098b8;font-weight:600;text-transform:uppercase;letter-spacing:1px">CR</th>
-          <th style="padding:6px 8px;text-align:left;font-size:10px;color:#9098b8;font-weight:600;text-transform:uppercase;letter-spacing:1px">HP</th>
-          <th style="padding:6px 8px;text-align:left;font-size:10px;color:#9098b8;font-weight:600;text-transform:uppercase;letter-spacing:1px">AC</th>
-          <th style="padding:6px 8px;text-align:left;font-size:10px;color:#9098b8;font-weight:600;text-transform:uppercase;letter-spacing:1px">Pass Perc</th>
-          <th style="padding:6px 8px;text-align:left;font-size:10px;color:#9098b8;font-weight:600;text-transform:uppercase;letter-spacing:1px">Conditions</th>
-          <th style="padding:6px 8px;text-align:left;font-size:10px;color:#9098b8;font-weight:600;text-transform:uppercase;letter-spacing:1px">Conc.</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-      <div style="margin-top:12px;text-align:center;font-size:11px;color:#2a2a50">Click backdrop to close</div>
-    </div>`;
-  document.body.appendChild(overlay);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Iter 104: CR → Level conversion helper
-// ─────────────────────────────────────────────────────────────────────────────
-function crToLevel(cr) {
-  const map = {'0':1,'1/8':1,'1/4':2,'1/2':3,'1':4,'2':5,'3':6,'4':7,'5':8,'6':9,'7':10,
-    '8':11,'9':12,'10':13,'11':14,'12':15,'13':16,'14':17,'15':18,'16':19,'17':20,
-    '18':20,'19':20,'20':20,'21':20,'22':20,'23':20,'24':20,'25':20,'26':20,'27':20,'28':20,'29':20,'30':20};
-  return map[String(cr)] || 1;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Iter 105: 4d6 drop lowest — ability score roller for new characters
-// ─────────────────────────────────────────────────────────────────────────────
-function roll4d6DropLowest() {
-  const rolls = Array.from({length:4}, () => Math.floor(Math.random()*6)+1);
-  rolls.sort((a,b) => b-a);
-  const dropped = rolls[3];
-  const total = rolls[0]+rolls[1]+rolls[2];
-  return { total, rolls, dropped };
-}
-function openAbilityRoller() {
-  const existing = document.getElementById('abilityRollerOverlay');
-  if (existing) { existing.remove(); return; }
-  const scores = Array.from({length:6}, () => roll4d6DropLowest());
-  const total = scores.reduce((s,r) => s+r.total, 0);
-  const abilities = ['STR','DEX','CON','INT','WIS','CHA'];
-  const rows = scores.map((r, i) => {
-    const mod = Math.floor((r.total-10)/2);
-    const modStr = mod>=0?`+${mod}`:`${mod}`;
-    const diceHtml = r.rolls.slice(0,3).map(d =>
-      `<span style="display:inline-block;background:#1a1a35;border:1px solid #2a2a50;border-radius:3px;padding:1px 5px;font-size:11px;${d===6?'color:#c9a227':d===1?'color:#cc3333':''}">${d}</span>`
-    ).join(' ');
-    return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #0e0e24">
-      <span style="width:30px;font-size:11px;color:#9098b8">${abilities[i]}</span>
-      <span style="font-size:22px;font-weight:900;font-family:'Cinzel',serif;color:#c9a227;width:30px">${r.total}</span>
-      <span style="font-size:12px;color:#4a5272;width:28px">${modStr}</span>
-      <span>${diceHtml}</span>
-      <span style="font-size:10px;color:#2a2a50">drop ${r.dropped}</span>
-    </div>`;
-  }).join('');
-  const overlay = document.createElement('div');
-  overlay.id = 'abilityRollerOverlay';
-  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:9800;display:flex;align-items:center;justify-content:center';
-  overlay.addEventListener('click', e => { if(e.target===overlay) overlay.remove(); });
-  overlay.innerHTML = `
-    <div style="background:#0d0d1e;border:2px solid #c9a227;border-radius:16px;padding:28px;min-width:360px;box-shadow:0 12px 50px rgba(0,0,0,.85)" onclick="event.stopPropagation()">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <div style="font-family:'Cinzel',serif;font-size:18px;color:#c9a227;font-weight:700">🎲 Ability Score Roller</div>
-        <button onclick="document.getElementById('abilityRollerOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
-      </div>
-      <div style="font-size:10px;color:#9098b8;margin-bottom:12px">4d6 — drop lowest • Total: <strong style="color:#c9a227">${total}</strong> (point buy equiv: ~${Math.round(total*0.5)})</div>
-      ${rows}
-      <div style="display:flex;gap:8px;margin-top:16px">
-        <button onclick="document.getElementById('abilityRollerOverlay').remove();openAbilityRoller()" style="flex:1;background:rgba(201,162,39,0.15);border:1px solid #c9a227;color:#c9a227;border-radius:8px;padding:8px;cursor:pointer;font-size:13px;font-family:'Cinzel',serif">🎲 Re-Roll</button>
-        <button onclick="document.getElementById('abilityRollerOverlay').remove()" style="flex:1;background:none;border:1px solid #2a2a50;color:#9098b8;border-radius:8px;padding:8px;cursor:pointer;font-size:13px">Keep These</button>
-      </div>
-      <div style="margin-top:8px;text-align:center;font-size:10px;color:#2a2a50">Click backdrop to close</div>
-    </div>`;
-  document.body.appendChild(overlay);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Iter 106: Concentration — quick-set from combat bar click
-// ─────────────────────────────────────────────────────────────────────────────
-// Already implemented in the spell book section with setConc() and openConcPicker()
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Iter 107: Roll multiple ability checks at once (group check)
-// ─────────────────────────────────────────────────────────────────────────────
-// Already exists as openPartyCheckRoller() — this iter adds it to modal
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Iter 108: NPC stat block popup improvements — show all abilities on hover
-// ─────────────────────────────────────────────────────────────────────────────
-// Existing openStatBlockPopup enhanced with right-click already
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Iter 109: Character import from JSON string (paste a stat block)
-// ─────────────────────────────────────────────────────────────────────────────
-function openImportCharacter() {
-  const existing = document.getElementById('importCharOverlay');
-  if (existing) { existing.remove(); return; }
-  const overlay = document.createElement('div');
-  overlay.id = 'importCharOverlay';
-  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9800;display:flex;align-items:center;justify-content:center';
-  overlay.addEventListener('click', e => { if(e.target===overlay) overlay.remove(); });
-  overlay.innerHTML = `
-    <div style="background:#0d0d1e;border:1px solid #44aa44;border-radius:16px;padding:28px;max-width:520px;width:90%;box-shadow:0 12px 50px rgba(0,0,0,.85)" onclick="event.stopPropagation()">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <div style="font-family:'Cinzel',serif;font-size:18px;color:#44aa44;font-weight:700">📥 Import Character (JSON)</div>
-        <button onclick="document.getElementById('importCharOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
-      </div>
-      <div style="font-size:11px;color:#9098b8;margin-bottom:12px">Paste a character JSON exported from this app, or a compatible stat block JSON:</div>
-      <textarea id="importJsonInput" style="width:100%;height:180px;background:#06061a;border:1px solid #2a2a50;border-radius:8px;color:#dce0f0;font-size:11px;font-family:'Courier New',monospace;padding:10px;outline:none;resize:vertical" placeholder='{"name":"Erevan","title":"Rogue · Elf","cr":"5","hp":"45","ac":"16",...}'
-        onfocus="this.style.borderColor='#44aa44'" onblur="this.style.borderColor='#2a2a50'"></textarea>
-      <div style="display:flex;gap:8px;margin-top:14px">
-        <button onclick="doImportCharacter()" style="flex:1;background:rgba(68,170,68,0.15);border:1px solid #44aa44;color:#44aa44;border-radius:8px;padding:8px;cursor:pointer;font-size:13px;font-family:'Cinzel',serif">📥 Import</button>
-        <button onclick="document.getElementById('importCharOverlay').remove()" style="flex:1;background:none;border:1px solid #2a2a50;color:#9098b8;border-radius:8px;padding:8px;cursor:pointer;font-size:13px">Cancel</button>
-      </div>
-      <div id="importCharMsg" style="margin-top:8px;font-size:11px;text-align:center"></div>
-    </div>`;
-  document.body.appendChild(overlay);
-}
-function doImportCharacter() {
-  const input = document.getElementById('importJsonInput')?.value?.trim();
-  const msg = document.getElementById('importCharMsg');
-  if (!input) { if(msg) msg.innerHTML = '<span style="color:#cc3333">Paste a JSON string first</span>'; return; }
-  try {
-    const data = JSON.parse(input);
-    // Support importing single character or array
-    const chars = Array.isArray(data) ? data : [data];
-    const customNpcs = JSON.parse(localStorage.getItem('tiamat_custom_npcs') || '[]');
-    let added = 0;
-    chars.forEach(c => {
-      if (!c.name || !c.cr) return;
-      // Set required defaults
-      if (!c.abilities) c.abilities = [['STR',10,'+0',false],['DEX',10,'+0',false],['CON',10,'+0',false],['INT',10,'+0',false],['WIS',10,'+0',false],['CHA',10,'+0',false]];
-      if (!c.theme) c.theme = 'warrior';
-      if (!c.group) c.group = 'misc';
-      if (!c.hp) c.hp = '10';
-      if (!c.ac) c.ac = '10';
-      if (!c.title) c.title = 'Unknown';
-      if (!c.subtitle) c.subtitle = '';
-      if (!c.traits) c.traits = [];
-      if (!c.lore) c.lore = '';
-      // Remove if exists
-      const existIdx = customNpcs.findIndex(x => x.name === c.name);
-      if (existIdx >= 0) customNpcs.splice(existIdx, 1);
-      customNpcs.push(c);
-      added++;
-    });
-    localStorage.setItem('tiamat_custom_npcs', JSON.stringify(customNpcs));
-    if (msg) msg.innerHTML = `<span style="color:#44aa44">✓ Imported ${added} character(s) successfully!</span>`;
-    logEntry('note', `📥 Imported ${added} character(s) from JSON`);
-    setTimeout(() => { document.getElementById('importCharOverlay')?.remove(); location.reload(); }, 1500);
-  } catch(e) {
-    if(msg) msg.innerHTML = `<span style="color:#cc3333">Invalid JSON: ${escHtml(e.message)}</span>`;
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Iter 110: Initiative auto-roll — wrap toggleInitiative to log a roll
-// ─────────────────────────────────────────────────────────────────────────────
-// Override toggleInitiative to auto-roll initiative and log it
-const _origToggleInitiativeFn = typeof toggleInitiative !== 'undefined' ? toggleInitiative : null;
-if (_origToggleInitiativeFn) {
-  window.toggleInitiative = function(name, maxHp) {
-    if (!isInInitiative(name)) {
-      const c = UNIQUE_CHARS.find(x => x.name === name);
-      const dexMod = (() => {
-        if (!c) return 0;
-        const ab = {}; (c.abilities||[]).forEach(([n,s,m]) => ab[n]={mod:parseInt(m)||0});
-        return ab['DEX']?.mod || 0;
-      })();
-      const roll = Math.floor(Math.random()*20)+1;
-      const total = roll + dexMod;
-      const modStr = dexMod>=0?`+${dexMod}`:`${dexMod}`;
-      logEntry('roll', `⚔ <strong>${escHtml(name)}</strong> Initiative: d20(${roll})${modStr}=<strong>${total}</strong>`);
+function refreshPrepListSection(charName) {
+  const char = (typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : []).find(c => c.name === charName);
+  if (!char) return;
+  const sections = document.querySelectorAll('.stats-section');
+  for (const sec of sections) {
+    const title = sec.querySelector('.stats-section-title');
+    if (title && title.textContent.includes('Spell Preparation') && sec.dataset.charname === charName) {
+      sec.outerHTML = buildSpellPrepSection(char);
+      return;
     }
-    _origToggleInitiativeFn(name, maxHp);
-  };
+  }
 }
 
+function buildSpellPrepSection(c) {
+  if (!isSpellcaster(c)) return '';
+  if (!isPreparedCaster(c)) return '';
+
+  const spellNames = (typeof inferSpells === 'function') ? inferSpells(c) : [];
+  if (!spellNames.length) return '';
+
+  // Separate cantrips from leveled
+  const cantrips = spellNames.filter(n => { const s = SPELL_LIBRARY[n]; return s && s.level === 0; });
+  const leveled = spellNames.filter(n => { const s = SPELL_LIBRARY[n]; return s && s.level > 0; });
+  if (!leveled.length) return '';
+
+  const data = getSpellPrep(c.name);
+  const prepared = data.prepared;
+
+  // Max prepared: level (derived from CR) + ability modifier (WIS or INT)
+  const ab = {};
+  (c.abilities || []).forEach(([n,s,m]) => ab[n] = parseInt(m)||0);
+  const cr = parseFloat(c.cr) || 1;
+  // Rough level from CR
+  const charLevel = cr <= 1 ? 1 : cr <= 2 ? 2 : cr <= 3 ? 3 : cr <= 4 ? 4 :
+    cr <= 5 ? 5 : cr <= 6 ? 6 : cr <= 7 ? 7 : cr <= 8 ? 8 :
+    cr <= 9 ? 9 : cr <= 10 ? 10 : cr <= 11 ? 11 : cr <= 12 ? 12 :
+    cr <= 13 ? 13 : cr <= 14 ? 14 : cr <= 15 ? 15 : cr <= 16 ? 16 :
+    cr <= 17 ? 17 : cr <= 18 ? 18 : cr <= 19 ? 19 : 20;
+  const castMod = Math.max(ab['WIS'] || 0, ab['INT'] || 0);
+  const maxPrep = Math.max(1, charLevel + castMod);
+  const prepCount = prepared.length;
+  const atMax = prepCount >= maxPrep;
+
+  // Group leveled by level
+  const byLevel = {};
+  leveled.forEach(n => {
+    const s = SPELL_LIBRARY[n];
+    if (!s) return;
+    if (!byLevel[s.level]) byLevel[s.level] = [];
+    byLevel[s.level].push(n);
+  });
+
+  const levelNames = ['','1st','2nd','3rd','4th','5th','6th','7th','8th','9th'];
+
+  const spellRows = Object.keys(byLevel).sort((a,b) => a-b).map(lv => {
+    const spells = byLevel[lv];
+    const rows = spells.map(name => {
+      const isPrepared = prepared.includes(name);
+      const s = SPELL_LIBRARY[name];
+      const schoolColor = s && s.school ? ({
+        Evocation:'#cc4444', Abjuration:'#4488cc', Conjuration:'#44aacc',
+        Divination:'#ccaa44', Enchantment:'#cc66cc', Illusion:'#9966cc',
+        Necromancy:'#44aa44', Transmutation:'#cc8844'
+      }[s.school] || '#9098b8') : '#9098b8';
+
+      return `<div style="display:flex;align-items:center;gap:8px;padding:3px 4px;border-radius:4px;background:${isPrepared ? 'rgba(100,180,100,0.08)' : 'transparent'};margin-bottom:2px">
+        <input type="checkbox" ${isPrepared ? 'checked' : ''} ${!isPrepared && atMax ? 'disabled' : ''}
+          onchange="togglePrepListSpell(${JSON.stringify(c.name)},${JSON.stringify(name)},event)"
+          style="width:14px;height:14px;cursor:pointer;accent-color:#44cc88;flex-shrink:0">
+        <span style="font-size:12px;color:${isPrepared ? '#44cc88' : atMax ? '#555' : '#9098b8'};flex:1;${isPrepared ? 'font-weight:600' : ''}">${escHtml(name)}</span>
+        ${s ? `<span style="font-size:10px;color:${schoolColor};opacity:0.8">${s.school||''}</span>` : ''}
+        ${s && s.conc ? `<span style="font-size:9px;color:#aa66ff;border:1px solid #aa66ff22;border-radius:3px;padding:0 3px">C</span>` : ''}
+        ${s && s.ritual ? `<span style="font-size:9px;color:#44aacc;border:1px solid #44aacc22;border-radius:3px;padding:0 3px">R</span>` : ''}
+      </div>`;
+    }).join('');
+
+    return `<div style="margin-bottom:8px">
+      <div style="font-size:10px;color:#7a7aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;padding-bottom:2px;border-bottom:1px solid #1a1a3a">${levelNames[lv] || lv+'th'} Level</div>
+      ${rows}
+    </div>`;
+  }).join('');
+
+  const cantripNote = cantrips.length ? `<div style="font-size:11px;color:#9098b8;margin-bottom:8px;padding:4px 6px;background:rgba(80,80,120,0.1);border-radius:4px">✦ Cantrips always prepared: ${cantrips.map(escHtml).join(', ')}</div>` : '';
+
+  const barFill = Math.min(1, prepCount / maxPrep);
+  const barColor = atMax ? '#cc4444' : prepCount >= maxPrep * 0.75 ? '#c9a227' : '#44cc88';
+
+  return `<div class="stats-section" data-charname="${escHtml(c.name)}">
+    <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>Spell Preparation</span>
+      <span style="font-size:11px;color:${barColor};font-weight:600">${prepCount}/${maxPrep} prepared</span>
+    </div>
+    <div style="height:4px;background:#1a1a3a;border-radius:2px;margin-bottom:10px">
+      <div style="height:100%;width:${Math.round(barFill*100)}%;background:${barColor};border-radius:2px;transition:width 0.3s"></div>
+    </div>
+    ${cantripNote}
+    <div style="font-size:11px;color:#7a7aaa;margin-bottom:8px">Check spells to mark them prepared for today. Max = level (${charLevel}) + casting modifier (${castMod>=0?'+':''}${castMod}).</div>
+    ${atMax ? `<div style="font-size:11px;color:#cc4444;margin-bottom:8px;padding:3px 6px;background:rgba(200,60,60,0.08);border-radius:4px;border:1px solid rgba(200,60,60,0.2)">⚠ Preparation limit reached — unprepare a spell to swap</div>` : ''}
+    ${spellRows}
+    <button onclick="clearPrepList(${JSON.stringify(c.name)})" style="margin-top:6px;background:rgba(80,80,120,0.15);border:1px solid #2a2a50;color:#7a7aaa;border-radius:4px;padding:2px 10px;cursor:pointer;font-size:11px;width:100%">↺ Clear All Prepared</button>
+  </div>`;
+}
+
+function clearPrepList(charName, evt) {
+  if (evt) evt.stopPropagation();
+  saveSpellPrep(charName, { prepared: [] });
+  refreshPrepListSection(charName);
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 115: Potion Quick-Use Panel — fast-access overlay
+//   for drinking potions. Tracks quantities per character,
+//   rolls healing dice inline, logs results to session log.
+//   Toolbar: 🧪 Potions
+// ══════════════════════════════════════════════════════════
+const POTION_STOCK_KEY = 'tiamat_potion_stock';
+
+const POTION_TYPES = [
+  { name:'Healing',          dice:'2d4+2',  color:'#cc4444', desc:'Regain 2d4+2 HP', cost:'50gp',  emoji:'🔴' },
+  { name:'Greater Healing',  dice:'4d4+4',  color:'#dd6633', desc:'Regain 4d4+4 HP', cost:'100gp', emoji:'🟠' },
+  { name:'Superior Healing', dice:'8d4+8',  color:'#cc8822', desc:'Regain 8d4+8 HP', cost:'500gp', emoji:'🟡' },
+  { name:'Supreme Healing',  dice:'10d4+20',color:'#aa44cc', desc:'Regain 10d4+20 HP',cost:'5000gp',emoji:'🟣' },
+  { name:'Speed',            dice:'',       color:'#44aacc', desc:'Haste for 1 min', cost:'150gp', emoji:'🔵' },
+  { name:'Invisibility',     dice:'',       color:'#aaaaaa', desc:'Invisible for 1hr or until attack/spell', cost:'500gp', emoji:'⚪' },
+  { name:'Fire Breath',      dice:'',       color:'#ee4422', desc:'3d6 fire as bonus action, 5 charges', cost:'150gp', emoji:'🔥' },
+  { name:'Resistance',       dice:'',       color:'#44cc88', desc:'Resistance to one damage type 1hr', cost:'300gp', emoji:'🟢' },
+  { name:'Climbing',         dice:'',       color:'#aa8844', desc:'Climb speed = walking speed 1hr', cost:'75gp',  emoji:'🟤' },
+  { name:'Water Breathing',  dice:'',       color:'#2266aa', desc:'Breathe underwater 1hr', cost:'75gp', emoji:'💧' },
+];
+
+function getPotionStock() {
+  return JSON.parse(localStorage.getItem(POTION_STOCK_KEY) || '{}');
+}
+function savePotionStock(stock) {
+  localStorage.setItem(POTION_STOCK_KEY, JSON.stringify(stock));
+}
+
+function openPotionPanel() {
+  const existing = document.getElementById('potionPanelOverlay');
+  if (existing) { existing.remove(); return; }
+
+  const chars = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS : [];
+  const charOptions = chars.map(c => `<option value="${escHtml(c.name)}">${escHtml(c.name)}</option>`).join('');
+
+  const stock = getPotionStock();
+
+  const rows = POTION_TYPES.map((p, idx) => {
+    const qty = (stock[p.name] || 0);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;background:rgba(20,20,40,0.4);margin-bottom:4px;border:1px solid rgba(80,80,120,0.2)">
+      <span style="font-size:18px;flex-shrink:0">${p.emoji}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:${p.color}">${escHtml(p.name)}</div>
+        <div style="font-size:10px;color:#7a7aaa">${escHtml(p.desc)}</div>
+        ${p.dice ? `<div style="font-size:10px;color:#c9a227">🎲 ${p.dice}</div>` : ''}
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+        <button onclick="adjustPotionQty(${JSON.stringify(p.name)},-1)" style="background:rgba(200,60,60,0.15);border:1px solid rgba(200,60,60,0.3);color:#cc4444;border-radius:4px;padding:1px 7px;cursor:pointer;font-size:14px;line-height:1.4">−</button>
+        <span id="potionQty_${safeId(p.name)}" style="font-size:14px;font-weight:700;color:#e8e8f8;min-width:24px;text-align:center">${qty}</span>
+        <button onclick="adjustPotionQty(${JSON.stringify(p.name)},1)" style="background:rgba(60,200,100,0.1);border:1px solid rgba(60,200,100,0.3);color:#44cc88;border-radius:4px;padding:1px 7px;cursor:pointer;font-size:14px;line-height:1.4">+</button>
+      </div>
+      <button onclick="drinkPotion(${JSON.stringify(p.name)},event)"
+        style="background:rgba(${p.color.replace('#','').match(/.{2}/g).map(h=>parseInt(h,16)).join(',')},0.15);border:1px solid ${p.color}44;color:${p.color};border-radius:5px;padding:3px 10px;cursor:pointer;font-size:11px;font-weight:600;flex-shrink:0"
+        title="Drink — uses 1, rolls healing">🍶 Drink</button>
+    </div>`;
+  }).join('');
+
+  const ov = document.createElement('div');
+  ov.id = 'potionPanelOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:3000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick = e => { if(e.target===ov) ov.remove(); };
+  ov.innerHTML = `<div style="background:#0d0d1a;border:1px solid #2a2a5a;border-radius:12px;padding:20px;max-width:540px;width:100%;max-height:85vh;overflow-y:auto;position:relative">
+    <button onclick="document.getElementById('potionPanelOverlay').remove()" style="position:absolute;top:10px;right:14px;background:none;border:none;color:#7a7aaa;font-size:20px;cursor:pointer;line-height:1">✕</button>
+    <div style="font-size:18px;font-weight:700;color:#cc4488;margin-bottom:4px">🧪 Potion Quick-Use</div>
+    <div style="font-size:11px;color:#7a7aaa;margin-bottom:14px">Track party potion stock. Click Drink to consume one and roll healing.</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;background:rgba(20,20,50,0.5);padding:8px;border-radius:6px">
+      <span style="font-size:12px;color:#9098b8;flex-shrink:0">Who drinks:</span>
+      <select id="potionDrinkerSel" style="flex:1;background:#0d0d1a;border:1px solid #2a2a50;color:#e8e8f8;border-radius:4px;padding:3px 6px;font-size:12px">
+        <option value="">— All characters —</option>
+        ${charOptions}
+      </select>
+    </div>
+    <div id="potionList">${rows}</div>
+    <div id="potionResultBox" style="margin-top:12px;min-height:40px;padding:8px;background:rgba(20,20,50,0.4);border-radius:6px;font-size:13px;color:#c9a227;text-align:center;display:none"></div>
+    <button onclick="clearPotionResults()" style="margin-top:8px;width:100%;background:rgba(80,80,120,0.15);border:1px solid #2a2a50;color:#7a7aaa;border-radius:5px;padding:4px;cursor:pointer;font-size:11px">Clear Last Result</button>
+  </div>`;
+  document.body.appendChild(ov);
+}
+
+function adjustPotionQty(potionName, delta) {
+  const stock = getPotionStock();
+  stock[potionName] = Math.max(0, (stock[potionName] || 0) + delta);
+  savePotionStock(stock);
+  const el = document.getElementById('potionQty_' + safeId(potionName));
+  if (el) el.textContent = stock[potionName];
+}
+
+function drinkPotion(potionName, evt) {
+  if (evt) evt.stopPropagation();
+  const stock = getPotionStock();
+  const qty = stock[potionName] || 0;
+  if (qty <= 0) {
+    const box = document.getElementById('potionResultBox');
+    if (box) { box.style.display='block'; box.style.color='#cc4444'; box.textContent = `No ${potionName} potions left!`; }
+    return;
+  }
+  stock[potionName] = qty - 1;
+  savePotionStock(stock);
+  const qtyEl = document.getElementById('potionQty_' + safeId(potionName));
+  if (qtyEl) qtyEl.textContent = stock[potionName];
+
+  const pt = POTION_TYPES.find(p => p.name === potionName);
+  const drinker = document.getElementById('potionDrinkerSel')?.value || '';
+
+  let resultText = '';
+  let healAmt = 0;
+  if (pt && pt.dice) {
+    // Parse dice like "2d4+2" or "10d4+20"
+    const m = pt.dice.match(/(\d+)d(\d+)\+?(\d*)/);
+    if (m) {
+      const num = parseInt(m[1]), sides = parseInt(m[2]), bonus = parseInt(m[3]||'0');
+      let rolls = [];
+      for (let i=0;i<num;i++) rolls.push(Math.floor(Math.random()*sides)+1);
+      healAmt = rolls.reduce((a,b)=>a+b,0) + bonus;
+      resultText = `🍶 Potion of ${potionName}: rolled ${pt.dice} = [${rolls.join(',')}]+${bonus} = <strong>${healAmt} HP</strong>`;
+    }
+  } else if (pt) {
+    resultText = `🍶 Potion of ${potionName}: ${pt.desc}`;
+  }
+
+  // Apply healing if target selected
+  if (drinker && healAmt > 0 && typeof setCharHP === 'function') {
+    const char = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS.find(c => c.name === drinker) : null;
+    if (char) {
+      const curHp = typeof getCharHP === 'function' ? getCharHP(drinker) : (char.hp || 0);
+      const maxHp = parseInt(char.hp) || 0;
+      const newHp = Math.min(maxHp, (typeof curHp === 'number' ? curHp : maxHp) + healAmt);
+      setCharHP(drinker, newHp);
+      resultText += ` → ${escHtml(drinker)} now at <strong>${newHp}/${maxHp} HP</strong>`;
+    }
+  }
+
+  if (drinker) resultText = `<strong>${escHtml(drinker)}</strong> drinks. ` + resultText;
+  if (typeof logEntry === 'function') logEntry('roll', resultText.replace(/<[^>]+>/g,''));
+
+  const box = document.getElementById('potionResultBox');
+  if (box) { box.style.display='block'; box.style.color='#c9a227'; box.innerHTML = resultText; }
+}
+
+function clearPotionResults() {
+  const box = document.getElementById('potionResultBox');
+  if (box) { box.style.display='none'; box.textContent=''; }
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 116: Ammunition Tracker — per-character tracking
+//   of ranged weapon ammo (arrows, bolts, bullets, darts,
+//   javelins, hand axes). +/- per shot, bulk restock, auto-
+//   decrement option. Toolbar button + character sheet section.
+//   Toolbar: 🏹 Ammo
+// ══════════════════════════════════════════════════════════
+const AMMO_KEY = 'tiamat_ammo';
+const AMMO_TYPES = [
+  { key:'arrows',   name:'Arrows',      icon:'🏹', max:40 },
+  { key:'bolts',    name:'Bolts',       icon:'⚡', max:20 },
+  { key:'bullets',  name:'Bullets',     icon:'⚫', max:40 },
+  { key:'darts',    name:'Darts',       icon:'🎯', max:20 },
+  { key:'needles',  name:'Needles',     icon:'🪡', max:50 },
+  { key:'javelins', name:'Javelins',    icon:'🗡', max:10 },
+  { key:'handaxes', name:'Hand Axes',   icon:'🪓', max:5  },
+  { key:'flasks',   name:'Oil Flasks',  icon:'🫙', max:10 },
+];
+
+function getAmmo(charName) {
+  const all = JSON.parse(localStorage.getItem(AMMO_KEY) || '{}');
+  return all[charName] || {};
+}
+function saveAmmoData(charName, data) {
+  const all = JSON.parse(localStorage.getItem(AMMO_KEY) || '{}');
+  all[charName] = data;
+  localStorage.setItem(AMMO_KEY, JSON.stringify(all));
+}
+
+function adjustAmmo(charName, key, delta) {
+  const data = getAmmo(charName);
+  const at = AMMO_TYPES.find(a => a.key === key);
+  data[key] = Math.max(0, Math.min(at ? at.max*2 : 999, (data[key] || 0) + delta));
+  saveAmmoData(charName, data);
+  refreshAmmoSection(charName);
+}
+
+function restockAmmo(charName, key) {
+  const data = getAmmo(charName);
+  const at = AMMO_TYPES.find(a => a.key === key);
+  data[key] = at ? at.max : 20;
+  saveAmmoData(charName, data);
+  refreshAmmoSection(charName);
+}
+
+function refreshAmmoSection(charName) {
+  const char = (typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : []).find(c => c.name === charName);
+  if (!char) return;
+  const secs = document.querySelectorAll('.stats-section');
+  for (const sec of secs) {
+    const title = sec.querySelector('.stats-section-title');
+    if (title && title.textContent.includes('Ammunition') && sec.dataset.charname === charName) {
+      sec.outerHTML = buildAmmoSection(char);
+      return;
+    }
+  }
+}
+
+function buildAmmoSection(c) {
+  const data = getAmmo(c.name);
+  const tracked = AMMO_TYPES.filter(at => (data[at.key] || 0) > 0);
+
+  // Only show section if character has at least one ammo type tracked
+  if (!tracked.length) return '';
+
+  const rows = tracked.map(at => {
+    const qty = data[at.key] || 0;
+    const pct = Math.min(1, qty / at.max);
+    const barColor = pct > 0.5 ? '#44cc88' : pct > 0.2 ? '#c9a227' : '#cc4444';
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <span style="font-size:16px;width:20px;text-align:center;flex-shrink:0">${at.icon}</span>
+      <span style="font-size:11px;color:#9098b8;width:72px;flex-shrink:0">${at.name}</span>
+      <div style="flex:1;height:6px;background:#1a1a3a;border-radius:3px">
+        <div style="height:100%;width:${Math.round(pct*100)}%;background:${barColor};border-radius:3px"></div>
+      </div>
+      <span style="font-size:13px;font-weight:700;color:${barColor};width:28px;text-align:right;flex-shrink:0">${qty}</span>
+      <button onclick="adjustAmmo(${JSON.stringify(c.name)},${JSON.stringify(at.key)},-1)" style="background:rgba(180,60,60,0.1);border:1px solid rgba(180,60,60,0.3);color:#cc4444;border-radius:3px;padding:0 6px;cursor:pointer;font-size:12px;line-height:1.7" title="Use 1">−</button>
+      <button onclick="adjustAmmo(${JSON.stringify(c.name)},${JSON.stringify(at.key)},1)" style="background:rgba(60,180,100,0.1);border:1px solid rgba(60,180,100,0.3);color:#44cc88;border-radius:3px;padding:0 6px;cursor:pointer;font-size:12px;line-height:1.7" title="Add 1">+</button>
+      <button onclick="restockAmmo(${JSON.stringify(c.name)},${JSON.stringify(at.key)})" style="background:rgba(80,80,180,0.1);border:1px solid rgba(80,80,180,0.3);color:#7a7aff;border-radius:3px;padding:0 5px;cursor:pointer;font-size:10px;line-height:1.7" title="Restock to ${at.max}">↑${at.max}</button>
+    </div>`;
+  }).join('');
+
+  return `<div class="stats-section" data-charname="${escHtml(c.name)}">
+    <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>Ammunition</span>
+      <button onclick="openAmmoPanel(${JSON.stringify(c.name)},event)" style="background:none;border:1px solid #2a2a50;color:#7a7aaa;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:10px">⊕ Add Type</button>
+    </div>
+    ${rows}
+  </div>`;
+}
+
+function openAmmoPanel(charNameArg, evt) {
+  if (evt) evt.stopPropagation();
+  const existing = document.getElementById('ammoPanelOv');
+  if (existing) { existing.remove(); return; }
+
+  const chars = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS : [];
+  const charOptions = chars.map(c => `<option value="${escHtml(c.name)}">${escHtml(c.name)}</option>`).join('');
+  const initChar = charNameArg || '';
+
+  const ov = document.createElement('div');
+  ov.id = 'ammoPanelOv';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:3000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick = e => { if(e.target===ov) ov.remove(); };
+
+  ov.innerHTML = `<div style="background:#0d0d1a;border:1px solid #2a2a5a;border-radius:12px;padding:20px;max-width:500px;width:100%;max-height:85vh;overflow-y:auto;position:relative">
+    <button onclick="document.getElementById('ammoPanelOv').remove()" style="position:absolute;top:10px;right:14px;background:none;border:none;color:#7a7aaa;font-size:20px;cursor:pointer">✕</button>
+    <div style="font-size:18px;font-weight:700;color:#aa8833;margin-bottom:4px">🏹 Ammunition Tracker</div>
+    <div style="font-size:11px;color:#7a7aaa;margin-bottom:14px">Track ranged ammo per character. Changes shown in character sheet.</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px">
+      <label style="font-size:11px;color:#9098b8;flex-shrink:0">Character:</label>
+      <select id="ammoCharSel" style="flex:1;background:#0d0d1a;border:1px solid #2a2a50;color:#e8e8f8;border-radius:4px;padding:4px 8px;font-size:12px" onchange="renderAmmoPanelList()">
+        <option value="">— Select —</option>
+        ${charOptions}
+      </select>
+    </div>
+    <div id="ammoPanelList"></div>
+  </div>`;
+  document.body.appendChild(ov);
+
+  if (initChar) {
+    ov.querySelector('#ammoCharSel').value = initChar;
+  }
+  renderAmmoPanelList();
+}
+
+function renderAmmoPanelList() {
+  const sel = document.getElementById('ammoCharSel');
+  const list = document.getElementById('ammoPanelList');
+  if (!sel || !list) return;
+  const charName = sel.value;
+  if (!charName) { list.innerHTML = '<div style="color:#4a5272;font-size:12px;text-align:center;padding:12px">Select a character above</div>'; return; }
+
+  const data = getAmmo(charName);
+  const rows = AMMO_TYPES.map(at => {
+    const qty = data[at.key] || 0;
+    const pct = Math.min(1, qty / at.max);
+    const barColor = pct > 0.5 ? '#44cc88' : pct > 0.2 ? '#c9a227' : qty > 0 ? '#cc4444' : '#2a2a50';
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;padding:5px 8px;background:rgba(20,20,50,0.4);border-radius:6px;border:1px solid rgba(80,80,120,0.15)">
+      <span style="font-size:18px;width:22px;text-align:center">${at.icon}</span>
+      <span style="font-size:12px;color:#9098b8;width:80px;flex-shrink:0">${at.name}</span>
+      <div style="flex:1;height:5px;background:#1a1a3a;border-radius:3px">
+        <div style="height:100%;width:${qty>0?Math.round(pct*100):0}%;background:${barColor};border-radius:3px"></div>
+      </div>
+      <span style="font-size:14px;font-weight:700;color:${barColor};min-width:28px;text-align:right">${qty}</span>
+      <button onclick="apAdjust(${JSON.stringify(charName)},${JSON.stringify(at.key)},-1)" style="background:rgba(180,60,60,0.1);border:1px solid rgba(180,60,60,0.3);color:#cc4444;border-radius:3px;padding:1px 8px;cursor:pointer;font-size:14px">−</button>
+      <button onclick="apAdjust(${JSON.stringify(charName)},${JSON.stringify(at.key)},1)" style="background:rgba(60,180,100,0.1);border:1px solid rgba(60,180,100,0.3);color:#44cc88;border-radius:3px;padding:1px 8px;cursor:pointer;font-size:14px">+</button>
+      <button onclick="apRestock(${JSON.stringify(charName)},${JSON.stringify(at.key)},${at.max})" style="background:rgba(80,80,180,0.1);border:1px solid rgba(80,80,180,0.3);color:#7a7aff;border-radius:3px;padding:1px 7px;cursor:pointer;font-size:10px" title="Restock to ${at.max}">↑${at.max}</button>
+    </div>`;
+  }).join('');
+
+  list.innerHTML = rows;
+}
+
+function apAdjust(charName, key, delta) {
+  adjustAmmo(charName, key, delta);
+  renderAmmoPanelList();
+}
+function apRestock(charName, key, max) {
+  const data = getAmmo(charName);
+  data[key] = max;
+  saveAmmoData(charName, data);
+  refreshAmmoSection(charName);
+  renderAmmoPanelList();
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 117: Feat Browser — searchable PHB feat reference
+//   panel. Shows all 40+ major 5e feats with prerequisites,
+//   ability score improvements, and full descriptions.
+//   Toolbar: 📖 Feats
+// ══════════════════════════════════════════════════════════
+const FEAT_LIST = [
+  { name:'Alert', prereq:'None', asi:null, desc:'Always surprised. +5 to initiative. Creatures you don\'t see don\'t gain advantage vs you.' },
+  { name:'Athlete', prereq:'None', asi:'STR or DEX +1', desc:'+1 STR or DEX. Stand from prone costs 5ft. Climbing no extra cost. Running long/high jump with 5ft run-up.' },
+  { name:'Actor', prereq:'None', asi:'CHA +1', desc:'+1 CHA. Advantage on Deception and Performance when impersonating. Mimic sounds of person/creature heard ≥1 min. Insight vs CHA (Insight) to detect.' },
+  { name:'Charger', prereq:'None', asi:null, desc:'Dash + melee attack/shove: +5 damage or push 10ft.' },
+  { name:'Crossbow Expert', prereq:'None', asi:null, desc:'Ignore loading on crossbows. No disadvantage shooting in melee. Bonus action hand crossbow shot.' },
+  { name:'Defensive Duelist', prereq:'DEX 13', asi:null, desc:'Reaction: +proficiency to AC vs one melee attack when holding a finesse weapon.' },
+  { name:'Dual Wielder', prereq:'None', asi:null, desc:'+1 AC while dual wielding. Two-weapon fight with non-light weapons. Draw/stow two weapons at once.' },
+  { name:'Dungeon Delver', prereq:'None', asi:null, desc:'Advantage on Perception/Investigation for secret doors. Advantage on saves vs traps. Resistance to trap damage. Search for traps at normal pace.' },
+  { name:'Durable', prereq:'CON 13', asi:'CON +1', desc:'+1 CON. Minimum regain on Hit Dice = 2 × CON modifier.' },
+  { name:'Elemental Adept', prereq:'Spellcaster', asi:null, desc:'Choose element: treat 1s as 2s on damage rolls. Ignore resistance to that type.' },
+  { name:'Grappler', prereq:'STR 13', asi:null, desc:'Advantage on attack rolls vs grappled creature. Restrain grappled creature (both restrained) as action.' },
+  { name:'Great Weapon Master', prereq:'None', asi:null, desc:'Crit or kill: bonus action melee attack. Before attack: take -5 to hit for +10 damage.' },
+  { name:'Healer', prereq:'None', asi:null, desc:'Stabilize with 1 HP. Use healer\'s kit: restore 1d6+4+max HD HP (once per creature per rest).' },
+  { name:'Heavily Armored', prereq:'Medium Armor Prof', asi:'STR +1', desc:'Gain Heavy Armor Proficiency. +1 STR.' },
+  { name:'Heavy Armor Master', prereq:'Heavy Armor Prof', asi:'STR +1', desc:'+1 STR. In heavy armor: reduce bludgeoning/piercing/slashing from non-magical attacks by 3.' },
+  { name:'Inspiring Leader', prereq:'CHA 13', asi:null, desc:'10-min speech: up to 6 creatures gain temp HP = level + CHA mod. Once per short rest.' },
+  { name:'Keen Mind', prereq:'None', asi:'INT +1', desc:'+1 INT. Always know which way is north. Know how many hours to next sunrise/sunset. Recall anything seen/heard within past month.' },
+  { name:'Lightly Armored', prereq:'None', asi:'STR or DEX +1', desc:'Gain Light Armor Proficiency. +1 STR or DEX.' },
+  { name:'Linguist', prereq:'None', asi:'INT +1', desc:'+1 INT. Learn 3 additional languages. Create written ciphers; others need INT vs 15 to crack.' },
+  { name:'Lucky', prereq:'None', asi:null, desc:'3 luck points per long rest. Spend to reroll attack/ability/saving throw (yours or against you), take either result.' },
+  { name:'Mage Slayer', prereq:'None', asi:null, desc:'Reaction: attack caster casting within 5ft. Target has disadvantage on concentration save. Advantage on saves vs spells from creatures within 5ft.' },
+  { name:'Magic Initiate', prereq:'None', asi:null, desc:'Choose class: learn 2 cantrips and one 1st-level spell (cast once per long rest). Spellcasting ability = chosen class.' },
+  { name:'Martial Adept', prereq:'None', asi:null, desc:'Learn 2 maneuvers (Battle Master). 1 superiority die (d6). Regain on short/long rest.' },
+  { name:'Medium Armor Master', prereq:'Medium Armor Prof', asi:null, desc:'No stealth disadvantage in medium armor. DEX bonus to AC up to +3 (was +2).' },
+  { name:'Mobile', prereq:'None', asi:null, desc:'+10ft speed. Difficult terrain no movement penalty when Dashing. Melee attack (hit or miss): no opportunity attack from that creature this turn.' },
+  { name:'Moderately Armored', prereq:'Light Armor Prof', asi:'STR or DEX +1', desc:'Gain Medium Armor and Shield Proficiency. +1 STR or DEX.' },
+  { name:'Mounted Combatant', prereq:'None', asi:null, desc:'Advantage vs unmounted creatures smaller than mount. Force attacks to target you not mount. Mount takes half on Dex saves (none on success).' },
+  { name:'Observant', prereq:'None', asi:'INT or WIS +1', desc:'+1 INT or WIS. +5 to passive Perception and passive Investigation. Lip reading.' },
+  { name:'Polearm Master', prereq:'None', asi:null, desc:'Bonus action attack with polearm butt (1d4). Opportunity attack when creature enters reach.' },
+  { name:'Resilient', prereq:'None', asi:'+1 to chosen ability', desc:'+1 to chosen ability score. Gain proficiency in saving throws for that ability.' },
+  { name:'Ritual Caster', prereq:'INT or WIS 13', asi:null, desc:'Acquire a ritual book with 2 rituals of chosen class. Add rituals found in adventures. Cast as rituals only.' },
+  { name:'Savage Attacker', prereq:'None', asi:null, desc:'Once per turn when making melee attack: reroll weapon damage dice, use either result.' },
+  { name:'Sentinel', prereq:'None', asi:null, desc:'Opportunity attack: target speed → 0. Creatures can\'t Disengage from you. Reaction: melee attack vs creature attacking ally within 5ft of you.' },
+  { name:'Sharpshooter', prereq:'None', asi:null, desc:'No disadvantage on ranged attacks at long range. Ignore half/3-quarters cover. -5 to hit for +10 damage on ranged attacks.' },
+  { name:'Shield Master', prereq:'None', asi:null, desc:'Shove as bonus action after Attack action. Add shield AC to Dex saves you\'re proficient in. Bonus to Dex saves that normally half → 0.' },
+  { name:'Skilled', prereq:'None', asi:null, desc:'Gain proficiency in 3 skills or tools of your choice.' },
+  { name:'Skulker', prereq:'DEX 13', asi:null, desc:'Hide when lightly obscured. Missing ranged attack doesn\'t reveal location. Dim light not a disadvantage to Perception.' },
+  { name:'Spell Sniper', prereq:'Spellcaster', asi:null, desc:'Double range of attack-roll spells. Ignore half/3-quarters cover. Learn 1 attack-roll cantrip from any class.' },
+  { name:'Tavern Brawler', prereq:'None', asi:'STR or CON +1', desc:'+1 STR or CON. Proficiency with improvised weapons and unarmed strike. Unarmed/improvised hit: bonus action to grapple.' },
+  { name:'Tough', prereq:'None', asi:null, desc:'HP max increases by 2 per level (past and future).' },
+  { name:'War Caster', prereq:'Spellcaster', asi:null, desc:'Advantage on concentration saves. Cast spells with components while holding shield/weapon. Opportunity attack: cast spell with 1-target casting time of 1 action.' },
+  { name:'Weapon Master', prereq:'None', asi:'STR or DEX +1', desc:'+1 STR or DEX. Gain proficiency in 4 weapons of your choice.' },
+];
+
+function openFeatBrowser() {
+  const existing = document.getElementById('featBrowserOv');
+  if (existing) { existing.remove(); return; }
+
+  const ov = document.createElement('div');
+  ov.id = 'featBrowserOv';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:3000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick = e => { if(e.target===ov) ov.remove(); };
+  ov.innerHTML = `<div style="background:#0d0d1a;border:1px solid #2a2a5a;border-radius:12px;padding:20px;max-width:600px;width:100%;max-height:88vh;display:flex;flex-direction:column;position:relative">
+    <button onclick="document.getElementById('featBrowserOv').remove()" style="position:absolute;top:10px;right:14px;background:none;border:none;color:#7a7aaa;font-size:20px;cursor:pointer">✕</button>
+    <div style="font-size:18px;font-weight:700;color:#44cc88;margin-bottom:4px">📖 Feat Browser</div>
+    <div style="font-size:11px;color:#7a7aaa;margin-bottom:10px">${FEAT_LIST.length} PHB feats — click any feat for full description</div>
+    <input id="featSearchInp" type="text" placeholder="Search feats or prerequisites…" oninput="renderFeatList()"
+      style="background:#0a0a18;border:1px solid #2a2a50;color:#e8e8f8;border-radius:5px;padding:7px 10px;font-size:12px;margin-bottom:12px;outline:none">
+    <div id="featListScroll" style="overflow-y:auto;flex:1"></div>
+  </div>`;
+  document.body.appendChild(ov);
+  renderFeatList();
+  ov.querySelector('#featSearchInp').focus();
+}
+
+function renderFeatList() {
+  const q = (document.getElementById('featSearchInp')?.value || '').toLowerCase();
+  const container = document.getElementById('featListScroll');
+  if (!container) return;
+
+  const feats = FEAT_LIST.filter(f =>
+    !q || f.name.toLowerCase().includes(q) || f.desc.toLowerCase().includes(q) || f.prereq.toLowerCase().includes(q) || (f.asi||'').toLowerCase().includes(q)
+  );
+
+  if (!feats.length) {
+    container.innerHTML = '<div style="color:#4a5272;text-align:center;padding:20px">No feats match your search</div>';
+    return;
+  }
+
+  container.innerHTML = feats.map(f => {
+    const hasAsi = !!f.asi;
+    const prereqColor = f.prereq === 'None' ? '#4a5272' : '#c9a227';
+    return `<details style="border:1px solid #1a1a3a;border-radius:6px;margin-bottom:5px;background:rgba(20,20,40,0.3)">
+      <summary style="padding:8px 12px;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;user-select:none">
+        <span style="font-size:13px;font-weight:600;color:#e8e8f8;flex:1">${escHtml(f.name)}</span>
+        ${hasAsi ? `<span style="font-size:10px;color:#44aacc;border:1px solid #44aacc33;border-radius:3px;padding:1px 5px;flex-shrink:0">${escHtml(f.asi)}</span>` : ''}
+        <span style="font-size:10px;color:${prereqColor};flex-shrink:0">Req: ${escHtml(f.prereq)}</span>
+        <span style="color:#4a5272;font-size:12px;flex-shrink:0">▾</span>
+      </summary>
+      <div style="padding:8px 12px 10px;font-size:12px;color:#b0b8d8;border-top:1px solid #1a1a3a;line-height:1.5">${escHtml(f.desc)}</div>
+    </details>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 118: Background Reference Browser — searchable
+//   panel with all PHB backgrounds, skill proficiencies,
+//   tool proficiencies, languages, feature name, and
+//   suggested characteristics. Toolbar: 📜 Backgrounds
+// ══════════════════════════════════════════════════════════
+const BACKGROUND_LIST = [
+  { name:'Acolyte',          skills:'Insight, Religion',         tools:'None',                        languages:'Two of your choice',       feature:'Shelter of the Faithful',    featureDesc:'You command the respect of those who share your faith. You receive free healing and care at temples of your faith, and your allies can be made members of the same faith.' },
+  { name:'Charlatan',        skills:'Deception, Sleight of Hand',tools:'Disguise kit, Forgery kit',   languages:'None',                     feature:'False Identity',              featureDesc:'You have a second identity including documentation, established acquaintances, and disguises. You can forge documents including official papers.' },
+  { name:'Criminal',         skills:'Deception, Stealth',        tools:'Thieves\' tools, 1 gaming set',languages:'None',                   feature:'Criminal Contact',            featureDesc:'You have a reliable and trustworthy contact who acts as your liaison to a network of criminals.' },
+  { name:'Entertainer',      skills:'Acrobatics, Performance',   tools:'Disguise kit, 1 musical instrument',languages:'None',              feature:'By Popular Demand',           featureDesc:'You can always find a place to perform. Receive free lodging and food while performing, and have a small audience.' },
+  { name:'Folk Hero',        skills:'Animal Handling, Survival', tools:'Artisan\'s tools, Vehicles (land)',languages:'None',              feature:'Rustic Hospitality',          featureDesc:'Since you come from the people, they will shelter you. Commoners will hide you, and common folk won\'t betray you.' },
+  { name:'Guild Artisan',    skills:'Insight, Persuasion',       tools:'Artisan\'s tools (one type)',  languages:'One of your choice',       feature:'Guild Membership',            featureDesc:'Guild members will provide lodging and food if necessary and pay for your funeral if needed. You must pay dues of 5gp per month.' },
+  { name:'Hermit',           skills:'Medicine, Religion',        tools:'Herbalism kit',               languages:'One of your choice',       feature:'Discovery',                   featureDesc:'The quiet seclusion of your extended hermitage gave you access to a unique and powerful discovery — perhaps a secret truth, a hidden location, or a life-altering realization.' },
+  { name:'Noble',            skills:'History, Persuasion',       tools:'1 gaming set',                languages:'One of your choice',       feature:'Position of Privilege',       featureDesc:'Welcome in high society. Other nobles treat you as a peer. You can secure an audience with a local noble.' },
+  { name:'Outlander',        skills:'Athletics, Survival',       tools:'1 musical instrument',        languages:'One of your choice',       feature:'Wanderer',                    featureDesc:'Excellent memory for terrain and geography. Can find food and water for yourself and up to 5 others per day in natural environment.' },
+  { name:'Sage',             skills:'Arcana, History',           tools:'None',                        languages:'Two of your choice',       feature:'Researcher',                  featureDesc:'When you attempt to learn or recall a piece of lore, if you don\'t know it, you know where to obtain it. You know libraries, scholars, or sages who can help.' },
+  { name:'Sailor',           skills:'Athletics, Perception',     tools:'Navigator\'s tools, Vehicles (water)',languages:'None',            feature:'Ship\'s Passage',             featureDesc:'Secure free passage on sailing ships for yourself and companions when needed. You might have to assist the crew.' },
+  { name:'Soldier',          skills:'Athletics, Intimidation',   tools:'1 gaming set, Vehicles (land)',languages:'None',                   feature:'Military Rank',               featureDesc:'You have a military rank from your career as a soldier. Soldiers loyal to your former military pay you respect, and you can invoke your rank to influence them.' },
+  { name:'Urchin',           skills:'Sleight of Hand, Stealth',  tools:'Disguise kit, Thieves\' tools',languages:'None',                   feature:'City Secrets',                featureDesc:'You know the secret patterns and flow of cities. You can find passages through the urban sprawl that others would miss. You travel between city locations at twice normal speed.' },
+  { name:'Anthropologist',   skills:'Insight, Religion',         tools:'None',                        languages:'Two of your choice',       feature:'Adept Linguist',              featureDesc:'You can communicate with humanoids who don\'t speak any language you know. After 24hrs of immersion in a language, you gain rudimentary understanding.' },
+  { name:'Archaeologist',    skills:'History, Survival',         tools:'Cartographer\'s or Jeweler\'s tools',languages:'One of your choice',feature:'Historical Knowledge',        featureDesc:'You can determine the original monetary value of mundane items from civilizations at least a century old.' },
+  { name:'City Watch',       skills:'Athletics, Insight',        tools:'None',                        languages:'Two of your choice',       feature:'Watcher\'s Eye',              featureDesc:'Your experience allows you to find the local watch or make contact with the city\'s criminal underground.' },
+  { name:'Cloistered Scholar',skills:'History + one of Arcana/Nature/Religion',tools:'None',          languages:'Two of your choice',       feature:'Library Access',              featureDesc:'You have free access to the library where you studied, plus other learned institutions. Others may not have this access.' },
+  { name:'Courtier',         skills:'Insight, Persuasion',       tools:'None',                        languages:'Two of your choice',       feature:'Court Functionary',           featureDesc:'Your knowledge of how bureaucracies function lets you find the right person for any meeting.' },
+  { name:'Faction Agent',    skills:'Insight + one faction skill',tools:'None',                       languages:'Two of your choice',       feature:'Safe Haven',                  featureDesc:'As a faction agent you have access to a secret network of supporters who can provide a safe house, bail money, or false identities.' },
+  { name:'Far Traveler',     skills:'Insight, Perception',       tools:'1 musical instrument or gaming set',languages:'One of your choice',feature:'All Eyes on You',             featureDesc:'Your accent, mannerisms, and clothing mark you as foreign. Curious folk will seek you out; important people may pay you particular attention.' },
+  { name:'Haunted One',      skills:'Two of: Arcana, Investigation, Religion, Survival',tools:'None', languages:'One exotic language',       feature:'Heart of Darkness',           featureDesc:'Those who look into your eyes can see something has shaken you to the core. Common folk sense your darkness.' },
+  { name:'Inheritor',        skills:'Survival + Arcana/History/Religion',tools:'None',               languages:'None',                     feature:'Inheritance',                 featureDesc:'You inherit something of sentimental, symbolic, or actual value — an object, a title, or something else. Work with your DM on the details.' },
+  { name:'Knight of the Order',skills:'Persuasion + one knightly skill',tools:'1 gaming set or musical instrument',languages:'One of your choice',feature:'Knightly Regard',      featureDesc:'You receive shelter and succor from members of your order and those with kindred ideologies.' },
+  { name:'Mercenary Veteran',skills:'Athletics, Persuasion',     tools:'1 gaming set, Vehicles (land)',languages:'None',                   feature:'Mercenary Life',              featureDesc:'You can recall a mercenary company you previously served with. You\'re able to find the headquarters of a mercenary company.' },
+];
+
+function openBackgroundBrowser() {
+  const existing = document.getElementById('bgBrowserOv');
+  if (existing) { existing.remove(); return; }
+
+  const ov = document.createElement('div');
+  ov.id = 'bgBrowserOv';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:3000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick = e => { if(e.target===ov) ov.remove(); };
+  ov.innerHTML = `<div style="background:#0d0d1a;border:1px solid #2a2a5a;border-radius:12px;padding:20px;max-width:640px;width:100%;max-height:88vh;display:flex;flex-direction:column;position:relative">
+    <button onclick="document.getElementById('bgBrowserOv').remove()" style="position:absolute;top:10px;right:14px;background:none;border:none;color:#7a7aaa;font-size:20px;cursor:pointer">✕</button>
+    <div style="font-size:18px;font-weight:700;color:#c9a227;margin-bottom:4px">📜 Background Browser</div>
+    <div style="font-size:11px;color:#7a7aaa;margin-bottom:10px">${BACKGROUND_LIST.length} PHB + supplement backgrounds — click to expand</div>
+    <input id="bgSearchInp" type="text" placeholder="Search by name, skill, feature…" oninput="renderBgList()"
+      style="background:#0a0a18;border:1px solid #2a2a50;color:#e8e8f8;border-radius:5px;padding:7px 10px;font-size:12px;margin-bottom:12px;outline:none">
+    <div id="bgListScroll" style="overflow-y:auto;flex:1"></div>
+  </div>`;
+  document.body.appendChild(ov);
+  renderBgList();
+  ov.querySelector('#bgSearchInp').focus();
+}
+
+function renderBgList() {
+  const q = (document.getElementById('bgSearchInp')?.value || '').toLowerCase();
+  const container = document.getElementById('bgListScroll');
+  if (!container) return;
+
+  const bgs = BACKGROUND_LIST.filter(b =>
+    !q || b.name.toLowerCase().includes(q) || b.skills.toLowerCase().includes(q) ||
+    b.feature.toLowerCase().includes(q) || b.featureDesc.toLowerCase().includes(q) ||
+    b.tools.toLowerCase().includes(q)
+  );
+
+  if (!bgs.length) {
+    container.innerHTML = '<div style="color:#4a5272;text-align:center;padding:20px">No backgrounds match your search</div>';
+    return;
+  }
+
+  container.innerHTML = bgs.map(b => `<details style="border:1px solid #1a1a3a;border-radius:6px;margin-bottom:5px;background:rgba(20,20,40,0.3)">
+    <summary style="padding:8px 12px;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;user-select:none">
+      <span style="font-size:13px;font-weight:600;color:#c9a227;flex:1">${escHtml(b.name)}</span>
+      <span style="font-size:10px;color:#9098b8;flex-shrink:0;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(b.skills)}</span>
+      <span style="color:#4a5272;font-size:12px;flex-shrink:0">▾</span>
+    </summary>
+    <div style="padding:8px 12px 10px;border-top:1px solid #1a1a3a">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+        <div><span style="font-size:10px;color:#4a5272;text-transform:uppercase;letter-spacing:1px">Skills</span><div style="font-size:11px;color:#9098b8">${escHtml(b.skills)}</div></div>
+        <div><span style="font-size:10px;color:#4a5272;text-transform:uppercase;letter-spacing:1px">Tools</span><div style="font-size:11px;color:#9098b8">${escHtml(b.tools)}</div></div>
+        <div><span style="font-size:10px;color:#4a5272;text-transform:uppercase;letter-spacing:1px">Languages</span><div style="font-size:11px;color:#9098b8">${escHtml(b.languages)}</div></div>
+        <div><span style="font-size:10px;color:#44cc88;text-transform:uppercase;letter-spacing:1px">Feature</span><div style="font-size:11px;color:#44cc88;font-weight:600">${escHtml(b.feature)}</div></div>
+      </div>
+      <div style="font-size:11px;color:#b0b8d8;line-height:1.5;padding:6px 8px;background:rgba(40,40,80,0.3);border-radius:4px;border-left:2px solid #c9a22766">${escHtml(b.featureDesc)}</div>
+    </div>
+  </details>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 119: Race/Species Reference Browser — searchable
+//   panel covering all PHB races and main subraces with speed,
+//   size, ability bonuses, and key traits. Toolbar: 🧝 Races
+// ══════════════════════════════════════════════════════════
+const RACE_LIST = [
+  { name:'Human',          size:'Medium', speed:30, asi:'+1 all',             traits:['Extra Language','Extra Skill (variant)','Feat (variant Human)'],       darkvision:0  },
+  { name:'Elf (High)',     size:'Medium', speed:30, asi:'+2 DEX, +1 INT',     traits:['Darkvision 60ft','Keen Senses (Perception proficiency)','Fey Ancestry (adv vs charm, immune sleep)','Trance (4hr rest)','Cantrip (1 from Wizard list)','Elf Weapon Training','Extra Language'],darkvision:60 },
+  { name:'Elf (Wood)',     size:'Medium', speed:35, asi:'+2 DEX, +1 WIS',     traits:['Darkvision 60ft','Keen Senses','Fey Ancestry','Trance','Fleet of Foot (35ft)','Mask of the Wild (hide in natural obscurement)','Elf Weapon Training'],darkvision:60 },
+  { name:'Elf (Drow)',     size:'Medium', speed:30, asi:'+2 DEX, +1 CHA',     traits:['Darkvision 120ft','Keen Senses','Fey Ancestry','Trance','Superior Darkvision','Sunlight Sensitivity','Drow Magic (Dancing Lights, Faerie Fire, Darkness)','Drow Weapon Training'],darkvision:120 },
+  { name:'Dwarf (Hill)',   size:'Medium', speed:25, asi:'+2 CON, +1 WIS',     traits:['Darkvision 60ft','Dwarven Resilience (adv vs poison, resistance)','Dwarven Combat Training','Tool Proficiency','Stonecunning','Dwarven Toughness (+1 HP per level)'],darkvision:60 },
+  { name:'Dwarf (Mountain)',size:'Medium',speed:25, asi:'+2 CON, +2 STR',     traits:['Darkvision 60ft','Dwarven Resilience','Dwarven Combat Training','Tool Proficiency','Stonecunning','Dwarven Armor Training (light/medium)'],darkvision:60 },
+  { name:'Halfling (Lightfoot)',size:'Small',speed:25,asi:'+2 DEX, +1 CHA',  traits:['Lucky (reroll 1s on d20)','Brave (adv vs frightened)','Halfling Nimbleness (move through larger creatures)','Naturally Stealthy (hide behind larger creature)'],darkvision:0 },
+  { name:'Halfling (Stout)',size:'Small', speed:25, asi:'+2 DEX, +1 CON',     traits:['Lucky','Brave','Halfling Nimbleness','Stout Resilience (adv vs poison, resistance)'],darkvision:0 },
+  { name:'Gnome (Forest)', size:'Small', speed:25, asi:'+2 INT, +1 DEX',      traits:['Darkvision 60ft','Gnome Cunning (adv on INT/WIS/CHA saves vs magic)','Natural Illusionist (Minor Illusion cantrip)','Speak with Small Beasts'],darkvision:60 },
+  { name:'Gnome (Rock)',   size:'Small', speed:25, asi:'+2 INT, +1 CON',      traits:['Darkvision 60ft','Gnome Cunning','Artificer\'s Lore (+2×prof on History checks for magic/alchemy)','Tinker (create tiny clockwork devices)'],darkvision:60 },
+  { name:'Dragonborn',     size:'Medium', speed:30, asi:'+2 STR, +1 CHA',     traits:['Draconic Ancestry (choose dragon type)','Breath Weapon (2d6 area, CON save)','Damage Resistance (same as ancestry)'],darkvision:0 },
+  { name:'Tiefling',       size:'Medium', speed:30, asi:'+2 CHA, +1 INT',     traits:['Darkvision 60ft','Hellish Resistance (fire resistance)','Infernal Legacy (Thaumaturgy cantrip, Hellish Rebuke 1/day, Darkness 1/day)'],darkvision:60 },
+  { name:'Half-Elf',       size:'Medium', speed:30, asi:'+2 CHA, +1 two others',traits:['Darkvision 60ft','Fey Ancestry','Skill Versatility (proficiency in 2 skills of choice)','Extra Language'],darkvision:60 },
+  { name:'Half-Orc',       size:'Medium', speed:30, asi:'+2 STR, +1 CON',     traits:['Darkvision 60ft','Menacing (Intimidation proficiency)','Relentless Endurance (drop to 1 HP instead of 0, 1/long rest)','Savage Attacks (extra damage die on melee crit)'],darkvision:60 },
+  { name:'Aasimar',        size:'Medium', speed:30, asi:'+2 CHA, +1 WIS',     traits:['Darkvision 60ft','Celestial Resistance (necrotic/radiant)','Healing Hands (heal HP = level 1/long rest)','Light Bearer (Light cantrip)','Radiant Soul/Necrotic Shroud/Radiant Consumption (subrace)'],darkvision:60 },
+  { name:'Firbolg',        size:'Medium', speed:30, asi:'+2 WIS, +1 STR',     traits:['Firbolg Magic (Detect Magic, Disguise Self 1/short rest)','Hidden Step (invisible until next turn 1/short rest)','Powerful Build (count as Large for carry)','Speech of Beast and Leaf'],darkvision:0 },
+  { name:'Goliath',        size:'Medium', speed:30, asi:'+2 STR, +1 CON',     traits:['Natural Athlete (Athletics proficiency)','Stone\'s Endurance (reduce damage by 1d12+CON 1/short rest)','Powerful Build','Mountain Born (cold resistance, high altitude adapted)'],darkvision:0 },
+  { name:'Kenku',          size:'Medium', speed:30, asi:'+2 DEX, +1 WIS',     traits:['Expert Forgery (copy writing/crafted items expertly)','Kenku Training (proficient in 2 of: Acrobatics, Deception, Stealth, Sleight of Hand)','Mimicry (mimic sounds heard, Insight vs Deception to detect)'],darkvision:0 },
+  { name:'Lizardfolk',     size:'Medium', speed:30, asi:'+2 CON, +1 WIS',     traits:['Swim speed 30ft','Bite (1d6 natural weapon)','Cunning Artisan (craft equipment from fallen creatures)','Hold Breath (15 min)','Hunter\'s Lore (2 proficiencies from Nature/Perception/Stealth/Survival)','Natural Armor (AC 13+DEX)','Hungry Jaws (bonus action bite for temp HP)'],darkvision:0 },
+  { name:'Tabaxi',         size:'Medium', speed:30, asi:'+2 DEX, +1 CHA',     traits:['Darkvision 60ft','Feline Agility (double speed 1/turn, then 0 next)','Cat\'s Claws (1d4 slashing, climb speed 20ft)','Cat\'s Talent (Perception and Stealth proficiency)'],darkvision:60 },
+  { name:'Triton',         size:'Medium', speed:30, asi:'+1 STR, +1 CON, +1 CHA',traits:['Swim speed 30ft','Darkvision 60ft','Amphibious (breathe air and water)','Control Air and Water (Fog Cloud, Gust of Wind, Wall of Water 1/long rest)','Emissary of the Sea (communicate with sea creatures)','Guardians of the Depths (cold resistance, not affected by depths)'],darkvision:60 },
+  { name:'Yuan-ti Pureblood',size:'Medium',speed:30,asi:'+2 CHA, +1 INT',    traits:['Darkvision 60ft','Innate Spellcasting (Poison Spray, Animal Friendship 3/day, Suggestion 1/day)','Magic Resistance (adv on saves vs spells)','Poison Immunity'],darkvision:60 },
+];
+
+function openRaceBrowser() {
+  const existing = document.getElementById('raceBrowserOv');
+  if (existing) { existing.remove(); return; }
+
+  const ov = document.createElement('div');
+  ov.id = 'raceBrowserOv';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:3000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick = e => { if(e.target===ov) ov.remove(); };
+  ov.innerHTML = `<div style="background:#0d0d1a;border:1px solid #2a2a5a;border-radius:12px;padding:20px;max-width:640px;width:100%;max-height:88vh;display:flex;flex-direction:column;position:relative">
+    <button onclick="document.getElementById('raceBrowserOv').remove()" style="position:absolute;top:10px;right:14px;background:none;border:none;color:#7a7aaa;font-size:20px;cursor:pointer">✕</button>
+    <div style="font-size:18px;font-weight:700;color:#9b6dff;margin-bottom:4px">🧝 Race / Species Browser</div>
+    <div style="font-size:11px;color:#7a7aaa;margin-bottom:10px">${RACE_LIST.length} races & subraces — click to expand traits</div>
+    <input id="raceSearchInp" type="text" placeholder="Search by name, trait, ASI…" oninput="renderRaceList()"
+      style="background:#0a0a18;border:1px solid #2a2a50;color:#e8e8f8;border-radius:5px;padding:7px 10px;font-size:12px;margin-bottom:12px;outline:none">
+    <div id="raceListScroll" style="overflow-y:auto;flex:1"></div>
+  </div>`;
+  document.body.appendChild(ov);
+  renderRaceList();
+  ov.querySelector('#raceSearchInp').focus();
+}
+
+function renderRaceList() {
+  const q = (document.getElementById('raceSearchInp')?.value || '').toLowerCase();
+  const container = document.getElementById('raceListScroll');
+  if (!container) return;
+
+  const races = RACE_LIST.filter(r =>
+    !q || r.name.toLowerCase().includes(q) || r.asi.toLowerCase().includes(q) ||
+    r.traits.join(' ').toLowerCase().includes(q)
+  );
+
+  if (!races.length) {
+    container.innerHTML = '<div style="color:#4a5272;text-align:center;padding:20px">No races match</div>';
+    return;
+  }
+
+  container.innerHTML = races.map(r => `<details style="border:1px solid #1a1a3a;border-radius:6px;margin-bottom:5px;background:rgba(20,20,40,0.3)">
+    <summary style="padding:8px 12px;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;user-select:none">
+      <span style="font-size:13px;font-weight:600;color:#9b6dff;flex:1">${escHtml(r.name)}</span>
+      <span style="font-size:10px;color:#44aacc">${escHtml(r.asi)}</span>
+      <span style="font-size:10px;color:#4a5272">${r.size} · ${r.speed}ft</span>
+      ${r.darkvision ? `<span style="font-size:10px;color:#aa66ff">👁 ${r.darkvision}ft</span>` : ''}
+      <span style="color:#4a5272;font-size:12px">▾</span>
+    </summary>
+    <div style="padding:8px 12px 10px;border-top:1px solid #1a1a3a">
+      <div style="display:flex;gap:12px;margin-bottom:8px;font-size:11px;color:#9098b8">
+        <span>Size: <strong style="color:#e8e8f8">${r.size}</strong></span>
+        <span>Speed: <strong style="color:#e8e8f8">${r.speed}ft</strong></span>
+        <span>Darkvision: <strong style="color:${r.darkvision?'#aa66ff':'#4a5272'}">${r.darkvision?r.darkvision+'ft':'None'}</strong></span>
+      </div>
+      <div style="font-size:10px;color:#44aacc;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Ability Score Increase</div>
+      <div style="font-size:12px;color:#44cc88;margin-bottom:8px;font-weight:600">${escHtml(r.asi)}</div>
+      <div style="font-size:10px;color:#c9a227;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Racial Traits</div>
+      <div>${r.traits.map(t => `<div style="font-size:11px;color:#b0b8d8;padding:2px 0 2px 8px;border-left:2px solid #2a2a50;margin-bottom:3px">• ${escHtml(t)}</div>`).join('')}</div>
+    </div>
+  </details>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 120: Class Reference Browser — searchable panel
+//   with all 13 PHB classes: hit die, primary ability, saves,
+//   armor/weapon profs, key features per level, and subclass
+//   list. Toolbar: ⚔ Classes
+// ══════════════════════════════════════════════════════════
+const CLASS_LIST = [
+  { name:'Artificer', hd:'d8', primary:'INT', saves:'CON, INT', armor:'Light, Medium, Shields', weapons:'Simple', spellcast:'INT, prepared',
+    features:['1: Magical Tinkering, Spellcasting','2: Infuse Item (2 infusions)','3: Artificer Specialist','4: ASI','5: Arcane Jolt','6: Tool Expertise','7: Flash of Genius','8: ASI','10: Magic Item Adept','11: Spell-Storing Item','12: ASI','14: Magic Item Savant','15: Soul of Artifice','16: ASI','18: Magic Item Master','19: ASI','20: Soul of Artifice (+6 to saves with magic items)'],
+    subclasses:['Alchemist','Armorer','Artillerist','Battle Smith'] },
+  { name:'Barbarian', hd:'d12', primary:'STR', saves:'STR, CON', armor:'Light, Medium, Shields', weapons:'Simple, Martial', spellcast:'None',
+    features:['1: Rage (2/day), Unarmored Defense (AC 10+DEX+CON)','2: Reckless Attack, Danger Sense','3: Primal Path','4: ASI','5: Extra Attack, Fast Movement','6: Path Feature','7: Feral Instinct','8: ASI','9: Brutal Critical (1 extra die)','10: Path Feature','11: Relentless Rage','12: ASI','13: Brutal Critical (2 extra dice)','14: Path Feature','15: Persistent Rage','16: ASI','17: Brutal Critical (3 extra dice)','18: Indomitable Might','19: ASI','20: Primal Champion (+4 STR, +4 CON)'],
+    subclasses:['Berserker','Totem Warrior','Ancestral Guardian','Battlerager','Storm Herald','Zealot','Beast','Wild Magic','Giant'] },
+  { name:'Bard', hd:'d8', primary:'CHA', saves:'DEX, CHA', armor:'Light', weapons:'Simple, hand crossbow, longsword, rapier, shortsword', spellcast:'CHA, known',
+    features:['1: Bardic Inspiration (d6, CHA mod/day)','2: Jack of All Trades, Song of Rest (d6)','3: Bard College, Expertise','4: ASI','5: Bardic Inspiration (d8), Font of Inspiration','6: Countercharm, College Feature','7-9: Spells','10: Expertise, Magical Secrets','11: Bardic Inspiration (d10)','12: ASI','13: Song of Rest (d10)','14: Magical Secrets, College Feature','15: Bardic Inspiration (d12)','16: ASI','17: Song of Rest (d12)','18: Magical Secrets','19: ASI','20: Superior Inspiration (regain one use on initiative)'],
+    subclasses:['Lore','Valor','Glamour','Swords','Whispers','Eloquence','Creation','Spirits'] },
+  { name:'Cleric', hd:'d8', primary:'WIS', saves:'WIS, CHA', armor:'Light, Medium, Shields', weapons:'Simple', spellcast:'WIS, prepared',
+    features:['1: Spellcasting, Divine Domain','2: Channel Divinity (1/rest), Domain Feature','3: 2nd Domain Spell','5: Destroy Undead (CR 1/2), Domain Spell','6: Channel Divinity (2/rest), Domain Feature','7: 4th Domain Spell','8: Potent Spellcasting/Divine Strike, Domain Feature','9: 5th Domain Spell','10: Divine Intervention','11: Destroy Undead (CR 1)','12: ASI','14: Destroy Undead (CR 2)','15: 8th Domain Spell','16: ASI','17: Destroy Undead (CR 3), Domain Feature','18: Channel Divinity (3/rest)','19: ASI','20: Divine Intervention (auto success)'],
+    subclasses:['Knowledge','Life','Light','Nature','Tempest','Trickery','War','Arcana','Death','Forge','Grave','Order','Peace','Twilight'] },
+  { name:'Druid', hd:'d8', primary:'WIS', saves:'INT, WIS', armor:'Light, Medium, Shields (no metal)', weapons:'Clubs, daggers, darts, javelins, maces, quarterstaffs, scimitars, sickles, slings, spears', spellcast:'WIS, prepared',
+    features:['1: Druidic, Spellcasting','2: Wild Shape (CR 1/4), Druid Circle','4: Wild Shape (CR 1/2 — swim speed), ASI','5: Wild Shape (flying speed)','6: Circle Feature','8: Wild Shape (CR 1), ASI','10: Circle Feature','12: ASI','14: Circle Feature','16: ASI','18: Beast Spells, Timeless Body','19: ASI','20: Archdruid (unlimited Wild Shape)'],
+    subclasses:['Land','Moon','Dreams','Shepherd','Spores','Stars','Wildfire'] },
+  { name:'Fighter', hd:'d10', primary:'STR or DEX', saves:'STR, CON', armor:'All, Shields', weapons:'Simple, Martial', spellcast:'INT (Eldritch Knight)',
+    features:['1: Fighting Style, Second Wind','2: Action Surge (1/rest)','3: Martial Archetype','4: ASI','5: Extra Attack','6: ASI','7: Archetype Feature','8: ASI','9: Indomitable (1/long rest)','10: Archetype Feature','11: Extra Attack (2)','12: ASI','13: Indomitable (2/long rest)','14: ASI','15: Archetype Feature','16: ASI','17: Action Surge (2/rest), Indomitable (3/long rest)','18: Archetype Feature','19: ASI','20: Extra Attack (3)'],
+    subclasses:['Champion','Battle Master','Eldritch Knight','Arcane Archer','Cavalier','Samurai','Psi Warrior','Rune Knight','Echo Knight'] },
+  { name:'Monk', hd:'d8', primary:'DEX & WIS', saves:'STR, DEX', armor:'None', weapons:'Simple, shortsword', spellcast:'None',
+    features:['1: Unarmored Defense (AC 10+DEX+WIS), Martial Arts','2: Ki (2 points), Unarmored Movement','3: Monastic Tradition, Deflect Missiles','4: Slow Fall, ASI','5: Extra Attack, Stunning Strike','6: Ki-Empowered Strikes, Tradition Feature','7: Evasion, Stillness of Mind','8: ASI','9: Unarmored Movement (wall run)','10: Purity of Body','11: Tradition Feature','12: ASI','13: Tongue of the Sun and Moon','14: Diamond Soul','15: Timeless Body','16: ASI','17: Tradition Feature','18: Empty Body','19: ASI','20: Perfect Self'],
+    subclasses:['Open Hand','Shadow','Four Elements','Drunken Master','Kensei','Sun Soul','Ascendant Dragon','Mercy','Astral Self'] },
+  { name:'Paladin', hd:'d10', primary:'STR & CHA', saves:'WIS, CHA', armor:'All, Shields', weapons:'Simple, Martial', spellcast:'CHA, prepared',
+    features:['1: Divine Sense, Lay on Hands (5×level HP pool)','2: Fighting Style, Spellcasting, Divine Smite','3: Sacred Oath, Divine Health','4: ASI','5: Extra Attack','6: Aura of Protection (+CHA to saves 10ft)','7: Oath Feature','8: ASI','9: 3rd-level Spells','10: Aura of Courage (fear immunity 10ft)','11: Improved Divine Smite (+1d8 all melee)','12: ASI','13: 4th-level Spells','14: Cleansing Touch','15: Oath Feature','16: ASI','17: 5th-level Spells, Aura improvements (30ft)','18: Aura Improvements','19: ASI','20: Sacred Oath Capstone'],
+    subclasses:['Devotion','Ancients','Vengeance','Conquest','Redemption','Glory','Watchers','Oathbreaker'] },
+  { name:'Ranger', hd:'d10', primary:'DEX & WIS', saves:'STR, DEX', armor:'Light, Medium, Shields', weapons:'Simple, Martial', spellcast:'WIS, known',
+    features:['1: Favored Enemy, Natural Explorer','2: Fighting Style, Spellcasting','3: Ranger Archetype, Primeval Awareness','4: ASI','5: Extra Attack','6: Favored Enemy & Natural Explorer improvements','7: Archetype Feature','8: Land\'s Stride, ASI','9: 3rd-level Spells','10: Hide in Plain Sight, Natural Explorer improvement','11: Archetype Feature','12: ASI','13: 4th-level Spells','14: Vanish, Favored Enemy improvement','15: Archetype Feature','16: ASI','17: 5th-level Spells','18: Feral Senses','19: ASI','20: Foe Slayer'],
+    subclasses:['Hunter','Beast Master','Gloom Stalker','Horizon Walker','Monster Slayer','Fey Wanderer','Swarmkeeper','Drakewarden'] },
+  { name:'Rogue', hd:'d8', primary:'DEX', saves:'DEX, INT', armor:'Light', weapons:'Simple, hand crossbow, longsword, rapier, shortsword', spellcast:'INT (Arcane Trickster)',
+    features:['1: Expertise, Sneak Attack (1d6), Thieves\' Cant','2: Cunning Action (Dash/Disengage/Hide as bonus)','3: Roguish Archetype','4: ASI','5: Uncanny Dodge (halve damage)','6: Expertise','7: Evasion','8: ASI','9: Archetype Feature','10: ASI','11: Reliable Talent (min 10 on proficient checks)','12: ASI','13: Archetype Feature','14: Blindsense','15: Slippery Mind (WIS save proficiency)','16: ASI','17: Archetype Feature','18: Elusive (no advantage vs you when not incapacitated)','19: ASI','20: Stroke of Luck (turn miss to hit or failed check to 20, 1/rest)'],
+    subclasses:['Thief','Assassin','Arcane Trickster','Inquisitive','Mastermind','Scout','Swashbuckler','Phantom','Soulknife'] },
+  { name:'Sorcerer', hd:'d6', primary:'CHA', saves:'CON, CHA', armor:'None', weapons:'Daggers, darts, slings, quarterstaffs, light crossbows', spellcast:'CHA, known',
+    features:['1: Spellcasting, Sorcerous Origin','2: Font of Magic (Sorcery Points = level)','3: Metamagic (2 options)','4: ASI','5: Metamagic','8: ASI','10: Metamagic','12: ASI','16: ASI','17: Metamagic','19: ASI','20: Sorcerous Restoration (4 sorcery points on short rest)'],
+    subclasses:['Draconic Bloodline','Wild Magic','Divine Soul','Shadow Magic','Storm Sorcery','Aberrant Mind','Clockwork Soul'] },
+  { name:'Warlock', hd:'d8', primary:'CHA', saves:'WIS, CHA', armor:'Light', weapons:'Simple', spellcast:'CHA, known (short rest slots)',
+    features:['1: Otherworldly Patron, Pact Magic (1 slot)','2: Eldritch Invocations (2)','3: Pact Boon','4: ASI','5: 3rd-level Spells','6: Patron Feature','7: 4th-level Spells','8: ASI','9: 5th-level Spells','10: Patron Feature','11: Mystic Arcanum (6th)','12: ASI','13: Mystic Arcanum (7th)','14: Patron Feature','15: Mystic Arcanum (8th)','16: ASI','17: Mystic Arcanum (9th)','18: Invocations','19: ASI','20: Eldritch Master (1/long rest regain all slots)'],
+    subclasses:['Archfey','Fiend','Great Old One','Celestial','Hexblade','Fathomless','Genie','Undead','Undying'] },
+  { name:'Wizard', hd:'d6', primary:'INT', saves:'INT, WIS', armor:'None', weapons:'Daggers, darts, slings, quarterstaffs, light crossbows', spellcast:'INT, prepared from spellbook',
+    features:['1: Spellcasting, Arcane Recovery (regain slots = half level)','2: Arcane Tradition','4: ASI','5: Spell Mastery (1st+2nd spell at will)','6: Tradition Feature','8: ASI','10: Tradition Feature','12: ASI','14: Tradition Feature','18: Spell Mastery','19: ASI','20: Signature Spells (2 free 3rd-level spell slots)'],
+    subclasses:['Abjuration','Conjuration','Divination','Enchantment','Evocation','Illusion','Necromancy','Transmutation','Bladesinging','War Magic','Chronurgy','Graviturgy','Scribes','Order of Scribes'] },
+];
+
+function openClassBrowser() {
+  const existing = document.getElementById('classBrowserOv');
+  if (existing) { existing.remove(); return; }
+
+  const ov = document.createElement('div');
+  ov.id = 'classBrowserOv';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:3000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick = e => { if(e.target===ov) ov.remove(); };
+  ov.innerHTML = `<div style="background:#0d0d1a;border:1px solid #2a2a5a;border-radius:12px;padding:20px;max-width:680px;width:100%;max-height:88vh;display:flex;flex-direction:column;position:relative">
+    <button onclick="document.getElementById('classBrowserOv').remove()" style="position:absolute;top:10px;right:14px;background:none;border:none;color:#7a7aaa;font-size:20px;cursor:pointer">✕</button>
+    <div style="font-size:18px;font-weight:700;color:#cc4444;margin-bottom:4px">⚔ Class Browser</div>
+    <div style="font-size:11px;color:#7a7aaa;margin-bottom:10px">${CLASS_LIST.length} PHB classes with features and subclass options</div>
+    <input id="classSearchInp" type="text" placeholder="Search class, feature, subclass…" oninput="renderClassList()"
+      style="background:#0a0a18;border:1px solid #2a2a50;color:#e8e8f8;border-radius:5px;padding:7px 10px;font-size:12px;margin-bottom:12px;outline:none">
+    <div id="classListScroll" style="overflow-y:auto;flex:1"></div>
+  </div>`;
+  document.body.appendChild(ov);
+  renderClassList();
+  ov.querySelector('#classSearchInp').focus();
+}
+
+function renderClassList() {
+  const q = (document.getElementById('classSearchInp')?.value || '').toLowerCase();
+  const container = document.getElementById('classListScroll');
+  if (!container) return;
+
+  const classes = CLASS_LIST.filter(cl =>
+    !q || cl.name.toLowerCase().includes(q) || cl.primary.toLowerCase().includes(q) ||
+    cl.subclasses.join(' ').toLowerCase().includes(q) ||
+    cl.features.join(' ').toLowerCase().includes(q) ||
+    cl.saves.toLowerCase().includes(q)
+  );
+
+  if (!classes.length) {
+    container.innerHTML = '<div style="color:#4a5272;text-align:center;padding:20px">No classes match</div>';
+    return;
+  }
+
+  container.innerHTML = classes.map(cl => `<details style="border:1px solid #1a1a3a;border-radius:6px;margin-bottom:5px;background:rgba(20,20,40,0.3)">
+    <summary style="padding:8px 12px;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;user-select:none">
+      <span style="font-size:13px;font-weight:700;color:#cc4444;flex:1">${escHtml(cl.name)}</span>
+      <span style="font-size:10px;color:#c9a227">d${cl.hd}</span>
+      <span style="font-size:10px;color:#44aacc">${escHtml(cl.primary)}</span>
+      <span style="font-size:10px;color:#7a7aaa">Saves: ${escHtml(cl.saves)}</span>
+      <span style="color:#4a5272;font-size:12px">▾</span>
+    </summary>
+    <div style="padding:8px 12px 10px;border-top:1px solid #1a1a3a">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;font-size:11px">
+        <div><span style="color:#4a5272">Armor: </span><span style="color:#9098b8">${escHtml(cl.armor)}</span></div>
+        <div><span style="color:#4a5272">Spellcasting: </span><span style="color:${cl.spellcast==='None'?'#4a5272':'#aa66ff'}">${escHtml(cl.spellcast)}</span></div>
+      </div>
+      <div style="font-size:10px;color:#44cc88;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Key Features by Level</div>
+      <div style="margin-bottom:8px">${cl.features.map(f => `<div style="font-size:11px;color:#b0b8d8;padding:1px 0 1px 8px;border-left:2px solid #2a2a50;margin-bottom:2px">• ${escHtml(f)}</div>`).join('')}</div>
+      <div style="font-size:10px;color:#c9a227;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Subclasses</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">${cl.subclasses.map(s => `<span style="font-size:10px;color:#c9a227;border:1px solid #c9a22733;border-radius:3px;padding:1px 6px">${escHtml(s)}</span>`).join('')}</div>
+    </div>
+  </details>`).join('');
+}
 // ────────────────────────────────────────────────────────
 </script>
 </body>
