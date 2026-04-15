@@ -5462,7 +5462,31 @@ function printCharCard() {
     })()}
     ${c.lore ? `<div class="section-title">Lore</div><div class="lore">${c.lore}</div>` : ''}
     ${c.quote ? `<div class="quote">"${c.quote}"</div>` : ''}
-    <div style="margin-top:20px;font-size:10px;color:#aaa;text-align:right">Adventures of Tiamat · Printed ${new Date().toLocaleDateString()}</div>
+    ${(()=>{
+      const def = (typeof inferDamageDefenses==='function') ? inferDamageDefenses(c) : {immunities:[],resistances:[],vulnerabilities:[]};
+      const parts=[];
+      if(def.immunities.length) parts.push(`<strong>Immune:</strong> ${def.immunities.join(', ')}`);
+      if(def.resistances.length) parts.push(`<strong>Resist:</strong> ${def.resistances.join(', ')}`);
+      if(def.vulnerabilities.length) parts.push(`<strong>Vuln:</strong> ${def.vulnerabilities.join(', ')}`);
+      if(!parts.length) return '';
+      return `<div class="section-title">Damage Defenses</div><div style="font-size:12px;color:#444">${parts.join(' · ')}</div>`;
+    })()}
+    ${(()=>{
+      const spells = (typeof inferSpells==='function') ? inferSpells(c) : [];
+      if(!spells.length) return '';
+      return `<div class="section-title">Known Spells</div><div style="font-size:11px;color:#444;line-height:1.8">${spells.join(' · ')}</div>`;
+    })()}
+    ${(()=>{
+      try {
+        const bk = JSON.parse(localStorage.getItem('tiamat_backstory_'+c.name));
+        if(!bk) return '';
+        return `<div class="section-title">Backstory</div>
+          <div style="font-size:11px;color:#444;margin-bottom:4px"><strong>Childhood:</strong> ${bk.childhood}</div>
+          <div style="font-size:11px;color:#444;margin-bottom:4px"><strong>Motivation:</strong> ${bk.motivation}</div>
+          <div style="font-size:11px;color:#444"><strong>Secret:</strong> ${bk.secret}</div>`;
+      } catch(e) { return ''; }
+    })()}
+    <div style="margin-top:20px;font-size:10px;color:#aaa;text-align:right">Adventures of Tiamat · Full Sheet · Printed ${new Date().toLocaleDateString()}</div>
     <script>window.onload=()=>window.print()<\/script>
   </body></html>`);
   win.document.close();
