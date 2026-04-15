@@ -3727,6 +3727,7 @@
   <button class="filter-btn" onclick="openCrReference()" style="border-color:#dd8833;color:#dd8833;" title="CR Reference — challenge rating stats, XP, proficiency bonus">⚔ CR Ref</button>
   <button class="filter-btn" onclick="openWildMagicTable()" style="border-color:#ee44ee;color:#ee44ee;" title="Wild Magic Surge — d100 wild magic surge table">🌀 Wild Magic</button>
   <button class="filter-btn" onclick="openRulesPanel()" style="border-color:#4488ff;color:#4488ff;" title="Quick Reference Rules — searchable 5e rules lookup">📚 Rules</button>
+  <button class="filter-btn" onclick="openDataManager()" style="border-color:#44ddaa;color:#44ddaa;" title="Data Manager — export/import all campaign data backup">💾 Data</button>
   <button class="filter-btn" onclick="openShortcutsHelp()" style="border-color:#4488ff;color:#4488ff;" title="Keyboard shortcuts — press ? anytime">⌨ ?</button>
   <button class="filter-btn" onclick="openGlobalSearch()" style="border-color:#c9a227;color:#9098b8;" title="Global search — Ctrl+K">🔍 Search All</button>
   <button class="filter-btn" onclick="openDiceMacros()" style="border-color:#ff8822;color:#ff8822;" title="Quick Dice Macros — save &amp; replay dice rolls">🎲 Dice</button>
@@ -17545,6 +17546,111 @@ const KEYBOARD_SHORTCUTS = [
     { key: '⚖ Compare', desc: 'Compare multiple characters' },
   ]},
 ];
+// ══════════════════════════════════════════════════════════
+// ITERATION 110: Data Manager — full export/import of all
+//   tiamat_ localStorage keys as a dated JSON backup file.
+//   Restore restores all keys. Toolbar: 💾 Data
+// ══════════════════════════════════════════════════════════
+function openDataManager() {
+  const existing = document.getElementById('dataManagerOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'dataManagerOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px;';
+
+  // Count tiamat keys
+  const tKeys = Object.keys(localStorage).filter(k => k.startsWith('tiamat_'));
+  let totalSize = 0;
+  tKeys.forEach(k => { totalSize += (localStorage.getItem(k) || '').length; });
+  const sizeKb = (totalSize / 1024).toFixed(1);
+
+  ov.innerHTML = `
+    <div style="background:#151c2e;border:1px solid #44ddaa;border-radius:12px;width:520px;max-width:100%;padding:24px;color:#c8d0e8;font-family:'Inter',sans-serif;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-size:18px;font-weight:700;color:#44ddaa;">💾 Campaign Data Manager</div>
+        <button onclick="document.getElementById('dataManagerOverlay').remove()" style="background:#2a3358;border:none;color:#c8d0e8;border-radius:6px;padding:6px 14px;cursor:pointer;">✕ Close</button>
+      </div>
+      <div style="background:#0e1422;border:1px solid #2a3358;border-radius:8px;padding:14px;margin-bottom:14px;">
+        <div style="font-size:13px;color:#44ddaa;font-weight:600;margin-bottom:6px;">📊 Current Campaign Data</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;">
+          <div style="color:#9098b8;">Stored keys:</div><div style="color:#c8d0e8;font-weight:600;">${tKeys.length} data stores</div>
+          <div style="color:#9098b8;">Total size:</div><div style="color:#c8d0e8;font-weight:600;">${sizeKb} KB</div>
+          <div style="color:#9098b8;">Browser storage:</div><div style="color:#c8d0e8;font-weight:600;">localStorage</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+        <div style="background:#0e1422;border:1px solid #44ddaa33;border-radius:8px;padding:14px;text-align:center;">
+          <div style="font-size:14px;font-weight:700;color:#44ddaa;margin-bottom:6px;">📤 Export Backup</div>
+          <div style="font-size:11px;color:#9098b8;margin-bottom:10px;">Download all campaign data as JSON</div>
+          <button onclick="exportAllData()" style="background:#44ddaa;border:none;color:#151c2e;border-radius:6px;padding:8px 16px;cursor:pointer;font-weight:700;width:100%;">Export JSON</button>
+        </div>
+        <div style="background:#0e1422;border:1px solid #4488ff33;border-radius:8px;padding:14px;text-align:center;">
+          <div style="font-size:14px;font-weight:700;color:#4488ff;margin-bottom:6px;">📥 Import Backup</div>
+          <div style="font-size:11px;color:#9098b8;margin-bottom:10px;">Restore from a .json backup file</div>
+          <label style="background:#4488ff;border:none;color:#fff;border-radius:6px;padding:8px 16px;cursor:pointer;font-weight:700;display:block;font-family:'Inter',sans-serif;font-size:13px;">Choose File<input type="file" accept=".json" onchange="importAllData(event)" style="display:none;"></label>
+        </div>
+      </div>
+      <div style="border-top:1px solid #2a3358;padding-top:12px;">
+        <div style="font-size:12px;color:#9098b8;font-weight:600;margin-bottom:8px;">Stored Data Keys:</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;max-height:120px;overflow-y:auto;">
+          ${tKeys.map(k => `<span style="background:#0e1422;border:1px solid #2a3358;border-radius:4px;padding:2px 7px;font-size:10px;color:#4a5272;">${k.replace('tiamat_','')}</span>`).join('')}
+        </div>
+      </div>
+      <div style="margin-top:14px;padding:10px;background:#1a0a0a;border:1px solid #cc333333;border-radius:6px;">
+        <div style="font-size:11px;color:#cc3333;font-weight:600;margin-bottom:4px;">⚠ Danger Zone</div>
+        <button onclick="if(confirm('Delete ALL tiamat_ campaign data? This cannot be undone!')) clearAllData()" style="background:transparent;border:1px solid #cc3333;color:#cc3333;border-radius:5px;padding:5px 12px;cursor:pointer;font-size:11px;">🗑 Clear All Campaign Data</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+function exportAllData() {
+  const tKeys = Object.keys(localStorage).filter(k => k.startsWith('tiamat_'));
+  const data = {};
+  tKeys.forEach(k => {
+    try { data[k] = JSON.parse(localStorage.getItem(k)); } catch { data[k] = localStorage.getItem(k); }
+  });
+  const blob = new Blob([JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), keys: tKeys.length, data }, null, 2)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `tiamat-campaign-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  if (typeof showToast === 'function') showToast(`Exported ${tKeys.length} data stores`, '#44ddaa');
+}
+
+function importAllData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const backup = JSON.parse(e.target.result);
+      if (!backup.data) { if (typeof showToast === 'function') showToast('Invalid backup file', '#cc3333'); return; }
+      const keys = Object.keys(backup.data);
+      keys.forEach(k => {
+        if (k.startsWith('tiamat_')) localStorage.setItem(k, JSON.stringify(backup.data[k]));
+      });
+      if (typeof showToast === 'function') showToast(`Restored ${keys.length} data stores from backup`, '#44ddaa');
+      document.getElementById('dataManagerOverlay')?.remove();
+      setTimeout(() => location.reload(), 800);
+    } catch(err) {
+      if (typeof showToast === 'function') showToast('Failed to parse backup: ' + err.message, '#cc3333');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function clearAllData() {
+  const tKeys = Object.keys(localStorage).filter(k => k.startsWith('tiamat_'));
+  tKeys.forEach(k => localStorage.removeItem(k));
+  if (typeof showToast === 'function') showToast(`Cleared ${tKeys.length} data stores`, '#cc3333');
+  document.getElementById('dataManagerOverlay')?.remove();
+  setTimeout(() => location.reload(), 800);
+}
+
 function openShortcutsHelp() {
   const existing = document.getElementById('shortcutsModal');
   if (existing) { existing.remove(); return; }
