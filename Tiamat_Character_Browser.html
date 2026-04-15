@@ -5053,7 +5053,7 @@ function renderGrid() {
       });
       return `<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:10px;margin-top:6px">${saves.join('')}</div>`;
     })();
-    return `<div class="card" style="--accent:${t.accent};--glow:${t.glow}" onclick="openModal(${i})">
+    return `<div class="card" style="--accent:${t.accent};--glow:${t.glow}" onclick="openModal(${i})" oncontextmenu="event.preventDefault();openStatBlockPopup(${JSON.stringify(c.name)},event)" title="Left-click to open full sheet • Right-click for stat block popup">
       <div class="card-tooltip" style="--accent:${t.accent}">
         <div class="tt-name">${c.name}</div>
         <div class="tt-title">${c.title}</div>
@@ -9832,6 +9832,70 @@ function clearTagFilter(dropdown) {
   renderGrid();
 }
 // ────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// ITERATION 55: Compact Stat Block Popup — right-click or
+//   long-press on any character card to show a formatted
+//   D&D 5e stat block popup. Quick reference without opening
+//   the full modal.
+// ══════════════════════════════════════════════════════════
+function openStatBlockPopup(charName, evt) {
+  evt.stopPropagation();
+  document.querySelectorAll('.stat-block-popup').forEach(p => p.remove());
+  const c = UNIQUE_CHARS.find(x => x.name === charName);
+  if (!c) return;
+  const ab = {};
+  (c.abilities || []).forEach(([n,s,m,hl]) => ab[n] = { score: parseInt(s)||10, mod: parseInt(m)||0, hl: !!hl });
+  const prof = c.cr === '30' ? 9 : c.cr === '21'||c.cr==='20' ? 7 : c.cr==='17'||c.cr==='16' ? 6 :
+               c.cr==='15'||c.cr==='14' ? 5 : c.cr==='13'||c.cr==='9'||c.cr==='10' ? 4 :
+               c.cr==='7'||c.cr==='8' ? 3 : c.cr==='5'||c.cr==='6' ? 3 : 2;
+  const abOrder = ['STR','DEX','CON','INT','WIS','CHA'];
+  const abRow = abOrder.map(n => {
+    const a = ab[n] || {score:10,mod:0};
+    const m = a.mod >= 0 ? `+${a.mod}` : `${a.mod}`;
+    return `<div style="text-align:center;padding:4px 0"><div style="font-size:9px;color:#4a5272;letter-spacing:.5px">${n}</div><div style="font-size:15px;font-weight:700;color:${a.hl?'#c9a227':'#e0e0ff'}">${a.score}</div><div style="font-size:11px;color:${a.hl?'#c9a227':'#7a7aaa'}">${m}</div></div>`;
+  }).join('');
+  const saveRow = abOrder.map(n => {
+    const a = ab[n] || {score:10,mod:0};
+    const sv = a.hl ? a.mod + prof : a.mod;
+    return `${n} ${sv>=0?'+':''}${sv}`;
+  }).join('  ');
+  const maxHp = parseInt(c.hp) || 1;
+  const currHp = getCharHP(c.name, maxHp);
+  const hpPct = currHp/maxHp;
+  const t = getTheme(c.theme);
+
+  const popup = document.createElement('div');
+  popup.className = 'stat-block-popup';
+  popup.style.cssText = `position:fixed;background:#0a0a1e;border:2px solid ${t.accent};border-radius:10px;padding:14px;z-index:9200;box-shadow:0 8px 48px rgba(0,0,0,.9);width:320px;font-size:12px`;
+  popup.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:start">
+      <div>
+        <div style="font-size:15px;font-weight:700;color:${t.accent};font-family:'Cinzel',serif">${c.name}</div>
+        <div style="font-size:11px;color:#7a7aaa">${c.title} • ${c.subtitle}</div>
+      </div>
+      <button onclick="this.closest('.stat-block-popup').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:14px">✕</button>
+    </div>
+    <div style="border-top:1px solid #1e2040;margin:8px 0;padding-top:6px;display:flex;gap:12px;font-size:11px;color:#9098b8">
+      <span>AC <strong style="color:#e0e0ff">${c.ac}</strong></span>
+      <span>HP <strong style="color:${hpBarColor(hpPct)}">${currHp}/${maxHp}</strong></span>
+      <span>CR <strong style="color:#e0e0ff">${c.cr}</strong></span>
+      <span>Prof <strong style="color:#c9a227">+${prof}</strong></span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:2px;background:rgba(201,162,39,0.05);border-radius:6px;padding:4px;margin-bottom:8px">${abRow}</div>
+    <div style="font-size:10px;color:#4a5272;margin-bottom:6px"><strong style="color:#9098b8">Saves:</strong> ${saveRow}</div>
+    ${c.traits?.length ? `<div style="font-size:10px;color:#4a5272;margin-bottom:6px"><strong style="color:#9098b8">Traits:</strong> ${(c.traits||[]).slice(0,3).join(' • ')}</div>` : ''}
+    <div style="font-size:10px;color:#4a5272;margin-top:6px;border-top:1px solid #1e2040;padding-top:6px"><em>${(c.lore||'').slice(0,100)}${(c.lore||'').length>100?'…':''}</em></div>
+    <button onclick="openModal(filteredChars.findIndex(x=>x.name===${JSON.stringify(c.name)}));this.closest('.stat-block-popup').remove()" style="margin-top:8px;width:100%;background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.3);color:#c9a227;border-radius:6px;padding:4px;cursor:pointer;font-size:11px">Open Full Sheet →</button>`;
+  document.body.appendChild(popup);
+  const x = Math.min(evt.clientX, window.innerWidth - 330);
+  const y = Math.min(evt.clientY + 10, window.innerHeight - 400);
+  popup.style.left = x + 'px';
+  popup.style.top = y + 'px';
+  setTimeout(() => document.addEventListener('click', function rem(e) {
+    if (!popup.contains(e.target)) { popup.remove(); document.removeEventListener('click', rem); }
+  }), 50);
+}
+
 // ══════════════════════════════════════════════════════════
 // ITERATION 54: Campaign Timeline — Visual milestone tracker
 //   with campaign dates. Add/remove/edit events. Shows
