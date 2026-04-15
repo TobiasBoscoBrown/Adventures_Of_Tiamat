@@ -11095,6 +11095,16 @@ function renderActiveTurnBar() {
     ${saveBtns}
   </div>`;
 
+  // Smart Combat Hints
+  const hints = buildCombatHints(char);
+  if (hints.length) {
+    html += `<div style="margin-top:4px;border-top:1px solid rgba(255,255,255,.04);padding-top:3px">
+      <div style="display:flex;flex-wrap:wrap;gap:3px">
+        ${hints.map(h=>`<span style="font-size:9px;background:rgba(${h.col||'155,109,255'},.08);border:1px solid rgba(${h.col||'155,109,255'},.2);color:#${h.textcol||'9b6dff'};border-radius:6px;padding:1px 6px;cursor:help" title="${escHtml(h.detail||h.text)}">${h.icon} ${escHtml(h.text)}</span>`).join('')}
+      </div>
+    </div>`;
+  }
+
   // "Up Next" preview — next 2 combatants
   if (initiativeList.length > 1) {
     const next1idx = (currentTurnIdx + 1) % initiativeList.length;
@@ -11135,6 +11145,107 @@ function rollInitAttack(charName, type, bonus, event) {
   const multiLabel = count > 1 ? ` ×${count}` : '';
   logEntry('roll', `<strong>${escHtml(charName)}</strong> ${type} Attack${multiLabel}${advLabel}: ${results.join(' | ')}`);
   playSound?.(anyCrit ? 'crit' : 'roll');
+}
+
+function buildCombatHints(char) {
+  const hints = [];
+  const text = ((char.traits||'') + ' ' + (char.lore||'')).toLowerCase();
+  if (!text.trim()) return hints;
+
+  // Multiattack
+  const maMatch = text.match(/multiattack[^.]*?(\d+)\s*(?:times|attacks|strikes|weapon|melee|ranged)/);
+  if (maMatch) {
+    hints.push({ icon:'⚔', text:`${maMatch[1]}× Multiattack`, detail:`Makes ${maMatch[1]} attacks per action`, col:'255,165,0', textcol:'ffaa00' });
+  } else if (/multiattack/.test(text)) {
+    hints.push({ icon:'⚔', text:'Multiattack', detail:'Can make multiple attacks per action', col:'255,165,0', textcol:'ffaa00' });
+  }
+
+  // Legendary Resistance
+  const lrMatch = text.match(/legendary resistance[^.]*?(\d+)\/day/);
+  if (lrMatch) {
+    hints.push({ icon:'🛡', text:`Legendary Resist ×${lrMatch[1]}`, detail:`Can succeed on ${lrMatch[1]} failed saves per day`, col:'255,215,0', textcol:'ffd700' });
+  } else if (/legendary resistance/.test(text)) {
+    hints.push({ icon:'🛡', text:'Legendary Resistance', detail:'Can turn failed saves into successes', col:'255,215,0', textcol:'ffd700' });
+  }
+
+  // Frightful Presence
+  if (/frightful presence/.test(text)) {
+    hints.push({ icon:'😱', text:'Frightful Presence', detail:'Can frighten creatures within range (WIS save)', col:'148,0,211', textcol:'cc66ff' });
+  }
+
+  // Breath Weapon
+  const bwMatch = text.match(/breath weapon|fire breath|cold breath|lightning breath|acid breath|poison breath/);
+  if (bwMatch) {
+    hints.push({ icon:'💨', text:'Breath Weapon', detail:'Area damage breath — check recharge', col:'255,80,0', textcol:'ff5500' });
+  }
+
+  // Recharge abilities
+  const rechargeMatch = text.match(/recharge\s*(\d+)/);
+  if (rechargeMatch) {
+    hints.push({ icon:'🎲', text:`Recharge ${rechargeMatch[1]}–6`, detail:`Special ability recharges on roll of ${rechargeMatch[1]}+ at start of turn`, col:'0,200,200', textcol:'00cccc' });
+  }
+
+  // Spellcasting
+  if (/spellcasting|innate spellcasting/.test(text)) {
+    hints.push({ icon:'📖', text:'Spellcasting', detail:'Has innate or prepared spells — check abilities', col:'100,149,237', textcol:'6495ed' });
+  }
+
+  // Parry
+  if (/\bparry\b/.test(text)) {
+    hints.push({ icon:'🤺', text:'Parry (Reaction)', detail:'Can add AC bonus as a reaction when hit', col:'64,224,208', textcol:'40e0d0' });
+  }
+
+  // Shield / Blur / Mirror Image
+  if (/\bshield\b.*\bspell|\bblur\b|\bmirror image\b/.test(text)) {
+    hints.push({ icon:'🌀', text:'Defensive Magic', detail:'Has defensive spell abilities (Shield/Blur/Mirror Image)', col:'100,149,237', textcol:'6495ed' });
+  }
+
+  // Undead Fortitude
+  if (/undead fortitude/.test(text)) {
+    hints.push({ icon:'💀', text:'Undead Fortitude', detail:'CON save when dropped to 0 HP to stay at 1 HP instead', col:'100,100,100', textcol:'aaaaaa' });
+  }
+
+  // Pack Tactics
+  if (/pack tactics/.test(text)) {
+    hints.push({ icon:'🐺', text:'Pack Tactics', detail:'Advantage on attacks when ally is adjacent to target', col:'139,90,43', textcol:'c87941' });
+  }
+
+  // Magic Resistance
+  if (/magic resistance/.test(text)) {
+    hints.push({ icon:'✨', text:'Magic Resistance', detail:'Advantage on saves vs spells and magical effects', col:'155,109,255', textcol:'9b6dff' });
+  }
+
+  // Reckless Attack
+  if (/reckless attack/.test(text)) {
+    hints.push({ icon:'🔴', text:'Reckless Atk', detail:'Can attack with advantage, but grants advantage to attackers', col:'255,50,50', textcol:'ff3333' });
+  }
+
+  // Evasion
+  if (/\bevasion\b/.test(text)) {
+    hints.push({ icon:'💨', text:'Evasion', detail:'Takes no damage on successful DEX saves (half on fail)', col:'100,200,100', textcol:'64c864' });
+  }
+
+  // Sneak Attack
+  if (/sneak attack/.test(text)) {
+    hints.push({ icon:'🗡', text:'Sneak Attack', detail:'Extra damage when attacking with advantage or flanking', col:'60,60,120', textcol:'8080cc' });
+  }
+
+  // Regeneration
+  if (/\bregeneration\b/.test(text)) {
+    hints.push({ icon:'💚', text:'Regeneration', detail:'Regains HP at start of each turn unless condition prevents it', col:'0,180,0', textcol:'00bb00' });
+  }
+
+  // Swarm
+  if (/\bswarm\b/.test(text)) {
+    hints.push({ icon:'🐜', text:'Swarm', detail:'Occupies another creature\'s space; halved damage at half HP', col:'139,69,19', textcol:'aa7733' });
+  }
+
+  // Lair Actions reminder (only if has legendary actions, likely has lair)
+  if (/lair action/.test(text)) {
+    hints.push({ icon:'🏰', text:'Lair Actions', detail:'Acts on initiative 20 with lair actions', col:'180,120,0', textcol:'cc8800' });
+  }
+
+  return hints;
 }
 
 function rollInitSave(charName, ab, bonus, event) {
