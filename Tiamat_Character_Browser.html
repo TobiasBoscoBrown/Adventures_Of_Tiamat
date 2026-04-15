@@ -27135,6 +27135,109 @@ function _dtDeleteEntry(idx) {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 169: DM Secrets Panel — per-character hidden notes in BG tab
+// Stores DM-only secrets: hidden motivations, betrayal plans, dual identities, etc.
+
+const CHAR_SECRETS_KEY = 'tiamat_char_secrets';
+function _loadSecrets() { try { return JSON.parse(localStorage.getItem(CHAR_SECRETS_KEY)||'{}'); } catch { return {}; } }
+function _saveSecrets(d) { localStorage.setItem(CHAR_SECRETS_KEY, JSON.stringify(d)); }
+
+function renderSecretsSection(c) {
+  const panel = document.getElementById('bgPanel');
+  if (!panel) return;
+  const secrets = _loadSecrets();
+  const charSecrets = secrets[c.name] || { known: '', hidden: '', plans: '', notes: '' };
+  const div = document.createElement('div');
+  div.id = 'bgSecretsSection';
+  div.innerHTML = `
+    <div style="background:rgba(204,68,68,0.08);border:1px solid rgba(204,68,68,0.3);border-radius:10px;padding:14px;margin-top:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;cursor:pointer" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.sec-arrow').textContent=this.nextElementSibling.style.display==='none'?'▶':'▼'">
+        <div style="font-size:11px;font-weight:700;color:#cc4444;text-transform:uppercase;letter-spacing:1.5px">🔒 DM Secrets</div>
+        <span class="sec-arrow" style="font-size:10px;color:#cc4444">▼</span>
+      </div>
+      <div id="secretsBody_${c.name.replace(/[^a-z0-9]/gi,'_')}">
+        ${[
+          ['known',  'What the Character Knows', 'What intel or secrets does this character possess?'],
+          ['hidden', 'Their Hidden Motivation',  'What are they REALLY after? What are they hiding from party?'],
+          ['plans',  'Current Plans / Schemes',  'What are they planning that the party doesn\'t know?'],
+          ['notes',  'DM Notes',                  'Additional private notes for this character...'],
+        ].map(([field, label, ph]) => `
+          <div style="margin-bottom:10px">
+            <div style="font-size:10px;color:#cc4444;opacity:0.7;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">${label}</div>
+            <textarea onblur="_saveSecret('${c.name.replace(/'/g,"\\'")}','${field}',this.value)" style="width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(204,68,68,0.2);color:#c8d0e8;border-radius:6px;padding:7px;font-size:11px;font-family:inherit;resize:vertical;min-height:48px;box-sizing:border-box" placeholder="${ph}">${escHtml(charSecrets[field]||'')}</textarea>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  panel.appendChild(div);
+}
+
+function _saveSecret(charName, field, value) {
+  const secrets = _loadSecrets();
+  if (!secrets[charName]) secrets[charName] = {};
+  secrets[charName][field] = value;
+  _saveSecrets(secrets);
+}
+
+// Chain into renderBgPanel
+const _prevBgRender4 = typeof renderBgPanel === 'function' ? renderBgPanel : null;
+function renderBgPanel(c) {
+  if (_prevBgRender4) _prevBgRender4(c);
+  renderSecretsSection(c);
+}
+
+// Also add a standalone "Secrets Board" toolbar button
+function openSecretsBoard() {
+  const ex = document.getElementById('secretsBoardOverlay');
+  if (ex) { ex.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'secretsBoardOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9200;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+  const secrets = _loadSecrets();
+  const chars = Object.keys(secrets).filter(n => {
+    const s = secrets[n];
+    return s.known || s.hidden || s.plans || s.notes;
+  });
+  const cardsHtml = chars.length ? chars.map(name => {
+    const s = secrets[name];
+    const char = (typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : []).find(c=>c.name===name);
+    return `<div style="background:rgba(0,0,0,0.4);border:1px solid rgba(204,68,68,0.25);border-radius:10px;padding:14px">
+      <div style="font-size:13px;font-weight:700;color:#e0e0ff;margin-bottom:10px;font-family:'Cinzel',serif">${escHtml(name)}${char?` <span style="font-size:10px;color:#4a5272">(CR ${char.cr})</span>`:''}</div>
+      ${s.known?`<div style="margin-bottom:8px"><div style="font-size:9px;color:#cc4444;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Known</div><div style="font-size:11px;color:#9098b8">${escHtml(s.known)}</div></div>`:''}
+      ${s.hidden?`<div style="margin-bottom:8px"><div style="font-size:9px;color:#cc4444;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Hidden Motivation</div><div style="font-size:11px;color:#9098b8">${escHtml(s.hidden)}</div></div>`:''}
+      ${s.plans?`<div style="margin-bottom:8px"><div style="font-size:9px;color:#cc4444;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Plans</div><div style="font-size:11px;color:#9098b8">${escHtml(s.plans)}</div></div>`:''}
+      ${s.notes?`<div><div style="font-size:9px;color:#4a5272;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Notes</div><div style="font-size:10px;color:#6a7090;font-style:italic">${escHtml(s.notes)}</div></div>`:''}
+    </div>`;
+  }).join('') : '<div style="color:#4a5272;text-align:center;padding:30px;font-size:13px;grid-column:1/-1">No secrets recorded yet. Open a character modal, go to the BG tab, and fill in the 🔒 DM Secrets section.</div>';
+
+  ov.innerHTML = `
+    <div style="width:800px;max-width:100%;color:#c8d0e8;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;position:sticky;top:0;background:rgba(6,6,26,0.97);padding:12px 0;border-bottom:1px solid rgba(204,68,68,0.3);backdrop-filter:blur(4px)">
+        <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:700;color:#cc4444">🔒 Secrets Board</div>
+        <button onclick="document.getElementById('secretsBoardOverlay').remove()" style="background:none;border:1px solid #2a2040;color:#6a5aaa;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px">✕</button>
+      </div>
+      <div style="font-size:11px;color:#4a5272;margin-bottom:14px">${chars.length} character${chars.length!==1?'s':''} with secrets recorded.</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;padding-bottom:40px">${cardsHtml}</div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+// Add Secrets Board button
+(function() {
+  const allBtns = document.querySelectorAll('.filter-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.title = 'Secrets Board — all DM secrets for all characters in one view';
+    btn.style.cssText = 'border-color:#cc4444;color:#cc4444';
+    btn.textContent = '🔒 Secrets';
+    btn.onclick = openSecretsBoard;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
