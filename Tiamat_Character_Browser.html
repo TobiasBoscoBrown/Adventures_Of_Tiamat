@@ -3774,6 +3774,7 @@
   <button class="filter-btn" onclick="openMassHpPanel()" style="border-color:#cc3333;color:#cc3333;" id="massHpBtn" title="Mass Damage/Heal — apply HP changes to multiple characters at once (AoE, area effects)">⚡ Mass HP</button>
   <button class="filter-btn" onclick="openTravelCalc()" style="border-color:#44cc88;color:#44cc88;" title="Overland Travel Calculator — distance, pace, terrain, rations, random encounters">🗺 Travel</button>
   <button class="filter-btn" onclick="openImprovNpc()" style="border-color:#c9a227;color:#c9a227;" title="Improv NPC Card — instant personality, appearance, motivation &amp; secret for unplanned NPCs">🎭 Improv NPC</button>
+  <button class="filter-btn" onclick="openBulkCondPanel()" style="border-color:#9b6dff;color:#9b6dff;" title="Bulk Conditions — apply or remove conditions to multiple characters at once (AoE spells)">⚡ Bulk Cond</button>
   <button class="filter-btn" onclick="printPartySheet()" style="border-color:#4488ff;color:#4488ff;" title="Print Party Sheet — all party members on one printable page">🖨 Party Sheet</button>
   <button class="filter-btn" onclick="openWorldMap()" style="border-color:#44cc88;color:#44cc88;" title="World Map — pin characters to the Tiamat campaign map (hotkey: M)">🗺 World Map</button>
   <span style="color: #333; margin: 0 4px;">|</span>
@@ -23791,6 +23792,134 @@ function resetClassAbilities(name, restType) {
   const section = document.getElementById('classAbilitiesSection_' + sid);
   const c = UNIQUE_CHARS.find(x => x.name === name);
   if (section && c) section.outerHTML = buildClassAbilitiesSection(c);
+}
+// Iter 145: Bulk Condition Apply — select multiple characters, apply or remove
+// a condition to all at once. Essential for AoE conditions like Hypnotic Pattern,
+// Fear, Web, Darkness. Missing from DND Beyond's web interface.
+
+function openBulkCondPanel() {
+  const existing = document.getElementById('bulkCondOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'bulkCondOverlay';
+  ov.style.cssText = 'position:fixed;top:60px;left:20px;width:340px;max-height:88vh;background:linear-gradient(160deg,#0d0820,#120a28);border:1px solid rgba(155,109,255,0.5);border-radius:14px;z-index:600;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.95);overflow:hidden';
+  document.body.appendChild(ov);
+  _renderBulkCond();
+}
+
+function _renderBulkCond() {
+  const ov = document.getElementById('bulkCondOverlay');
+  if (!ov) return;
+  const chars = filteredChars.length > 0 ? filteredChars : UNIQUE_CHARS;
+
+  // Condition buttons
+  const condBtns = CONDITIONS.map(cd =>
+    `<button onclick="_bulkCondSelect(${JSON.stringify(cd.name)})" id="bcdBtn_${cd.name.replace(/\s/g,'_')}"
+      style="background:none;border:1px solid #2a2040;color:#9098b8;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:10px;transition:all 0.1s"
+      onmouseover="this.style.borderColor='#9b6dff';this.style.color='#c8d0e8'" onmouseout="_bcdHover(this,'${cd.name.replace(/\s/g,'_')}')">${cd.icon} ${cd.name}</button>`
+  ).join('');
+
+  // Character rows with current conditions shown
+  const charRows = chars.map(c => {
+    const conds = getCharConditions(c.name);
+    const maxHp = parseInt(c.hp) || 1;
+    const currHp = (typeof getCharHP === 'function') ? getCharHP(c.name, maxHp) : maxHp;
+    const hpPct = currHp / maxHp;
+    const hpCol = currHp <= 0 ? '#cc3333' : hpPct > 0.6 ? '#44aa44' : hpPct > 0.3 ? '#c9a227' : '#cc3333';
+    const condBadges = conds.slice(0,3).map(n => `<span style="font-size:9px;background:#1a1a2a;border:1px solid #2a2040;border-radius:3px;padding:1px 4px;color:#9b6dff">${n}</span>`).join('');
+    return `<label style="display:flex;align-items:flex-start;gap:8px;padding:5px 8px;cursor:pointer;border:1px solid transparent;border-radius:6px;transition:background 0.1s" onmouseover="this.style.background='rgba(155,109,255,0.06)'" onmouseout="this.style.background='transparent'">
+      <input type="checkbox" class="bulkCondCheck" data-name="${escHtml(c.name)}" style="width:14px;height:14px;accent-color:#9b6dff;cursor:pointer;margin-top:2px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;color:#dce0f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(c.name)}</div>
+        <div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:2px">${condBadges}${conds.length>3?`<span style="font-size:9px;color:#4a5272">+${conds.length-3}</span>`:''}</div>
+      </div>
+      <span style="font-size:10px;color:${hpCol};flex-shrink:0">${currHp}/${maxHp}</span>
+    </label>`;
+  }).join('');
+
+  ov.innerHTML = `
+    <div style="padding:10px 14px;border-bottom:1px solid rgba(155,109,255,0.25);display:flex;justify-content:space-between;align-items:center;background:rgba(155,109,255,0.05);flex-shrink:0">
+      <span style="font-family:'Cinzel',serif;color:#9b6dff;font-size:12px;font-weight:700;letter-spacing:1px">⚡ BULK CONDITIONS</span>
+      <button onclick="document.getElementById('bulkCondOverlay').remove()" style="background:none;border:1px solid #2a1540;color:#4a2a60;border-radius:5px;padding:2px 7px;cursor:pointer;font-size:12px">✕</button>
+    </div>
+
+    <!-- Condition selector -->
+    <div style="padding:10px 12px;border-bottom:1px solid rgba(155,109,255,0.15);flex-shrink:0">
+      <div style="font-size:9px;color:#4a5272;letter-spacing:1px;margin-bottom:6px">SELECT CONDITION</div>
+      <div id="bulkCondSelected" style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#0a0618;border:1px solid rgba(155,109,255,0.3);border-radius:6px;margin-bottom:8px;min-height:30px">
+        <span id="bulkCondSelectedLabel" style="font-size:12px;color:#4a5272;font-style:italic">No condition selected</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">${condBtns}</div>
+    </div>
+
+    <!-- Actions -->
+    <div style="padding:8px 12px;border-bottom:1px solid rgba(155,109,255,0.15);display:flex;gap:8px;flex-shrink:0">
+      <button onclick="_bulkCondApply(true)" style="flex:1;background:rgba(155,109,255,0.15);border:1px solid rgba(155,109,255,0.5);color:#9b6dff;border-radius:7px;padding:7px;cursor:pointer;font-size:12px;font-weight:700">+ Apply</button>
+      <button onclick="_bulkCondApply(false)" style="flex:1;background:rgba(204,51,51,0.1);border:1px solid rgba(204,51,51,0.4);color:#cc6666;border-radius:7px;padding:7px;cursor:pointer;font-size:12px;font-weight:700">✕ Remove</button>
+      <button onclick="_bulkCondSelectAll(true)" style="background:none;border:1px solid #2a1540;color:#4a5272;border-radius:5px;padding:7px 10px;cursor:pointer;font-size:11px">All</button>
+      <button onclick="_bulkCondSelectAll(false)" style="background:none;border:1px solid #2a1540;color:#4a5272;border-radius:5px;padding:7px 10px;cursor:pointer;font-size:11px">None</button>
+    </div>
+
+    <!-- Character list -->
+    <div style="overflow-y:auto;flex:1;padding:4px 8px">${charRows}</div>`;
+}
+
+let _bulkCondActive = null;
+
+function _bulkCondSelect(condName) {
+  _bulkCondActive = condName;
+  const label = document.getElementById('bulkCondSelectedLabel');
+  if (label) {
+    const cd = CONDITIONS.find(c => c.name === condName);
+    label.innerHTML = `<span style="font-size:13px">${cd?.icon||''}</span> <strong style="color:#c8d0e8">${condName}</strong><span style="font-size:10px;color:#4a5272;margin-left:6px">${cd?.type||''}</span>`;
+    label.style.fontStyle = 'normal';
+  }
+  // Highlight selected button
+  CONDITIONS.forEach(cd => {
+    const btn = document.getElementById('bcdBtn_' + cd.name.replace(/\s/g,'_'));
+    if (btn) {
+      btn.style.background = cd.name === condName ? 'rgba(155,109,255,0.2)' : 'none';
+      btn.style.borderColor = cd.name === condName ? '#9b6dff' : '#2a2040';
+      btn.style.color = cd.name === condName ? '#9b6dff' : '#9098b8';
+    }
+  });
+}
+
+function _bcdHover(btn, id) {
+  const condName = id.replace(/_/g,' ');
+  if (condName !== (_bulkCondActive||'')) {
+    btn.style.borderColor = '#2a2040';
+    btn.style.color = '#9098b8';
+  }
+}
+
+function _bulkCondSelectAll(checked) {
+  document.querySelectorAll('.bulkCondCheck').forEach(cb => { cb.checked = checked; });
+}
+
+function _bulkCondApply(add) {
+  if (!_bulkCondActive) { showToast('Select a condition first', '#9b6dff'); return; }
+  const checked = Array.from(document.querySelectorAll('.bulkCondCheck:checked'));
+  if (!checked.length) { showToast('Select at least one character', '#cc3333'); return; }
+
+  const all = loadAllConditions();
+  let changed = 0;
+  checked.forEach(cb => {
+    const name = cb.dataset.name;
+    if (!all[name]) all[name] = [];
+    if (add) {
+      if (!all[name].includes(_bulkCondActive)) { all[name].push(_bulkCondActive); changed++; }
+    } else {
+      const idx = all[name].indexOf(_bulkCondActive);
+      if (idx >= 0) { all[name].splice(idx, 1); changed++; }
+    }
+    if (!all[name].length) delete all[name];
+  });
+  saveAllConditions(all);
+  renderGrid();
+  logEntry('cond', `⚡ Bulk ${add?'applied':'removed'} <strong>${escHtml(_bulkCondActive)}</strong> ${add?'to':'from'} ${changed} character${changed!==1?'s':''}: ${checked.map(c=>escHtml(c.dataset.name)).join(', ')}`);
+  showToast(`${_bulkCondActive} ${add?'applied to':'removed from'} ${changed} character${changed!==1?'s':''}`, '#9b6dff');
+  _renderBulkCond(); // Refresh to show updated conditions
 }
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
