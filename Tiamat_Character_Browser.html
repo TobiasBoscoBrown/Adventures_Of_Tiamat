@@ -3591,6 +3591,7 @@
   <button class="filter-btn" onclick="openTagFilter(this)" id="tagFilterBtn" style="border-color:#ffaa44;color:#9098b8;" title="Filter by custom tag">🏷 Tags</button>
   <button class="filter-btn" onclick="openAoeDmg()" style="border-color:#cc3333;color:#cc3333;" title="AoE damage/heal — apply to multiple characters at once">💥 AoE</button>
   <button class="filter-btn" onclick="showPassiveSkills()" style="border-color:#2299bb;color:#2299bb;" title="Party passive Perception, Investigation & Insight">👁 Passives</button>
+  <button class="filter-btn" onclick="openPartyCheckRoller()" style="border-color:#aa44ff;color:#aa44ff;" title="Party Check Roller — roll any skill for the whole party at once">🎯 Party Roll</button>
   <button class="filter-btn" onclick="openGroupHpDashboard()" style="border-color:#44aa44;color:#44aa44;" title="Group HP Dashboard — all characters at a glance">❤ Group HP</button>
   <button class="filter-btn" onclick="openTreasureGenerator()" style="border-color:#c9a227;color:#c9a227;" title="Random treasure generator by CR">💎 Treasure</button>
   <button class="filter-btn" onclick="openRandomEncTable()" style="border-color:#cc8844;color:#cc8844;" title="Random Encounter Table — roll by terrain">🎲 Enc Table</button>
@@ -9311,6 +9312,151 @@ function clearInitiative() {
   renderInitiative();
   renderGrid();
   updateHud();
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 92: Party Check Roller — pick any ability/skill,
+//   roll for all party members at once, show sorted results.
+//   Toolbar: 🎯 Party Roll
+// ══════════════════════════════════════════════════════════
+const PARTY_SKILLS = [
+  {name:'Acrobatics', ability:'DEX'}, {name:'Animal Handling', ability:'WIS'},
+  {name:'Arcana', ability:'INT'}, {name:'Athletics', ability:'STR'},
+  {name:'Deception', ability:'CHA'}, {name:'History', ability:'INT'},
+  {name:'Insight', ability:'WIS'}, {name:'Intimidation', ability:'CHA'},
+  {name:'Investigation', ability:'INT'}, {name:'Medicine', ability:'WIS'},
+  {name:'Nature', ability:'INT'}, {name:'Perception', ability:'WIS'},
+  {name:'Performance', ability:'CHA'}, {name:'Persuasion', ability:'CHA'},
+  {name:'Religion', ability:'INT'}, {name:'Sleight of Hand', ability:'DEX'},
+  {name:'Stealth', ability:'DEX'}, {name:'Survival', ability:'WIS'},
+  {name:'Strength Save', ability:'STR'}, {name:'Dexterity Save', ability:'DEX'},
+  {name:'Constitution Save', ability:'CON'}, {name:'Intelligence Save', ability:'INT'},
+  {name:'Wisdom Save', ability:'WIS'}, {name:'Charisma Save', ability:'CHA'},
+];
+
+function openPartyCheckRoller() {
+  const existing = document.getElementById('partyCheckOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'partyCheckOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto;';
+  const partyChars = typeof UNIQUE_CHARS !== 'undefined'
+    ? UNIQUE_CHARS.filter(c => c.group && ['party','player','hero','pc'].some(t => c.group.toLowerCase().includes(t)))
+    : [];
+  const allChars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+  ov.innerHTML = `
+    <div style="background:#151c2e;border:1px solid #aa44ff;border-radius:12px;width:640px;max-width:100%;padding:24px;color:#c8d0e8;font-family:'Inter',sans-serif;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-size:18px;font-weight:700;color:#aa44ff;">🎯 Party Check Roller</div>
+        <button onclick="document.getElementById('partyCheckOverlay').remove()" style="background:#2a3358;border:none;color:#c8d0e8;border-radius:6px;padding:6px 14px;cursor:pointer;">✕ Close</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap;">
+        <select id="pcrSkill" style="flex:1;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:8px;color:#c8d0e8;font-size:13px;">
+          <optgroup label="Skills">${PARTY_SKILLS.slice(0,18).map(s => `<option value="${s.name}|${s.ability}">${s.name} (${s.ability})</option>`).join('')}</optgroup>
+          <optgroup label="Saving Throws">${PARTY_SKILLS.slice(18).map(s => `<option value="${s.name}|${s.ability}">${s.name}</option>`).join('')}</optgroup>
+        </select>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:#9098b8;cursor:pointer;">
+          <input type="checkbox" id="pcrAdvantage" style="cursor:pointer;"> Adv
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:#9098b8;cursor:pointer;">
+          <input type="checkbox" id="pcrDisadvantage" style="cursor:pointer;"> Disadv
+        </label>
+        <input id="pcrDC" type="number" placeholder="DC" min="1" max="30" style="width:70px;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:8px;color:#c8d0e8;font-size:13px;text-align:center;">
+      </div>
+      <div style="margin-bottom:10px;font-size:11px;color:#9098b8;">
+        Scope:
+        <button onclick="pcrSelectGroup('party')" style="background:#aa44ff22;border:1px solid #aa44ff;color:#aa44ff;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;margin:0 4px;">Party Only</button>
+        <button onclick="pcrSelectGroup('all')" style="background:transparent;border:1px solid #2a3358;color:#9098b8;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;">All Characters</button>
+      </div>
+      <div id="pcrCharList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;max-height:120px;overflow-y:auto;padding:6px;background:#0e1422;border-radius:6px;border:1px solid #2a3358;"></div>
+      <button onclick="rollPartyCheck()" style="width:100%;background:#aa44ff;border:none;color:#fff;border-radius:8px;padding:12px;cursor:pointer;font-size:15px;font-weight:700;margin-bottom:12px;">🎲 Roll for Selected Characters</button>
+      <div id="pcrResults" style=""></div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  window._pcrSelectedChars = new Set(allChars.slice(0,20).map(c => c.name));
+  renderPcrCharList(allChars);
+}
+
+function pcrSelectGroup(group) {
+  const all = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+  let subset;
+  if (group === 'party') {
+    subset = all.filter(c => c.group && ['party','player','hero','pc'].some(t => c.group.toLowerCase().includes(t)));
+    if (subset.length === 0) subset = all.slice(0, 6);
+  } else {
+    subset = all;
+  }
+  window._pcrSelectedChars = new Set(subset.map(c => c.name));
+  renderPcrCharList(all);
+}
+
+function renderPcrCharList(allChars) {
+  const list = document.getElementById('pcrCharList');
+  if (!list) return;
+  const sel = window._pcrSelectedChars || new Set();
+  list.innerHTML = allChars.map(c => {
+    const active = sel.has(c.name);
+    return `<button onclick="pcrToggleChar('${c.name.replace(/'/g,"\\'")}',this)" style="background:${active ? '#aa44ff33' : 'transparent'};border:1px solid ${active ? '#aa44ff' : '#2a3358'};color:${active ? '#aa44ff' : '#9098b8'};border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;">${c.name}</button>`;
+  }).join('');
+}
+
+function pcrToggleChar(name, btn) {
+  const sel = window._pcrSelectedChars || new Set();
+  if (sel.has(name)) { sel.delete(name); btn.style.background='transparent'; btn.style.borderColor='#2a3358'; btn.style.color='#9098b8'; }
+  else { sel.add(name); btn.style.background='#aa44ff33'; btn.style.borderColor='#aa44ff'; btn.style.color='#aa44ff'; }
+  window._pcrSelectedChars = sel;
+}
+
+function rollPartyCheck() {
+  const results = document.getElementById('pcrResults');
+  if (!results) return;
+  const [skillName, abilityKey] = (document.getElementById('pcrSkill')?.value || 'Perception|WIS').split('|');
+  const dc = parseInt(document.getElementById('pcrDC')?.value) || 0;
+  const adv = document.getElementById('pcrAdvantage')?.checked;
+  const disadv = document.getElementById('pcrDisadvantage')?.checked;
+  const sel = window._pcrSelectedChars || new Set();
+  const all = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+  const chars = all.filter(c => sel.has(c.name));
+  if (chars.length === 0) { if (typeof showToast === 'function') showToast('Select at least one character', '#cc3333'); return; }
+
+  const ABILITY_MAP = {STR:0,DEX:1,CON:2,INT:3,WIS:4,CHA:5};
+  const rollResults = chars.map(c => {
+    const abilIdx = ABILITY_MAP[abilityKey] ?? 4;
+    const mod = c.abilities && c.abilities[abilIdx] ? parseInt(c.abilities[abilIdx][2]) || 0 : 0;
+    const r1 = Math.ceil(Math.random() * 20);
+    const r2 = Math.ceil(Math.random() * 20);
+    let roll, rolls;
+    if (adv && !disadv) { roll = Math.max(r1,r2); rolls=[r1,r2]; }
+    else if (disadv && !adv) { roll = Math.min(r1,r2); rolls=[r1,r2]; }
+    else { roll = r1; rolls=[r1]; }
+    const total = roll + mod;
+    return { name: c.name, roll, rolls, mod, total, success: dc > 0 ? total >= dc : null };
+  }).sort((a,b) => b.total - a.total);
+
+  const dcLabel = dc > 0 ? ` vs DC ${dc}` : '';
+  const advLabel = adv ? ' (Adv)' : disadv ? ' (Disadv)' : '';
+  results.innerHTML = `<div style="font-size:13px;font-weight:600;color:#aa44ff;margin-bottom:8px;">${skillName}${advLabel}${dcLabel} Results</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px;">
+    ${rollResults.map((r,i) => {
+      const col = r.success === true ? '#44cc88' : r.success === false ? '#cc3333' : '#c9a227';
+      const rank = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+      const rollStr = r.rolls.length > 1 ? `[${r.rolls.join(',')}]` : `[${r.rolls[0]}]`;
+      const modStr = r.mod >= 0 ? `+${r.mod}` : `${r.mod}`;
+      return `<div style="background:#0e1422;border:1px solid ${col}44;border-radius:6px;padding:8px;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:10px;color:#9098b8;">${rank} ${r.name}</div>
+          <div style="font-size:11px;color:#4a5272;">${rollStr}${modStr}</div>
+        </div>
+        <div style="font-size:20px;font-weight:700;color:${col};">${r.total}${r.success===true?'✓':r.success===false?'✗':''}</div>
+      </div>`;
+    }).join('')}
+    </div>`;
+  if (typeof logEntry === 'function') {
+    const summary = rollResults.map(r => `${r.name}:${r.total}`).join(', ');
+    logEntry(`🎯 Party ${skillName} check${dcLabel}: ${summary}`);
+  }
 }
 
 // ══════════════════════════════════════════════════════════
