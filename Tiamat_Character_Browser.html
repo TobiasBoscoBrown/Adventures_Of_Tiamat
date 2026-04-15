@@ -5013,6 +5013,7 @@
   <div style="flex:1;display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:flex-end">
     <span id="hudDate" style="color:#c9a22788;cursor:pointer" onclick="openCalendar()" title="Open Calendar">📅 —</span>
     <span id="hudWeather" style="color:#4488ff88;cursor:pointer" onclick="openWeather()" title="Open Weather">☁ —</span>
+    <span id="hudTimer" style="color:#44cc8888;cursor:pointer;font-family:monospace;font-size:11px" onclick="_timerToggle()" title="Session Timer — click to pause/resume, right-click to reset" oncontextmenu="event.preventDefault();_timerReset()">⏱ 0:00</span>
     <span id="hudCombat" style="color:#cc333388;cursor:pointer" onclick="document.getElementById('initiativePanel').classList.toggle('open')" title="Combat status — click to toggle initiative tracker">⚔ —</span>
     <span id="hudEncounter" style="color:#44aa4488" title="Active encounter">☩ —</span>
   </div>
@@ -24154,6 +24155,62 @@ function _upcastRoll() {
     logEntry('roll', `🔮 Upcast: ${formula} = <strong>${total}</strong>`);
   } catch { showToast('Could not roll: ' + formula, '#cc3333'); }
 }
+// Iter 148: Session Timer — live duration counter in HUD.
+// Click to pause/resume, right-click to reset. Auto-starts when page loads.
+// Shows session duration in H:MM or M:SS format. Useful for break scheduling.
+
+let _timerStart = Date.now();
+let _timerPaused = false;
+let _timerPausedAt = 0;
+let _timerElapsed = 0; // ms when paused
+
+function _timerUpdate() {
+  const el = document.getElementById('hudTimer');
+  if (!el) return;
+  let secs;
+  if (_timerPaused) {
+    secs = Math.floor(_timerElapsed / 1000);
+  } else {
+    secs = Math.floor((Date.now() - _timerStart + _timerElapsed) / 1000);
+  }
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  const display = h > 0
+    ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+    : `${m}:${String(s).padStart(2,'0')}`;
+  el.textContent = `⏱ ${display}`;
+  el.style.color = _timerPaused ? '#c9a22788' : '#44cc8888';
+  el.title = `Session Timer (${display}) — click to ${_timerPaused?'resume':'pause'}, right-click to reset`;
+}
+
+function _timerToggle() {
+  if (_timerPaused) {
+    // Resume
+    _timerStart = Date.now();
+    _timerPaused = false;
+    showToast('Session timer resumed', '#44cc88');
+  } else {
+    // Pause
+    _timerElapsed += Date.now() - _timerStart;
+    _timerPaused = true;
+    const secs = Math.floor(_timerElapsed / 1000);
+    const m = Math.floor(secs / 60), s = secs % 60;
+    showToast(`Timer paused at ${m}:${String(s).padStart(2,'0')}`, '#c9a227');
+  }
+}
+
+function _timerReset() {
+  _timerStart = Date.now();
+  _timerElapsed = 0;
+  _timerPaused = false;
+  showToast('Session timer reset', '#4488ff');
+  logEntry('note', `⏱ Session timer reset`);
+}
+
+// Start the timer ticker
+setInterval(_timerUpdate, 1000);
+_timerUpdate();
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
 
