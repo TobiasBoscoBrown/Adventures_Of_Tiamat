@@ -3963,7 +3963,8 @@
       <span id="encounterDiffBadge" style="display:none;font-size:9px;padding:2px 7px;border-radius:8px;border:1px solid;letter-spacing:0.5px;font-weight:700;cursor:pointer" onclick="openXpBudget()" title="Click to open XP Budget calculator"></span>
     </div>
     <div class="initiative-controls">
-      <button class="init-ctrl-btn" onclick="rollAllInitiative()" title="Roll initiative for all NPCs">⚄ Roll All</button>
+      <button class="init-ctrl-btn" onclick="rollAllInitiative()" title="Re-roll initiative for all already-added characters">⚄ Roll All</button>
+      <button class="init-ctrl-btn" onclick="addAllVisibleToInit()" title="Add all currently visible characters to initiative" style="border-color:#44aa66;color:#44aa66">⚔ + All</button>
       <button class="init-ctrl-btn next-btn" onclick="nextTurn()" title="Next turn">Next ▶</button>
       <button class="init-ctrl-btn" onclick="toggleGroupRoll()" title="Group saving throw / ability check" style="border-color:#aa66dd;color:#aa66dd">⚔ Save</button>
       <button class="init-ctrl-btn" onclick="toggleBulkCond(event)" title="Apply condition to all in initiative" style="border-color:#dd8822;color:#dd8822">⚡ Bulk</button>
@@ -8954,42 +8955,55 @@ function useSlot(charName, level, event) {
   used[level] = (used[level] || 0) + 1;
   slotState[charName] = used;
   saveSlots();
-  // Show quick spell cast picker
+  // Show quick spell cast picker — include spells at this level AND upcasts from lower levels
   const char = UNIQUE_CHARS.find(c => c.name === charName);
-  const knownAtLevel = char ? (inferSpells(char)||[]).filter(n => { const s=SPELL_LIBRARY[n]; return s&&s.level===level; }) : [];
-  if (knownAtLevel.length > 0) {
-    showSpellCastPicker(charName, level, knownAtLevel, event);
+  const knownSpells = char ? (inferSpells(char)||[]) : [];
+  const knownAtLevel = knownSpells.filter(n => { const s=SPELL_LIBRARY[n]; return s&&s.level===level; });
+  const knownUpcast = knownSpells.filter(n => { const s=SPELL_LIBRARY[n]; return s&&s.level>0&&s.level<level; });
+  if (knownAtLevel.length > 0 || knownUpcast.length > 0) {
+    showSpellCastPicker(charName, level, knownAtLevel, knownUpcast, event);
   } else {
     logEntry('roll', `<strong>${escHtml(charName)}</strong> cast a level ${level} spell`);
   }
   refreshSpellSlots(charName);
   if (typeof renderInitiative === 'function') renderInitiative();
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
 }
 
-function showSpellCastPicker(charName, level, spells, sourceEvent) {
+function showSpellCastPicker(charName, level, spells, upcastSpells, sourceEvent) {
   document.querySelectorAll('.spell-cast-picker').forEach(e => e.remove());
   const ordinals = ['','1st','2nd','3rd','4th','5th','6th','7th','8th','9th'];
   const picker = document.createElement('div');
   picker.className = 'spell-cast-picker';
-  picker.style.cssText = 'position:fixed;z-index:950;background:#0a0a1a;border:1px solid #2a2a50;border-radius:10px;padding:10px 12px;width:220px;box-shadow:0 8px 30px rgba(0,0,0,0.9);max-height:300px;overflow-y:auto';
+  picker.style.cssText = 'position:fixed;z-index:950;background:#0a0a1a;border:1px solid #2a2a50;border-radius:10px;padding:10px 12px;width:240px;box-shadow:0 8px 30px rgba(0,0,0,0.9);max-height:360px;overflow-y:auto';
   const el = document.getElementById('spellSlotsFor_' + safeId(charName));
-  if (el) { const r=el.getBoundingClientRect(); picker.style.left=Math.min(r.left,window.innerWidth-240)+'px'; picker.style.top=(r.bottom+4)+'px'; }
+  if (el) { const r=el.getBoundingClientRect(); picker.style.left=Math.min(r.left,window.innerWidth-260)+'px'; picker.style.top=(r.bottom+4)+'px'; }
   else { picker.style.left='50%'; picker.style.top='40%'; picker.style.transform='translate(-50%,-50%)'; }
-  picker.innerHTML = `<div style="font-size:11px;color:#9b6dff;font-weight:700;margin-bottom:8px">🔮 ${escHtml(charName)} — ${ordinals[level]||'Lv'+level} Slot Used</div>
-  ${spells.map(n=>{ const s=SPELL_LIBRARY[n]; const ic=s&&/concentration/i.test(s.desc||'');
-    return `<button onclick="logSpellCast(${JSON.stringify(charName)},${JSON.stringify(n)},${JSON.stringify(level)},${ic});this.closest('.spell-cast-picker').remove()" style="width:100%;text-align:left;background:rgba(155,109,255,0.06);border:1px solid #2a2a50;color:#c8d8ff;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;margin-bottom:3px">${escHtml(n)}${ic?' 🔮':''}</button>`;
-  }).join('')}
-  <button onclick="logSpellCast(${JSON.stringify(charName)},null,${JSON.stringify(level)},false);this.closest('.spell-cast-picker').remove()" style="width:100%;text-align:left;background:transparent;border:1px dashed #2a2a50;color:#4a5272;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:10px;margin-top:2px">— Other spell / dismiss</button>`;
+  const spellBtn = (n, castLevel, isUpcast) => {
+    const s = SPELL_LIBRARY[n];
+    const ic = s && /concentration/i.test(s.desc||'');
+    const lvlTag = isUpcast ? `<span style="font-size:8px;background:rgba(255,150,50,.15);color:#ff9632;border:1px solid rgba(255,150,50,.3);border-radius:3px;padding:0 3px;margin-left:3px">⬆ UPCAST lv${s.level}→${castLevel}</span>` : '';
+    const title = s ? escHtml(`${s.desc||''}${isUpcast?' | Originally level '+s.level:''}`) : '';
+    return `<button onclick="logSpellCast(${JSON.stringify(charName)},${JSON.stringify(n)},${JSON.stringify(castLevel)},${ic},${isUpcast});this.closest('.spell-cast-picker').remove()" style="width:100%;text-align:left;background:rgba(${isUpcast?'255,150,50':'155,109,255'},0.05);border:1px solid #2a2a50;color:#c8d8ff;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;margin-bottom:3px" title="${title}">${escHtml(n)}${ic?' 🔮':''}${lvlTag}</button>`;
+  };
+  const upcastList = (upcastSpells||[]).sort((a,b) => (SPELL_LIBRARY[b]?.level||0) - (SPELL_LIBRARY[a]?.level||0));
+  const upcastSection = upcastList.length ? `<div style="font-size:9px;color:#4a5272;letter-spacing:1px;margin:6px 0 3px">UPCAST OPTIONS</div>${upcastList.map(n=>spellBtn(n,level,true)).join('')}` : '';
+  picker.innerHTML = `<div style="font-size:11px;color:#9b6dff;font-weight:700;margin-bottom:8px">🔮 ${escHtml(charName)} — ${ordinals[level]||'Lv'+level} Slot</div>
+  ${spells.map(n=>spellBtn(n,level,false)).join('')}
+  ${upcastSection}
+  <button onclick="logSpellCast(${JSON.stringify(charName)},null,${JSON.stringify(level)},false,false);this.closest('.spell-cast-picker').remove()" style="width:100%;text-align:left;background:transparent;border:1px dashed #2a2a50;color:#4a5272;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:10px;margin-top:4px">— Other spell / dismiss</button>`;
   document.body.appendChild(picker);
   const close = ev => { if (!picker.contains(ev.target)) { picker.remove(); document.removeEventListener('mousedown', close); } };
   setTimeout(() => document.addEventListener('mousedown', close), 80);
 }
 
-function logSpellCast(charName, spellName, level, isConc) {
+function logSpellCast(charName, spellName, level, isConc, isUpcast) {
   const ordinals = ['','1st','2nd','3rd','4th','5th','6th','7th','8th','9th'];
   const lvlStr = ordinals[level]||`level ${level}`;
+  const baseLevel = spellName ? (SPELL_LIBRARY[spellName]?.level||level) : level;
+  const upcastNote = isUpcast && baseLevel < level ? ` <span style="color:#ff9632;font-size:10px">⬆ upcast from ${ordinals[baseLevel]||baseLevel}</span>` : '';
   if (spellName) {
-    logEntry('roll', `<strong>${escHtml(charName)}</strong> cast <strong>${escHtml(spellName)}</strong> (${lvlStr})${isConc?' 🔮 <em>Concentration</em>':''}`);
+    logEntry('roll', `<strong>${escHtml(charName)}</strong> cast <strong>${escHtml(spellName)}</strong> (${lvlStr})${upcastNote}${isConc?' 🔮 <em>Concentration</em>':''}`);
     if (isConc && typeof setConc === 'function') setConc(charName, spellName, null);
   } else {
     logEntry('roll', `<strong>${escHtml(charName)}</strong> cast a ${lvlStr} spell`);
@@ -9217,11 +9231,50 @@ function setConc(charName, spellName, event) {
   if (all[charName] === spellName) {
     // Toggle off if same spell clicked again
     delete all[charName];
-  } else {
-    all[charName] = spellName;
+    saveAllConc(all);
+    logEntry('roll', `<strong>${escHtml(charName)}</strong> broke concentration on <strong>${escHtml(spellName)}</strong>`);
+    refreshConcDisplay(charName);
+    updateHeaderStats();
+    return;
   }
+  // Warn if overwriting an existing concentration spell
+  if (all[charName] && all[charName] !== spellName) {
+    const existing = all[charName];
+    showConcOverwriteWarning(charName, existing, spellName);
+    return;
+  }
+  all[charName] = spellName;
   saveAllConc(all);
-  logEntry('roll', `<strong>${charName}</strong> ${all[charName] ? `is concentrating on <strong>${spellName}</strong> 🔮` : `broke concentration`}`);
+  logEntry('roll', `<strong>${escHtml(charName)}</strong> is concentrating on <strong>${escHtml(spellName)}</strong> 🔮`);
+  refreshConcDisplay(charName);
+  updateHeaderStats();
+}
+
+function showConcOverwriteWarning(charName, oldSpell, newSpell) {
+  const existing = document.getElementById('concOverwriteWarning');
+  if (existing) existing.remove();
+  const dlg = document.createElement('div');
+  dlg.id = 'concOverwriteWarning';
+  dlg.style.cssText = 'position:fixed;z-index:9999;left:50%;top:40%;transform:translate(-50%,-50%);background:#0a0a1e;border:2px solid #c9a227;border-radius:12px;padding:18px 22px;min-width:280px;max-width:360px;box-shadow:0 8px 40px rgba(0,0,0,.95);text-align:center';
+  dlg.innerHTML = `<div style="font-size:14px;color:#f0c060;font-weight:700;font-family:'Cinzel',serif;margin-bottom:8px">⚠ Concentration Break</div>
+    <div style="font-size:12px;color:#9098b8;margin-bottom:14px"><strong style="color:#c8d8ff">${escHtml(charName)}</strong> is already concentrating on<br><strong style="color:#c9a227">${escHtml(oldSpell)}</strong>.</div>
+    <div style="font-size:11px;color:#6a7098;margin-bottom:14px">Starting <strong style="color:#9b6dff">${escHtml(newSpell)}</strong> will break it.</div>
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button onclick="forceConcOverwrite(${JSON.stringify(charName)},${JSON.stringify(oldSpell)},${JSON.stringify(newSpell)});document.getElementById('concOverwriteWarning').remove()" style="background:rgba(155,109,255,.15);border:1px solid #9b6dff;color:#9b6dff;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:11px">🔮 Switch to ${escHtml(newSpell.length>16?newSpell.slice(0,15)+'…':newSpell)}</button>
+      <button onclick="document.getElementById('concOverwriteWarning').remove()" style="background:rgba(255,255,255,.04);border:1px solid #2a2a50;color:#6a7098;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:11px">Keep ${escHtml(oldSpell.length>16?oldSpell.slice(0,15)+'…':oldSpell)}</button>
+    </div>`;
+  document.body.appendChild(dlg);
+  setTimeout(() => {
+    const close = ev => { if (!dlg.contains(ev.target)) { dlg.remove(); document.removeEventListener('mousedown', close); } };
+    document.addEventListener('mousedown', close);
+  }, 100);
+}
+
+function forceConcOverwrite(charName, oldSpell, newSpell) {
+  const all = loadAllConc();
+  all[charName] = newSpell;
+  saveAllConc(all);
+  logEntry('roll', `<strong>${escHtml(charName)}</strong> broke concentration on <strong>${escHtml(oldSpell)}</strong> → now concentrating on <strong>${escHtml(newSpell)}</strong> 🔮`);
   refreshConcDisplay(charName);
   updateHeaderStats();
 }
@@ -11465,6 +11518,13 @@ function renderHealthPanel() {
         const short = concSpell.length > 14 ? concSpell.slice(0, 13) + '…' : concSpell;
         extraParts.push(`<span title="Concentrating: ${escHtml(concSpell)}" style="color:#c9a227;background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.3);border-radius:8px;padding:0 4px;cursor:pointer" onclick="clearConc(${JSON.stringify(c.name)},event)">🔮 ${escHtml(short)}</span>`);
       }
+      // Exhaustion
+      const exLv = typeof getExhaustion === 'function' ? getExhaustion(c.name) : 0;
+      if (exLv > 0) {
+        const exEffects = ['','Disadv checks','Spd halved','Disadv atk+saves','HP max halved','Spd 0','☠ Death'];
+        const exCol = exLv >= 4 ? '#ff4444' : exLv >= 2 ? '#dd8822' : '#e07070';
+        extraParts.push(`<span title="Exhaustion ${exLv}: ${exEffects[exLv]||''}" style="color:${exCol};background:rgba(224,112,112,.1);border:1px solid ${exCol}44;border-radius:8px;padding:0 4px">😴 Ex${exLv}</span>`);
+      }
       // Temp HP
       const tmp = getTempHP(c.name);
       if (tmp > 0) {
@@ -11632,6 +11692,31 @@ function rollAllInitiative() {
   initiativeList.sort((a, b) => b.initiative - a.initiative);
   currentTurnIdx = 0;
   renderInitiative();
+}
+
+function addAllVisibleToInit() {
+  const visible = typeof filteredChars !== 'undefined' ? filteredChars : UNIQUE_CHARS;
+  let added = 0;
+  visible.forEach(c => {
+    if (!isInInitiative(c.name)) {
+      const dexBonus = getDexBonus(c.name);
+      const roll = Math.floor(Math.random() * 20) + 1 + dexBonus;
+      const maxHp = parseInt(c.hp) || 1;
+      initiativeList.push({ name: c.name, maxHp, initiative: roll, isNpc: true });
+      added++;
+    }
+  });
+  if (added > 0) {
+    initiativeList.sort((a, b) => b.initiative - a.initiative);
+    if (currentTurnIdx >= initiativeList.length) currentTurnIdx = 0;
+    openInitiativePanel();
+    renderInitiative();
+    renderGrid();
+    updateHeaderStats();
+    logEntry('combat', `Added ${added} character${added>1?'s':''} to initiative`);
+  } else {
+    showToast?.('All visible characters are already in initiative', '#4a5272');
+  }
 }
 
 function addCustomToInitiative() {
@@ -13901,6 +13986,27 @@ function spendLegendaryAction(charName) {
   showToast(`${charName}: Used legendary action (${legendaryState[charName]} left)`, '#c9a227');
 }
 
+function spendLegendaryActionBar(charName, event) {
+  if (event) event.stopPropagation();
+  const charges = getLegendaryCharges(charName);
+  if (charges <= 0) { showToast?.(`No legendary actions remaining!`, '#cc4444'); return; }
+  legendaryState[charName] = charges - 1;
+  logEntry('roll', `<strong>${escHtml(charName)}</strong> used a Legendary Action (${legendaryState[charName]}/${getLegendaryMax(charName)} remaining)`);
+  renderActiveTurnBar();
+  renderInitiative();
+}
+
+function resetLegendaryActionsFor(charName, event) {
+  if (event) event.stopPropagation();
+  const max = getLegendaryMax(charName);
+  if (max > 0) {
+    legendaryState[charName] = max;
+    logEntry('roll', `<strong>${escHtml(charName)}</strong> legendary actions reset (${max}/${max})`);
+    renderActiveTurnBar();
+    renderInitiative();
+  }
+}
+
 function resetLegendaryActions() {
   // Called at end of each round (start of character's turn in the next round)
   Object.keys(legendaryState).forEach(name => {
@@ -14720,6 +14826,17 @@ function toggleTurnAction(name, type, event) {
   turnActionState[name][type] = !turnActionState[name][type];
   renderInitiative();
 }
+function toggleTurnActionEcon(name, type, event) {
+  if (event) event.stopPropagation();
+  if (!turnActionState[name]) turnActionState[name] = {};
+  turnActionState[name][type] = !turnActionState[name][type];
+  renderActiveTurnBar();
+}
+function resetTurnActions(name, event) {
+  if (event) event.stopPropagation();
+  delete turnActionState[name];
+  renderActiveTurnBar();
+}
 function clearTurnActions() { turnActionState = {}; }
 
 let lairActionEnabled = false;
@@ -14888,6 +15005,9 @@ function renderActiveTurnBar() {
   const maxHp = parseInt(char.hp)||1;
   const conc = getConcSpell(char.name);
   const conds = getAllConditions ? getAllConditions().filter(c=>(condState[char.name]||{})[c.name]).map(c=>c.icon+c.name) : [];
+  const exhaustLv = typeof getExhaustion === 'function' ? getExhaustion(char.name) : 0;
+  const exhaustEffects = ['','Disadv checks','Speed halved','Disadv atk+saves','HP max halved','Speed 0','☠ Death'];
+  const exhaustChip = exhaustLv > 0 ? chip(`😴 Ex${exhaustLv}`, exhaustEffects[exhaustLv]||'', exhaustLv >= 4 ? '#ff4444' : exhaustLv >= 2 ? '#dd8822' : '#e07070') : '';
 
   const chip = (label, val, col='#9098b8') => `<span style="font-size:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:2px 7px;color:${col}"><span style="color:#4a5272;font-size:9px">${label} </span>${val}</span>`;
 
@@ -14905,6 +15025,7 @@ function renderActiveTurnBar() {
     ${chip('HP', `${currHp}/${maxHp}`, currHp/maxHp < 0.25 ? '#ff6666' : currHp/maxHp < 0.5 ? '#dd8822' : '#44aa44')}
     ${chip('PP', pp, '#aa88ff')}
     ${conc ? chip('⊙', escHtml(conc.length>10?conc.slice(0,9)+'…':conc), '#c9a227') : ''}
+    ${exhaustChip}
     ${conds.slice(0,3).map(c=>chip('', escHtml(c.slice(0,2)+c.slice(2,12)), '#dd8822')).join('')}
     <button onclick="setAdvState(${JSON.stringify(char.name)},'adv')" style="background:${curAdv==='adv'?'rgba(68,170,68,.3)':'rgba(68,170,68,.07)'};border:1px solid ${curAdv==='adv'?'#44aa44':'rgba(68,170,68,.3)'};color:${curAdv==='adv'?'#44ff44':'#44aa44'};border-radius:4px;padding:1px 6px;cursor:pointer;font-size:10px;font-weight:700" title="Toggle Advantage on all rolls">↑ Adv</button>
     <button onclick="setAdvState(${JSON.stringify(char.name)},'dis')" style="background:${curAdv==='dis'?'rgba(204,51,51,.3)':'rgba(204,51,51,.07)'};border:1px solid ${curAdv==='dis'?'#cc3333':'rgba(204,51,51,.3)'};color:${curAdv==='dis'?'#ff4444':'#cc3333'};border-radius:4px;padding:1px 6px;cursor:pointer;font-size:10px;font-weight:700" title="Toggle Disadvantage on all rolls">↓ Dis</button>
@@ -14917,6 +15038,23 @@ function renderActiveTurnBar() {
     <div style="flex:1;height:4px;background:#1e2040;border-radius:2px;overflow:hidden;max-width:80px"><div style="height:100%;width:${Math.round(movePct*100)}%;background:${moveCol};border-radius:2px;transition:width .2s"></div></div>
     ${moveBtn(5)}${moveBtn(10)}${moveBtn(15)}${moveBtn(30)}
     <button onclick="restoreMove(${JSON.stringify(char.name)},event)" style="background:none;border:1px solid rgba(68,204,170,.2);color:#3a8070;border-radius:4px;padding:1px 4px;cursor:pointer;font-size:9px;line-height:1" title="Restore full movement">↺</button>
+  </div>`;
+  // Action Economy row
+  const ts = typeof getTurnState === 'function' ? getTurnState(char.name) : {};
+  const econTypes = [
+    { key:'action',  label:'⚔ Action',  shortLabel:'Action',  col:'#44aaff' },
+    { key:'bonus',   label:'✦ Bonus',   shortLabel:'Bonus',   col:'#ff9944' },
+    { key:'reaction',label:'⚡ React',   shortLabel:'Reaction',col:'#cc66ff' },
+    { key:'object',  label:'✋ Object',  shortLabel:'Object',  col:'#44cc88' },
+  ];
+  const econBtns = econTypes.map(({ key, label, shortLabel, col }) => {
+    const used = ts[key];
+    return `<button onclick="toggleTurnActionEcon(${JSON.stringify(char.name)},${JSON.stringify(key)},event)" style="background:${used?`rgba(${col.slice(1).match(/../g).map(h=>parseInt(h,16)).join(',')},0.08)`:'rgba(255,255,255,.03)'};border:1px solid ${used?col+'55':'rgba(255,255,255,.06)'};color:${used?col:'#3a3a5a'};border-radius:4px;padding:2px 6px;cursor:pointer;font-size:9px;line-height:1.4;${used?'text-decoration:line-through;opacity:.5':''}" title="${shortLabel} (click to toggle used)">${label}</button>`;
+  }).join('');
+  html += `<div style="display:flex;gap:3px;align-items:center;margin-top:3px;flex-wrap:wrap">
+    <span style="font-size:9px;color:#4a5272;letter-spacing:.5px;min-width:24px">ACT</span>
+    ${econBtns}
+    <button onclick="resetTurnActions(${JSON.stringify(char.name)},event)" style="background:none;border:1px solid rgba(255,255,255,.06);color:#3a3a5a;border-radius:4px;padding:1px 4px;cursor:pointer;font-size:9px;line-height:1;margin-left:2px" title="Reset all action economy for this turn">↺</button>
   </div>`;
   // Attack roll buttons row
   const strMod = (char.abilities||[]).find(a=>a[0]==='STR'); const sM = strMod ? (parseInt(strMod[2])||0) : 0;
@@ -14932,14 +15070,20 @@ function renderActiveTurnBar() {
   const spellBonus = spellAb ? prof + (parseInt(spellAb[2])||0) : 0;
   const satkStr = spellBonus >= 0 ? `+${spellBonus}` : `${spellBonus}`;
 
-  const atkBtn = (label, title, bonus, type) => `<button onclick="rollInitAttack(${JSON.stringify(char.name)},${JSON.stringify(title)},${bonus},event)" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:#9098b8;border-radius:4px;padding:2px 7px;cursor:pointer;font-size:10px;line-height:1.4" title="${title} attack">${label} (${type})</button>`;
+  const atkBtn = (label, title, bonus, type) => `<button onclick="rollInitAttack(${JSON.stringify(char.name)},${JSON.stringify(title)},${bonus},event)" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:#9098b8;border-radius:4px;padding:2px 7px;cursor:pointer;font-size:10px;line-height:1.4" title="${title} attack (${type}) · Shift+click for Attack+Damage combo">${label} (${type})</button>`;
 
   const multiAtkCount = document.getElementById('multiAtkCount')?.value || '1';
+  // Infer weapon damage die from CR
+  const crNum = parseFloat(char.cr) || 1;
+  const wepDie = crNum >= 21 ? 12 : crNum >= 13 ? 10 : crNum >= 7 ? 8 : crNum >= 3 ? 6 : 4;
+  const dmgStatMod = Math.max(sM, dM);
+  const critDie = wepDie * 2; // crit doubles damage dice
   html += `<div style="display:flex;gap:4px;align-items:center;margin-top:3px;flex-wrap:wrap">
     <span style="font-size:9px;color:#4a5272;letter-spacing:.5px">ATK</span>
     ${atkBtn('⚔ Melee', 'Melee', meleeBonus, mStr)}
     ${atkBtn('🏹 Ranged', 'Ranged', rangedBonus, rStr)}
     ${isSpellcaster ? atkBtn('🔮 Spell', 'Spell', spellBonus, satkStr) : ''}
+    <button onclick="showDmgRoller(${JSON.stringify(char.name)},${wepDie},${dmgStatMod},${sM},${dM},${isSpellcaster},event)" style="background:rgba(220,80,80,.08);border:1px solid rgba(220,80,80,.25);color:#cc5555;border-radius:4px;padding:2px 7px;cursor:pointer;font-size:10px;line-height:1.4" title="Roll damage">🎲 DMG</button>
     <select id="multiAtkCount" onchange="renderActiveTurnBar()" style="background:#0a0a1e;border:1px solid #2a2a50;color:#6a7098;border-radius:4px;padding:1px 3px;font-size:9px;cursor:pointer" title="Number of attacks to roll at once">
       <option value="1">1×</option><option value="2">2×</option><option value="3">3×</option><option value="4">4×</option><option value="5">5×</option>
     </select>
@@ -14959,6 +15103,46 @@ function renderActiveTurnBar() {
     <span style="font-size:9px;color:#4a5272;letter-spacing:.5px;min-width:24px">SAVE</span>
     ${saveBtns}
   </div>`;
+
+  // Spell Slots quick-use row (for spellcasters)
+  if (isSpellcaster && typeof getMaxSlotsForChar === 'function') {
+    const slotMax = getMaxSlotsForChar(char);
+    const slotLevels = slotMax ? Object.keys(slotMax).map(Number).sort((a,b)=>a-b) : [];
+    if (slotLevels.length > 0) {
+      const usedSlots = typeof getUsedSlots === 'function' ? getUsedSlots(char.name) : {};
+      const ordinals = ['','1st','2nd','3rd','4th','5th','6th','7th','8th','9th'];
+      const slotBtns = slotLevels.map(lv => {
+        const maxLv = slotMax[lv] || 0;
+        const usedLv = usedSlots[lv] || 0;
+        const remLv = Math.max(0, maxLv - usedLv);
+        const depleted = remLv === 0;
+        const pips = Array.from({length:maxLv}, (_,i) => `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${i<remLv?'#9b6dff':'rgba(155,109,255,.15)'};margin-right:1px"></span>`).join('');
+        return `<button onclick="useSlot(${JSON.stringify(char.name)},${lv},event)" ${depleted?'disabled':''} style="background:${depleted?'rgba(255,255,255,.02)':'rgba(155,109,255,.08)'};border:1px solid rgba(155,109,255,${depleted?'.1':'.3'});color:${depleted?'#3a3a60':'#9b6dff'};border-radius:4px;padding:2px 5px;cursor:${depleted?'not-allowed':'pointer'};font-size:9px;line-height:1.4;text-align:center;min-width:28px" title="${ordinals[lv]||lv+'th'} level slot (${remLv}/${maxLv} remaining)">${lv}<span style="font-size:7px;display:block;margin-top:1px">${pips}</span></button>`;
+      }).join('');
+      html += `<div style="display:flex;gap:3px;align-items:center;margin-top:3px">
+        <span style="font-size:9px;color:#4a5272;letter-spacing:.5px;min-width:24px">SLOTS</span>
+        ${slotBtns}
+      </div>`;
+    }
+  }
+
+  // Legendary Actions row (only for legendary creatures)
+  if (typeof getLegendaryMax === 'function') {
+    const legMax = getLegendaryMax(char.name);
+    if (legMax > 0) {
+      const legCur = typeof getLegendaryCharges === 'function' ? getLegendaryCharges(char.name) : legMax;
+      const pips = Array.from({length:legMax}, (_,i) => {
+        const active = i < legCur;
+        return `<span onclick="spendLegendaryActionBar(${JSON.stringify(char.name)},event)" title="${active?'Click to spend legendary action':'Spent'}" style="display:inline-block;width:12px;height:12px;border-radius:50%;border:1px solid #c9a227;background:${active?'#c9a227':'transparent'};cursor:${active?'pointer':'default'};transition:background .1s"></span>`;
+      }).join('');
+      html += `<div style="display:flex;gap:5px;align-items:center;margin-top:3px">
+        <span style="font-size:9px;color:#c9a227;letter-spacing:.5px;min-width:24px">LEG</span>
+        <span style="font-size:9px;color:${legCur>0?'#c9a227':'#3a3a50'}">${legCur}/${legMax}</span>
+        <div style="display:flex;gap:3px;align-items:center">${pips}</div>
+        ${legCur < legMax ? `<button onclick="resetLegendaryActionsFor(${JSON.stringify(char.name)},event)" style="background:none;border:1px solid rgba(201,162,39,.2);color:#6a5a20;border-radius:4px;padding:1px 4px;cursor:pointer;font-size:9px;margin-left:2px" title="Reset legendary actions to max">↺</button>` : ''}
+      </div>`;
+    }
+  }
 
   // Smart Combat Hints
   const hints = buildCombatHints(char);
@@ -14996,19 +15180,39 @@ function renderActiveTurnBar() {
 
 function rollInitAttack(charName, type, bonus, event) {
   if (event) event.stopPropagation();
+  const isCombo = event && event.shiftKey; // Shift+click = attack + damage combo
   const count = parseInt(document.getElementById('multiAtkCount')?.value || '1');
   const bStr = bonus >= 0 ? `+${bonus}` : `${bonus}`;
   const advLabel = advState[charName] ? ` (${advState[charName]})` : '';
   let anyCrit = false;
-  const results = Array.from({length:count}, () => {
+  const attackResults = Array.from({length:count}, () => {
     const { die, detail } = rollWithAdv(charName, bonus);
     const total = die + bonus;
     const isCrit = die === 20, isFumble = die === 1;
     if (isCrit) anyCrit = true;
-    return `d20${detail?detail:`(${die})`}${bStr}=<strong>${total}</strong>${isCrit?'★':isFumble?'☠':''}`;
+    return { total, isCrit, isFumble, str: `d20${detail?detail:`(${die})`}${bStr}=<strong>${total}</strong>${isCrit?'★':isFumble?'☠':''}` };
   });
   const multiLabel = count > 1 ? ` ×${count}` : '';
-  logEntry('roll', `<strong>${escHtml(charName)}</strong> ${type} Attack${multiLabel}${advLabel}: ${results.join(' | ')}`);
+  // If Shift+click, also roll damage
+  if (isCombo) {
+    const char = UNIQUE_CHARS.find(c => c.name === charName);
+    const crNum = char ? (parseFloat(char.cr) || 1) : 1;
+    const wepDie = crNum >= 21 ? 12 : crNum >= 13 ? 10 : crNum >= 7 ? 8 : crNum >= 3 ? 6 : 4;
+    const sM = char ? (parseInt(((char.abilities||[]).find(a=>a[0]==='STR')||[])[2])||0) : 0;
+    const dM = char ? (parseInt(((char.abilities||[]).find(a=>a[0]==='DEX')||[])[2])||0) : 0;
+    const dmgMod = type === 'Ranged' ? dM : Math.max(sM, dM);
+    const dmgParts = attackResults.map(r => {
+      if (r.isFumble) return `<span style="color:#cc3333">[miss/fumble]</span>`;
+      const diceCount = r.isCrit ? 2 : 1;
+      const dmgRolls = Array.from({length:diceCount}, () => Math.floor(Math.random() * wepDie) + 1);
+      const dmgTotal = dmgRolls.reduce((a,b)=>a+b, 0) + dmgMod;
+      const modStr = dmgMod >= 0 ? `+${dmgMod}` : `${dmgMod}`;
+      return `[${dmgRolls.join('+')}]${modStr}=<strong style="color:#cc5555">${dmgTotal}</strong>${r.isCrit?' 💥':''}`;
+    });
+    logEntry('roll', `<strong>${escHtml(charName)}</strong> ${type} Attack+Dmg${multiLabel}${advLabel}: ${attackResults.map(r=>r.str).join(' | ')} → ${dmgParts.join(' | ')}`);
+  } else {
+    logEntry('roll', `<strong>${escHtml(charName)}</strong> ${type} Attack${multiLabel}${advLabel}: ${attackResults.map(r=>r.str).join(' | ')}`);
+  }
   playSound?.(anyCrit ? 'crit' : 'roll');
 }
 
@@ -15129,6 +15333,53 @@ function rollInitSave(charName, ab, bonus, event) {
   }
   logEntry('roll', `<strong>${escHtml(charName)}</strong> ${ab} Save${advLabel}: d20${dieStr2}${bStr} = <strong>${total}</strong>${isCrit?' ★':isFumble?' ☠ auto-fail':''}${dcResult}`);
   playSound?.('roll');
+}
+
+function rollDmgFromBar(charName, expr, label, isCrit) {
+  document.querySelectorAll('.dmg-roller-popup').forEach(e => e.remove());
+  const match = expr.match(/^(\d+)d(\d+)([+-]\d+)?$/);
+  if (!match) { const v=parseInt(expr); if(v>0){logEntry('roll',`<strong>${escHtml(charName)}</strong> ${label}: <strong style="color:#cc5555">${v}</strong>`);} return; }
+  const count = parseInt(match[1]);
+  const sides = parseInt(match[2]);
+  const mod = parseInt(match[3] || '0');
+  const rolls = Array.from({length:count}, () => Math.floor(Math.random() * sides) + 1);
+  const total = rolls.reduce((a,b)=>a+b, 0) + mod;
+  const modStr = mod !== 0 ? (mod > 0 ? `+${mod}` : `${mod}`) : '';
+  logEntry('roll', `<strong>${escHtml(charName)}</strong> ${label}${isCrit ? ' 💥 CRIT' : ''}: [${rolls.join('+')}]${modStr} = <strong style="color:#cc5555">${total}</strong>`);
+  playSound?.('damage');
+}
+
+function rollDmgCustomFromBar(charName) {
+  const inp = document.getElementById('dmgBarCustomExpr');
+  const v = inp ? inp.value.trim() : '';
+  if (v) rollDmgFromBar(charName, v, 'Custom Damage', false);
+}
+
+function showDmgRoller(charName, wepDie, statMod, strMod, dexMod, isSpellcaster, event) {
+  if (event) event.stopPropagation();
+  document.querySelectorAll('.dmg-roller-popup').forEach(e => e.remove());
+  const popup = document.createElement('div');
+  popup.className = 'dmg-roller-popup';
+  popup.style.cssText = 'position:fixed;z-index:950;background:#0a0a1e;border:1px solid #552222;border-radius:10px;padding:12px 14px;min-width:210px;box-shadow:0 8px 30px rgba(0,0,0,.95)';
+  const rect = event.target.getBoundingClientRect();
+  popup.style.left = Math.min(rect.left, window.innerWidth - 230) + 'px';
+  popup.style.top = (rect.bottom + 4) + 'px';
+  const modStr = statMod >= 0 ? `+${statMod}` : `${statMod}`;
+  const dexStr = dexMod >= 0 ? `+${dexMod}` : `${dexMod}`;
+  const rngDie = Math.max(4, wepDie - 2);
+  const btn = (label, expr, isCrit) => `<button onclick="rollDmgFromBar(${JSON.stringify(charName)},${JSON.stringify(expr)},${JSON.stringify(label)},${isCrit})" style="width:100%;text-align:left;background:rgba(220,80,80,.06);border:1px solid rgba(220,80,80,.2);color:#dd8888;border-radius:6px;padding:5px 8px;cursor:pointer;font-size:11px;margin-bottom:3px">${label} <span style="color:#4a5272;float:right;font-size:10px">${expr}</span></button>`;
+  popup.innerHTML = `<div style="font-size:10px;color:#cc5555;font-weight:700;margin-bottom:8px">🎲 ${escHtml(charName)} — Damage</div>
+    ${btn('⚔ Melee', `1d${wepDie}${modStr}`, false)}
+    ${btn('⚔ Melee CRIT', `2d${wepDie}${modStr}`, true)}
+    ${dexMod !== strMod ? btn('🏹 Ranged', `1d${rngDie}${dexStr}`, false) : ''}
+    ${dexMod !== strMod ? btn('🏹 Ranged CRIT', `2d${rngDie}${dexStr}`, true) : ''}
+    <div style="margin-top:6px;border-top:1px solid #2a2a40;padding-top:6px;display:flex;gap:4px">
+      <input type="text" id="dmgBarCustomExpr" placeholder="2d6+3" style="flex:1;background:#0a0a1a;border:1px solid #2a2a50;color:#c8d8ff;border-radius:5px;padding:3px 6px;font-size:11px">
+      <button onclick="rollDmgCustomFromBar(${JSON.stringify(charName)})" style="background:rgba(155,109,255,.1);border:1px solid #9b6dff44;color:#9b6dff;border-radius:5px;padding:3px 7px;cursor:pointer;font-size:10px">Roll</button>
+    </div>`;
+  document.body.appendChild(popup);
+  const close = ev => { if (!popup.contains(ev.target)) { popup.remove(); document.removeEventListener('mousedown', close); } };
+  setTimeout(() => document.addEventListener('mousedown', close), 80);
 }
 
 function renderInitiative() {
@@ -16576,22 +16827,46 @@ function inferDamageDefenses(c) {
   const crNum = parseFloat(c.cr || '1');
   if (crNum >= 20 && !immunities.includes('poison')) immunities.push('poison');
 
-  return { resistances, immunities, vulnerabilities };
+  // Condition immunities — parse from text
+  const COND_IMMUNE_LIST = ['charmed','exhaustion','frightened','grappled','incapacitated','invisible',
+    'paralyzed','petrified','poisoned','prone','restrained','stunned','unconscious','blinded','deafened'];
+  const condImmunities = COND_IMMUNE_LIST.filter(cond =>
+    text.includes(`immune to ${cond}`) || text.includes(`immunity to ${cond}`) ||
+    text.includes(`cannot be ${cond}`) || text.includes(`can't be ${cond}`) ||
+    text.includes(`condition immunity: ${cond}`)
+  );
+  // Undead and constructs are typically immune to several conditions
+  if (/\bundead\b|\bskeleton\b|\bzombie\b|\blich\b|\bwight\b/.test(text)) {
+    ['charmed','exhaustion','frightened','poisoned'].forEach(cd => { if (!condImmunities.includes(cd)) condImmunities.push(cd); });
+  }
+  if (/\bconstruct\b|\bgolem\b|\bautomaton\b/.test(text)) {
+    ['charmed','exhaustion','frightened','paralyzed','petrified','poisoned'].forEach(cd => { if (!condImmunities.includes(cd)) condImmunities.push(cd); });
+  }
+
+  return { resistances, immunities, vulnerabilities, condImmunities };
 }
 function buildDamageDefenseSection(c) {
-  const { resistances, immunities, vulnerabilities } = inferDamageDefenses(c);
-  if (!resistances.length && !immunities.length && !vulnerabilities.length) return '';
+  const { resistances, immunities, vulnerabilities, condImmunities } = inferDamageDefenses(c);
+  if (!resistances.length && !immunities.length && !vulnerabilities.length && !condImmunities.length) return '';
+  const COND_ICONS = { charmed:'💕', exhaustion:'😴', frightened:'😱', grappled:'🤝', incapacitated:'💫',
+    invisible:'👻', paralyzed:'⚡', petrified:'🗿', poisoned:'☠', prone:'↓', restrained:'⛓',
+    stunned:'⭐', unconscious:'💤', blinded:'🙈', deafened:'🙉' };
   const chip = (dmg, type) => {
     const col = type === 'immune' ? '#888' : type === 'resist' ? DMG_COLORS[dmg]||'#9098b8' : '#cc4444';
     const bg = type === 'immune' ? 'rgba(100,100,100,0.15)' : type === 'resist' ? `${DMG_COLORS[dmg]||'#666'}22` : 'rgba(200,50,50,0.15)';
     const icon = DMG_ICONS[dmg] || '•';
     return `<span title="${type.toUpperCase()}: ${dmg}" style="display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;border:1px solid ${col}44;background:${bg};color:${col};font-size:10px;margin:2px">${icon} ${dmg}</span>`;
   };
+  const condChip = (cond) => {
+    const icon = COND_ICONS[cond] || '🚫';
+    return `<span title="CONDITION IMMUNE: ${cond}" style="display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;border:1px solid rgba(100,200,100,.25);background:rgba(100,200,100,.07);color:#64c864;font-size:10px;margin:2px">${icon} ${cond}</span>`;
+  };
   return `<div class="stats-section">
     <div class="stats-section-title">🛡 Damage Defenses</div>
-    ${immunities.length ? `<div style="margin-bottom:6px"><span style="font-size:9px;color:#888;letter-spacing:1px">IMMUNE </span>${immunities.map(d => chip(d,'immune')).join('')}</div>` : ''}
+    ${immunities.length ? `<div style="margin-bottom:6px"><span style="font-size:9px;color:#888;letter-spacing:1px">DMG IMMUNE </span>${immunities.map(d => chip(d,'immune')).join('')}</div>` : ''}
     ${resistances.length ? `<div style="margin-bottom:6px"><span style="font-size:9px;color:#4488ff;letter-spacing:1px">RESIST </span>${resistances.map(d => chip(d,'resist')).join('')}</div>` : ''}
-    ${vulnerabilities.length ? `<div><span style="font-size:9px;color:#cc4444;letter-spacing:1px">VULNER </span>${vulnerabilities.map(d => chip(d,'vuln')).join('')}</div>` : ''}
+    ${vulnerabilities.length ? `<div style="margin-bottom:6px"><span style="font-size:9px;color:#cc4444;letter-spacing:1px">VULNER </span>${vulnerabilities.map(d => chip(d,'vuln')).join('')}</div>` : ''}
+    ${condImmunities.length ? `<div><span style="font-size:9px;color:#64c864;letter-spacing:1px">COND IMMUNE </span>${condImmunities.map(condChip).join('')}</div>` : ''}
   </div>`;
 }
 
