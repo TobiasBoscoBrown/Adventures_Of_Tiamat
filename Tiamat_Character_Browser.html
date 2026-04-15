@@ -7065,7 +7065,29 @@ const CONDITIONS = [
 ];
 
 const COND_KEY = 'tiamat_conditions';
+const CUSTOM_COND_KEY = 'tiamat_custom_conditions';
 let condPopupChar = '';
+
+function loadCustomConditions() { try{return JSON.parse(localStorage.getItem(CUSTOM_COND_KEY))||[];}catch{return[];} }
+function saveCustomConditions(arr){localStorage.setItem(CUSTOM_COND_KEY,JSON.stringify(arr));}
+function getAllConditions(){return[...CONDITIONS,...loadCustomConditions()];}
+function addCustomCondition(name,icon,effect){
+  if(!name.trim()) return false;
+  if(getAllConditions().some(c=>c.name.toLowerCase()===name.trim().toLowerCase())) return false;
+  const arr=loadCustomConditions();
+  arr.push({name:name.trim(),type:'custom',icon:icon||'✦',color:'#9b6dff',effects:effect?[effect.trim()]:[]  ,custom:true});
+  saveCustomConditions(arr); return true;
+}
+function removeCustomCondition(condName){saveCustomConditions(loadCustomConditions().filter(c=>c.name!==condName));}
+function promptAddCustomCondition(reopenFor){
+  const name=prompt('Custom condition name (e.g. "Cursed", "Marked"):'); if(!name?.trim()) return;
+  const icon=prompt('Icon/emoji (blank for ✦):','✦')||'✦';
+  const effect=prompt('Effect description (optional):')||'';
+  if(addCustomCondition(name,icon,effect)){
+    logEntry('note',`✦ Custom condition: <strong>${escHtml(name)}</strong>`);
+    if(reopenFor){const fE={stopPropagation:()=>{},clientX:window.innerWidth/2,clientY:200};openCondPopup(reopenFor,fE);}
+  } else alert('Condition name already exists.');
+}
 
 function loadAllConditions() {
   try { return JSON.parse(localStorage.getItem(COND_KEY)) || {}; } catch { return {}; }
@@ -7131,9 +7153,9 @@ function openCondPopup(name, event) {
     </div>
     ${exLvl > 0 ? `<div style="font-size:10px;color:#9098b8;margin-top:5px">${EXHAUST_EFFECTS[exLvl]}</div>` : ''}
   </div>`;
-  document.getElementById('condGrid').innerHTML = exhaustRow + CONDITIONS.map(c => {
+  document.getElementById('condGrid').innerHTML = exhaustRow + getAllConditions().map(c => {
     const isActive = active.includes(c.name);
-    const typeClass = {debuff:'cond-debuff',control:'cond-control',status:'cond-status',movement:'cond-movement'}[c.type]||'cond-debuff';
+    const typeClass = {debuff:'cond-debuff',control:'cond-control',status:'cond-status',movement:'cond-movement',custom:'cond-status'}[c.type]||'cond-debuff';
     const effectsHtml = (c.effects || []).map(e => `<li>${e}</li>`).join('');
     const dur = isActive ? getCondDuration(name, c.name) : null;
     const durInput = isActive ? `<div onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;margin-top:5px">
@@ -7141,16 +7163,18 @@ function openCondPopup(name, event) {
       <input type="number" min="0" max="99" placeholder="∞" value="${dur!==null?dur:''}" onchange="setCondDuration(${JSON.stringify(name)},${JSON.stringify(c.name)},this.value||null)" onclick="event.stopPropagation()" style="width:40px;background:#0a0a1a;border:1px solid #2a2a50;color:#c9a227;border-radius:4px;padding:1px 4px;font-size:10px;text-align:center">
       ${dur!==null?`<span style="font-size:9px;color:${dur<=1?'#ff4444':'#8888aa'}">${dur} left</span>`:''}
     </div>` : '';
+    const deleteBtn = c.custom ? `<span onclick="event.stopPropagation();removeCustomCondition(${JSON.stringify(c.name)});openCondPopup(${JSON.stringify(name)},{stopPropagation:()=>{},clientX:window.innerWidth/2,clientY:200})" style="margin-left:auto;color:#4a5272;cursor:pointer;font-size:10px;padding:0 3px" title="Delete">✕</span>` : '';
     return `<div class="cond-card ${isActive?'cond-card-active':''}" onclick="toggleCondition(${JSON.stringify(c.name)});this.classList.toggle('cond-card-active')" style="border-color:${isActive?c.color:'#1e2040'}">
       <div class="cond-card-header">
         <span class="cond-card-icon">${c.icon||'◆'}</span>
         <span class="cond-card-name" style="color:${isActive?c.color:'#9098b8'}">${c.name}</span>
         <span class="cond-card-type ${typeClass}">${c.type}</span>
+        ${deleteBtn}
       </div>
       ${c.effects && c.effects.length ? `<ul class="cond-card-effects">${effectsHtml}</ul>` : ''}
       ${durInput}
     </div>`;
-  }).join('');
+  }).join('') + `<div style="grid-column:1/-1;margin-top:4px"><button onclick="promptAddCustomCondition(${JSON.stringify(name)})" style="width:100%;background:rgba(155,109,255,0.08);border:1px dashed rgba(155,109,255,0.3);color:#6a4aaa;border-radius:8px;padding:7px;cursor:pointer;font-size:12px">✦ Add Custom Condition…</button></div>`;
   const popup = document.getElementById('condPopup');
   const x = Math.min(Math.max(event.clientX - 130, 10), window.innerWidth - 280);
   const y = Math.min(Math.max(event.clientY + 8, 10), window.innerHeight - 320);
