@@ -736,6 +736,17 @@
   }
   .action-roll-btn:hover { background: rgba(201,162,39,0.2); border-color: var(--accent,#c9a227); }
 
+  /* ── Equipment Slots (Iteration 74) ── */
+  .equip-slots-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px; }
+  .equip-slot { background: #06061a; border: 1px solid #1e2040; border-radius: 8px; padding: 7px 9px; cursor: pointer; transition: all .15s; min-height: 52px; }
+  .equip-slot:hover { border-color: #c9a227; }
+  .equip-slot.filled { border-color: rgba(201,162,39,0.5); background: rgba(201,162,39,0.04); }
+  .equip-slot.filled:hover { border-color: #c9a227; }
+  .equip-slot-label { font-size: 9px; color: #4a5272; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 3px; }
+  .equip-slot-item { font-size: 11px; color: #dce0f0; line-height: 1.3; }
+  .equip-slot-empty { font-size: 10px; color: #2a2a50; font-style: italic; }
+  .equip-slot-icon { font-size: 13px; display: block; margin-bottom: 2px; }
+
   /* ── Equipment / Inventory Panel ── */
   .inventory-grid {
     display: grid;
@@ -6925,6 +6936,74 @@ function buildSpeedSection(c) {
 }
 // ────────────────────────────────────────────────────────
 
+// ══════════════════════════════════════════════════════════
+// ITERATION 74: Equipment Slots — equip items to specific body
+//   slots (main hand, off hand, armor, ring, neck, cloak, boots,
+//   helm, belt, gloves). Click slot to equip, click again to clear.
+// ══════════════════════════════════════════════════════════
+const EQUIP_SLOTS_KEY = 'tiamat_equip_slots';
+const EQUIP_SLOT_DEFS = [
+  { id:'helm',      label:'Helm',       icon:'⛑', hint:'Helmets, hats, headbands' },
+  { id:'neck',      label:'Neck/Amulet',icon:'📿', hint:'Amulets, necklaces, medallions' },
+  { id:'cloak',     label:'Cloak',      icon:'🧣', hint:'Cloaks, capes, mantles' },
+  { id:'armor',     label:'Armor',      icon:'🛡', hint:'Body armor, robes, padded armor' },
+  { id:'gloves',    label:'Gloves',     icon:'🧤', hint:'Gauntlets, gloves, bracers' },
+  { id:'belt',      label:'Belt',       icon:'⚙', hint:'Belts, girdles, sashes' },
+  { id:'boots',     label:'Boots',      icon:'👢', hint:'Boots, shoes, slippers' },
+  { id:'main_hand', label:'Main Hand',  icon:'⚔', hint:'Primary weapon' },
+  { id:'off_hand',  label:'Off Hand',   icon:'🗡', hint:'Shield, second weapon, focus' },
+  { id:'ring1',     label:'Ring L',     icon:'💍', hint:'Left hand ring' },
+  { id:'ring2',     label:'Ring R',     icon:'💎', hint:'Right hand ring' },
+  { id:'misc',      label:'Misc',       icon:'🎒', hint:'Other worn or held items' },
+];
+
+function loadEquipSlots() { try { return JSON.parse(localStorage.getItem(EQUIP_SLOTS_KEY)) || {}; } catch { return {}; } }
+function saveEquipSlots(d) { localStorage.setItem(EQUIP_SLOTS_KEY, JSON.stringify(d)); }
+function getCharEquip(charName) { return loadEquipSlots()[charName] || {}; }
+
+function equipSlotClick(charName, slotId) {
+  const d = loadEquipSlots();
+  const charEquip = d[charName] || {};
+  const current = charEquip[slotId];
+  if (current) {
+    // Already filled: click to remove
+    if (!confirm(`Remove "${current}" from ${EQUIP_SLOT_DEFS.find(s=>s.id===slotId)?.label}?`)) return;
+    delete charEquip[slotId];
+    d[charName] = charEquip;
+    saveEquipSlots(d);
+    logEntry('combat', `🎒 <strong>${charName}</strong> unequipped <em>${current}</em>`);
+  } else {
+    // Empty: click to equip
+    const item = prompt(`Equip to ${EQUIP_SLOT_DEFS.find(s=>s.id===slotId)?.label}:\n(enter item name)`);
+    if (!item || !item.trim()) return;
+    charEquip[slotId] = item.trim();
+    d[charName] = charEquip;
+    saveEquipSlots(d);
+    logEntry('combat', `🎒 <strong>${charName}</strong> equipped <em>${item.trim()}</em> in ${EQUIP_SLOT_DEFS.find(s=>s.id===slotId)?.label}`);
+  }
+  // Re-render stats panel
+  const c = filteredChars[currentModalIdx];
+  if (c) document.getElementById('statsPanel').innerHTML = buildStatsPanel(c);
+  showToast(`🎒 ${charName} gear updated`, '#c9a227');
+}
+
+function buildEquipmentSlots(c) {
+  const equipped = getCharEquip(c.name);
+  const nameJ = JSON.stringify(c.name);
+  const slots = EQUIP_SLOT_DEFS.map(slot => {
+    const item = equipped[slot.id];
+    return `<div class="equip-slot ${item?'filled':''}" onclick="equipSlotClick(${nameJ},${JSON.stringify(slot.id)})" title="${item ? 'Click to remove: '+item : slot.hint}">
+      <div class="equip-slot-label"><span class="equip-slot-icon">${slot.icon}</span>${slot.label}</div>
+      ${item ? `<div class="equip-slot-item">${item}</div>` : `<div class="equip-slot-empty">— empty —</div>`}
+    </div>`;
+  }).join('');
+  const filledCount = Object.keys(equipped).length;
+  return `<div style="margin-bottom:10px">
+    <div style="font-size:10px;color:#c9a227;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">⚔ Equipped Gear <span style="color:#4a5272;font-size:9px">(click slot to equip/remove)</span></div>
+    <div class="equip-slots-grid">${slots}</div>
+  </div>`;
+}
+
 // ── EQUIPMENT / INVENTORY BUILDER ───────────────────────
 function inferEquipment(c) {
   const theme = c.theme;
@@ -7022,6 +7101,8 @@ function buildInventorySection(c) {
         <span>Equipment & Inventory${attunedStr}</span>
         <button onclick="openAddAttunement(${JSON.stringify(c.name)},event)" style="background:none;border:1px solid rgba(201,162,39,.4);color:#c9a227;border-radius:6px;padding:2px 8px;cursor:pointer;font-size:10px${totalAttuned>=3?';opacity:.5;cursor:not-allowed':''}" title="${totalAttuned>=3?'Max 3 attuned items':'Add custom attuned item'}">⬡ + Attune</button>
       </div>
+      ${buildEquipmentSlots(c)}
+      <div style="font-size:10px;color:#c9a227;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">📦 Item Cards</div>
       <div class="inventory-grid">${cards}${extraCards}</div>
     </div>`;
 }
