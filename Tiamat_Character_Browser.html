@@ -3716,6 +3716,7 @@
   <button class="filter-btn" onclick="openAmmoPanel('',event)" style="border-color:#aa8833;color:#aa8833;" title="Ammunition Tracker — track arrows, bolts and ranged ammo per character">🏹 Ammo</button>
   <button class="filter-btn" onclick="openFeatBrowser()" style="border-color:#44cc88;color:#44cc88;" title="Feat Browser — searchable PHB feat reference with prerequisites and descriptions">📖 Feats</button>
   <button class="filter-btn" onclick="openBackgroundBrowser()" style="border-color:#c9a227;color:#c9a227;" title="Background Browser — searchable PHB background reference with skills, features, and equipment">📜 BGs</button>
+  <button class="filter-btn" onclick="openRaceBrowser()" style="border-color:#9b6dff;color:#9b6dff;" title="Race Browser — PHB races and subraces with traits, ASIs, and darkvision">🧝 Races</button>
   <button class="filter-btn" onclick="openRandomEncTable()" style="border-color:#cc8844;color:#cc8844;" title="Random Encounter Table — roll by terrain">🎲 Enc Table</button>
   <button class="filter-btn" onclick="openCampaignTimeline()" style="border-color:#44cc88;color:#44cc88;" title="Campaign timeline — track key events">📅 Timeline</button>
   <button class="filter-btn" onclick="openWeatherPanel()" style="border-color:#2299bb;color:#2299bb;" title="Weather &amp; Environment — ambient conditions affecting gameplay">🌤 Weather</button>
@@ -21505,6 +21506,94 @@ function renderBgList() {
         <div><span style="font-size:10px;color:#44cc88;text-transform:uppercase;letter-spacing:1px">Feature</span><div style="font-size:11px;color:#44cc88;font-weight:600">${escHtml(b.feature)}</div></div>
       </div>
       <div style="font-size:11px;color:#b0b8d8;line-height:1.5;padding:6px 8px;background:rgba(40,40,80,0.3);border-radius:4px;border-left:2px solid #c9a22766">${escHtml(b.featureDesc)}</div>
+    </div>
+  </details>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 119: Race/Species Reference Browser — searchable
+//   panel covering all PHB races and main subraces with speed,
+//   size, ability bonuses, and key traits. Toolbar: 🧝 Races
+// ══════════════════════════════════════════════════════════
+const RACE_LIST = [
+  { name:'Human',          size:'Medium', speed:30, asi:'+1 all',             traits:['Extra Language','Extra Skill (variant)','Feat (variant Human)'],       darkvision:0  },
+  { name:'Elf (High)',     size:'Medium', speed:30, asi:'+2 DEX, +1 INT',     traits:['Darkvision 60ft','Keen Senses (Perception proficiency)','Fey Ancestry (adv vs charm, immune sleep)','Trance (4hr rest)','Cantrip (1 from Wizard list)','Elf Weapon Training','Extra Language'],darkvision:60 },
+  { name:'Elf (Wood)',     size:'Medium', speed:35, asi:'+2 DEX, +1 WIS',     traits:['Darkvision 60ft','Keen Senses','Fey Ancestry','Trance','Fleet of Foot (35ft)','Mask of the Wild (hide in natural obscurement)','Elf Weapon Training'],darkvision:60 },
+  { name:'Elf (Drow)',     size:'Medium', speed:30, asi:'+2 DEX, +1 CHA',     traits:['Darkvision 120ft','Keen Senses','Fey Ancestry','Trance','Superior Darkvision','Sunlight Sensitivity','Drow Magic (Dancing Lights, Faerie Fire, Darkness)','Drow Weapon Training'],darkvision:120 },
+  { name:'Dwarf (Hill)',   size:'Medium', speed:25, asi:'+2 CON, +1 WIS',     traits:['Darkvision 60ft','Dwarven Resilience (adv vs poison, resistance)','Dwarven Combat Training','Tool Proficiency','Stonecunning','Dwarven Toughness (+1 HP per level)'],darkvision:60 },
+  { name:'Dwarf (Mountain)',size:'Medium',speed:25, asi:'+2 CON, +2 STR',     traits:['Darkvision 60ft','Dwarven Resilience','Dwarven Combat Training','Tool Proficiency','Stonecunning','Dwarven Armor Training (light/medium)'],darkvision:60 },
+  { name:'Halfling (Lightfoot)',size:'Small',speed:25,asi:'+2 DEX, +1 CHA',  traits:['Lucky (reroll 1s on d20)','Brave (adv vs frightened)','Halfling Nimbleness (move through larger creatures)','Naturally Stealthy (hide behind larger creature)'],darkvision:0 },
+  { name:'Halfling (Stout)',size:'Small', speed:25, asi:'+2 DEX, +1 CON',     traits:['Lucky','Brave','Halfling Nimbleness','Stout Resilience (adv vs poison, resistance)'],darkvision:0 },
+  { name:'Gnome (Forest)', size:'Small', speed:25, asi:'+2 INT, +1 DEX',      traits:['Darkvision 60ft','Gnome Cunning (adv on INT/WIS/CHA saves vs magic)','Natural Illusionist (Minor Illusion cantrip)','Speak with Small Beasts'],darkvision:60 },
+  { name:'Gnome (Rock)',   size:'Small', speed:25, asi:'+2 INT, +1 CON',      traits:['Darkvision 60ft','Gnome Cunning','Artificer\'s Lore (+2×prof on History checks for magic/alchemy)','Tinker (create tiny clockwork devices)'],darkvision:60 },
+  { name:'Dragonborn',     size:'Medium', speed:30, asi:'+2 STR, +1 CHA',     traits:['Draconic Ancestry (choose dragon type)','Breath Weapon (2d6 area, CON save)','Damage Resistance (same as ancestry)'],darkvision:0 },
+  { name:'Tiefling',       size:'Medium', speed:30, asi:'+2 CHA, +1 INT',     traits:['Darkvision 60ft','Hellish Resistance (fire resistance)','Infernal Legacy (Thaumaturgy cantrip, Hellish Rebuke 1/day, Darkness 1/day)'],darkvision:60 },
+  { name:'Half-Elf',       size:'Medium', speed:30, asi:'+2 CHA, +1 two others',traits:['Darkvision 60ft','Fey Ancestry','Skill Versatility (proficiency in 2 skills of choice)','Extra Language'],darkvision:60 },
+  { name:'Half-Orc',       size:'Medium', speed:30, asi:'+2 STR, +1 CON',     traits:['Darkvision 60ft','Menacing (Intimidation proficiency)','Relentless Endurance (drop to 1 HP instead of 0, 1/long rest)','Savage Attacks (extra damage die on melee crit)'],darkvision:60 },
+  { name:'Aasimar',        size:'Medium', speed:30, asi:'+2 CHA, +1 WIS',     traits:['Darkvision 60ft','Celestial Resistance (necrotic/radiant)','Healing Hands (heal HP = level 1/long rest)','Light Bearer (Light cantrip)','Radiant Soul/Necrotic Shroud/Radiant Consumption (subrace)'],darkvision:60 },
+  { name:'Firbolg',        size:'Medium', speed:30, asi:'+2 WIS, +1 STR',     traits:['Firbolg Magic (Detect Magic, Disguise Self 1/short rest)','Hidden Step (invisible until next turn 1/short rest)','Powerful Build (count as Large for carry)','Speech of Beast and Leaf'],darkvision:0 },
+  { name:'Goliath',        size:'Medium', speed:30, asi:'+2 STR, +1 CON',     traits:['Natural Athlete (Athletics proficiency)','Stone\'s Endurance (reduce damage by 1d12+CON 1/short rest)','Powerful Build','Mountain Born (cold resistance, high altitude adapted)'],darkvision:0 },
+  { name:'Kenku',          size:'Medium', speed:30, asi:'+2 DEX, +1 WIS',     traits:['Expert Forgery (copy writing/crafted items expertly)','Kenku Training (proficient in 2 of: Acrobatics, Deception, Stealth, Sleight of Hand)','Mimicry (mimic sounds heard, Insight vs Deception to detect)'],darkvision:0 },
+  { name:'Lizardfolk',     size:'Medium', speed:30, asi:'+2 CON, +1 WIS',     traits:['Swim speed 30ft','Bite (1d6 natural weapon)','Cunning Artisan (craft equipment from fallen creatures)','Hold Breath (15 min)','Hunter\'s Lore (2 proficiencies from Nature/Perception/Stealth/Survival)','Natural Armor (AC 13+DEX)','Hungry Jaws (bonus action bite for temp HP)'],darkvision:0 },
+  { name:'Tabaxi',         size:'Medium', speed:30, asi:'+2 DEX, +1 CHA',     traits:['Darkvision 60ft','Feline Agility (double speed 1/turn, then 0 next)','Cat\'s Claws (1d4 slashing, climb speed 20ft)','Cat\'s Talent (Perception and Stealth proficiency)'],darkvision:60 },
+  { name:'Triton',         size:'Medium', speed:30, asi:'+1 STR, +1 CON, +1 CHA',traits:['Swim speed 30ft','Darkvision 60ft','Amphibious (breathe air and water)','Control Air and Water (Fog Cloud, Gust of Wind, Wall of Water 1/long rest)','Emissary of the Sea (communicate with sea creatures)','Guardians of the Depths (cold resistance, not affected by depths)'],darkvision:60 },
+  { name:'Yuan-ti Pureblood',size:'Medium',speed:30,asi:'+2 CHA, +1 INT',    traits:['Darkvision 60ft','Innate Spellcasting (Poison Spray, Animal Friendship 3/day, Suggestion 1/day)','Magic Resistance (adv on saves vs spells)','Poison Immunity'],darkvision:60 },
+];
+
+function openRaceBrowser() {
+  const existing = document.getElementById('raceBrowserOv');
+  if (existing) { existing.remove(); return; }
+
+  const ov = document.createElement('div');
+  ov.id = 'raceBrowserOv';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:3000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick = e => { if(e.target===ov) ov.remove(); };
+  ov.innerHTML = `<div style="background:#0d0d1a;border:1px solid #2a2a5a;border-radius:12px;padding:20px;max-width:640px;width:100%;max-height:88vh;display:flex;flex-direction:column;position:relative">
+    <button onclick="document.getElementById('raceBrowserOv').remove()" style="position:absolute;top:10px;right:14px;background:none;border:none;color:#7a7aaa;font-size:20px;cursor:pointer">✕</button>
+    <div style="font-size:18px;font-weight:700;color:#9b6dff;margin-bottom:4px">🧝 Race / Species Browser</div>
+    <div style="font-size:11px;color:#7a7aaa;margin-bottom:10px">${RACE_LIST.length} races & subraces — click to expand traits</div>
+    <input id="raceSearchInp" type="text" placeholder="Search by name, trait, ASI…" oninput="renderRaceList()"
+      style="background:#0a0a18;border:1px solid #2a2a50;color:#e8e8f8;border-radius:5px;padding:7px 10px;font-size:12px;margin-bottom:12px;outline:none">
+    <div id="raceListScroll" style="overflow-y:auto;flex:1"></div>
+  </div>`;
+  document.body.appendChild(ov);
+  renderRaceList();
+  ov.querySelector('#raceSearchInp').focus();
+}
+
+function renderRaceList() {
+  const q = (document.getElementById('raceSearchInp')?.value || '').toLowerCase();
+  const container = document.getElementById('raceListScroll');
+  if (!container) return;
+
+  const races = RACE_LIST.filter(r =>
+    !q || r.name.toLowerCase().includes(q) || r.asi.toLowerCase().includes(q) ||
+    r.traits.join(' ').toLowerCase().includes(q)
+  );
+
+  if (!races.length) {
+    container.innerHTML = '<div style="color:#4a5272;text-align:center;padding:20px">No races match</div>';
+    return;
+  }
+
+  container.innerHTML = races.map(r => `<details style="border:1px solid #1a1a3a;border-radius:6px;margin-bottom:5px;background:rgba(20,20,40,0.3)">
+    <summary style="padding:8px 12px;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;user-select:none">
+      <span style="font-size:13px;font-weight:600;color:#9b6dff;flex:1">${escHtml(r.name)}</span>
+      <span style="font-size:10px;color:#44aacc">${escHtml(r.asi)}</span>
+      <span style="font-size:10px;color:#4a5272">${r.size} · ${r.speed}ft</span>
+      ${r.darkvision ? `<span style="font-size:10px;color:#aa66ff">👁 ${r.darkvision}ft</span>` : ''}
+      <span style="color:#4a5272;font-size:12px">▾</span>
+    </summary>
+    <div style="padding:8px 12px 10px;border-top:1px solid #1a1a3a">
+      <div style="display:flex;gap:12px;margin-bottom:8px;font-size:11px;color:#9098b8">
+        <span>Size: <strong style="color:#e8e8f8">${r.size}</strong></span>
+        <span>Speed: <strong style="color:#e8e8f8">${r.speed}ft</strong></span>
+        <span>Darkvision: <strong style="color:${r.darkvision?'#aa66ff':'#4a5272'}">${r.darkvision?r.darkvision+'ft':'None'}</strong></span>
+      </div>
+      <div style="font-size:10px;color:#44aacc;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Ability Score Increase</div>
+      <div style="font-size:12px;color:#44cc88;margin-bottom:8px;font-weight:600">${escHtml(r.asi)}</div>
+      <div style="font-size:10px;color:#c9a227;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Racial Traits</div>
+      <div>${r.traits.map(t => `<div style="font-size:11px;color:#b0b8d8;padding:2px 0 2px 8px;border-left:2px solid #2a2a50;margin-bottom:3px">• ${escHtml(t)}</div>`).join('')}</div>
     </div>
   </details>`).join('');
 }
