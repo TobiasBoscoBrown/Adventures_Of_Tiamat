@@ -27797,6 +27797,185 @@ function _moraleRoll() {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 174: Homebrew Item Builder — create custom magic items, save, give to characters
+// Rarity, attunement, charges, effects. Saved to tiamat_homebrew_items.
+
+const HB_ITEMS_KEY = 'tiamat_homebrew_items';
+const HB_RARITIES = ['Common','Uncommon','Rare','Very Rare','Legendary','Artifact'];
+const HB_RARITY_COLORS = { Common:'#888', Uncommon:'#44aa44', Rare:'#4488ff', 'Very Rare':'#9b6dff', Legendary:'#c9a227', Artifact:'#cc4444' };
+
+function _loadHbItems() { try { return JSON.parse(localStorage.getItem(HB_ITEMS_KEY)||'[]'); } catch { return []; } }
+function _saveHbItems(arr) { localStorage.setItem(HB_ITEMS_KEY, JSON.stringify(arr)); }
+
+function openHomebrewItems() {
+  const ex = document.getElementById('hbItemsOverlay');
+  if (ex) { ex.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'hbItemsOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9200;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+  ov.innerHTML = `
+    <div style="width:760px;max-width:100%;color:#c8d0e8;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;position:sticky;top:0;background:rgba(6,6,26,0.97);padding:12px 0;border-bottom:1px solid rgba(201,162,39,0.2);backdrop-filter:blur(4px);z-index:10">
+        <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:700;color:#c9a227">⚗ Homebrew Item Builder</div>
+        <div style="display:flex;gap:8px">
+          <button onclick="_hbNewItem()" style="background:rgba(201,162,39,0.15);border:1px solid rgba(201,162,39,0.5);color:#c9a227;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:700">+ New Item</button>
+          <button onclick="document.getElementById('hbItemsOverlay').remove()" style="background:none;border:1px solid #2a2040;color:#6a5aaa;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px">✕</button>
+        </div>
+      </div>
+      <!-- New item form (hidden by default) -->
+      <div id="hbItemForm" style="display:none;background:rgba(0,0,0,0.4);border:1px solid rgba(201,162,39,0.2);border-radius:12px;padding:16px;margin-bottom:16px">
+        <div style="font-size:12px;font-weight:700;color:#c9a227;margin-bottom:12px" id="hbFormTitle">New Homebrew Item</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+          <div style="grid-column:1/-1">
+            <div style="font-size:10px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Item Name *</div>
+            <input id="hbItemName" placeholder="e.g. Blade of Frozen Fate" style="width:100%;background:#0c0c20;border:1px solid #2a2050;color:#e0e0ff;border-radius:6px;padding:7px;font-size:13px;box-sizing:border-box">
+          </div>
+          <div>
+            <div style="font-size:10px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Rarity</div>
+            <select id="hbRarity" style="width:100%;background:#0c0c20;border:1px solid #2a2050;color:#e0e0ff;border-radius:6px;padding:7px;font-size:12px;box-sizing:border-box">
+              ${HB_RARITIES.map(r=>`<option>${r}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <div style="font-size:10px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Type</div>
+            <select id="hbType" style="width:100%;background:#0c0c20;border:1px solid #2a2050;color:#e0e0ff;border-radius:6px;padding:7px;font-size:12px;box-sizing:border-box">
+              ${['Weapon','Armor','Wondrous Item','Ring','Wand','Staff','Rod','Potion','Scroll','Shield','Helmet','Boots','Gloves','Cloak','Amulet','Other'].map(t=>`<option>${t}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <div style="font-size:10px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Charges (0=unlimited)</div>
+            <input id="hbCharges" type="number" value="0" min="0" max="99" style="width:100%;background:#0c0c20;border:1px solid #2a2050;color:#e0e0ff;border-radius:6px;padding:7px;font-size:12px;box-sizing:border-box">
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;margin-bottom:10px">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:#9098b8"><input type="checkbox" id="hbAttuned" style="accent-color:#c9a227"> Requires Attunement</label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:#9098b8"><input type="checkbox" id="hbCursed"> Cursed</label>
+        </div>
+        <div style="margin-bottom:10px">
+          <div style="font-size:10px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Description & Effects *</div>
+          <textarea id="hbDesc" placeholder="Describe what the item does, any activation requirements, etc." style="width:100%;background:#0c0c20;border:1px solid #2a2050;color:#c8d0e8;border-radius:6px;padding:7px;font-size:11px;font-family:inherit;resize:vertical;min-height:80px;box-sizing:border-box"></textarea>
+        </div>
+        <div style="margin-bottom:12px">
+          <div style="font-size:10px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">DM Notes (secret, origin, value)</div>
+          <textarea id="hbNotes" placeholder="Secret lore, where it came from, current owner, estimated value..." style="width:100%;background:#0c0c20;border:1px solid #2a2050;color:#c8d0e8;border-radius:6px;padding:7px;font-size:11px;font-family:inherit;resize:vertical;min-height:44px;box-sizing:border-box"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button onclick="document.getElementById('hbItemForm').style.display='none'" style="background:none;border:1px solid #2a2040;color:#4a5272;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:12px">Cancel</button>
+          <button onclick="_hbSaveItem()" style="background:rgba(201,162,39,0.15);border:1px solid rgba(201,162,39,0.5);color:#c9a227;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:12px;font-weight:700">✓ Save Item</button>
+        </div>
+      </div>
+      <!-- Items list -->
+      <div id="hbItemsList" style="padding-bottom:40px"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _hbRenderItems();
+}
+
+function _hbNewItem() {
+  document.getElementById('hbItemForm').style.display = 'block';
+  document.getElementById('hbFormTitle').textContent = 'New Homebrew Item';
+  ['hbItemName','hbDesc','hbNotes'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+  if(document.getElementById('hbCharges')) document.getElementById('hbCharges').value = '0';
+  if(document.getElementById('hbAttuned')) document.getElementById('hbAttuned').checked = false;
+  if(document.getElementById('hbCursed')) document.getElementById('hbCursed').checked = false;
+  delete window._hbEditId;
+  document.getElementById('hbItemName')?.focus();
+}
+
+function _hbSaveItem() {
+  const name = document.getElementById('hbItemName')?.value?.trim();
+  const desc = document.getElementById('hbDesc')?.value?.trim();
+  if (!name || !desc) { showToast('Name and description required', '#cc4444'); return; }
+  const items = _loadHbItems();
+  const item = {
+    id: window._hbEditId || Date.now(),
+    name,
+    rarity: document.getElementById('hbRarity')?.value || 'Rare',
+    type: document.getElementById('hbType')?.value || 'Wondrous Item',
+    charges: parseInt(document.getElementById('hbCharges')?.value || 0),
+    attunement: document.getElementById('hbAttuned')?.checked || false,
+    cursed: document.getElementById('hbCursed')?.checked || false,
+    desc,
+    notes: document.getElementById('hbNotes')?.value || '',
+    created: new Date().toLocaleDateString(),
+  };
+  if (window._hbEditId) {
+    const idx = items.findIndex(i => i.id === window._hbEditId);
+    if (idx >= 0) items[idx] = item; else items.unshift(item);
+  } else {
+    items.unshift(item);
+  }
+  _saveHbItems(items);
+  document.getElementById('hbItemForm').style.display = 'none';
+  _hbRenderItems();
+  showToast(`Item saved: ${name}`, '#c9a227');
+}
+
+function _hbDeleteItem(id) {
+  if (!confirm('Delete this item?')) return;
+  _saveHbItems(_loadHbItems().filter(i => i.id !== id));
+  _hbRenderItems();
+}
+
+function _hbRenderItems() {
+  const el = document.getElementById('hbItemsList');
+  if (!el) return;
+  const items = _loadHbItems();
+  if (!items.length) {
+    el.innerHTML = '<div style="color:#4a5272;text-align:center;padding:30px;font-size:13px">No homebrew items yet. Click "+ New Item" to create one.</div>';
+    return;
+  }
+  el.innerHTML = items.map(item => {
+    const rc = HB_RARITY_COLORS[item.rarity] || '#888';
+    return `<div style="background:rgba(0,0,0,0.4);border:1px solid ${rc}25;border-radius:12px;padding:14px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+        <div>
+          <div style="font-size:14px;font-weight:700;color:#e0e0ff;font-family:'Cinzel',serif">${escHtml(item.name)}</div>
+          <div style="font-size:11px;color:${rc};margin-top:2px">${item.rarity} ${item.type}${item.attunement?' · Requires Attunement':''}${item.cursed?' · ⚠ Cursed':''}${item.charges?` · ${item.charges} charges`:''}</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button onclick="_hbGiveToChar(${item.id})" style="background:rgba(68,170,68,0.1);border:1px solid rgba(68,170,68,0.3);color:#44aa44;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:10px">Give</button>
+          <button onclick="_hbDeleteItem(${item.id})" style="background:none;border:1px solid #2a2040;color:#4a5272;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:10px">🗑</button>
+        </div>
+      </div>
+      <div style="font-size:11px;color:#9098b8;line-height:1.5;margin-bottom:${item.notes?'8':'0'}px">${escHtml(item.desc)}</div>
+      ${item.notes ? `<div style="font-size:10px;color:#4a5272;font-style:italic;border-top:1px solid rgba(255,255,255,0.04);padding-top:6px">${escHtml(item.notes)}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function _hbGiveToChar(itemId) {
+  const item = _loadHbItems().find(i => i.id === itemId);
+  if (!item) return;
+  const chars = (typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : []);
+  const name = prompt('Give "' + item.name + '" to which character?');
+  if (!name || !name.trim()) return;
+  if (typeof _giveItem === 'function') {
+    _giveItem(item.name + ' (' + item.rarity + ')');
+    showToast(item.name + ' given to ' + name, '#c9a227');
+  } else {
+    showToast('Use the inventory panel to add to a character', '#c9a227');
+  }
+  logEntry('note', `⚗ <strong>${escHtml(name)}</strong> received homebrew item: <em>${escHtml(item.name)}</em> (${item.rarity})`);
+}
+
+// Add Homebrew Items button
+(function() {
+  const allBtns = document.querySelectorAll('.filter-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.title = 'Homebrew Item Builder — create and manage custom magic items';
+    btn.style.cssText = 'border-color:#c9a227;color:#c9a227';
+    btn.textContent = '⚗ Homebrew';
+    btn.onclick = openHomebrewItems;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
