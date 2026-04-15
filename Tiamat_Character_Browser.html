@@ -12046,11 +12046,17 @@ function renderActiveTurnBar() {
   const atkBtn = (label, title, bonus, type) => `<button onclick="rollInitAttack(${JSON.stringify(char.name)},${JSON.stringify(title)},${bonus},event)" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:#9098b8;border-radius:4px;padding:2px 7px;cursor:pointer;font-size:10px;line-height:1.4" title="${title} attack">${label} (${type})</button>`;
 
   const multiAtkCount = document.getElementById('multiAtkCount')?.value || '1';
+  // Infer weapon damage die from CR
+  const crNum = parseFloat(char.cr) || 1;
+  const wepDie = crNum >= 21 ? 12 : crNum >= 13 ? 10 : crNum >= 7 ? 8 : crNum >= 3 ? 6 : 4;
+  const dmgStatMod = Math.max(sM, dM);
+  const critDie = wepDie * 2; // crit doubles damage dice
   html += `<div style="display:flex;gap:4px;align-items:center;margin-top:3px;flex-wrap:wrap">
     <span style="font-size:9px;color:#4a5272;letter-spacing:.5px">ATK</span>
     ${atkBtn('⚔ Melee', 'Melee', meleeBonus, mStr)}
     ${atkBtn('🏹 Ranged', 'Ranged', rangedBonus, rStr)}
     ${isSpellcaster ? atkBtn('🔮 Spell', 'Spell', spellBonus, satkStr) : ''}
+    <button onclick="showDmgRoller(${JSON.stringify(char.name)},${wepDie},${dmgStatMod},${sM},${dM},${isSpellcaster},event)" style="background:rgba(220,80,80,.08);border:1px solid rgba(220,80,80,.25);color:#cc5555;border-radius:4px;padding:2px 7px;cursor:pointer;font-size:10px;line-height:1.4" title="Roll damage">🎲 DMG</button>
     <select id="multiAtkCount" onchange="renderActiveTurnBar()" style="background:#0a0a1e;border:1px solid #2a2a50;color:#6a7098;border-radius:4px;padding:1px 3px;font-size:9px;cursor:pointer" title="Number of attacks to roll at once">
       <option value="1">1×</option><option value="2">2×</option><option value="3">3×</option><option value="4">4×</option><option value="5">5×</option>
     </select>
@@ -12280,6 +12286,53 @@ function rollInitSave(charName, ab, bonus, event) {
   }
   logEntry('roll', `<strong>${escHtml(charName)}</strong> ${ab} Save${advLabel}: d20${dieStr2}${bStr} = <strong>${total}</strong>${isCrit?' ★':isFumble?' ☠ auto-fail':''}${dcResult}`);
   playSound?.('roll');
+}
+
+function rollDmgFromBar(charName, expr, label, isCrit) {
+  document.querySelectorAll('.dmg-roller-popup').forEach(e => e.remove());
+  const match = expr.match(/^(\d+)d(\d+)([+-]\d+)?$/);
+  if (!match) { const v=parseInt(expr); if(v>0){logEntry('roll',`<strong>${escHtml(charName)}</strong> ${label}: <strong style="color:#cc5555">${v}</strong>`);} return; }
+  const count = parseInt(match[1]);
+  const sides = parseInt(match[2]);
+  const mod = parseInt(match[3] || '0');
+  const rolls = Array.from({length:count}, () => Math.floor(Math.random() * sides) + 1);
+  const total = rolls.reduce((a,b)=>a+b, 0) + mod;
+  const modStr = mod !== 0 ? (mod > 0 ? `+${mod}` : `${mod}`) : '';
+  logEntry('roll', `<strong>${escHtml(charName)}</strong> ${label}${isCrit ? ' 💥 CRIT' : ''}: [${rolls.join('+')}]${modStr} = <strong style="color:#cc5555">${total}</strong>`);
+  playSound?.('damage');
+}
+
+function rollDmgCustomFromBar(charName) {
+  const inp = document.getElementById('dmgBarCustomExpr');
+  const v = inp ? inp.value.trim() : '';
+  if (v) rollDmgFromBar(charName, v, 'Custom Damage', false);
+}
+
+function showDmgRoller(charName, wepDie, statMod, strMod, dexMod, isSpellcaster, event) {
+  if (event) event.stopPropagation();
+  document.querySelectorAll('.dmg-roller-popup').forEach(e => e.remove());
+  const popup = document.createElement('div');
+  popup.className = 'dmg-roller-popup';
+  popup.style.cssText = 'position:fixed;z-index:950;background:#0a0a1e;border:1px solid #552222;border-radius:10px;padding:12px 14px;min-width:210px;box-shadow:0 8px 30px rgba(0,0,0,.95)';
+  const rect = event.target.getBoundingClientRect();
+  popup.style.left = Math.min(rect.left, window.innerWidth - 230) + 'px';
+  popup.style.top = (rect.bottom + 4) + 'px';
+  const modStr = statMod >= 0 ? `+${statMod}` : `${statMod}`;
+  const dexStr = dexMod >= 0 ? `+${dexMod}` : `${dexMod}`;
+  const rngDie = Math.max(4, wepDie - 2);
+  const btn = (label, expr, isCrit) => `<button onclick="rollDmgFromBar(${JSON.stringify(charName)},${JSON.stringify(expr)},${JSON.stringify(label)},${isCrit})" style="width:100%;text-align:left;background:rgba(220,80,80,.06);border:1px solid rgba(220,80,80,.2);color:#dd8888;border-radius:6px;padding:5px 8px;cursor:pointer;font-size:11px;margin-bottom:3px">${label} <span style="color:#4a5272;float:right;font-size:10px">${expr}</span></button>`;
+  popup.innerHTML = `<div style="font-size:10px;color:#cc5555;font-weight:700;margin-bottom:8px">🎲 ${escHtml(charName)} — Damage</div>
+    ${btn('⚔ Melee', `1d${wepDie}${modStr}`, false)}
+    ${btn('⚔ Melee CRIT', `2d${wepDie}${modStr}`, true)}
+    ${dexMod !== strMod ? btn('🏹 Ranged', `1d${rngDie}${dexStr}`, false) : ''}
+    ${dexMod !== strMod ? btn('🏹 Ranged CRIT', `2d${rngDie}${dexStr}`, true) : ''}
+    <div style="margin-top:6px;border-top:1px solid #2a2a40;padding-top:6px;display:flex;gap:4px">
+      <input type="text" id="dmgBarCustomExpr" placeholder="2d6+3" style="flex:1;background:#0a0a1a;border:1px solid #2a2a50;color:#c8d8ff;border-radius:5px;padding:3px 6px;font-size:11px">
+      <button onclick="rollDmgCustomFromBar(${JSON.stringify(charName)})" style="background:rgba(155,109,255,.1);border:1px solid #9b6dff44;color:#9b6dff;border-radius:5px;padding:3px 7px;cursor:pointer;font-size:10px">Roll</button>
+    </div>`;
+  document.body.appendChild(popup);
+  const close = ev => { if (!popup.contains(ev.target)) { popup.remove(); document.removeEventListener('mousedown', close); } };
+  setTimeout(() => document.addEventListener('mousedown', close), 80);
 }
 
 function renderInitiative() {
