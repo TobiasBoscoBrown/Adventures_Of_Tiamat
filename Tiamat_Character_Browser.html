@@ -3776,6 +3776,7 @@
   <button class="filter-btn" onclick="openImprovNpc()" style="border-color:#c9a227;color:#c9a227;" title="Improv NPC Card — instant personality, appearance, motivation &amp; secret for unplanned NPCs">🎭 Improv NPC</button>
   <button class="filter-btn" onclick="openBulkCondPanel()" style="border-color:#9b6dff;color:#9b6dff;" title="Bulk Conditions — apply or remove conditions to multiple characters at once (AoE spells)">⚡ Bulk Cond</button>
   <button class="filter-btn" onclick="openUpcastCalc()" style="border-color:#9b6dff;color:#9b6dff;" title="Spell Upcast Calculator — calculate scaled spell damage at higher slot levels">🔮 Upcast</button>
+  <button class="filter-btn" onclick="openContestRoller()" style="border-color:#4488ff;color:#4488ff;" title="Skill Contest — roll two characters against each other (Athletics vs Athletics, Stealth vs Perception)">⚔ Contest</button>
   <button class="filter-btn" onclick="printPartySheet()" style="border-color:#4488ff;color:#4488ff;" title="Print Party Sheet — all party members on one printable page">🖨 Party Sheet</button>
   <button class="filter-btn" onclick="openWorldMap()" style="border-color:#44cc88;color:#44cc88;" title="World Map — pin characters to the Tiamat campaign map (hotkey: M)">🗺 World Map</button>
   <span style="color: #333; margin: 0 4px;">|</span>
@@ -24211,6 +24212,177 @@ function _timerReset() {
 // Start the timer ticker
 setInterval(_timerUpdate, 1000);
 _timerUpdate();
+// Iter 149: Skill Contest Roller — quick contested skill check between two
+// characters (e.g. Stealth vs Perception, Athletics vs Athletics).
+// Shows both rolls with modifiers and determines winner. Not in DND Beyond.
+
+const CONTEST_SKILLS = [
+  { name:'STR Save', ability:'STR', prof:false },
+  { name:'DEX Save', ability:'DEX', prof:false },
+  { name:'CON Save', ability:'CON', prof:false },
+  { name:'INT Save', ability:'INT', prof:false },
+  { name:'WIS Save', ability:'WIS', prof:false },
+  { name:'CHA Save', ability:'CHA', prof:false },
+  { name:'Athletics', ability:'STR', prof:true },
+  { name:'Acrobatics', ability:'DEX', prof:true },
+  { name:'Stealth', ability:'DEX', prof:true },
+  { name:'Sleight of Hand', ability:'DEX', prof:true },
+  { name:'Perception', ability:'WIS', prof:true },
+  { name:'Insight', ability:'WIS', prof:true },
+  { name:'Deception', ability:'CHA', prof:true },
+  { name:'Persuasion', ability:'CHA', prof:true },
+  { name:'Intimidation', ability:'CHA', prof:true },
+  { name:'History', ability:'INT', prof:true },
+  { name:'Arcana', ability:'INT', prof:true },
+  { name:'Investigation', ability:'INT', prof:true },
+  { name:'Nature', ability:'INT', prof:true },
+  { name:'Religion', ability:'INT', prof:true },
+  { name:'Medicine', ability:'WIS', prof:true },
+  { name:'Survival', ability:'WIS', prof:true },
+  { name:'Animal Handling', ability:'WIS', prof:true },
+];
+
+function _getContestMod(charName, skillName) {
+  const c = UNIQUE_CHARS.find(x => x.name === charName);
+  if (!c) return 0;
+  const skill = CONTEST_SKILLS.find(s => s.name === skillName);
+  if (!skill) return 0;
+  const abEntry = (c.abilities || []).find(([n]) => n === skill.ability);
+  const abMod = abEntry ? (parseInt(abEntry[2]) || 0) : 0;
+  // Prof bonus: CR-based approximation
+  const cr = parseFloat(c.cr) || 1;
+  const prof = cr >= 17 ? 6 : cr >= 13 ? 5 : cr >= 9 ? 4 : cr >= 5 ? 3 : 2;
+  // Use proficiency if skill.prof AND any ability score ≥ 14 (proxy for proficiency)
+  const hasProf = skill.prof && abEntry && parseInt(abEntry[1]) >= 14;
+  return abMod + (hasProf ? prof : 0);
+}
+
+function openContestRoller() {
+  const existing = document.getElementById('contestRollerOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'contestRollerOverlay';
+  ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.72);z-index:9500;display:flex;align-items:flex-start;justify-content:center;padding-top:6vh;overflow-y:auto';
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+
+  const charOptions = UNIQUE_CHARS.map(c => `<option value="${escHtml(c.name)}">${escHtml(c.name)}</option>`).join('');
+  const skillOptions = CONTEST_SKILLS.map(s => `<option value="${s.name}">${s.name} (${s.ability})</option>`).join('');
+  const adv = (id) => `<div style="display:flex;gap:4px">
+    <button onclick="_setContestAdv('${id}','normal')" id="${id}Normal" style="flex:1;background:rgba(201,162,39,0.2);border:1px solid #c9a227;color:#c9a227;border-radius:4px;padding:3px;cursor:pointer;font-size:10px">Normal</button>
+    <button onclick="_setContestAdv('${id}','adv')" id="${id}Adv" style="flex:1;background:none;border:1px solid #2a2040;color:#4a5272;border-radius:4px;padding:3px;cursor:pointer;font-size:10px">Adv</button>
+    <button onclick="_setContestAdv('${id}','dis')" id="${id}Dis" style="flex:1;background:none;border:1px solid #2a2040;color:#4a5272;border-radius:4px;padding:3px;cursor:pointer;font-size:10px">Dis</button>
+  </div>`;
+
+  ov.innerHTML = `
+    <div style="background:linear-gradient(160deg,#100820,#0d0d1a);border:1px solid rgba(68,136,255,0.5);border-radius:14px;padding:24px;width:480px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.9)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+        <div style="font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:#4488ff">⚔ Skill Contest</div>
+        <button onclick="document.getElementById('contestRollerOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:20px">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:start;margin-bottom:16px">
+
+        <!-- Side A -->
+        <div style="background:rgba(68,136,255,0.05);border:1px solid rgba(68,136,255,0.2);border-radius:10px;padding:12px">
+          <div style="font-size:10px;color:#4488ff;letter-spacing:1px;margin-bottom:8px;font-weight:700">SIDE A</div>
+          <select id="contestCharA" onchange="_contestUpdate()" style="width:100%;background:#06061a;border:1px solid #2a2040;color:#c8d0e8;border-radius:6px;padding:6px;font-size:11px;margin-bottom:8px;cursor:pointer">${charOptions}</select>
+          <select id="contestSkillA" onchange="_contestUpdate()" style="width:100%;background:#06061a;border:1px solid #2a2040;color:#c8d0e8;border-radius:6px;padding:6px;font-size:11px;margin-bottom:8px;cursor:pointer">${skillOptions}</select>
+          ${adv('A')}
+          <div id="contestModA" style="text-align:center;font-size:22px;font-weight:700;font-family:'Cinzel',serif;color:#4488ff;margin-top:8px">+0</div>
+        </div>
+
+        <!-- VS -->
+        <div style="text-align:center;padding-top:40px;font-size:18px;font-weight:700;color:#4a5272;letter-spacing:2px">VS</div>
+
+        <!-- Side B -->
+        <div style="background:rgba(204,51,51,0.05);border:1px solid rgba(204,51,51,0.2);border-radius:10px;padding:12px">
+          <div style="font-size:10px;color:#cc3333;letter-spacing:1px;margin-bottom:8px;font-weight:700">SIDE B</div>
+          <select id="contestCharB" onchange="_contestUpdate()" style="width:100%;background:#06061a;border:1px solid #2a2040;color:#c8d0e8;border-radius:6px;padding:6px;font-size:11px;margin-bottom:8px;cursor:pointer">${charOptions}</select>
+          <select id="contestSkillB" onchange="_contestUpdate()" style="width:100%;background:#06061a;border:1px solid #2a2040;color:#c8d0e8;border-radius:6px;padding:6px;font-size:11px;margin-bottom:8px;cursor:pointer">${skillOptions}</select>
+          ${adv('B')}
+          <div id="contestModB" style="text-align:center;font-size:22px;font-weight:700;font-family:'Cinzel',serif;color:#cc3333;margin-top:8px">+0</div>
+        </div>
+      </div>
+
+      <button onclick="_rollContest()" style="width:100%;background:rgba(68,136,255,0.15);border:1px solid rgba(68,136,255,0.5);color:#4488ff;border-radius:8px;padding:12px;cursor:pointer;font-size:14px;font-weight:700;margin-bottom:12px">🎲 Roll Contest</button>
+      <div id="contestResult" style="min-height:70px;background:rgba(0,0,0,0.3);border:1px solid #1e2040;border-radius:8px;padding:12px;text-align:center;font-size:13px;color:#4a5272;font-style:italic">Result will appear here</div>
+    </div>`;
+  document.body.appendChild(ov);
+  window._contestAdvA = 'normal';
+  window._contestAdvB = 'normal';
+  // Set side B to a different character
+  const bSel = document.getElementById('contestCharB');
+  if (bSel && bSel.options.length > 1) bSel.selectedIndex = 1;
+  _contestUpdate();
+}
+
+function _setContestAdv(side, mode) {
+  window['_contestAdv' + side] = mode;
+  ['normal','adv','dis'].forEach(m => {
+    const btn = document.getElementById(side + m.charAt(0).toUpperCase() + m.slice(1));
+    if (btn) {
+      btn.style.background = m === mode ? 'rgba(201,162,39,0.2)' : 'none';
+      btn.style.borderColor = m === mode ? '#c9a227' : '#2a2040';
+      btn.style.color = m === mode ? '#c9a227' : '#4a5272';
+    }
+  });
+}
+
+function _contestUpdate() {
+  const nameA = document.getElementById('contestCharA')?.value;
+  const nameB = document.getElementById('contestCharB')?.value;
+  const skillA = document.getElementById('contestSkillA')?.value;
+  const skillB = document.getElementById('contestSkillB')?.value;
+  const modA = _getContestMod(nameA, skillA);
+  const modB = _getContestMod(nameB, skillB);
+  const el_A = document.getElementById('contestModA');
+  const el_B = document.getElementById('contestModB');
+  if (el_A) el_A.textContent = modA >= 0 ? `+${modA}` : `${modA}`;
+  if (el_B) el_B.textContent = modB >= 0 ? `+${modB}` : `${modB}`;
+}
+
+function _rollContest() {
+  const nameA = document.getElementById('contestCharA')?.value;
+  const nameB = document.getElementById('contestCharB')?.value;
+  const skillA = document.getElementById('contestSkillA')?.value;
+  const skillB = document.getElementById('contestSkillB')?.value;
+  const modA = _getContestMod(nameA, skillA);
+  const modB = _getContestMod(nameB, skillB);
+  const advA = window._contestAdvA || 'normal';
+  const advB = window._contestAdvB || 'normal';
+
+  const rollWithAdv = (adv) => {
+    const r1 = Math.floor(Math.random()*20)+1, r2 = Math.floor(Math.random()*20)+1;
+    if (adv === 'adv') return { die: Math.max(r1,r2), rolls: [r1,r2] };
+    if (adv === 'dis') return { die: Math.min(r1,r2), rolls: [r1,r2] };
+    return { die: r1, rolls: [r1] };
+  };
+
+  const rA = rollWithAdv(advA), rB = rollWithAdv(advB);
+  const totalA = rA.die + modA, totalB = rB.die + modB;
+  const modAStr = modA >= 0 ? `+${modA}` : `${modA}`;
+  const modBStr = modB >= 0 ? `+${modB}` : `${modB}`;
+
+  const winner = totalA > totalB ? nameA : totalB > totalA ? nameB : 'TIE';
+  const winColor = totalA > totalB ? '#4488ff' : totalB > totalA ? '#cc3333' : '#c9a227';
+  const winLabel = totalA > totalB ? 'A WINS' : totalB > totalA ? 'B WINS' : 'TIE — Defender wins!';
+
+  const resEl = document.getElementById('contestResult');
+  if (resEl) resEl.innerHTML = `
+    <div style="display:flex;justify-content:center;gap:16px;align-items:center;margin-bottom:8px">
+      <div style="text-align:center">
+        <div style="font-size:28px;font-weight:700;font-family:'Cinzel',serif;color:#4488ff">${totalA}</div>
+        <div style="font-size:10px;color:#4a5272">${escHtml(nameA||'')}<br>d20(${rA.die})${modAStr}</div>
+      </div>
+      <div style="font-size:14px;color:#4a5272">vs</div>
+      <div style="text-align:center">
+        <div style="font-size:28px;font-weight:700;font-family:'Cinzel',serif;color:#cc3333">${totalB}</div>
+        <div style="font-size:10px;color:#4a5272">${escHtml(nameB||'')}<br>d20(${rB.die})${modBStr}</div>
+      </div>
+    </div>
+    <div style="font-size:16px;font-weight:700;color:${winColor}">${winLabel}</div>`;
+
+  logEntry('roll', `⚔ Contest: <strong>${escHtml(nameA||'')} ${skillA}</strong> (${totalA}) vs <strong>${escHtml(nameB||'')} ${skillB}</strong> (${totalB}) → <strong>${winner === 'TIE' ? 'TIE' : escHtml(winner)} wins</strong>`);
+}
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
 
