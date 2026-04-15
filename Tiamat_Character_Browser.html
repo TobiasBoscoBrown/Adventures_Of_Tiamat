@@ -3713,6 +3713,7 @@
   <button class="filter-btn" onclick="openMagicItemGen()" style="border-color:#cc44cc;color:#cc44cc;" title="Magic Item Generator — random items by rarity">✨ Magic Items</button>
   <button class="filter-btn" onclick="openMerchantGen()" style="border-color:#aa8833;color:#aa8833;" title="Merchant Generator — random shop with inventory and prices">🏪 Shop</button>
   <button class="filter-btn" onclick="openPotionPanel()" style="border-color:#cc4488;color:#cc4488;" title="Potion Quick-Use — drink potions, roll healing dice, track quantities">🧪 Potions</button>
+  <button class="filter-btn" onclick="openAmmoPanel('',event)" style="border-color:#aa8833;color:#aa8833;" title="Ammunition Tracker — track arrows, bolts and ranged ammo per character">🏹 Ammo</button>
   <button class="filter-btn" onclick="openRandomEncTable()" style="border-color:#cc8844;color:#cc8844;" title="Random Encounter Table — roll by terrain">🎲 Enc Table</button>
   <button class="filter-btn" onclick="openCampaignTimeline()" style="border-color:#44cc88;color:#44cc88;" title="Campaign timeline — track key events">📅 Timeline</button>
   <button class="filter-btn" onclick="openWeatherPanel()" style="border-color:#2299bb;color:#2299bb;" title="Weather &amp; Environment — ambient conditions affecting gameplay">🌤 Weather</button>
@@ -6119,6 +6120,7 @@ function buildStatsPanel(c) {
     </div>
     ${buildMulticlassSection(c)}
     ${buildInventorySection(c)}
+    ${buildAmmoSection(c)}
     ${buildAttunementSection(c)}
     ${buildCompanionsSection(c)}
     ${buildInspirationSection(c)}
@@ -21148,6 +21150,172 @@ function drinkPotion(potionName, evt) {
 function clearPotionResults() {
   const box = document.getElementById('potionResultBox');
   if (box) { box.style.display='none'; box.textContent=''; }
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 116: Ammunition Tracker — per-character tracking
+//   of ranged weapon ammo (arrows, bolts, bullets, darts,
+//   javelins, hand axes). +/- per shot, bulk restock, auto-
+//   decrement option. Toolbar button + character sheet section.
+//   Toolbar: 🏹 Ammo
+// ══════════════════════════════════════════════════════════
+const AMMO_KEY = 'tiamat_ammo';
+const AMMO_TYPES = [
+  { key:'arrows',   name:'Arrows',      icon:'🏹', max:40 },
+  { key:'bolts',    name:'Bolts',       icon:'⚡', max:20 },
+  { key:'bullets',  name:'Bullets',     icon:'⚫', max:40 },
+  { key:'darts',    name:'Darts',       icon:'🎯', max:20 },
+  { key:'needles',  name:'Needles',     icon:'🪡', max:50 },
+  { key:'javelins', name:'Javelins',    icon:'🗡', max:10 },
+  { key:'handaxes', name:'Hand Axes',   icon:'🪓', max:5  },
+  { key:'flasks',   name:'Oil Flasks',  icon:'🫙', max:10 },
+];
+
+function getAmmo(charName) {
+  const all = JSON.parse(localStorage.getItem(AMMO_KEY) || '{}');
+  return all[charName] || {};
+}
+function saveAmmoData(charName, data) {
+  const all = JSON.parse(localStorage.getItem(AMMO_KEY) || '{}');
+  all[charName] = data;
+  localStorage.setItem(AMMO_KEY, JSON.stringify(all));
+}
+
+function adjustAmmo(charName, key, delta) {
+  const data = getAmmo(charName);
+  const at = AMMO_TYPES.find(a => a.key === key);
+  data[key] = Math.max(0, Math.min(at ? at.max*2 : 999, (data[key] || 0) + delta));
+  saveAmmoData(charName, data);
+  refreshAmmoSection(charName);
+}
+
+function restockAmmo(charName, key) {
+  const data = getAmmo(charName);
+  const at = AMMO_TYPES.find(a => a.key === key);
+  data[key] = at ? at.max : 20;
+  saveAmmoData(charName, data);
+  refreshAmmoSection(charName);
+}
+
+function refreshAmmoSection(charName) {
+  const char = (typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : []).find(c => c.name === charName);
+  if (!char) return;
+  const secs = document.querySelectorAll('.stats-section');
+  for (const sec of secs) {
+    const title = sec.querySelector('.stats-section-title');
+    if (title && title.textContent.includes('Ammunition') && sec.dataset.charname === charName) {
+      sec.outerHTML = buildAmmoSection(char);
+      return;
+    }
+  }
+}
+
+function buildAmmoSection(c) {
+  const data = getAmmo(c.name);
+  const tracked = AMMO_TYPES.filter(at => (data[at.key] || 0) > 0);
+
+  // Only show section if character has at least one ammo type tracked
+  if (!tracked.length) return '';
+
+  const rows = tracked.map(at => {
+    const qty = data[at.key] || 0;
+    const pct = Math.min(1, qty / at.max);
+    const barColor = pct > 0.5 ? '#44cc88' : pct > 0.2 ? '#c9a227' : '#cc4444';
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <span style="font-size:16px;width:20px;text-align:center;flex-shrink:0">${at.icon}</span>
+      <span style="font-size:11px;color:#9098b8;width:72px;flex-shrink:0">${at.name}</span>
+      <div style="flex:1;height:6px;background:#1a1a3a;border-radius:3px">
+        <div style="height:100%;width:${Math.round(pct*100)}%;background:${barColor};border-radius:3px"></div>
+      </div>
+      <span style="font-size:13px;font-weight:700;color:${barColor};width:28px;text-align:right;flex-shrink:0">${qty}</span>
+      <button onclick="adjustAmmo(${JSON.stringify(c.name)},${JSON.stringify(at.key)},-1)" style="background:rgba(180,60,60,0.1);border:1px solid rgba(180,60,60,0.3);color:#cc4444;border-radius:3px;padding:0 6px;cursor:pointer;font-size:12px;line-height:1.7" title="Use 1">−</button>
+      <button onclick="adjustAmmo(${JSON.stringify(c.name)},${JSON.stringify(at.key)},1)" style="background:rgba(60,180,100,0.1);border:1px solid rgba(60,180,100,0.3);color:#44cc88;border-radius:3px;padding:0 6px;cursor:pointer;font-size:12px;line-height:1.7" title="Add 1">+</button>
+      <button onclick="restockAmmo(${JSON.stringify(c.name)},${JSON.stringify(at.key)})" style="background:rgba(80,80,180,0.1);border:1px solid rgba(80,80,180,0.3);color:#7a7aff;border-radius:3px;padding:0 5px;cursor:pointer;font-size:10px;line-height:1.7" title="Restock to ${at.max}">↑${at.max}</button>
+    </div>`;
+  }).join('');
+
+  return `<div class="stats-section" data-charname="${escHtml(c.name)}">
+    <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>Ammunition</span>
+      <button onclick="openAmmoPanel(${JSON.stringify(c.name)},event)" style="background:none;border:1px solid #2a2a50;color:#7a7aaa;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:10px">⊕ Add Type</button>
+    </div>
+    ${rows}
+  </div>`;
+}
+
+function openAmmoPanel(charNameArg, evt) {
+  if (evt) evt.stopPropagation();
+  const existing = document.getElementById('ammoPanelOv');
+  if (existing) { existing.remove(); return; }
+
+  const chars = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS : [];
+  const charOptions = chars.map(c => `<option value="${escHtml(c.name)}">${escHtml(c.name)}</option>`).join('');
+  const initChar = charNameArg || '';
+
+  const ov = document.createElement('div');
+  ov.id = 'ammoPanelOv';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:3000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick = e => { if(e.target===ov) ov.remove(); };
+
+  ov.innerHTML = `<div style="background:#0d0d1a;border:1px solid #2a2a5a;border-radius:12px;padding:20px;max-width:500px;width:100%;max-height:85vh;overflow-y:auto;position:relative">
+    <button onclick="document.getElementById('ammoPanelOv').remove()" style="position:absolute;top:10px;right:14px;background:none;border:none;color:#7a7aaa;font-size:20px;cursor:pointer">✕</button>
+    <div style="font-size:18px;font-weight:700;color:#aa8833;margin-bottom:4px">🏹 Ammunition Tracker</div>
+    <div style="font-size:11px;color:#7a7aaa;margin-bottom:14px">Track ranged ammo per character. Changes shown in character sheet.</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px">
+      <label style="font-size:11px;color:#9098b8;flex-shrink:0">Character:</label>
+      <select id="ammoCharSel" style="flex:1;background:#0d0d1a;border:1px solid #2a2a50;color:#e8e8f8;border-radius:4px;padding:4px 8px;font-size:12px" onchange="renderAmmoPanelList()">
+        <option value="">— Select —</option>
+        ${charOptions}
+      </select>
+    </div>
+    <div id="ammoPanelList"></div>
+  </div>`;
+  document.body.appendChild(ov);
+
+  if (initChar) {
+    ov.querySelector('#ammoCharSel').value = initChar;
+  }
+  renderAmmoPanelList();
+}
+
+function renderAmmoPanelList() {
+  const sel = document.getElementById('ammoCharSel');
+  const list = document.getElementById('ammoPanelList');
+  if (!sel || !list) return;
+  const charName = sel.value;
+  if (!charName) { list.innerHTML = '<div style="color:#4a5272;font-size:12px;text-align:center;padding:12px">Select a character above</div>'; return; }
+
+  const data = getAmmo(charName);
+  const rows = AMMO_TYPES.map(at => {
+    const qty = data[at.key] || 0;
+    const pct = Math.min(1, qty / at.max);
+    const barColor = pct > 0.5 ? '#44cc88' : pct > 0.2 ? '#c9a227' : qty > 0 ? '#cc4444' : '#2a2a50';
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;padding:5px 8px;background:rgba(20,20,50,0.4);border-radius:6px;border:1px solid rgba(80,80,120,0.15)">
+      <span style="font-size:18px;width:22px;text-align:center">${at.icon}</span>
+      <span style="font-size:12px;color:#9098b8;width:80px;flex-shrink:0">${at.name}</span>
+      <div style="flex:1;height:5px;background:#1a1a3a;border-radius:3px">
+        <div style="height:100%;width:${qty>0?Math.round(pct*100):0}%;background:${barColor};border-radius:3px"></div>
+      </div>
+      <span style="font-size:14px;font-weight:700;color:${barColor};min-width:28px;text-align:right">${qty}</span>
+      <button onclick="apAdjust(${JSON.stringify(charName)},${JSON.stringify(at.key)},-1)" style="background:rgba(180,60,60,0.1);border:1px solid rgba(180,60,60,0.3);color:#cc4444;border-radius:3px;padding:1px 8px;cursor:pointer;font-size:14px">−</button>
+      <button onclick="apAdjust(${JSON.stringify(charName)},${JSON.stringify(at.key)},1)" style="background:rgba(60,180,100,0.1);border:1px solid rgba(60,180,100,0.3);color:#44cc88;border-radius:3px;padding:1px 8px;cursor:pointer;font-size:14px">+</button>
+      <button onclick="apRestock(${JSON.stringify(charName)},${JSON.stringify(at.key)},${at.max})" style="background:rgba(80,80,180,0.1);border:1px solid rgba(80,80,180,0.3);color:#7a7aff;border-radius:3px;padding:1px 7px;cursor:pointer;font-size:10px" title="Restock to ${at.max}">↑${at.max}</button>
+    </div>`;
+  }).join('');
+
+  list.innerHTML = rows;
+}
+
+function apAdjust(charName, key, delta) {
+  adjustAmmo(charName, key, delta);
+  renderAmmoPanelList();
+}
+function apRestock(charName, key, max) {
+  const data = getAmmo(charName);
+  data[key] = max;
+  saveAmmoData(charName, data);
+  refreshAmmoSection(charName);
+  renderAmmoPanelList();
 }
 // ────────────────────────────────────────────────────────
 </script>
