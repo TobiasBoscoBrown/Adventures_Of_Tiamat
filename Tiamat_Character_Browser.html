@@ -3597,6 +3597,7 @@
   <button class="filter-btn" onclick="openCampaignTimeline()" style="border-color:#44cc88;color:#44cc88;" title="Campaign timeline — track key events">📅 Timeline</button>
   <button class="filter-btn" onclick="openWeatherPanel()" style="border-color:#2299bb;color:#2299bb;" title="Weather &amp; Environment — ambient conditions affecting gameplay">🌤 Weather</button>
   <button class="filter-btn" onclick="openFactionMap()" style="border-color:#9b6dff;color:#9b6dff;" title="Faction Allegiance Map — overview of all groups">⚑ Factions</button>
+  <button class="filter-btn" onclick="openNpcRelWeb()" style="border-color:#44aacc;color:#44aacc;" title="NPC Relationship Web — track NPC connections and party dispositions">🕸 NPC Web</button>
   <button class="filter-btn" onclick="openEncounterBuilder()" style="border-color:#cc3333;color:#cc3333;" title="Encounter Builder — build &amp; balance encounters by CR/XP">🐉 Build Enc</button>
   <button class="filter-btn" onclick="openGraveyardPanel()" style="border-color:#555;color:#888;" title="Character graveyard — fallen heroes and villains">💀 Graveyard</button>
   <button class="filter-btn" onclick="openWorldState()" style="border-color:#5588ff;color:#5588ff;" title="World State — campaign milestones, plot events, world facts">🌍 World</button>
@@ -10690,6 +10691,136 @@ function encPushToInitiative() {
 // ITERATION 71: Faction Allegiance Map — visual overview of all
 //   factions/groups with member counts, average CR, HP status.
 //   Clicking a faction filters the grid to that group.
+// ══════════════════════════════════════════════════════════
+// ITERATION 91: NPC Relationship Web — track named NPCs with
+//   relationship type and disposition toward the party.
+//   Stored in tiamat_npc_web. Toolbar: 🕸 NPC Web
+// ══════════════════════════════════════════════════════════
+const NPC_WEB_KEY = 'tiamat_npc_web';
+const NPC_DISPOSITIONS = ['Hostile','Unfriendly','Neutral','Friendly','Allied','Unknown'];
+const NPC_REL_TYPES = ['Patron','Enemy','Rival','Ally','Informant','Merchant','Ruler','Priest','Cultist','Family','Lover','Mentor','Minion','Unknown'];
+const NPC_DISP_COLORS = {
+  Hostile:'#cc3333', Unfriendly:'#ee8833', Neutral:'#9098b8',
+  Friendly:'#44cc88', Allied:'#44cccc', Unknown:'#4a5272'
+};
+
+function getNpcWeb() { try { return JSON.parse(localStorage.getItem(NPC_WEB_KEY) || '[]'); } catch { return []; } }
+function saveNpcWeb(arr) { localStorage.setItem(NPC_WEB_KEY, JSON.stringify(arr)); }
+
+function openNpcRelWeb() {
+  const existing = document.getElementById('npcWebOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'npcWebOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto;';
+  ov.innerHTML = `
+    <div style="background:#151c2e;border:1px solid #44aacc;border-radius:12px;width:700px;max-width:100%;padding:24px;color:#c8d0e8;font-family:'Inter',sans-serif;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-size:18px;font-weight:700;color:#44aacc;">🕸 NPC Relationship Web</div>
+        <button onclick="document.getElementById('npcWebOverlay').remove()" style="background:#2a3358;border:none;color:#c8d0e8;border-radius:6px;padding:6px 14px;cursor:pointer;">✕ Close</button>
+      </div>
+      <div style="margin-bottom:10px;display:flex;gap:8px;align-items:center;">
+        <input id="npcWebSearch" oninput="renderNpcWeb()" placeholder="Search NPCs…" style="flex:1;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:7px 12px;color:#c8d0e8;font-size:13px;">
+        <select id="npcWebDispFilter" onchange="renderNpcWeb()" style="background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:7px;color:#c8d0e8;font-size:12px;">
+          <option value="">All Dispositions</option>
+          ${NPC_DISPOSITIONS.map(d => `<option>${d}</option>`).join('')}
+        </select>
+      </div>
+      <div id="npcWebList" style="max-height:45vh;overflow-y:auto;margin-bottom:14px;"></div>
+      <div style="border-top:1px solid #2a3358;padding-top:14px;">
+        <div style="font-size:12px;color:#9098b8;font-weight:600;margin-bottom:8px;">+ Add NPC</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;">
+          <input id="npcNewName" placeholder="NPC Name *" style="background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:7px;color:#c8d0e8;font-size:12px;">
+          <select id="npcNewDisp" style="background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:7px;color:#c8d0e8;font-size:12px;">
+            ${NPC_DISPOSITIONS.map(d => `<option>${d}</option>`).join('')}
+          </select>
+          <select id="npcNewRel" style="background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:7px;color:#c8d0e8;font-size:12px;">
+            ${NPC_REL_TYPES.map(r => `<option>${r}</option>`).join('')}
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+          <input id="npcNewLocation" placeholder="Last known location" style="background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:7px;color:#c8d0e8;font-size:12px;">
+          <input id="npcNewFaction" placeholder="Faction/affiliation" style="background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:7px;color:#c8d0e8;font-size:12px;">
+        </div>
+        <textarea id="npcNewNotes" rows="2" placeholder="Notes: what the party knows about this NPC…" style="width:100%;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:7px;color:#c8d0e8;font-size:12px;box-sizing:border-box;resize:vertical;margin-bottom:8px;"></textarea>
+        <button onclick="addNpcEntry()" style="background:#44aacc;border:none;color:#fff;border-radius:6px;padding:8px 20px;cursor:pointer;font-weight:600;">Add NPC</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  renderNpcWeb();
+}
+
+function renderNpcWeb() {
+  const list = document.getElementById('npcWebList');
+  if (!list) return;
+  const q = (document.getElementById('npcWebSearch')?.value || '').toLowerCase();
+  const dispFilter = document.getElementById('npcWebDispFilter')?.value || '';
+  let npcs = getNpcWeb();
+  if (dispFilter) npcs = npcs.filter(n => n.disposition === dispFilter);
+  if (q) npcs = npcs.filter(n => (n.name + n.faction + n.location + n.notes).toLowerCase().includes(q));
+  if (npcs.length === 0) {
+    list.innerHTML = '<div style="color:#4a5272;font-size:12px;font-style:italic;padding:10px 0;">No NPCs recorded yet.</div>';
+    return;
+  }
+  list.innerHTML = npcs.map(n => {
+    const col = NPC_DISP_COLORS[n.disposition] || '#9098b8';
+    return `<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid #1e2744;align-items:flex-start;">
+      <div style="flex:1;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:14px;font-weight:700;color:#c8d0e8;">${n.name}</span>
+          <span style="font-size:10px;background:${col}22;color:${col};border-radius:4px;padding:2px 7px;">${n.disposition}</span>
+          <span style="font-size:10px;color:#9098b8;background:#1e2744;border-radius:4px;padding:2px 6px;">${n.relationship}</span>
+          ${n.faction ? `<span style="font-size:10px;color:#c9a227;">⚑ ${n.faction}</span>` : ''}
+          ${n.location ? `<span style="font-size:10px;color:#44cc88;">📍 ${n.location}</span>` : ''}
+        </div>
+        ${n.notes ? `<div style="font-size:12px;color:#9098b8;margin-top:4px;">${n.notes}</div>` : ''}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0;">
+        <select onchange="updateNpcDisp('${n.id}',this.value)" style="background:#0e1422;border:1px solid #2a3358;border-radius:4px;padding:3px 6px;color:${col};font-size:11px;cursor:pointer;">
+          ${NPC_DISPOSITIONS.map(d => `<option ${d === n.disposition ? 'selected' : ''}>${d}</option>`).join('')}
+        </select>
+        <button onclick="deleteNpcEntry('${n.id}')" style="background:none;border:none;color:#cc3333;cursor:pointer;font-size:12px;">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function addNpcEntry() {
+  const name = document.getElementById('npcNewName')?.value.trim();
+  if (!name) { if (typeof showToast === 'function') showToast('NPC name required', '#cc3333'); return; }
+  const arr = getNpcWeb();
+  arr.push({
+    id: 'npc_' + Date.now(),
+    name,
+    disposition: document.getElementById('npcNewDisp').value,
+    relationship: document.getElementById('npcNewRel').value,
+    location: document.getElementById('npcNewLocation').value.trim(),
+    faction: document.getElementById('npcNewFaction').value.trim(),
+    notes: document.getElementById('npcNewNotes').value.trim(),
+    ts: Date.now(),
+  });
+  saveNpcWeb(arr);
+  document.getElementById('npcNewName').value = '';
+  document.getElementById('npcNewLocation').value = '';
+  document.getElementById('npcNewFaction').value = '';
+  document.getElementById('npcNewNotes').value = '';
+  renderNpcWeb();
+  if (typeof showToast === 'function') showToast(`NPC "${name}" added`, '#44aacc');
+}
+
+function updateNpcDisp(id, disp) {
+  const arr = getNpcWeb();
+  const n = arr.find(x => x.id === id);
+  if (n) { n.disposition = disp; saveNpcWeb(arr); renderNpcWeb(); }
+}
+
+function deleteNpcEntry(id) {
+  saveNpcWeb(getNpcWeb().filter(n => n.id !== id));
+  renderNpcWeb();
+}
+
 // ══════════════════════════════════════════════════════════
 function openFactionMap() {
   const existing = document.getElementById('factionMapOverlay');
