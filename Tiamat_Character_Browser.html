@@ -8029,12 +8029,34 @@ function refreshConcDisplay(charName) {
   }
 }
 
-// Warn about concentration when taking damage
+// Auto-roll CON save for concentration on damage (DC = max 10, half damage)
 function checkConcOnDamage(charName, damageAmount) {
   const spell = getConcSpell(charName);
   if (!spell || damageAmount <= 0) return;
   const dc = Math.max(10, Math.floor(damageAmount / 2));
-  logEntry('roll', `<strong style="color:#c9a227">🔮 CONCENTRATION CHECK: ${charName}</strong> must make a DC ${dc} CON save to maintain <em>${spell}</em>`);
+  const char = UNIQUE_CHARS.find(c => c.name === charName);
+  const conMod = char ? (getAbilMod ? getAbilMod(char, 'CON') : 0) : 0;
+  const roll = Math.floor(Math.random() * 20) + 1;
+  const total = roll + conMod;
+  const passed = total >= dc;
+  const isCrit = roll === 20, isFumble = roll === 1;
+  const modStr = conMod >= 0 ? `+${conMod}` : `${conMod}`;
+  const resultColor = passed ? '#44aa44' : '#cc3333';
+  const resultWord = passed ? 'MAINTAINED' : 'BROKEN';
+  const resultIcon = passed ? '✓' : '✗';
+
+  logEntry('roll',
+    `<strong style="color:#c9a227">🔮 Conc. Check — ${escHtml(charName)}</strong> (DC ${dc}): ` +
+    `d20(${roll})${modStr} = <strong style="color:${resultColor}">${total} ${resultIcon} ${resultWord}</strong>` +
+    (isCrit ? ' ★' : isFumble ? ' ☠ auto-fail' : '') +
+    ` — <em>${escHtml(spell)}</em>`
+  );
+
+  if (!passed && !isCrit) {
+    // Auto-clear concentration on failed save
+    clearConc(charName, null);
+  }
+  playSound?.(passed ? 'roll' : 'damage');
 }
 
 function openConcPicker(charName, event) {
