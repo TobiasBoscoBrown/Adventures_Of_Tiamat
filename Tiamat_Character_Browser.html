@@ -3648,6 +3648,7 @@
     <button class="encounter-open-btn" onclick="openConcDashboard()" style="border-color:#c9a227;color:#c9a227" title="Concentration Dashboard — who is concentrating, quick break concentration saves">🔮 Conc</button>
     <button class="encounter-open-btn" onclick="toggleSlotDashboard()" style="border-color:#4488ff;color:#4488ff" id="slotDashBtn" title="Party Spell Slot Dashboard — all casters' slots at a glance">✦ Slots</button>
     <button class="encounter-open-btn" onclick="openCondPicker()" style="border-color:#aa66dd;color:#aa66dd" title="Quick Condition Picker — search & apply conditions to any character">⚡ Cond</button>
+    <button class="encounter-open-btn" onclick="openCustomCondManager()" style="border-color:#dd66aa;color:#dd66aa" title="Custom Condition Manager — create homebrew conditions">⚡✦ Custom Cond</button>
     <button class="encounter-open-btn" onclick="openCampaignDashboard()" style="border-color:#9b6dff;color:#9b6dff" title="Campaign Dashboard — full campaign state at a glance">📊 Dashboard</button>
     <button class="encounter-open-btn" onclick="toggleDicePanel()" id="dicePanelBtn" style="border-color:#dd6622;color:#dd6622" title="Dice Roller — roll any die with modifier, advantage/disadvantage, history">🎲 Dice</button>
     <button class="encounter-open-btn" onclick="openRandomTables()" style="border-color:#c9a227;color:#c9a227" title="Random Tables — weather, NPC quirks, tavern names, encounter hooks, etc.">🃏 Tables</button>
@@ -11094,6 +11095,97 @@ function buildCampaignDashboard() {
 }
 
 // ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════
+// ITERATION 109: Custom Condition Manager — create homebrew
+//   conditions with name, icon, color, and effect description.
+//   They appear in the Quick Condition Picker alongside standard ones.
+// ══════════════════════════════════════════════════════════
+const CUSTOM_CONDS_KEY = 'tiamat_custom_conds';
+const COND_ICON_OPTIONS = ['⚡','🔥','❄','💀','🌀','💜','🟢','🔵','🟡','🔴','💫','🌙','⭐','🩸','🌊','🌿','🕸','💣','⚠','🔮'];
+
+function getCustomConds() { try { return JSON.parse(localStorage.getItem(CUSTOM_CONDS_KEY) || '[]'); } catch { return []; } }
+function saveCustomConds(arr) { localStorage.setItem(CUSTOM_CONDS_KEY, JSON.stringify(arr)); }
+
+function openCustomCondManager() {
+  const existing = document.getElementById('customCondOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'customCondOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto;';
+  ov.innerHTML = `
+    <div style="background:#151c2e;border:1px solid #dd66aa;border-radius:12px;width:600px;max-width:100%;padding:24px;color:#c8d0e8;font-family:'Inter',sans-serif;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-size:18px;font-weight:700;color:#dd66aa;">⚡✦ Custom Conditions</div>
+        <button onclick="document.getElementById('customCondOverlay').remove()" style="background:#2a3358;border:none;color:#c8d0e8;border-radius:6px;padding:6px 14px;cursor:pointer;">✕ Close</button>
+      </div>
+      <div id="customCondList" style="margin-bottom:14px;max-height:40vh;overflow-y:auto;"></div>
+      <div style="border-top:1px solid #2a3358;padding-top:14px;">
+        <div style="font-size:12px;color:#9098b8;font-weight:600;margin-bottom:8px;">+ New Custom Condition</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;">
+          <input id="ccName" placeholder="Condition name *" style="background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:7px;color:#c8d0e8;font-size:12px;">
+          <select id="ccIcon" style="background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:7px;color:#c8d0e8;font-size:14px;">
+            ${COND_ICON_OPTIONS.map(ic => `<option>${ic}</option>`).join('')}
+          </select>
+          <input id="ccColor" type="color" value="#dd66aa" style="background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:3px;height:34px;cursor:pointer;width:100%;">
+        </div>
+        <textarea id="ccEffect" rows="2" placeholder="Effect description (e.g. Disadvantage on STR checks, speed halved)" style="width:100%;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:7px;color:#c8d0e8;font-size:12px;box-sizing:border-box;resize:vertical;margin-bottom:8px;"></textarea>
+        <button onclick="saveCustomCond()" style="background:#dd66aa;border:none;color:#fff;border-radius:6px;padding:8px 18px;cursor:pointer;font-weight:600;">Create Condition</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  renderCustomCondList();
+}
+
+function renderCustomCondList() {
+  const list = document.getElementById('customCondList');
+  if (!list) return;
+  const conds = getCustomConds();
+  if (!conds.length) { list.innerHTML = '<div style="color:#4a5272;font-size:12px;font-style:italic;padding:8px 0;">No custom conditions yet. Create your first homebrew condition below.</div>'; return; }
+  list.innerHTML = conds.map((c, i) => `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #1e2744;">
+    <span style="font-size:18px;">${c.icon || '⚡'}</span>
+    <div style="flex:1;">
+      <div style="font-size:13px;font-weight:600;color:${c.color || '#dd66aa'};">${c.name}</div>
+      ${c.effects && c.effects[0] ? `<div style="font-size:11px;color:#9098b8;">${c.effects[0]}</div>` : ''}
+    </div>
+    <button onclick="applyCustomCondToAll(${JSON.stringify(c.name)})" title="Apply to all in initiative" style="background:#2a3358;border:none;color:#9098b8;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;">⚡ All</button>
+    <button onclick="deleteCustomCond(${i})" style="background:none;border:none;color:#cc3333;cursor:pointer;font-size:13px;">🗑</button>
+  </div>`).join('');
+}
+
+function saveCustomCond() {
+  const name = document.getElementById('ccName')?.value.trim();
+  if (!name) { if (typeof showToast === 'function') showToast('Name required', '#cc3333'); return; }
+  const conds = getCustomConds();
+  conds.push({
+    name,
+    icon: document.getElementById('ccIcon')?.value || '⚡',
+    color: document.getElementById('ccColor')?.value || '#dd66aa',
+    effects: [document.getElementById('ccEffect')?.value.trim() || ''],
+    custom: true,
+  });
+  saveCustomConds(conds);
+  document.getElementById('ccName').value = '';
+  document.getElementById('ccEffect').value = '';
+  renderCustomCondList();
+  if (typeof showToast === 'function') showToast(`Condition "${name}" created`, '#dd66aa');
+}
+
+function deleteCustomCond(idx) {
+  const conds = getCustomConds();
+  conds.splice(idx, 1);
+  saveCustomConds(conds);
+  renderCustomCondList();
+}
+
+function applyCustomCondToAll(condName) {
+  if (typeof initiativeList === 'undefined' || !initiativeList.length) { if (typeof showToast === 'function') showToast('Add characters to initiative first', '#cc3333'); return; }
+  initiativeList.forEach(e => { if (typeof addCondition === 'function') addCondition(e.name, condName); });
+  if (typeof showToast === 'function') showToast(`${condName} applied to all in initiative`, '#dd66aa');
+  if (typeof renderInitiative === 'function') renderInitiative();
+}
+
 // ITERATION 85: Quick Condition Picker — searchable panel to
 //   apply/remove any condition to any character with one click.
 //   Better than bulk applicator: per-character targeting.
