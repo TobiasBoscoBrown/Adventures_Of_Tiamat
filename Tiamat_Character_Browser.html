@@ -5631,6 +5631,7 @@ function buildStatsPanel(c) {
       <div class="stats-section-title">Lore</div>
       <div class="lore-text">${c.lore}</div>
     </div>` : ''}
+    ${buildBackstorySection(c)}
     ${buildSeeAlso(c)}
     ${c.quote ? `<div class="modal-quote">"${c.quote}"</div>` : ''}
   `;
@@ -8678,6 +8679,66 @@ function clearInitiative() {
   renderInitiative();
   renderGrid();
   updateHud();
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 73: Backstory Generator — random NPC backstory hooks
+//   by theme. Shown in character modal as collapsible section.
+// ══════════════════════════════════════════════════════════
+const BACKSTORY_HOOKS = {
+  fire:   { childhood:['Survived a village fire that killed their family','Raised by a fire cult as a chosen vessel','Spent childhood near volcanic vents, touched by elemental power'], motivation:['Seeks to destroy the one who burned their homeland','Wants to control fire before it controls them','Dedicated to protecting others from the flames they fear'], secret:['Is slowly being consumed by their own fire magic','Their "power" is actually a curse from a fire demon','Once burned an innocent by accident — carries the guilt always'] },
+  shadow: { childhood:['Grew up in a city that never saw sunlight','Was recruited by a shadow assassin guild at age 8','Had their shadow stolen as a child — it walks independently'], motivation:['Hunts those who abuse darkness as cover for cruelty','Wants to find a cure for the shadow corruption inside them','Searches for the being that stole their shadow'], secret:['Is slowly fading from reality — becoming a shadow themselves','Works for two opposing factions without either knowing','Their closest ally is actually their shadow, given sentience'] },
+  ocean:  { childhood:['Shipwrecked as a child, raised by sea elves','Born during a kraken attack — marked by the sea','Grew up on a floating city, never touched dry land until age 15'], motivation:['Seeks the sunken temple where their ancestors rest','Wants to free the imprisoned sea god they accidentally awakened','Follows a prophecy written in whale-song'], secret:['Can breathe underwater but hides it — afraid of what it means','Made a pact with something deep and old that calls to them','The sea speaks to them in dreams, and it is angry'] },
+  arcane: { childhood:['Discovered they could read ancient spellbooks at age 4','Attended a magic academy but was expelled for "too much curiosity"','Was a magical experiment — created, not born'], motivation:['Seeks a spell that can reverse time to save a loved one','Wants to unify all schools of magic into a single unified theory','Hunts the mage who stole their spellbook — and their memories'], secret:['Every spell they cast steals a minute of their life','Their "magical talent" is actually leaking power from another plane','They are the reincarnation of the mage who created their school'] },
+  warrior:{ childhood:['Raised as a gladiator slave since childhood','Trained in a secret order of warriors who serve no king','Was the sole survivor of a battle that killed their entire unit'], motivation:['Seeks justice for the fallen soldiers they commanded','Wants to die in battle worthy of their ancestors','Fights to prove that might without honor is nothing'], secret:['Won their greatest battle by retreating, not fighting','The sword they carry is cursed — it whispers to kill allies','Suffered a debilitating wound hidden under their armor'] },
+  nature: { childhood:['Raised by druids after being found abandoned in the forest','Was transformed into a wolf for 10 years — only recently restored','The forest itself taught them to speak'], motivation:['Seeks to stop the corruption spreading through sacred groves','Wants to find the last uncorrupted ley line and protect it','Fulfills a druid prophecy: "The last voice of the dying forest"'], secret:['Slowly transforming into a tree — it started with their feet','Is bonded to a dying treant whose death will kill them too','The animals they speak to carry secrets of the gods'] },
+  royal:  { childhood:['Born to a fallen noble house, raised in poverty','Was switched at birth — their "royal" birth is a lie','Spent childhood as a hostage in a rival court'], motivation:['Seeks to reclaim their family\'s stolen title and lands','Wants to rebuild the court their ancestors destroyed through greed','Hunts the advisor who betrayed their family to the enemy'], secret:['Is actually the illegitimate child of the enemy king','The throne they seek would destroy them — they secretly know it','Forged the documents proving their noble birth themselves'] },
+  stone:  { childhood:['Grew up in the deepest underdark mines','Was petrified for 100 years and only recently thawed','Remembers being mortal stone — shaped by a sculptor\'s hands'], motivation:['Seeks the forge where living stone weapons are crafted','Wants to understand why the mountains are dying','Protects the mineral veins that carry the earth\'s memories'], secret:['Their "stone skin" is spreading — they will become pure stone','Is being slowly possessed by an earth elemental','Absorbs memories of anyone they kill, and it\'s getting crowded'] },
+  orc:    { childhood:['Raised among humans after their clan was slaughtered','Was the weakest orc in their tribe — survived by being clever','Grew up with a half-orc scholar who taught them forbidden history'], motivation:['Seeks to prove orcs are more than the stereotype placed on them','Wants to unite the fractured orc clans before they destroy each other','Hunts the warlord who ordered their clan\'s massacre'], secret:['Their "orcish rage" is actually a divine blessing they deny','Speaks fluent elvish but refuses to let anyone know','Once showed mercy to a great enemy — regrets it every day'] },
+  pink:   { childhood:['Grew up in the enchanted fields of the Feywild','Was traded by their parents to the Summer Court as a tithe','Raised by a bard troupe, never knowing their true parentage'], motivation:['Seeks joy — genuinely, against all adversity','Wants to make the world as light as their heart feels','Hunts the being who cursed their town with permanent sadness'], secret:['Their cheer is a mask over an old wound that never healed','Can see people\'s true desires but pretends they can\'t','Once was the most feared assassin in the realm — retired to kindness'] },
+};
+
+function buildBackstorySection(c) {
+  const hooks = BACKSTORY_HOOKS[c.theme] || BACKSTORY_HOOKS.warrior;
+  const STORED_KEY = `tiamat_backstory_${c.name}`;
+  let stored;
+  try { stored = JSON.parse(localStorage.getItem(STORED_KEY)); } catch(e) { stored = null; }
+  if (!stored) {
+    stored = {
+      childhood:   pick(hooks.childhood),
+      motivation:  pick(hooks.motivation),
+      secret:      pick(hooks.secret),
+    };
+    localStorage.setItem(STORED_KEY, JSON.stringify(stored));
+  }
+  const t = getTheme(c.theme);
+  const row = (label, icon, text) =>
+    `<div style="margin-bottom:8px">
+      <span style="font-size:10px;letter-spacing:.8px;color:${t.accent}88;font-weight:600">${icon} ${label}</span>
+      <div style="font-size:12px;color:#c8d0e8;margin-top:3px;line-height:1.6">${text}</div>
+    </div>`;
+  return `<div class="stats-section">
+    <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>📖 Backstory Hooks</span>
+      <button onclick="rerollBackstory(${JSON.stringify(c.name)},${JSON.stringify(c.theme)})" style="background:none;border:1px solid #2a2a50;color:#4a5272;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:10px" title="Reroll backstory">↻ Reroll</button>
+    </div>
+    ${row('CHILDHOOD', '🌱', stored.childhood)}
+    ${row('MOTIVATION', '⚡', stored.motivation)}
+    ${row('SECRET', '🔒', stored.secret)}
+  </div>`;
+}
+
+function rerollBackstory(charName, theme) {
+  const hooks = BACKSTORY_HOOKS[theme] || BACKSTORY_HOOKS.warrior;
+  const stored = {
+    childhood:   pick(hooks.childhood),
+    motivation:  pick(hooks.motivation),
+    secret:      pick(hooks.secret),
+  };
+  localStorage.setItem(`tiamat_backstory_${charName}`, JSON.stringify(stored));
+  if (currentModalIdx >= 0 && filteredChars[currentModalIdx]?.name === charName) {
+    document.getElementById('statsPanel').innerHTML = buildStatsPanel(filteredChars[currentModalIdx]);
+  }
 }
 
 // ══════════════════════════════════════════════════════════
