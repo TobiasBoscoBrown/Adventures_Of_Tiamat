@@ -3563,6 +3563,7 @@
   <button class="filter-btn" onclick="openEncounterBuilder()" style="border-color:#cc3333;color:#cc3333;" title="Encounter Builder — build &amp; balance encounters by CR/XP">🐉 Build Enc</button>
   <button class="filter-btn" onclick="openGraveyardPanel()" style="border-color:#555;color:#888;" title="Character graveyard — fallen heroes and villains">💀 Graveyard</button>
   <button class="filter-btn" onclick="openSessionPrep()" style="border-color:#44cc88;color:#44cc88;" title="Session Prep Checklist — track DM readiness tasks">📋 Prep</button>
+  <button class="filter-btn" onclick="openLairNotes()" style="border-color:#aa6644;color:#aa6644;" title="Lair Map Notes — describe rooms, traps, and areas">🗺 Lair</button>
   <button class="filter-btn" onclick="openShortcutsHelp()" style="border-color:#4488ff;color:#4488ff;" title="Keyboard shortcuts — press ? anytime">⌨ ?</button>
   <button class="filter-btn" onclick="openGlobalSearch()" style="border-color:#c9a227;color:#9098b8;" title="Global search — Ctrl+K">🔍 Search All</button>
   <button class="filter-btn" onclick="openDiceMacros()" style="border-color:#ff8822;color:#ff8822;" title="Quick Dice Macros — save &amp; replay dice rolls">🎲 Dice</button>
@@ -8682,6 +8683,106 @@ function clearInitiative() {
   renderInitiative();
   renderGrid();
   updateHud();
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 77: Monster Lair Map Notes — DM can create named
+//   "rooms/areas" with description, traps, exits, and notes.
+//   Persistent in localStorage. Quick reference during play.
+// ══════════════════════════════════════════════════════════
+const LAIR_NOTES_KEY = 'tiamat_lair_notes';
+
+function loadLairNotes() {
+  try { return JSON.parse(localStorage.getItem(LAIR_NOTES_KEY)) || []; }
+  catch(e) { return []; }
+}
+function saveLairNotes(notes) { localStorage.setItem(LAIR_NOTES_KEY, JSON.stringify(notes)); }
+
+function openLairNotes() {
+  const existing = document.getElementById('lairNotesOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'lairNotesOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:9500;display:flex;align-items:flex-start;justify-content:center;padding-top:4vh;overflow-y:auto';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  overlay.innerHTML = `
+    <div style="background:#0d0d1a;border:1px solid rgba(136,68,68,0.5);border-radius:14px;padding:24px;width:640px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.7)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:700;color:#aa6644">🗺 Lair Map Notes</div>
+        <button onclick="document.getElementById('lairNotesOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <div id="lairRoomList" style="margin-bottom:14px;max-height:400px;overflow-y:auto"></div>
+      <div style="border-top:1px solid #1e2040;padding-top:12px">
+        <div style="font-size:11px;color:#4a5272;margin-bottom:6px;letter-spacing:.5px">ADD NEW ROOM/AREA</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+          <input id="lairRoomName" placeholder="Room name (e.g. Throne Room)" style="flex:2;min-width:140px;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:6px 10px;font-size:12px;font-family:inherit">
+          <select id="lairRoomType" style="width:120px;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:6px 8px;font-size:11px;cursor:pointer">
+            <option>Combat</option><option>Exploration</option><option>Social</option><option>Trap</option><option>Treasure</option><option>Boss</option><option>Entrance</option><option>Secret</option>
+          </select>
+        </div>
+        <textarea id="lairRoomDesc" placeholder="Description, traps, exits, monsters present..." style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:7px 10px;font-size:11px;resize:vertical;min-height:60px;font-family:inherit;box-sizing:border-box;margin-bottom:6px"></textarea>
+        <button onclick="addLairRoom()" style="background:rgba(170,102,68,0.15);border:1px solid rgba(170,102,68,0.4);color:#aa6644;border-radius:6px;padding:7px 18px;cursor:pointer;font-size:12px">+ Add Room</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  renderLairRooms();
+}
+
+const LAIR_ROOM_ICONS = { Combat:'⚔', Exploration:'🔍', Social:'💬', Trap:'⚙', Treasure:'💰', Boss:'👹', Entrance:'🚪', Secret:'🔒' };
+
+function renderLairRooms() {
+  const el = document.getElementById('lairRoomList');
+  if (!el) return;
+  const notes = loadLairNotes();
+  if (!notes.length) { el.innerHTML = '<div style="color:#4a5272;font-size:12px;text-align:center;padding:20px">No rooms yet — add the first room below.</div>'; return; }
+  el.innerHTML = notes.map((r, i) => {
+    const icon = LAIR_ROOM_ICONS[r.type] || '📍';
+    const typeColors = { Combat:'#cc4444', Boss:'#cc2222', Trap:'#cc8822', Treasure:'#c9a227', Exploration:'#4488ff', Social:'#44aa88', Entrance:'#9098b8', Secret:'#9b6dff' };
+    const col = typeColors[r.type] || '#9098b8';
+    const isOpen = r.open;
+    return `<div style="border:1px solid ${col}33;border-radius:8px;margin-bottom:6px;overflow:hidden">
+      <div onclick="toggleLairRoom(${i})" style="display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;background:${col}0a">
+        <span style="font-size:14px">${icon}</span>
+        <span style="flex:1;font-size:12px;font-weight:600;color:${col}">${r.name}</span>
+        <span style="font-size:9px;padding:1px 6px;border:1px solid ${col}55;border-radius:8px;color:${col}">${r.type}</span>
+        <span style="font-size:12px;color:#4a5272">${isOpen?'▲':'▼'}</span>
+        <button onclick="event.stopPropagation();deleteLairRoom(${i})" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:11px">✕</button>
+      </div>
+      ${isOpen ? `<div style="padding:8px 12px;border-top:1px solid ${col}22">
+        <textarea onchange="updateLairRoom(${i},this.value)" style="width:100%;background:#06061a;border:1px solid #1e2040;color:#c8d0e8;border-radius:5px;padding:6px;font-size:11px;resize:vertical;min-height:80px;font-family:inherit;box-sizing:border-box">${r.desc||''}</textarea>
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function addLairRoom() {
+  const name = (document.getElementById('lairRoomName')?.value || '').trim();
+  const type = document.getElementById('lairRoomType')?.value || 'Exploration';
+  const desc = (document.getElementById('lairRoomDesc')?.value || '').trim();
+  if (!name) { showToast('Enter a room name', '#cc4444'); return; }
+  const notes = loadLairNotes();
+  notes.push({ name, type, desc, open: false });
+  saveLairNotes(notes);
+  document.getElementById('lairRoomName').value = '';
+  document.getElementById('lairRoomDesc').value = '';
+  renderLairRooms();
+}
+function toggleLairRoom(idx) {
+  const notes = loadLairNotes();
+  notes[idx].open = !notes[idx].open;
+  saveLairNotes(notes);
+  renderLairRooms();
+}
+function deleteLairRoom(idx) {
+  const notes = loadLairNotes();
+  notes.splice(idx, 1);
+  saveLairNotes(notes);
+  renderLairRooms();
+}
+function updateLairRoom(idx, desc) {
+  const notes = loadLairNotes();
+  if (notes[idx]) notes[idx].desc = desc;
+  saveLairNotes(notes);
 }
 
 // ══════════════════════════════════════════════════════════
