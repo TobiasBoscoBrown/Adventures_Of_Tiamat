@@ -3532,6 +3532,7 @@
     <button class="encounter-open-btn" onclick="openQuestTracker()" style="border-color:#ffaa44;color:#ffaa44" id="questBtn">📜 Quests</button>
     <button class="encounter-open-btn" onclick="openTheaterMode()" style="border-color:#44aacc;color:#44aacc" title="Theater mode — fullscreen battle board for second screen">🎭 Theater</button>
     <button class="encounter-open-btn" onclick="toggleXpPanel()" style="border-color:#c9a227;color:#c9a227" id="xpTrackerBtn" title="Party XP & Level Tracker — award XP, track level progress">⭐ XP</button>
+    <button class="encounter-open-btn" onclick="toggleSkillChallenge()" style="border-color:#dd8822;color:#dd8822" id="skillChallengeBtn" title="Skill Challenge Tracker — track successes & failures">⚡ Challenge</button>
     <button class="encounter-open-btn" onclick="toggleSpellSearch()" style="border-color:#44aacc;color:#44aacc" id="spellSearchBtn" title="Search spells by name, school, or level">📖 Spells</button>
     <button class="encounter-open-btn" onclick="togglePassivesPanel()" style="border-color:#9b6dff;color:#9b6dff" id="passivesBtn" title="Passive Perception, Investigation & Insight for all characters">👁 Passives</button>
     <button class="encounter-open-btn" onclick="toggleGroupRoll()" style="border-color:#5588dd;color:#5588dd" id="groupRollBtn" title="Roll any skill/ability for all visible characters at once">🎲 Group Roll</button>
@@ -4402,6 +4403,29 @@
 <div class="cond-tooltip" id="condTooltip"></div>
 
 <!-- XP & Level Tracker Panel -->
+<div id="skillChallengePanel" style="position:fixed;top:60px;right:20px;width:300px;background:linear-gradient(160deg,#0d0900,#1c1200);border:1px solid rgba(221,136,34,0.5);border-radius:14px;z-index:352;display:none;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.9);overflow:hidden">
+  <div style="padding:10px 14px;border-bottom:1px solid rgba(221,136,34,0.25);display:flex;justify-content:space-between;align-items:center;background:rgba(221,136,34,0.05);flex-shrink:0">
+    <span style="font-family:'Cinzel',serif;color:#dd8822;font-size:13px;font-weight:700;letter-spacing:1px">⚡ SKILL CHALLENGE</span>
+    <button onclick="toggleSkillChallenge()" style="background:none;border:1px solid #2a1a00;color:#4a3000;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px">✕</button>
+  </div>
+  <div style="padding:10px 14px;border-bottom:1px solid rgba(221,136,34,0.15);display:flex;gap:8px;align-items:center;flex-shrink:0">
+    <input type="text" id="scName" placeholder="Challenge name…" style="flex:1;background:#0d0900;border:1px solid rgba(221,136,34,0.3);color:#9098b8;border-radius:8px;padding:5px 8px;font-size:11px;outline:none">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+      <span style="font-size:9px;color:#4a5272">Successes</span>
+      <input type="number" id="scSuccessNeeded" value="6" min="1" max="12" style="width:44px;background:#0d0900;border:1px solid rgba(68,170,68,.3);color:#44aa44;border-radius:6px;padding:3px 6px;font-size:12px;text-align:center;outline:none" onchange="renderSkillChallenge()">
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+      <span style="font-size:9px;color:#4a5272">Failures</span>
+      <input type="number" id="scFailAllowed" value="3" min="1" max="6" style="width:44px;background:#0d0900;border:1px solid rgba(204,51,51,.3);color:#cc3333;border-radius:6px;padding:3px 6px;font-size:12px;text-align:center;outline:none" onchange="renderSkillChallenge()">
+    </div>
+    <button onclick="resetSkillChallenge()" title="Reset" style="background:none;border:1px solid #2a1a00;color:#4a3000;border-radius:6px;padding:5px 8px;cursor:pointer;font-size:12px">↺</button>
+  </div>
+  <div id="skillChallengeBody" style="padding:14px;text-align:center"></div>
+  <div style="padding:8px 14px;border-top:1px solid rgba(221,136,34,0.15);display:flex;gap:8px">
+    <button onclick="recordSCResult(true)" id="scSuccessBtn" style="flex:1;background:rgba(68,170,68,.15);border:2px solid #44aa44;color:#44aa44;border-radius:8px;padding:8px;cursor:pointer;font-size:13px;font-weight:700">✓ Success</button>
+    <button onclick="recordSCResult(false)" id="scFailBtn" style="flex:1;background:rgba(204,51,51,.1);border:2px solid #cc3333;color:#cc3333;border-radius:8px;padding:8px;cursor:pointer;font-size:13px;font-weight:700">✗ Failure</button>
+  </div>
+</div>
 <div id="spellSearchPanel" style="position:fixed;top:60px;right:20px;width:360px;max-height:82vh;background:linear-gradient(160deg,#030d14,#071828);border:1px solid rgba(68,170,204,0.4);border-radius:14px;z-index:351;display:none;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.9);overflow:hidden">
   <div style="padding:10px 14px;border-bottom:1px solid rgba(68,170,204,0.25);display:flex;justify-content:space-between;align-items:center;background:rgba(68,170,204,0.04);flex-shrink:0">
     <span style="font-family:'Cinzel',serif;color:#44aacc;font-size:13px;font-weight:700;letter-spacing:1px">📖 SPELL LOOKUP</span>
@@ -13318,6 +13342,76 @@ function renderPassivesPanel() {
   html += `</table>`;
   html += `<div style="padding:6px 14px;font-size:9px;color:#3a2a60;border-top:1px solid rgba(155,109,255,.08)">Passive = 10 + ability mod. Does not include proficiency bonus.</div>`;
   el.innerHTML = html;
+}
+
+// ── SKILL CHALLENGE TRACKER ───────────────────────────────
+let skillChallengeOpen = false;
+let scSuccesses = 0, scFailures = 0;
+
+function toggleSkillChallenge() {
+  skillChallengeOpen = !skillChallengeOpen;
+  const panel = document.getElementById('skillChallengePanel');
+  panel.style.display = skillChallengeOpen ? 'flex' : 'none';
+  const btn = document.getElementById('skillChallengeBtn');
+  if (btn) { btn.style.background = skillChallengeOpen ? 'rgba(221,136,34,.15)' : ''; btn.style.color = skillChallengeOpen ? '#ffaa44' : '#dd8822'; }
+  if (skillChallengeOpen) renderSkillChallenge();
+}
+
+function resetSkillChallenge() {
+  scSuccesses = 0; scFailures = 0;
+  renderSkillChallenge();
+}
+
+function getScThresholds() {
+  return {
+    need: Math.max(1, parseInt(document.getElementById('scSuccessNeeded').value)||6),
+    max: Math.max(1, parseInt(document.getElementById('scFailAllowed').value)||3)
+  };
+}
+
+function recordSCResult(isSuccess) {
+  const { need, max } = getScThresholds();
+  if (scSuccesses >= need || scFailures >= max) return; // already resolved
+  if (isSuccess) scSuccesses++; else scFailures++;
+  renderSkillChallenge();
+  const { need: n2, max: m2 } = getScThresholds();
+  const name = document.getElementById('scName').value.trim() || 'Skill Challenge';
+  if (scSuccesses >= n2) {
+    logEntry('rest', `⚡ <strong style="color:#44aa44">SUCCESS!</strong> <em>${escHtml(name)}</em> completed — ${scSuccesses} successes, ${scFailures} failures`);
+    playSound?.('crit');
+  } else if (scFailures >= m2) {
+    logEntry('roll', `⚡ <strong style="color:#cc3333">FAILURE!</strong> <em>${escHtml(name)}</em> failed — ${scSuccesses} successes, ${scFailures} failures`);
+    playSound?.('damage');
+  }
+}
+
+function renderSkillChallenge() {
+  const el = document.getElementById('skillChallengeBody');
+  if (!el) return;
+  const { need, max } = getScThresholds();
+  const resolved = scSuccesses >= need || scFailures >= max;
+  const isWin = scSuccesses >= need;
+
+  const sPips = Array.from({length:need}, (_,i) =>
+    `<span style="display:inline-block;width:18px;height:18px;border-radius:50%;border:2px solid ${i<scSuccesses?'#44aa44':'rgba(68,170,68,.3)'};background:${i<scSuccesses?'rgba(68,170,68,.4)':'transparent'};margin:2px;transition:all .2s"></span>`
+  ).join('');
+  const fPips = Array.from({length:max}, (_,i) =>
+    `<span style="display:inline-block;width:18px;height:18px;border-radius:50%;border:2px solid ${i<scFailures?'#cc3333':'rgba(204,51,51,.3)'};background:${i<scFailures?'rgba(204,51,51,.4)':'transparent'};margin:2px;transition:all .2s"></span>`
+  ).join('');
+
+  let outcome = '';
+  if (resolved) {
+    outcome = `<div style="margin-top:12px;padding:8px 16px;border-radius:8px;background:${isWin?'rgba(68,170,68,.15)':'rgba(204,51,51,.1)'};border:1px solid ${isWin?'#44aa44':'#cc3333'};font-family:'Cinzel',serif;font-size:14px;font-weight:700;color:${isWin?'#44aa44':'#cc3333'}">${isWin?'✓ SUCCESS':'✗ FAILURE'}</div>`;
+  }
+
+  el.innerHTML = `
+    <div style="margin-bottom:8px"><span style="font-size:10px;color:#44aa44;letter-spacing:1px">SUCCESSES (${scSuccesses}/${need})</span><br>${sPips}</div>
+    <div style="margin-bottom:4px"><span style="font-size:10px;color:#cc3333;letter-spacing:1px">FAILURES (${scFailures}/${max})</span><br>${fPips}</div>
+    ${outcome}`;
+
+  const sBtn = document.getElementById('scSuccessBtn'), fBtn = document.getElementById('scFailBtn');
+  if (sBtn) sBtn.style.opacity = resolved ? '.3' : '1';
+  if (fBtn) fBtn.style.opacity = resolved ? '.3' : '1';
 }
 
 // ── SPELL SEARCH PANEL ────────────────────────────────────
