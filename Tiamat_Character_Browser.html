@@ -5867,6 +5867,7 @@ function buildStatsPanel(c) {
     </div>` : ''}
     ${buildSpellBook(c)}
     ${buildHomebrewSpells(c)}
+    ${buildComponentPouch(c)}
     ${buildSpellCombos(c)}
     <div class="stats-section">
       <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
@@ -10167,6 +10168,157 @@ function saveHomebrewSpells(arr) {
 }
 function getCharHomebrewSpells(charName) {
   return getHomebrewSpells().filter(s => !s.assignedTo || s.assignedTo === charName || s.assignedTo === 'all');
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 99: Component Pouch Tracker — track spell material
+//   components and reagents per character. Allows adding,
+//   decrementing, and noting consumed components.
+//   Stored in tiamat_components.
+// ══════════════════════════════════════════════════════════
+const COMPONENTS_KEY = 'tiamat_components';
+const COMMON_COMPONENTS = [
+  {name:'Bat Guano',uses:99,note:'Fireball material'},{name:'Sulfur',uses:10,note:'Fireball / Lightning'},
+  {name:'Diamond Dust',uses:3,note:'400gp — Stoneskin'},{name:'Ruby Dust',uses:1,note:'1500gp — Guards & Wards'},
+  {name:'Black Pearl',uses:1,note:'500gp — Trap the Soul'},{name:'Eye of Newt',uses:20,note:'Witch Bolt'},
+  {name:'Verbal Focus',uses:99,note:'General focus'},{name:'Material Focus',uses:99,note:'Arcane focus'},
+  {name:'Holy Water',uses:5,note:'Vial — Turn Undead, etc.'},
+];
+
+function getComponents(charName) {
+  try {
+    const all = JSON.parse(localStorage.getItem(COMPONENTS_KEY) || '{}');
+    return all[charName] || [];
+  } catch { return []; }
+}
+function saveComponents(charName, arr) {
+  const all = JSON.parse(localStorage.getItem(COMPONENTS_KEY) || '{}');
+  all[charName] = arr;
+  localStorage.setItem(COMPONENTS_KEY, JSON.stringify(all));
+}
+
+function buildComponentPouch(c) {
+  if (!isSpellcaster(c) && !(c.spells && c.spells.length)) return '';
+  const comps = getComponents(c.name);
+  const rows = comps.map((comp, i) => {
+    const pct = comp.maxUses > 0 ? (comp.uses / comp.maxUses * 100) : 100;
+    const col = pct > 50 ? '#44cc88' : pct > 20 ? '#c9a227' : '#cc3333';
+    return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #1e2744;" id="comp_${safeId(c.name)}_${i}">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;color:#9b6dff;">${comp.name}</div>
+        ${comp.note ? `<div style="font-size:11px;color:#4a5272;">${comp.note}</div>` : ''}
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <button onclick="adjustComp('${c.name.replace(/'/g,"\\'")}',${i},-1)" style="background:#2a3358;border:none;color:#cc3333;border-radius:3px;width:22px;height:22px;cursor:pointer;font-size:13px;">−</button>
+        <span style="font-size:13px;font-weight:700;color:${col};min-width:24px;text-align:center;">${comp.uses}</span>
+        <button onclick="adjustComp('${c.name.replace(/'/g,"\\'")}',${i},+1)" style="background:#2a3358;border:none;color:#44cc88;border-radius:3px;width:22px;height:22px;cursor:pointer;font-size:13px;">+</button>
+        <button onclick="deleteComp('${c.name.replace(/'/g,"\\'")}',${i})" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:12px;margin-left:2px;">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<div class="stats-section">
+    <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center;">
+      🧪 Component Pouch
+      <button onclick="openAddComponent('${c.name.replace(/'/g,"\\'")}',event)" style="background:#1a0e3a;border:1px solid #9b6dff;color:#9b6dff;border-radius:5px;padding:3px 10px;cursor:pointer;font-size:11px;">+ Add</button>
+    </div>
+    <div id="compList_${safeId(c.name)}">
+      ${comps.length ? rows : '<div style="color:#4a5272;font-size:12px;font-style:italic;">No components tracked. Add key material components.</div>'}
+    </div>
+  </div>`;
+}
+
+function adjustComp(charName, idx, delta) {
+  const comps = getComponents(charName);
+  if (!comps[idx]) return;
+  comps[idx].uses = Math.max(0, (comps[idx].uses || 0) + delta);
+  saveComponents(charName, comps);
+  refreshCompList(charName);
+}
+function deleteComp(charName, idx) {
+  const comps = getComponents(charName);
+  comps.splice(idx, 1);
+  saveComponents(charName, comps);
+  refreshCompList(charName);
+}
+function refreshCompList(charName) {
+  const c = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS.find(x => x.name === charName) : null;
+  if (!c) return;
+  const el = document.getElementById('compList_' + safeId(charName));
+  if (!el) return;
+  const comps = getComponents(charName);
+  const rows = comps.map((comp, i) => {
+    const col = comp.uses > 5 ? '#44cc88' : comp.uses > 1 ? '#c9a227' : '#cc3333';
+    return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #1e2744;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;color:#9b6dff;">${comp.name}</div>
+        ${comp.note ? `<div style="font-size:11px;color:#4a5272;">${comp.note}</div>` : ''}
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <button onclick="adjustComp('${charName.replace(/'/g,"\\'")}',${i},-1)" style="background:#2a3358;border:none;color:#cc3333;border-radius:3px;width:22px;height:22px;cursor:pointer;font-size:13px;">−</button>
+        <span style="font-size:13px;font-weight:700;color:${col};min-width:24px;text-align:center;">${comp.uses}</span>
+        <button onclick="adjustComp('${charName.replace(/'/g,"\\'")}',${i},+1)" style="background:#2a3358;border:none;color:#44cc88;border-radius:3px;width:22px;height:22px;cursor:pointer;font-size:13px;">+</button>
+        <button onclick="deleteComp('${charName.replace(/'/g,"\\'")}',${i})" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:12px;margin-left:2px;">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+  el.innerHTML = comps.length ? rows : '<div style="color:#4a5272;font-size:12px;font-style:italic;">No components tracked.</div>';
+}
+
+function openAddComponent(charName, evt) {
+  evt && evt.stopPropagation();
+  const existing = document.getElementById('compAddOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'compAddOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;';
+  ov.innerHTML = `
+    <div style="background:#151c2e;border:1px solid #9b6dff;border-radius:12px;width:420px;max-width:100%;padding:22px;color:#c8d0e8;font-family:'Inter',sans-serif;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div style="font-size:16px;font-weight:700;color:#9b6dff;">🧪 Add Component</div>
+        <button onclick="document.getElementById('compAddOverlay').remove()" style="background:#2a3358;border:none;color:#c8d0e8;border-radius:6px;padding:5px 12px;cursor:pointer;">✕</button>
+      </div>
+      <div style="font-size:11px;color:#9098b8;margin-bottom:6px;">Quick add:</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;">
+        ${COMMON_COMPONENTS.map(cc => `<button onclick="quickAddComp('${charName.replace(/'/g,"\\'")}','${cc.name.replace(/'/g,"\\'")}','${cc.note}',${cc.uses})" style="background:#1a0e3a;border:1px solid #9b6dff44;color:#9b6dff;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;">${cc.name}</button>`).join('')}
+      </div>
+      <div style="border-top:1px solid #2a3358;padding-top:12px;">
+        <div style="font-size:11px;color:#9098b8;margin-bottom:8px;">Custom:</div>
+        <input id="compName" placeholder="Component name *" style="width:100%;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:8px;color:#c8d0e8;font-size:13px;box-sizing:border-box;margin-bottom:6px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
+          <input id="compUses" type="number" value="1" min="0" placeholder="Count" style="background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:8px;color:#c8d0e8;font-size:13px;">
+          <input id="compNote" placeholder="Note (optional)" style="background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:8px;color:#c8d0e8;font-size:13px;">
+        </div>
+        <button onclick="saveCustomComp('${charName.replace(/'/g,"\\'")}',event)" style="background:#9b6dff;border:none;color:#fff;border-radius:6px;padding:8px 18px;cursor:pointer;font-weight:600;">Add Component</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  document.getElementById('compName').focus();
+}
+
+function quickAddComp(charName, name, note, uses) {
+  const comps = getComponents(charName);
+  comps.push({ name, note, uses, maxUses: uses });
+  saveComponents(charName, comps);
+  document.getElementById('compAddOverlay')?.remove();
+  refreshCompList(charName);
+  if (typeof showToast === 'function') showToast(`Added ${name}`, '#9b6dff');
+}
+
+function saveCustomComp(charName, evt) {
+  evt && evt.stopPropagation();
+  const name = document.getElementById('compName')?.value.trim();
+  if (!name) { if (typeof showToast === 'function') showToast('Name required', '#cc3333'); return; }
+  const uses = parseInt(document.getElementById('compUses')?.value) || 1;
+  const note = document.getElementById('compNote')?.value.trim() || '';
+  const comps = getComponents(charName);
+  comps.push({ name, note, uses, maxUses: uses });
+  saveComponents(charName, comps);
+  document.getElementById('compAddOverlay')?.remove();
+  refreshCompList(charName);
+  if (typeof showToast === 'function') showToast(`Added ${name}`, '#9b6dff');
 }
 
 function buildHomebrewSpells(c) {
