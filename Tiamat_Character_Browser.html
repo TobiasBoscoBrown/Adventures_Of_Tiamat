@@ -3342,6 +3342,13 @@
   .loot-panel-body { flex:1; overflow-y:auto; padding:12px 14px; }
   .loot-panel-body::-webkit-scrollbar { width:4px; }
   .loot-panel-body::-webkit-scrollbar-thumb { background:#2a2a50; border-radius:2px; }
+  /* Rest Panel */
+  .rest-panel { position:fixed;top:60px;right:20px;width:340px;max-height:78vh;background:linear-gradient(160deg,#061209,#0c1a10);border:1px solid rgba(35,180,120,0.4);border-radius:14px;z-index:349;display:none;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.9);overflow:hidden; }
+  .rest-panel.open { display:flex; }
+  .rest-tab-bar { display:flex;gap:4px;margin-bottom:12px; }
+  .rest-tab { flex:1;padding:6px;background:#0a1a0f;border:1px solid #1a3a28;color:#4a7a5a;border-radius:6px;cursor:pointer;font-size:12px;text-align:center;transition:all .2s; }
+  .rest-tab.active { background:rgba(35,180,120,0.15);border-color:#23b478;color:#23b478; }
+  .rest-char-row { background:rgba(255,255,255,0.03);border:1px solid #1a3a28;border-radius:8px;padding:10px;margin-bottom:8px; }
 
   .loot-currency-grid {
     display: grid;
@@ -3485,6 +3492,7 @@
     <button class="encounter-open-btn" onclick="toggleHealthPanel()" style="border-color:#cc3333;color:#cc3333" id="healthPanelBtn">❤ Party HP</button>
     <button class="encounter-open-btn" onclick="openQuestTracker()" style="border-color:#ffaa44;color:#ffaa44" id="questBtn">📜 Quests</button>
     <button class="encounter-open-btn" onclick="openTheaterMode()" style="border-color:#44aacc;color:#44aacc" title="Theater mode — fullscreen battle board for second screen">🎭 Theater</button>
+    <button class="encounter-open-btn" onclick="toggleRestPanel()" style="border-color:#23b478;color:#23b478" id="restBtn" title="Short Rest / Long Rest — spend hit dice or restore all resources">🌙 Rest</button>
     <button class="encounter-open-btn" onclick="toggleLootPanel()" style="border-color:#c9a227;color:#c9a227" id="lootBtn" title="Party Loot & Treasury">💰 Loot</button>
     <button class="encounter-open-btn" onclick="toggleDmNotes()" style="border-color:#9b6dff;color:#9b6dff" id="dmNotesBtn" title="DM Session Notes">📝 DM Notes</button>
     <div class="stat-badge"><strong id="totalCount">0</strong> Characters</div>
@@ -4318,6 +4326,27 @@
 
 <!-- Condition Tooltip -->
 <div class="cond-tooltip" id="condTooltip"></div>
+
+<!-- Short / Long Rest Panel -->
+<div class="rest-panel" id="restPanel">
+  <div style="padding:10px 14px;border-bottom:1px solid rgba(35,180,120,0.25);display:flex;justify-content:space-between;align-items:center;background:rgba(35,180,120,0.05);flex-shrink:0">
+    <span style="font-family:'Cinzel',serif;color:#23b478;font-size:13px;font-weight:700;letter-spacing:1px">🌙 PARTY REST</span>
+    <button onclick="toggleRestPanel()" style="background:none;border:1px solid #1a3a28;color:#4a7a5a;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px">✕</button>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:12px 14px">
+    <div class="rest-tab-bar">
+      <button class="rest-tab active" id="restTab0" onclick="switchRestTab(0)">🛖 Short Rest</button>
+      <button class="rest-tab" id="restTab1" onclick="switchRestTab(1)">🌙 Long Rest</button>
+    </div>
+    <div id="restTabShort"><div style="color:#6a9a7a;font-size:11px;margin-bottom:10px">Spend Hit Dice to recover HP. CON modifier added to each roll.</div><div id="restCharList"></div></div>
+    <div id="restTabLong" style="display:none">
+      <div style="color:#6a9a7a;font-size:11px;margin-bottom:12px">Restore all HP, spell slots, and reduce exhaustion by 1 for all non-evil party members.</div>
+      <div id="longRestPreview" style="margin-bottom:12px"></div>
+      <button id="longRestBtn" onclick="doLongRest()" style="width:100%;background:rgba(35,180,120,0.1);border:1px solid #23b478;color:#23b478;border-radius:8px;padding:10px;cursor:pointer;font-size:14px;font-weight:bold">🌙 Take Long Rest</button>
+      <button onclick="doShortRestAll()" style="width:100%;margin-top:8px;background:rgba(35,180,120,0.05);border:1px solid #1a3a28;color:#4a7a5a;border-radius:8px;padding:7px;cursor:pointer;font-size:12px">🎲 Auto Short Rest (Roll 1 Hit Die Each)</button>
+    </div>
+  </div>
+</div>
 
 <!-- Party Loot & Treasury Panel -->
 <div class="loot-panel" id="lootPanel">
@@ -11859,6 +11888,98 @@ function saveLoot() {
   const l = loadLoot();
   l.notes = document.getElementById('lootNotes')?.value || l.notes;
   localStorage.setItem(LOOT_KEY, JSON.stringify(l));
+}
+
+// ===================== SHORT / LONG REST =====================
+const REST_DICE_KEY = 'tiamat_hit_dice';
+let restPanelOpen = false;
+let restActiveTab = 0;
+
+function getHitDiceType(name) { try { return parseInt(JSON.parse(localStorage.getItem(REST_DICE_KEY)||'{}')[name])||8; } catch { return 8; } }
+function setHitDiceType(name,val) { try { const d=JSON.parse(localStorage.getItem(REST_DICE_KEY)||'{}'); d[name]=parseInt(val); localStorage.setItem(REST_DICE_KEY,JSON.stringify(d)); renderRestShortTab(); } catch {} }
+function getConModForRest(char) { const con=(char.abilities||[]).find(a=>a[0]==='CON'); return con?parseInt(con[2])||0:0; }
+function getPartyChars() { return UNIQUE_CHARS.filter(c=>c.alignment&&/good|neutral/i.test(c.alignment)&&!/evil/i.test(c.alignment)); }
+
+function toggleRestPanel() {
+  restPanelOpen = !restPanelOpen;
+  const panel = document.getElementById('restPanel');
+  const btn = document.getElementById('restBtn');
+  if (!panel) return;
+  if (restPanelOpen) { panel.classList.add('open'); if(btn) btn.style.background='rgba(35,180,120,0.15)'; switchRestTab(0); }
+  else { panel.classList.remove('open'); if(btn) btn.style.background=''; }
+}
+function switchRestTab(idx) {
+  restActiveTab=idx;
+  document.getElementById('restTabShort').style.display=idx===0?'block':'none';
+  document.getElementById('restTabLong').style.display=idx===1?'block':'none';
+  document.getElementById('restTab0').classList.toggle('active',idx===0);
+  document.getElementById('restTab1').classList.toggle('active',idx===1);
+  if(idx===0) renderRestShortTab(); else renderRestLongTab();
+}
+function renderRestShortTab() {
+  const party=getPartyChars(), el=document.getElementById('restCharList');
+  if(!el) return;
+  if(!party.length){el.innerHTML='<div style="color:#4a7a5a;text-align:center;padding:16px;font-size:12px">No good/neutral aligned characters found.</div>';return;}
+  el.innerHTML=party.map(c=>{
+    const maxHp=parseInt(c.hp||'1'), currHp=getCharHP(c.name,maxHp);
+    const pct=maxHp>0?Math.round(currHp/maxHp*100):0;
+    const hpColor=pct<=25?'#e05050':pct<=60?'#c9a227':'#23b478';
+    const hd=getHitDiceType(c.name), conMod=getConModForRest(c), full=currHp>=maxHp;
+    const sid=safeId(c.name);
+    return `<div class="rest-char-row">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+        <span style="font-weight:bold;color:#c8d8ff;font-size:13px;flex:1">${escHtml(c.name)}</span>
+        <span style="font-size:11px;color:${hpColor}">${currHp}/${maxHp}</span>
+        <select onchange="setHitDiceType(${JSON.stringify(c.name)},this.value)" style="background:#061209;border:1px solid #1a3a28;color:#6a9a7a;border-radius:4px;padding:1px 3px;font-size:11px;cursor:pointer">
+          ${[6,8,10,12].map(d=>`<option value="${d}"${hd===d?' selected':''}>d${d}</option>`).join('')}
+        </select>
+      </div>
+      <div style="height:3px;background:#0a1a0f;border-radius:2px;margin-bottom:6px"><div style="height:100%;width:${pct}%;background:${hpColor};border-radius:2px"></div></div>
+      <button onclick="rollHitDie(${JSON.stringify(c.name)})" ${full?'disabled':''} style="width:100%;background:${full?'#0a1a0f':'rgba(35,180,120,0.1)'};border:1px solid ${full?'#1a3a28':'#23b478'};color:${full?'#2a4a30':'#23b478'};border-radius:6px;padding:5px 8px;cursor:${full?'default':'pointer'};font-size:12px">
+        ${full?'✓ Full HP':`🎲 Roll d${hd}${conMod>=0?'+':''}${conMod} Hit Die`}
+      </button>
+      <div style="min-height:14px;color:#23b478;font-size:11px;text-align:center;margin-top:4px" id="hdResult_${sid}"></div>
+    </div>`;
+  }).join('');
+}
+function renderRestLongTab() {
+  const party=getPartyChars(), el=document.getElementById('longRestPreview');
+  if(!el) return;
+  const rows=party.map(c=>{
+    const maxHp=parseInt(c.hp||'1'), currHp=getCharHP(c.name,maxHp);
+    const missing=maxHp-currHp, slots=slotState[c.name]?Object.values(slotState[c.name]).reduce((a,b)=>a+b,0):0;
+    const exLvl=typeof getExhaustLevel==='function'?getExhaustLevel(c.name):0;
+    if(!missing&&!slots&&!exLvl) return '';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:rgba(255,255,255,0.03);border-radius:6px;margin-bottom:4px;font-size:11px"><span style="color:#c8d8ff">${escHtml(c.name)}</span><span style="color:#4a7a5a">${missing?`+${missing} HP`:''}${slots?` ${slots} slots`:''}${exLvl?' exhaust -1':''}</span></div>`;
+  }).filter(Boolean).join('');
+  el.innerHTML=rows?`<div style="color:#6a9a7a;font-size:11px;margin-bottom:6px;font-style:italic">Will restore:</div>${rows}`:`<div style="color:#4a7a5a;font-size:11px;text-align:center;padding:8px">All at full HP and slots.</div>`;
+}
+function rollHitDie(name) {
+  const char=UNIQUE_CHARS.find(c=>c.name===name); if(!char) return;
+  const maxHp=parseInt(char.hp||'1'), currHp=getCharHP(name,maxHp); if(currHp>=maxHp) return;
+  const hd=getHitDiceType(name), conMod=getConModForRest(char);
+  const roll=Math.floor(Math.random()*hd)+1, heal=Math.max(1,roll+conMod), newHp=Math.min(maxHp,currHp+heal);
+  hpState[name]=newHp; saveHp();
+  logEntry('roll',`<strong>${escHtml(name)}</strong> hit die: ${roll}(d${hd})${conMod>=0?'+':''}${conMod}=<strong>+${heal} HP</strong> → ${newHp}/${maxHp}`);
+  playSound?.('heal');
+  const res=document.getElementById('hdResult_'+safeId(name));
+  if(res) res.textContent=`Rolled ${roll}${conMod>=0?'+':''}${conMod}=+${heal} HP`;
+  renderRestShortTab(); if(typeof renderGrid==='function') renderGrid();
+}
+function doShortRestAll() { getPartyChars().forEach(c=>rollHitDie(c.name)); }
+function doLongRest() {
+  const party=getPartyChars(); let hpR=0,sR=0,eR=0;
+  party.forEach(c=>{
+    const maxHp=parseInt(c.hp||'1'); if(getCharHP(c.name,maxHp)<maxHp){hpState[c.name]=maxHp;hpR++;}
+    if(slotState[c.name]){delete slotState[c.name];sR++;}
+    const ex=typeof getExhaustLevel==='function'?getExhaustLevel(c.name):0;
+    if(ex>0&&typeof setExhaustLevel==='function'){setExhaustLevel(c.name,ex-1);eR++;}
+  });
+  saveHp(); if(typeof saveSlots==='function') saveSlots();
+  logEntry('roll',`🌙 <strong>Long Rest</strong> — ${party.length} party members. HP:${hpR} slots:${sR} exhaust:${eR}`);
+  playSound?.('heal'); if(typeof renderGrid==='function') renderGrid(); renderRestLongTab();
+  const btn=document.getElementById('longRestBtn');
+  if(btn){btn.textContent='✓ Long Rest Complete!';btn.style.background='rgba(35,180,120,0.3)';setTimeout(()=>{btn.textContent='🌙 Take Long Rest';btn.style.background='';},2500);}
 }
 
 function toggleLootPanel() {
