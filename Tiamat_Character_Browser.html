@@ -5442,6 +5442,7 @@ function renderGrid() {
               <span class="temp-hp-badge" style="font-size:10px;color:#dd8822;${getTempHP(c.name)>0?'':'display:none'}">${getTempHP(c.name)>0?`⬡ +${getTempHP(c.name)}`:''}</span>
             </div>
             ${getCrMeterHtml(c.cr)}
+            ${(typeof hasInspiration==='function'&&hasInspiration(c.name))?`<div style="font-size:9px;color:#c9a227;text-align:center;letter-spacing:1px;margin-top:2px;" title="Has Inspiration — click to use" onclick="useInspiration('${c.name}',event)">✨ INSPIRATION</div>`:''}
             ${currHp === 0 ? (()=>{ const _ds = (typeof getDeathSaves==='function') ? getDeathSaves(c.name) : {successes:[false,false,false],failures:[false,false,false]}; return `<div class="death-saves-row" id="dsrow_${sid}" onclick="event.stopPropagation()">
               <span style="font-size:9px;color:#44aa44;letter-spacing:0.5px">✓ </span>
               ${[0,1,2].map(i => `<span class="ds-pip success${_ds.successes[i]?' filled':''}" onclick="toggleDeathSave(${JSON.stringify(c.name)},'success',${i},event)"></span>`).join('')}
@@ -5850,6 +5851,7 @@ function buildStatsPanel(c) {
     </div>
     ${buildMulticlassSection(c)}
     ${buildAttunementSection(c)}
+    ${buildInspirationSection(c)}
     ${buildAlignmentSection(c)}
     ${buildProficienciesSection(c)}
     ${buildTraitsSection(c)}
@@ -8685,6 +8687,59 @@ function refreshAttunementSection(charName) {
     </div>`
   ).join('');
   parent.innerHTML = items.length ? itemRows : '<div style="color:#4a5272;font-size:12px;font-style:italic;">No attuned items.</div>';
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 96: Inspiration Token Tracker — award and spend
+//   D&D inspiration per character. Glowing badge on card when
+//   inspired. Stored in tiamat_inspiration.
+// ══════════════════════════════════════════════════════════
+const INSPIRATION_KEY = 'tiamat_inspiration';
+
+function hasInspiration(charName) {
+  try {
+    const all = JSON.parse(localStorage.getItem(INSPIRATION_KEY) || '{}');
+    return !!all[charName];
+  } catch { return false; }
+}
+function giveInspiration(charName) {
+  const all = JSON.parse(localStorage.getItem(INSPIRATION_KEY) || '{}');
+  all[charName] = true;
+  localStorage.setItem(INSPIRATION_KEY, JSON.stringify(all));
+  if (typeof showToast === 'function') showToast(`✨ ${charName} has Inspiration!`, '#c9a227');
+  if (typeof logEntry === 'function') logEntry(`✨ DM awarded Inspiration to <b>${charName}</b>`);
+  if (typeof renderGrid === 'function') renderGrid();
+}
+function useInspiration(charName, evt) {
+  evt && evt.stopPropagation();
+  if (!hasInspiration(charName)) return;
+  const all = JSON.parse(localStorage.getItem(INSPIRATION_KEY) || '{}');
+  delete all[charName];
+  localStorage.setItem(INSPIRATION_KEY, JSON.stringify(all));
+  if (typeof showToast === 'function') showToast(`${charName} used Inspiration!`, '#c9a227');
+  if (typeof logEntry === 'function') logEntry(`✨ ${charName} <b>used Inspiration</b>`);
+  if (typeof renderGrid === 'function') renderGrid();
+  const insEl = document.getElementById('insp_' + (typeof safeId === 'function' ? safeId(charName) : charName));
+  if (insEl) insEl.outerHTML = buildInspirationSection({name: charName});
+}
+
+function buildInspirationSection(c) {
+  const inspired = hasInspiration(c.name);
+  return `<div class="stats-section" id="insp_${safeId(c.name)}" style="${inspired ? 'border:1px solid #c9a22744;background:#c9a22708;' : ''}">
+    <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center;">
+      ✨ Inspiration
+      <div style="display:flex;gap:6px;">
+        ${inspired
+          ? `<button onclick="useInspiration('${c.name.replace(/'/g,"\\'")}',event)" style="background:#c9a22722;border:1px solid #c9a227;color:#c9a227;border-radius:5px;padding:3px 12px;cursor:pointer;font-size:11px;font-weight:600;">Use Inspiration</button>`
+          : `<button onclick="giveInspiration('${c.name.replace(/'/g,"\\'")}',event)" style="background:#2a3358;border:1px solid #4a5272;color:#9098b8;border-radius:5px;padding:3px 12px;cursor:pointer;font-size:11px;">Award Inspiration</button>`
+        }
+      </div>
+    </div>
+    ${inspired
+      ? `<div style="color:#c9a227;font-size:13px;font-weight:600;">✨ Has Inspiration — may roll with advantage once</div>`
+      : `<div style="color:#4a5272;font-size:12px;font-style:italic;">No inspiration. DM awards for exceptional roleplay.</div>`
+    }
+  </div>`;
 }
 
 function buildMulticlassSection(c) {
