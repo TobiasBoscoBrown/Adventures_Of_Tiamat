@@ -3706,6 +3706,7 @@
   <button class="filter-btn" onclick="openPartyCheckRoller()" style="border-color:#aa44ff;color:#aa44ff;" title="Party Check Roller — roll any skill for the whole party at once">🎯 Party Roll</button>
   <button class="filter-btn" onclick="openGroupHpDashboard()" style="border-color:#44aa44;color:#44aa44;" title="Group HP Dashboard — all characters at a glance">❤ Group HP</button>
   <button class="filter-btn" onclick="openRestPanel()" style="border-color:#88bbff;color:#88bbff;" title="Rest Panel — short or long rest for party or individual characters">💤 Rest</button>
+  <button class="filter-btn" onclick="openTempHpPanel()" style="border-color:#ddaa22;color:#ddaa22;" title="Temp HP Panel — manage temporary HP for all characters">⬡ Temp HP</button>
   <button class="filter-btn" onclick="openTreasureGenerator()" style="border-color:#c9a227;color:#c9a227;" title="Random treasure generator by CR">💎 Treasure</button>
   <button class="filter-btn" onclick="openRandomEncTable()" style="border-color:#cc8844;color:#cc8844;" title="Random Encounter Table — roll by terrain">🎲 Enc Table</button>
   <button class="filter-btn" onclick="openCampaignTimeline()" style="border-color:#44cc88;color:#44cc88;" title="Campaign timeline — track key events">📅 Timeline</button>
@@ -11965,6 +11966,140 @@ function rollPartyCheck() {
 //   reset concentration. Short rest: spend hit dice.
 //   Toolbar: 💤 Rest
 // ══════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 103: Temp HP Manager — overview of all temp HP,
+//   quick apply from common sources (False Life, Aid, etc.)
+//   Toolbar: ⬡ Temp HP
+// ══════════════════════════════════════════════════════════
+const TEMP_HP_SOURCES = [
+  { name:'False Life (1st)', roll:'1d4+4', desc:'Necromancy cantrip-adjacent' },
+  { name:'Aid (2nd)', roll:'5', desc:'+5 HP max (per target)' },
+  { name:'Aid (3rd)', roll:'10', desc:'+10 HP max (per target)' },
+  { name:'Armor of Agathys (1st)', roll:'5', desc:'5 temp HP + cold retaliation' },
+  { name:'Armor of Agathys (5th)', roll:'25', desc:'25 temp HP + cold retaliation' },
+  { name:'Inspiring Leader', roll:'10', desc:'Temp HP = level + CHA modifier' },
+  { name:'Fiendish Vigor (Warlock)', roll:'1d4+4', desc:'Invocation — auto False Life' },
+  { name:'Aura of Vitality (passive)', roll:'0', desc:'Tracked separately per turn' },
+  { name:'Bear Totem (Barb rage)', roll:'0', desc:'Resistance to all damage during rage' },
+  { name:'Custom Amount', roll:'custom', desc:'' },
+];
+
+function openTempHpPanel() {
+  const existing = document.getElementById('tempHpPanelOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'tempHpPanelOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto;';
+  const allChars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+  ov.innerHTML = `
+    <div style="background:#151c2e;border:1px solid #ddaa22;border-radius:12px;width:660px;max-width:100%;padding:24px;color:#c8d0e8;font-family:'Inter',sans-serif;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-size:18px;font-weight:700;color:#ddaa22;">⬡ Temporary HP</div>
+        <button onclick="document.getElementById('tempHpPanelOverlay').remove()" style="background:#2a3358;border:none;color:#c8d0e8;border-radius:6px;padding:6px 14px;cursor:pointer;">✕ Close</button>
+      </div>
+      <div style="margin-bottom:14px;">
+        <div style="font-size:12px;color:#9098b8;font-weight:600;margin-bottom:6px;">Quick Apply Source:</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+          ${TEMP_HP_SOURCES.map(s => `<button onclick="setTempHpSource('${s.roll}','${s.name.replace(/'/g,"\\'")}',event)" title="${s.desc}" style="background:#2a1a00;border:1px solid #ddaa2244;color:#ddaa22;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:11px;">${s.name}</button>`).join('')}
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;" id="tempHpApplyRow" style="display:none;">
+          <span style="font-size:12px;color:#9098b8;" id="tempHpSourceLabel"></span>
+          <input id="tempHpAmount" type="number" min="0" placeholder="HP" style="width:80px;background:#0e1422;border:1px solid #ddaa22;border-radius:6px;padding:6px;color:#ddaa22;font-size:14px;font-weight:700;">
+          <button onclick="applyTempHpToAll()" style="background:#ddaa22;border:none;color:#151c2e;border-radius:6px;padding:6px 14px;cursor:pointer;font-weight:700;">Apply to All</button>
+          <button onclick="applyTempHpToSelected()" style="background:#2a3358;border:none;color:#ddaa22;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:12px;">Apply to Selected</button>
+        </div>
+      </div>
+      <div id="tempHpCharList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px;max-height:40vh;overflow-y:auto;"></div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  window._tempHpSelected = new Set();
+  renderTempHpList();
+}
+
+function setTempHpSource(roll, name, evt) {
+  evt && evt.stopPropagation();
+  const label = document.getElementById('tempHpSourceLabel');
+  const input = document.getElementById('tempHpAmount');
+  const row = document.getElementById('tempHpApplyRow');
+  if (!label || !input) return;
+  if (row) row.style.display = 'flex';
+  label.textContent = name + ':';
+  if (roll === 'custom') { input.value = ''; input.focus(); return; }
+  if (roll.includes('d')) {
+    const result = typeof rollDiceExpr === 'function' ? rollDiceExpr(roll) : null;
+    input.value = result ? result.total : '';
+  } else {
+    input.value = parseInt(roll) || '';
+  }
+}
+
+function renderTempHpList() {
+  const list = document.getElementById('tempHpCharList');
+  if (!list) return;
+  const allChars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+  const sel = window._tempHpSelected || new Set();
+  list.innerHTML = allChars.map(c => {
+    const thp = getTempHP(c.name);
+    const t = getTheme(c.theme);
+    const active = sel.has(c.name);
+    return `<div onclick="toggleTempHpSelect('${c.name.replace(/'/g,"\\'")}',this)" style="background:${active?'#ddaa2211':'#0e1422'};border:1px solid ${active?'#ddaa22':thp>0?'#ddaa2244':'#2a3358'};border-radius:6px;padding:8px;cursor:pointer;user-select:none;">
+      <div style="font-size:12px;font-weight:600;color:${t.accent};margin-bottom:3px;">${c.name}</div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:18px;font-weight:700;color:${thp>0?'#ddaa22':'#4a5272'};">⬡ ${thp}</span>
+        <div style="display:flex;flex-direction:column;gap:2px;margin-left:auto;">
+          <button onclick="event.stopPropagation();adjustTempHpFromPanel('${c.name.replace(/'/g,"\\'")}',5)" style="background:#2a1a00;border:none;color:#ddaa22;border-radius:3px;padding:1px 6px;cursor:pointer;font-size:11px;">+5</button>
+          <button onclick="event.stopPropagation();adjustTempHpFromPanel('${c.name.replace(/'/g,"\\'")}',0)" style="background:#2a1a00;border:none;color:#cc3333;border-radius:3px;padding:1px 6px;cursor:pointer;font-size:11px;">Clear</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleTempHpSelect(name, el) {
+  const sel = window._tempHpSelected || new Set();
+  if (sel.has(name)) { sel.delete(name); el.style.background='#0e1422'; el.style.borderColor='#2a3358'; }
+  else { sel.add(name); el.style.background='#ddaa2211'; el.style.borderColor='#ddaa22'; }
+  window._tempHpSelected = sel;
+}
+
+function adjustTempHpFromPanel(charName, amount) {
+  if (typeof tempHpState === 'undefined') return;
+  if (amount === 0) delete tempHpState[charName];
+  else tempHpState[charName] = Math.max(tempHpState[charName] || 0, amount);
+  if (typeof saveTempHp === 'function') saveTempHp();
+  if (typeof renderGrid === 'function') renderGrid();
+  renderTempHpList();
+}
+
+function applyTempHpToAll() {
+  const amt = parseInt(document.getElementById('tempHpAmount')?.value) || 0;
+  if (amt <= 0) return;
+  const allChars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+  allChars.forEach(c => {
+    if (typeof tempHpState !== 'undefined') tempHpState[c.name] = Math.max(tempHpState[c.name] || 0, amt);
+  });
+  if (typeof saveTempHp === 'function') saveTempHp();
+  if (typeof renderGrid === 'function') renderGrid();
+  renderTempHpList();
+  if (typeof showToast === 'function') showToast(`+${amt} Temp HP to all characters`, '#ddaa22');
+}
+
+function applyTempHpToSelected() {
+  const amt = parseInt(document.getElementById('tempHpAmount')?.value) || 0;
+  const sel = window._tempHpSelected || new Set();
+  if (amt <= 0 || sel.size === 0) { if (typeof showToast === 'function') showToast('Select characters and enter HP amount', '#cc3333'); return; }
+  sel.forEach(name => {
+    if (typeof tempHpState !== 'undefined') tempHpState[name] = Math.max(tempHpState[name] || 0, amt);
+  });
+  if (typeof saveTempHp === 'function') saveTempHp();
+  if (typeof renderGrid === 'function') renderGrid();
+  renderTempHpList();
+  if (typeof showToast === 'function') showToast(`+${amt} Temp HP to ${sel.size} characters`, '#ddaa22');
+}
+
 function openRestPanel() {
   const existing = document.getElementById('restPanelOverlay');
   if (existing) { existing.remove(); return; }
