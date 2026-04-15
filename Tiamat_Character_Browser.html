@@ -3771,6 +3771,7 @@
   <button class="filter-btn" onclick="openImportCharacter()" style="border-color:#44aa44;color:#9098b8;" title="Import character from JSON — paste stat block JSON to add as custom NPC">📥 Import</button>
   <button class="filter-btn" onclick="openEncounterDifficulty()" style="border-color:#cc3333;color:#cc3333;" title="Encounter Difficulty Calculator — XP thresholds (Easy/Medium/Hard/Deadly) · hotkey E">⚔ Difficulty</button>
   <button class="filter-btn" onclick="openQuickDamageCalc()" style="border-color:#dd6622;color:#dd6622;" title="Quick Attack — roll attack + damage with target AC check · hotkey Q">🎲 Quick Atk</button>
+  <button class="filter-btn" onclick="openMassHpPanel()" style="border-color:#cc3333;color:#cc3333;" id="massHpBtn" title="Mass Damage/Heal — apply HP changes to multiple characters at once (AoE, area effects)">⚡ Mass HP</button>
   <button class="filter-btn" onclick="printPartySheet()" style="border-color:#4488ff;color:#4488ff;" title="Print Party Sheet — all party members on one printable page">🖨 Party Sheet</button>
   <button class="filter-btn" onclick="openWorldMap()" style="border-color:#44cc88;color:#44cc88;" title="World Map — pin characters to the Tiamat campaign map (hotkey: M)">🗺 World Map</button>
   <span style="color: #333; margin: 0 4px;">|</span>
@@ -22861,6 +22862,98 @@ function _toggleAbilitySort(btn) {
     const close = (e) => { if (!btn.contains(e.target) && !menu.contains(e.target)) { menu.style.display = 'none'; document.removeEventListener('click', close); } };
     setTimeout(() => document.addEventListener('click', close), 10);
   }
+}
+// Iter 138: Mass Damage/Heal — apply HP changes to multiple characters at once
+// Essential for AoE spells (Fireball hits 5 targets), area effects, long rests, etc.
+// DND Beyond requires clicking each character individually — this is far better.
+
+function openMassHpPanel() {
+  const existing = document.getElementById('massHpOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'massHpOverlay';
+  ov.style.cssText = 'position:fixed;top:60px;right:20px;width:320px;max-height:80vh;background:linear-gradient(160deg,#12060a,#1e0a10);border:1px solid rgba(204,51,51,0.5);border-radius:14px;z-index:500;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.95);overflow:hidden';
+
+  const chars = filteredChars.length > 0 ? filteredChars : UNIQUE_CHARS;
+  const charRows = chars.map(c => {
+    const maxHp = parseInt(c.hp) || 1;
+    const currHp = getCharHP(c.name, maxHp);
+    const pct = currHp / maxHp;
+    const col = pct > 0.6 ? '#44aa44' : pct > 0.3 ? '#c9a227' : '#cc3333';
+    return `<label style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;cursor:pointer;border:1px solid transparent" onmouseover="this.style.background='rgba(204,51,51,0.06)'" onmouseout="this.style.background='transparent'">
+      <input type="checkbox" class="massHpCheck" data-name="${escHtml(c.name)}" data-maxhp="${maxHp}"
+        style="width:14px;height:14px;accent-color:#cc3333;cursor:pointer">
+      <span style="flex:1;font-size:12px;color:#dce0f0">${escHtml(c.name)}</span>
+      <span style="font-size:11px;color:${col};font-family:'Cinzel',serif">${currHp}/${maxHp}</span>
+    </label>`;
+  }).join('');
+
+  ov.innerHTML = `
+    <div style="padding:10px 14px;border-bottom:1px solid rgba(204,51,51,0.25);display:flex;justify-content:space-between;align-items:center;background:rgba(204,51,51,0.05);flex-shrink:0">
+      <span style="font-family:'Cinzel',serif;color:#cc6666;font-size:13px;font-weight:700;letter-spacing:1px">⚡ MASS HP ADJUST</span>
+      <button onclick="document.getElementById('massHpOverlay').remove()" style="background:none;border:1px solid #3a1010;color:#6a2020;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px">✕</button>
+    </div>
+    <div style="padding:10px 12px;border-bottom:1px solid rgba(204,51,51,0.15);flex-shrink:0">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <input type="number" id="massHpAmount" placeholder="Amount" min="0"
+          style="flex:1;background:#12060a;border:1px solid #3a1010;color:#cc6666;border-radius:6px;padding:6px 8px;font-size:14px;outline:none;font-weight:700"
+          onfocus="this.style.borderColor='#cc3333'" onblur="this.style.borderColor='#3a1010'">
+        <button onclick="_applyMassHp(-1)" style="background:rgba(204,51,51,0.2);border:1px solid #cc3333;color:#cc6666;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:13px;font-weight:700" title="Deal damage">⚔ Dmg</button>
+        <button onclick="_applyMassHp(1)" style="background:rgba(68,170,68,0.15);border:1px solid #44aa44;color:#44cc66;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:13px;font-weight:700" title="Apply healing">❤ Heal</button>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="_massHpSelectAll(true)" style="background:none;border:1px solid #3a1010;color:#6a2020;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:10px">All</button>
+        <button onclick="_massHpSelectAll(false)" style="background:none;border:1px solid #3a1010;color:#6a2020;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:10px">None</button>
+        <button onclick="_massHpSelectInit()" style="background:none;border:1px solid #cc333344;color:#cc3333;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:10px" title="Select only combatants in initiative tracker">⚔ In Combat</button>
+        <span id="massHpSelectedCount" style="font-size:10px;color:#4a5272;margin-left:auto;align-self:center">0 selected</span>
+      </div>
+    </div>
+    <div style="overflow-y:auto;flex:1;padding:4px 8px">${charRows}</div>`;
+
+  document.body.appendChild(ov);
+  // Update selected count on checkbox change
+  ov.addEventListener('change', () => {
+    const count = ov.querySelectorAll('.massHpCheck:checked').length;
+    document.getElementById('massHpSelectedCount').textContent = `${count} selected`;
+  });
+}
+
+function _massHpSelectAll(checked) {
+  document.querySelectorAll('.massHpCheck').forEach(cb => { cb.checked = checked; });
+  const count = checked ? document.querySelectorAll('.massHpCheck').length : 0;
+  const el = document.getElementById('massHpSelectedCount');
+  if (el) el.textContent = `${count} selected`;
+}
+
+function _massHpSelectInit() {
+  const inCombat = new Set((initiativeList || []).map(e => e.name));
+  document.querySelectorAll('.massHpCheck').forEach(cb => { cb.checked = inCombat.has(cb.dataset.name); });
+  const count = document.querySelectorAll('.massHpCheck:checked').length;
+  const el = document.getElementById('massHpSelectedCount');
+  if (el) el.textContent = `${count} selected`;
+}
+
+function _applyMassHp(sign) { // sign: -1=damage, +1=heal
+  const amount = parseInt(document.getElementById('massHpAmount')?.value) || 0;
+  if (amount <= 0) { showToast('Enter an amount first', '#cc3333'); return; }
+  const checked = Array.from(document.querySelectorAll('.massHpCheck:checked'));
+  if (!checked.length) { showToast('Select at least one character', '#cc3333'); return; }
+  let applied = 0;
+  checked.forEach(cb => {
+    const name = cb.dataset.name;
+    const maxHp = parseInt(cb.dataset.maxhp) || 1;
+    const curr = getCharHP(name, maxHp);
+    const newHp = Math.max(0, Math.min(maxHp, curr + sign * amount));
+    setCharHP(name, newHp);
+    applied++;
+  });
+  const action = sign < 0 ? `${amount} damage` : `${amount} healing`;
+  showToast(`${action} applied to ${applied} character${applied!==1?'s':''}`, sign<0?'#cc3333':'#44aa44');
+  if (typeof logEntry === 'function') logEntry('combat', `⚡ Mass ${sign<0?'damage':'heal'}: ${amount} ${sign<0?'damage':'HP'} to ${applied} characters (${checked.map(c=>c.dataset.name).join(', ')})`);
+  renderGrid();
+  // Refresh HP labels in the panel
+  document.getElementById('massHpOverlay')?.remove();
+  openMassHpPanel();
 }
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
