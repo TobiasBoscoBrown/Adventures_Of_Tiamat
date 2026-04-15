@@ -8287,8 +8287,8 @@ document.addEventListener('keydown', (e) => {
   }
   if (!isTyping && currentModalIdx < 0) {
     // Combat shortcuts (only active when no modal/input focused)
-    if (e.key === 'n' && !e.ctrlKey && !e.metaKey) { // Next turn
-      if (initiativeList.length) { nextTurn(); e.preventDefault(); }
+    if ((e.key === 'n' || e.key === ' ') && !e.ctrlKey && !e.metaKey) { // Next turn — n or Space
+      if (initiativeList.length && document.getElementById('initiativePanel')?.classList.contains('open')) { nextTurn(); e.preventDefault(); }
     }
     if (e.key === 't' && !e.ctrlKey) { // Toggle timer
       if (document.getElementById('initiativePanel')?.classList.contains('open')) {
@@ -8329,7 +8329,7 @@ function showHotkeyHelp() {
     ['/', 'Focus search'],
     ['ESC', 'Close modal/popup'],
     ['← →', 'Navigate modal chars'],
-    ['n', 'Next combat turn'],
+    ['n / Space', 'Next combat turn'],
     ['t', 'Start/pause timer'],
     ['r', 'Reset timer'],
     ['i', 'Toggle initiative panel'],
