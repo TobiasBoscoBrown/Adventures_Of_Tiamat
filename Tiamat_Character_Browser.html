@@ -23323,6 +23323,125 @@ function _copyAbilityScores() {
   navigator.clipboard?.writeText(scores);
   showToast('Scores copied: ' + _abilityRolls.map(r=>r.total).join(', '), '#c9a227');
 }
+// Iter 141: Import Character from JSON — toolbar button existed but function
+// was never implemented. Accepts JSON stat blocks in our native format, DND
+// Beyond export style, or minimal format (name + stats). Parses and adds as
+// a custom NPC so the DM can import monsters, PCs, or allies instantly.
+
+function openImportCharacter() {
+  const existing = document.getElementById('importCharOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'importCharOverlay';
+  ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.75);z-index:9500;display:flex;align-items:flex-start;justify-content:center;padding-top:5vh;overflow-y:auto';
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  ov.innerHTML = `
+    <div style="background:#0d0d1a;border:1px solid rgba(68,170,68,0.4);border-radius:14px;padding:24px;width:560px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.9)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-family:'Cinzel',serif;font-size:15px;font-weight:700;color:#44cc88">📥 Import Character / NPC</div>
+        <button onclick="document.getElementById('importCharOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:20px">✕</button>
+      </div>
+      <div style="font-size:11px;color:#4a5272;margin-bottom:10px;line-height:1.6">
+        Paste JSON below. Supports our native format, or paste any object with <code style="color:#88aaff;background:#0a0a18;padding:1px 4px;border-radius:3px">name</code>,
+        <code style="color:#88aaff;background:#0a0a18;padding:1px 4px;border-radius:3px">hp</code>, <code style="color:#88aaff;background:#0a0a18;padding:1px 4px;border-radius:3px">ac</code>, <code style="color:#88aaff;background:#0a0a18;padding:1px 4px;border-radius:3px">cr</code> fields.
+        Array of characters supported.
+      </div>
+      <textarea id="importCharJson" rows="12" placeholder='Paste JSON here…\n\nExample:\n{\n  "name": "Goblin Chief",\n  "hp": "36", "ac": "15", "cr": "2",\n  "abilities": [["STR",12,"+1",0],["DEX",16,"+3",0],["CON",14,"+2",1],["INT",10,"+0",0],["WIS",8,"-1",0],["CHA",10,"+0",0]],\n  "traits": ["Nimble Escape","Pack Tactics"],\n  "lore": "Leader of the Goblin Pack."\n}'
+        style="width:100%;background:#06061a;border:1px solid #1e2040;color:#c8d0e8;border-radius:8px;padding:12px;font-size:12px;font-family:monospace;resize:vertical;outline:none;box-sizing:border-box"
+        onfocus="this.style.borderColor='#44cc88'" onblur="this.style.borderColor='#1e2040'"></textarea>
+      <div id="importCharError" style="min-height:18px;font-size:11px;color:#cc3333;margin:8px 0"></div>
+      <div style="display:flex;gap:10px">
+        <button onclick="_doImportChar()" style="flex:1;background:rgba(68,170,68,0.15);border:1px solid rgba(68,170,68,0.5);color:#44cc88;border-radius:8px;padding:11px;cursor:pointer;font-size:13px;font-weight:700">📥 Import</button>
+        <button onclick="_importCharExample()" style="background:rgba(68,136,255,0.1);border:1px solid rgba(68,136,255,0.3);color:#88aaff;border-radius:8px;padding:11px 16px;cursor:pointer;font-size:12px" title="Fill with example JSON">Example</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+}
+
+function _importCharExample() {
+  const el = document.getElementById('importCharJson');
+  if (!el) return;
+  el.value = JSON.stringify({
+    name: "Goblin Chief",
+    title: "Warchief · Goblinoid",
+    subtitle: "Chaotic Evil",
+    theme: "shadow",
+    group: "misc",
+    cr: "2", hp: "36", ac: "15",
+    quote: "You bring food? No? Then you are food.",
+    abilities: [["STR",12,"+1",0],["DEX",16,"+3",1],["CON",14,"+2",0],["INT",10,"+0",0],["WIS",8,"-1",0],["CHA",10,"+0",0]],
+    traits: ["Nimble Escape — can disengage or hide as a bonus action","Pack Tactics — advantage when ally is adjacent"],
+    lore: "The chief of a goblin warband. More cunning than the average goblin, and far more dangerous."
+  }, null, 2);
+}
+
+function _doImportChar() {
+  const ta = document.getElementById('importCharJson');
+  const errEl = document.getElementById('importCharError');
+  if (!ta || !errEl) return;
+  errEl.textContent = '';
+  let raw;
+  try { raw = JSON.parse(ta.value); } catch(e) { errEl.textContent = '✗ Invalid JSON: ' + e.message; return; }
+
+  const list = Array.isArray(raw) ? raw : [raw];
+  const imported = [];
+  const errors = [];
+
+  list.forEach((obj, i) => {
+    const prefix = list.length > 1 ? `[${i+1}] ` : '';
+    if (!obj || typeof obj !== 'object') { errors.push(prefix + 'Not an object'); return; }
+    if (!obj.name || typeof obj.name !== 'string' || !obj.name.trim()) { errors.push(prefix + 'Missing "name" field'); return; }
+
+    const name = obj.name.trim();
+    // Check for duplicate
+    if (UNIQUE_CHARS.find(c => c.name === name)) { errors.push(prefix + `"${name}" already exists — skipped`); return; }
+
+    // Normalize abilities
+    let abilities = obj.abilities;
+    if (!Array.isArray(abilities)) {
+      // Try to build from individual fields
+      const AB_KEYS = ['STR','DEX','CON','INT','WIS','CHA'];
+      abilities = AB_KEYS.map(ab => {
+        const score = parseInt(obj[ab] || obj[ab.toLowerCase()] || 10);
+        const mod = Math.floor((score - 10) / 2);
+        const modStr = mod >= 0 ? `+${mod}` : `${mod}`;
+        return [ab, score, modStr, 0];
+      });
+    }
+
+    const char = {
+      name,
+      title: obj.title || 'Imported NPC',
+      subtitle: obj.subtitle || 'Unknown',
+      theme: obj.theme || 'shadow',
+      group: obj.group || 'misc',
+      cr: String(obj.cr || '1'),
+      hp: String(obj.hp || '10'),
+      ac: String(obj.ac || '10'),
+      quote: obj.quote || '',
+      abilities,
+      traits: Array.isArray(obj.traits) ? obj.traits : (obj.traits ? [String(obj.traits)] : []),
+      lore: obj.lore || '',
+      _custom: true,
+      _imported: true,
+    };
+
+    const customs = loadCustomNPCs();
+    customs.push(char);
+    saveCustomNPCs(customs);
+    UNIQUE_CHARS.push(char);
+    imported.push(name);
+    logEntry('roll', `📥 Imported character: <strong>${escHtml(name)}</strong> (CR ${char.cr})`);
+  });
+
+  if (errors.length) { errEl.innerHTML = errors.map(e => `⚠ ${escHtml(e)}`).join('<br>'); }
+
+  if (imported.length) {
+    renderGrid();
+    showToast(`Imported: ${imported.join(', ')}`, '#44cc88');
+    document.getElementById('importCharOverlay')?.remove();
+  }
+}
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
 
