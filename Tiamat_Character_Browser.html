@@ -3564,6 +3564,7 @@
     <button class="encounter-open-btn" onclick="openGroupCheckPanel()" style="border-color:#aa66ff;color:#aa66ff" title="Group Check Roller — roll Stealth, Perception, etc. for all party members at once">🎲 Group Roll</button>
     <button class="encounter-open-btn" onclick="openConcDashboard()" style="border-color:#c9a227;color:#c9a227" title="Concentration Dashboard — who is concentrating, quick break concentration saves">🔮 Conc</button>
     <button class="encounter-open-btn" onclick="toggleSlotDashboard()" style="border-color:#4488ff;color:#4488ff" id="slotDashBtn" title="Party Spell Slot Dashboard — all casters' slots at a glance">✦ Slots</button>
+    <button class="encounter-open-btn" onclick="openCondPicker()" style="border-color:#aa66dd;color:#aa66dd" title="Quick Condition Picker — search & apply conditions to any character">⚡ Cond</button>
     <div class="stat-badge"><strong id="totalCount">0</strong> Characters</div>
     <div class="stat-badge"><strong id="visibleCount">0</strong> Showing</div>
     <div class="stat-badge stat-live" id="statDown" onclick="filterToDown()" title="Click to show downed characters" style="display:none"><strong id="downCount">0</strong> ⚠ Down</div>
@@ -9575,6 +9576,98 @@ function removeAward(idx) {
   const awards = loadAwards();
   awards.splice(idx, 1);
   saveAwards(awards);
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 85: Quick Condition Picker — searchable panel to
+//   apply/remove any condition to any character with one click.
+//   Better than bulk applicator: per-character targeting.
+// ══════════════════════════════════════════════════════════
+function openCondPicker(presetChar) {
+  const existing = document.getElementById('condPickerOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'condPickerOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:9600;display:flex;align-items:flex-start;justify-content:center;padding-top:5vh;overflow-y:auto';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  const chars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+  overlay.innerHTML = `
+    <div style="background:#0a050e;border:1px solid rgba(170,102,221,0.5);border-radius:14px;padding:20px;width:min(580px,96vw);box-shadow:0 8px 40px rgba(0,0,0,.9)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div style="font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:#aa66dd">⚡ Quick Condition Picker</div>
+        <button onclick="document.getElementById('condPickerOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:14px">
+        <div style="flex:1">
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Search Condition</div>
+          <input id="condSearchInput" placeholder="🔍 Blinded, Prone, Frightened…" oninput="filterCondPicker()" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;box-sizing:border-box;font-family:inherit;outline:none">
+        </div>
+        <div style="flex:1">
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Apply To Character</div>
+          <select id="condCharSelect" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;cursor:pointer">
+            <option value="">— all in initiative —</option>
+            ${chars.map(c => `<option value="${c.name}"${c.name===presetChar?' selected':''}>${c.name}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div id="condPickerGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px"></div>
+    </div>`;
+  document.body.appendChild(overlay);
+  filterCondPicker();
+  document.getElementById('condSearchInput').focus();
+}
+function filterCondPicker() {
+  const search = (document.getElementById('condSearchInput')?.value || '').toLowerCase();
+  const charName = document.getElementById('condCharSelect')?.value || '';
+  const chars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+  const allConds = typeof CONDITIONS !== 'undefined' ? CONDITIONS : [];
+  // Also include custom conditions
+  const customConds = (() => {
+    try { return JSON.parse(localStorage.getItem('tiamat_custom_conds')) || []; } catch { return []; }
+  })();
+  const fullList = [...allConds, ...customConds];
+  const filtered = search ? fullList.filter(c => c.name.toLowerCase().includes(search) || (c.effects||[]).join(' ').toLowerCase().includes(search)) : fullList;
+  const grid = document.getElementById('condPickerGrid');
+  if (!grid) return;
+
+  // Determine who has this condition
+  const targetChar = charName ? chars.find(c => c.name === charName) : null;
+  grid.innerHTML = filtered.map(cond => {
+    const hasIt = charName ? (typeof getCharConditions === 'function' ? getCharConditions(charName).includes(cond.name) : false) : false;
+    const condColor = cond.color || '#9098b8';
+    return `<div style="background:${hasIt?'rgba(170,102,221,.12)':'#06060e'};border:1px solid ${hasIt?'rgba(170,102,221,.5)':'#1e2040'};border-radius:8px;padding:10px 12px;cursor:pointer;transition:all .15s" onclick="quickApplyRemoveCond(${JSON.stringify(cond.name)},${JSON.stringify(charName)},this)" title="${(cond.effects||[]).join(' · ')}">
+      <div style="font-size:14px;margin-bottom:3px">${cond.icon||'⚡'}</div>
+      <div style="font-size:11px;font-weight:600;color:${condColor}">${cond.name}</div>
+      <div style="font-size:9px;color:#4a5272;margin-top:2px">${hasIt ? '<span style="color:#23b478">✓ applied</span>' : (cond.effects||[])[0]?.slice(0,30)||''}</div>
+    </div>`;
+  }).join('') || '<div style="color:#3a3a5a;font-style:italic;grid-column:1/-1;text-align:center;padding:20px">No conditions match</div>';
+}
+function quickApplyRemoveCond(condName, charName, card) {
+  const chars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+  if (charName) {
+    const current = typeof getCharConditions === 'function' ? getCharConditions(charName) : [];
+    if (current.includes(condName)) {
+      if (typeof removeCondition === 'function') removeCondition(charName, condName);
+      else if (typeof toggleCondition === 'function') toggleCondition(charName, condName);
+      showToast(`✕ ${charName}: ${condName} removed`, '#cc6666');
+    } else {
+      if (typeof addCondition === 'function') addCondition(charName, condName);
+      else if (typeof toggleCondition === 'function') toggleCondition(charName, condName);
+      showToast(`⚡ ${charName}: ${condName} applied`, '#aa66dd');
+    }
+    logEntry('combat', `⚡ <strong>${charName}</strong>: ${condName}`);
+  } else {
+    // Apply to all in initiative
+    if (typeof initiativeList !== 'undefined') {
+      initiativeList.forEach(e => {
+        if (typeof addCondition === 'function') addCondition(e.name, condName);
+      });
+      showToast(`⚡ ${condName} → all combatants`, '#aa66dd');
+      logEntry('combat', `⚡ <strong>${condName}</strong> applied to all combatants`);
+    }
+  }
+  filterCondPicker(); // Re-render
+  if (typeof renderGrid === 'function') renderGrid();
 }
 
 // ══════════════════════════════════════════════════════════
