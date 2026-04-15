@@ -23184,6 +23184,145 @@ function _travelForageCheck() {
     : `<span style="color:#cc3333">🌿 Foraging: d20(${roll})+2=${total} vs DC ${forageDC} — Nothing found today</span>`;
   logEntry('roll', `🌿 Foraging check d20(${roll})+2=${total} vs DC ${forageDC} — ${success?`found ${foodFound} rations`:'nothing found'}`);
 }
+// Iter 140: Ability Score Roller — 4d6 drop lowest for character creation.
+// Toolbar button existed but function was never implemented. Adds full roller
+// with per-score reroll, total sum, point-buy estimate, and standard array compare.
+
+const STANDARD_ARRAY = [15, 14, 13, 12, 10, 8];
+const ABILITY_NAMES = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'];
+
+function _rollAbilityScore() {
+  const dice = Array.from({length: 4}, () => Math.floor(Math.random() * 6) + 1);
+  const sorted = [...dice].sort((a, b) => b - a);
+  const total = sorted[0] + sorted[1] + sorted[2];
+  return { dice, total };
+}
+
+function _abilityPointBuyCost(score) {
+  const costs = {8:0,9:1,10:2,11:3,12:4,13:5,14:7,15:9};
+  return costs[score] ?? (score > 15 ? 99 : 0);
+}
+
+let _abilityRolls = [];
+
+function openAbilityRoller() {
+  const existing = document.getElementById('abilityRollerOverlay');
+  if (existing) { existing.remove(); return; }
+  _abilityRolls = Array.from({length: 6}, _rollAbilityScore);
+  const ov = document.createElement('div');
+  ov.id = 'abilityRollerOverlay';
+  ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.72);z-index:9500;display:flex;align-items:flex-start;justify-content:center;padding-top:6vh;overflow-y:auto';
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
+  _renderAbilityRoller();
+}
+
+function _renderAbilityRoller() {
+  const ov = document.getElementById('abilityRollerOverlay');
+  if (!ov) return;
+  const rolls = _abilityRolls;
+  const total = rolls.reduce((s, r) => s + r.total, 0);
+  const avg = (total / 6).toFixed(1);
+  const pbCost = rolls.reduce((s, r) => s + _abilityPointBuyCost(Math.min(15, Math.max(8, r.total))), 0);
+  const sorted = [...rolls.map(r => r.total)].sort((a,b) => b-a);
+  const highest = sorted[0], lowest = sorted[sorted.length-1];
+
+  const rowHtml = rolls.map((r, i) => {
+    const mod = Math.floor((r.total - 10) / 2);
+    const modStr = mod >= 0 ? `+${mod}` : `${mod}`;
+    const col = r.total >= 15 ? '#44cc88' : r.total >= 12 ? '#c9a227' : r.total <= 8 ? '#cc3333' : '#c8d0e8';
+    const diceHtml = r.dice.map((d, di) => {
+      const dropped = r.dice.filter(x => x >= d).length > 3 || [...r.dice].sort((a,b)=>b-a).indexOf(d) >= 3;
+      const isMin = di === r.dice.indexOf(Math.min(...r.dice)) && r.dice.filter(x=>x===Math.min(...r.dice)).length === 1;
+      // The dropped die = the minimum one
+      const minVal = Math.min(...r.dice);
+      const minCount = r.dice.filter(x => x === minVal).length;
+      // We drop exactly 1 die (the lowest), mark first occurrence of min
+      const dropIdx = r.dice.indexOf(minVal);
+      const isDrop = di === dropIdx;
+      return `<span style="display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:4px;font-size:13px;font-weight:700;
+        background:${isDrop?'#1a1a2a':'#0a0a18'};border:1px solid ${isDrop?'#2a2a40':'#3a3a60'};
+        color:${isDrop?'#3a3a5a':'#c8d0e8'};${isDrop?'text-decoration:line-through;':''}margin-right:3px">${d}</span>`;
+    }).join('');
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:rgba(68,68,136,0.04);border:1px solid #1e1e40;margin-bottom:6px">
+      <div style="width:36px;font-size:10px;color:#4a5272;letter-spacing:.8px;font-weight:700">${ABILITY_NAMES[i]}</div>
+      <div style="flex:1;display:flex;align-items:center;gap:2px">${diceHtml}</div>
+      <div style="font-size:22px;font-weight:700;font-family:'Cinzel',serif;color:${col};width:32px;text-align:center">${r.total}</div>
+      <div style="font-size:13px;color:${col};width:28px;text-align:right">${modStr}</div>
+      <button onclick="_rerollOne(${i})" style="background:none;border:1px solid #2a2a50;color:#4a5272;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px;transition:all 0.1s" onmouseover="this.style.borderColor='#c9a227';this.style.color='#c9a227'" onmouseout="this.style.borderColor='#2a2a50';this.style.color='#4a5272'" title="Reroll this score">↻</button>
+    </div>`;
+  }).join('');
+
+  const stdHtml = STANDARD_ARRAY.map((v, i) => {
+    const mod = Math.floor((v - 10) / 2);
+    const col = v >= 14 ? '#44cc88' : v >= 12 ? '#c9a227' : v <= 8 ? '#cc3333' : '#9098b8';
+    return `<div style="text-align:center"><div style="font-size:18px;font-weight:700;color:${col}">${v}</div><div style="font-size:9px;color:#4a5272">${ABILITY_NAMES[i]}</div></div>`;
+  }).join('');
+
+  ov.innerHTML = `
+    <div style="background:linear-gradient(160deg,#0d0b1a,#0a0a18);border:1px solid rgba(201,162,39,0.4);border-radius:14px;padding:24px;width:480px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.9)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+        <div style="font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:#c9a227">🎲 Ability Score Roller</div>
+        <button onclick="document.getElementById('abilityRollerOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:20px">✕</button>
+      </div>
+
+      <div id="abilityRollRows">${rowHtml}</div>
+
+      <!-- Summary bar -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin:14px 0;text-align:center">
+        <div style="background:#06061a;border:1px solid #1e1e40;border-radius:8px;padding:8px">
+          <div style="font-size:22px;font-weight:700;font-family:'Cinzel',serif;color:#c9a227">${total}</div>
+          <div style="font-size:9px;color:#4a5272;letter-spacing:.5px">TOTAL</div>
+        </div>
+        <div style="background:#06061a;border:1px solid #1e1e40;border-radius:8px;padding:8px">
+          <div style="font-size:22px;font-weight:700;font-family:'Cinzel',serif;color:#9098b8">${avg}</div>
+          <div style="font-size:9px;color:#4a5272;letter-spacing:.5px">AVG SCORE</div>
+        </div>
+        <div style="background:#06061a;border:1px solid #1e1e40;border-radius:8px;padding:8px">
+          <div style="font-size:22px;font-weight:700;font-family:'Cinzel',serif;color:#4488ff">${pbCost}</div>
+          <div style="font-size:9px;color:#4a5272;letter-spacing:.5px">PT BUY EST</div>
+        </div>
+        <div style="background:#06061a;border:1px solid #1e1e40;border-radius:8px;padding:8px">
+          <div style="font-size:22px;font-weight:700;font-family:'Cinzel',serif;color:${highest >= 17 ? '#44cc88' : highest >= 15 ? '#c9a227' : '#9098b8'}">${highest}/${lowest}</div>
+          <div style="font-size:9px;color:#4a5272;letter-spacing:.5px">HI / LO</div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <button onclick="_rerollAll()" style="flex:1;background:rgba(201,162,39,0.12);border:1px solid rgba(201,162,39,0.4);color:#c9a227;border-radius:8px;padding:10px;cursor:pointer;font-size:13px;font-weight:700">↻ Roll All Again</button>
+        <button onclick="_copyAbilityScores()" style="background:rgba(68,136,255,0.1);border:1px solid rgba(68,136,255,0.4);color:#88aaff;border-radius:8px;padding:10px 16px;cursor:pointer;font-size:12px" title="Copy scores to clipboard">📋 Copy</button>
+      </div>
+
+      <!-- Standard Array compare -->
+      <details style="border:1px solid #1e1e40;border-radius:8px;overflow:hidden">
+        <summary style="padding:10px 14px;font-size:11px;color:#4a5272;cursor:pointer;user-select:none;letter-spacing:.5px">📊 Compare to Standard Array (15,14,13,12,10,8) & Point Buy (27 pts)</summary>
+        <div style="padding:12px 14px;border-top:1px solid #1e1e40">
+          <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:10px">${stdHtml}</div>
+          <div style="font-size:11px;color:#4a5272;line-height:1.7">
+            <strong style="color:#9098b8">Point Buy</strong>: 27 points total · Scores 8–15 · Cost: 8=0, 9=1, 10=2, 11=3, 12=4, 13=5, 14=7, 15=9<br>
+            <strong style="color:#9098b8">Your array</strong>: ${[...rolls.map(r=>r.total)].sort((a,b)=>b-a).join(', ')} (point buy cost ≈ ${pbCost})
+          </div>
+        </div>
+      </details>
+    </div>`;
+}
+
+function _rerollOne(idx) {
+  _abilityRolls[idx] = _rollAbilityScore();
+  _renderAbilityRoller();
+}
+
+function _rerollAll() {
+  _abilityRolls = Array.from({length: 6}, _rollAbilityScore);
+  _renderAbilityRoller();
+}
+
+function _copyAbilityScores() {
+  const scores = _abilityRolls.map((r, i) => `${ABILITY_NAMES[i]}: ${r.total}`).join(', ');
+  navigator.clipboard?.writeText(scores);
+  showToast('Scores copied: ' + _abilityRolls.map(r=>r.total).join(', '), '#c9a227');
+}
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
 
