@@ -8659,6 +8659,8 @@ function nextTurn() {
     clearTurnActions();
     // Tick down condition durations
     if (typeof tickCondDurations === 'function') tickCondDurations();
+    // Reset legendary actions for all legendary creatures
+    if (typeof resetLegendaryActions === 'function') resetLegendaryActions();
   }
   const active = initiativeList[currentTurnIdx];
   if (active) logEntry('combat', `<strong>${active.name}</strong>'s turn (Init: ${active.initiative})`);
@@ -8680,6 +8682,50 @@ function clearInitiative() {
   renderGrid();
   updateHud();
 }
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 75: Legendary Action Tracker — tracks legendary action
+//   charges for CR 17+ monsters in initiative. 3 charges per round,
+//   reset at start of each round.
+// ══════════════════════════════════════════════════════════
+let legendaryState = {}; // { charName: chargesRemaining }
+
+function getLegendaryMax(charName) {
+  const c = UNIQUE_CHARS.find(ch => ch.name === charName);
+  if (!c) return 0;
+  const cr = parseFloat(c.cr) || 0;
+  if (cr >= 24) return 4;
+  if (cr >= 17) return 3;
+  if (cr >= 11) return 2;
+  return 0; // Non-legendary
+}
+
+function getLegendaryCharges(charName) {
+  const max = getLegendaryMax(charName);
+  if (max === 0) return 0;
+  if (legendaryState[charName] === undefined) legendaryState[charName] = max;
+  return legendaryState[charName];
+}
+
+function spendLegendaryAction(charName) {
+  const charges = getLegendaryCharges(charName);
+  if (charges <= 0) { showToast(`${charName}: No legendary actions remaining!`, '#cc4444'); return; }
+  legendaryState[charName] = charges - 1;
+  renderInitiative();
+  showToast(`${charName}: Used legendary action (${legendaryState[charName]} left)`, '#c9a227');
+}
+
+function resetLegendaryActions() {
+  // Called at end of each round (start of character's turn in the next round)
+  Object.keys(legendaryState).forEach(name => {
+    const max = getLegendaryMax(name);
+    if (max > 0) legendaryState[name] = max;
+  });
+}
+
+// Hook legendary reset into the round transition (called by nextTurn)
+const _origNextTurn = typeof nextTurn === 'function' ? nextTurn : null;
+// We'll call resetLegendaryActions in the nextTurn wrap at the start of each round (see the tickCondDurations hook)
 
 // ══════════════════════════════════════════════════════════
 // ITERATION 74: Loot Distribution Tracker — assign gold and items
@@ -9476,6 +9522,7 @@ function renderInitiative() {
       ${hpText ? `<div class="init-hp-mini">${hpText}</div>` : ''}
       <button class="init-remove-btn" onclick="removeFromInitiative(${JSON.stringify(e.name)})">✕</button>
       ${durBadges ? `<div style="width:100%;padding:0 8px 4px;display:flex;gap:3px;flex-wrap:wrap">${durBadges}</div>` : ''}
+      ${(()=>{const legMax=getLegendaryMax(e.name);if(!legMax)return '';const legCur=getLegendaryCharges(e.name);const pips=Array.from({length:legMax},(_,i)=>`<span onclick="spendLegendaryAction(${JSON.stringify(e.name)})" title="Legendary Action — click to spend" style="cursor:pointer;display:inline-block;width:10px;height:10px;border-radius:50%;border:1px solid #c9a227;background:${i<legCur?'#c9a227':'transparent'};margin-right:2px"></span>`).join('');return `<div style="width:100%;padding:0 8px 4px;display:flex;align-items:center;gap:4px"><span style="font-size:9px;color:#c9a227;letter-spacing:.3px">LEG</span>${pips}</div>`;})()}
     </div>`;
   };
 
