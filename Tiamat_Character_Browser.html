@@ -3078,6 +3078,19 @@
     margin-top: 3px;
   }
 
+  /* ── Character Advancement Log (Iteration 75) ── */
+  .adv-entry { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid #0e0e24; align-items: flex-start; }
+  .adv-entry:last-child { border-bottom: none; }
+  .adv-level-badge { background: linear-gradient(135deg,#1a1a30,#12103a); border: 1px solid #9b6dff; border-radius: 6px; color: #9b6dff; font-size: 11px; font-weight: 700; padding: 2px 8px; white-space: nowrap; font-family: 'Cinzel', serif; }
+  .adv-entry-body { flex: 1; }
+  .adv-entry-type { font-size: 10px; color: var(--accent,#c9a227); text-transform: uppercase; letter-spacing: .5px; }
+  .adv-entry-desc { font-size: 12px; color: #c8d0e8; margin-top: 2px; }
+  .adv-entry-ts { font-size: 9px; color: #3a3a5a; margin-top: 2px; }
+  .adv-type-asi { color: #4488ff !important; }
+  .adv-type-feat { color: #23b478 !important; }
+  .adv-type-feature { color: #c9a227 !important; }
+  .adv-type-levelup { color: #9b6dff !important; }
+
   /* ── Class Feature Usage Tracker (Iteration 72) ── */
   .feat-use-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #0e0e24; }
   .feat-use-row:last-child { border-bottom: none; }
@@ -5676,6 +5689,7 @@ function buildStatsPanel(c) {
       <div class="stats-section-title">Lore</div>
       <div class="lore-text">${c.lore}</div>
     </div>` : ''}
+    ${buildAdvancementLog(c)}
     ${buildSeeAlso(c)}
     ${c.quote ? `<div class="modal-quote">"${c.quote}"</div>` : ''}
   `;
@@ -6483,6 +6497,99 @@ function generateTimeline(c) {
   events.push({ label:'Present Day', desc: lore.slice(0, 100) + (lore.length > 100 ? '…' : '') });
 
   return events.slice(0, 6);
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 75: Character Advancement Log — track level-ups,
+//   ASI choices, feat selections, and feature gains per
+//   character with timestamps. DnD Beyond-style history.
+// ══════════════════════════════════════════════════════════
+const ADV_LOG_KEY = 'tiamat_adv_log';
+function loadAdvLog() { try { return JSON.parse(localStorage.getItem(ADV_LOG_KEY)) || {}; } catch { return {}; } }
+function saveAdvLog(d) { localStorage.setItem(ADV_LOG_KEY, JSON.stringify(d)); }
+function getCharAdvLog(charName) { return (loadAdvLog()[charName] || []).slice().reverse(); }
+function addAdvEntry(charName, type, level, desc) {
+  const d = loadAdvLog();
+  if (!d[charName]) d[charName] = [];
+  d[charName].push({ type, level, desc, ts: new Date().toLocaleDateString() });
+  saveAdvLog(d);
+}
+function removeAdvEntry(charName, idx) {
+  const d = loadAdvLog();
+  if (!d[charName]) return;
+  // idx is reversed, so un-reverse
+  const realIdx = d[charName].length - 1 - idx;
+  d[charName].splice(realIdx, 1);
+  saveAdvLog(d);
+  const c = filteredChars[currentModalIdx];
+  if (c) document.getElementById('statsPanel').innerHTML = buildStatsPanel(c);
+}
+function openAddAdvEntry(charName) {
+  const typeOpts = { levelup:'Level Up', asi:'Ability Score Improvement', feat:'Feat', feature:'Class Feature', other:'Other' };
+  const overlay = document.createElement('div');
+  overlay.id = 'advOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.75);z-index:9600;display:flex;align-items:center;justify-content:center';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  overlay.innerHTML = `
+    <div style="background:#0d0d1a;border:1px solid rgba(155,109,255,0.5);border-radius:14px;padding:24px;width:400px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.8)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-size:15px;font-weight:700;color:#9b6dff">📈 Log Advancement — ${charName}</div>
+        <button onclick="document.getElementById('advOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div>
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Type</div>
+          <select id="advType" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;cursor:pointer">
+            ${Object.entries(typeOpts).map(([k,v]) => `<option value="${k}">${v}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Character Level</div>
+          <input id="advLevel" type="number" min="1" max="20" value="1" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;box-sizing:border-box;font-family:inherit;outline:none">
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Description</div>
+        <textarea id="advDesc" rows="3" placeholder="e.g. +2 STR, or Took War Caster feat, or Gained Extra Attack feature…" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;box-sizing:border-box;font-family:inherit;resize:vertical;outline:none"></textarea>
+      </div>
+      <button onclick="submitAdvEntry(${JSON.stringify(charName)})" style="width:100%;background:rgba(155,109,255,.15);border:1px solid #9b6dff;color:#9b6dff;border-radius:8px;padding:10px;cursor:pointer;font-size:13px;font-weight:600">📈 Record Advancement</button>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+function submitAdvEntry(charName) {
+  const type = document.getElementById('advType').value;
+  const level = parseInt(document.getElementById('advLevel').value) || 1;
+  const desc = (document.getElementById('advDesc').value || '').trim();
+  if (!desc) { showToast('Description required', '#cc3333'); return; }
+  addAdvEntry(charName, type, level, desc);
+  document.getElementById('advOverlay').remove();
+  showToast(`📈 ${charName} advancement logged`, '#9b6dff');
+  logEntry('heal', `📈 <strong>${charName}</strong> Lv${level} — ${desc}`);
+  const c = filteredChars[currentModalIdx];
+  if (c) document.getElementById('statsPanel').innerHTML = buildStatsPanel(c);
+}
+function buildAdvancementLog(c) {
+  const entries = getCharAdvLog(c.name);
+  const typeColors = { levelup:'#9b6dff', asi:'#4488ff', feat:'#23b478', feature:'#c9a227', other:'#9098b8' };
+  const typeLabels = { levelup:'Level Up', asi:'ASI', feat:'Feat', feature:'Feature', other:'Other' };
+  const nameJ = JSON.stringify(c.name);
+  const rows = entries.map((e, i) => `
+    <div class="adv-entry">
+      <div class="adv-level-badge">Lv ${e.level||'?'}</div>
+      <div class="adv-entry-body">
+        <div class="adv-entry-type" style="color:${typeColors[e.type]||'#9098b8'}">${typeLabels[e.type]||e.type}</div>
+        <div class="adv-entry-desc">${e.desc}</div>
+        <div class="adv-entry-ts">${e.ts||''}</div>
+      </div>
+      <button onclick="removeAdvEntry(${nameJ},${i})" style="background:none;border:none;color:#3a3a5a;cursor:pointer;font-size:11px;padding:0 2px" title="Remove">✕</button>
+    </div>`).join('');
+  return `<div class="stats-section">
+    <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>📈 Advancement History</span>
+      <button onclick="openAddAdvEntry(${nameJ})" style="background:none;border:1px solid rgba(155,109,255,.4);color:#9b6dff;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:10px">+ Record</button>
+    </div>
+    ${rows || '<div style="font-size:11px;color:#2a2a50;font-style:italic">No advancement history yet — click + Record to log a level-up, ASI, or feat.</div>'}
+  </div>`;
 }
 
 // ══════════════════════════════════════════════════════════
