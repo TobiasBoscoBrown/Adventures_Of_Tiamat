@@ -3788,6 +3788,8 @@
       <button class="init-ctrl-btn" onclick="toggleGroupRoll()" title="Group saving throw / ability check" style="border-color:#aa66dd;color:#aa66dd">⚔ Save</button>
       <button class="init-ctrl-btn" onclick="toggleBulkCond(event)" title="Apply condition to all in initiative" style="border-color:#dd8822;color:#dd8822">⚡ Bulk</button>
       <button class="init-ctrl-btn" id="lairActionBtn" onclick="toggleLairAction()" title="Toggle Lair Action at Init 20" style="border-color:#2a2a50;color:#4a5272">🏰 Lair</button>
+      <button class="init-ctrl-btn" onclick="saveInitiativeSnapshot()" title="Save combat snapshot — restore later" style="border-color:#44ccaa;color:#44ccaa">📸 Snap</button>
+      <button class="init-ctrl-btn" onclick="openInitiativeSnapshots()" title="View &amp; restore saved snapshots" style="border-color:#44ccaa;color:#4a5272">📂</button>
       <button class="init-ctrl-btn" onclick="clearInitiative()" title="Clear initiative">✕</button>
     </div>
   </div>
@@ -8649,6 +8651,101 @@ function clearInitiative() {
   renderInitiative();
   renderGrid();
   updateHud();
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 68: Initiative Snapshot — save/restore complete
+//   combat state: initiative order, HP, conditions, round #.
+// ══════════════════════════════════════════════════════════
+const INIT_SNAPSHOTS_KEY = 'tiamat_init_snapshots';
+
+function loadInitSnapshots() {
+  try { return JSON.parse(localStorage.getItem(INIT_SNAPSHOTS_KEY)) || []; }
+  catch(e) { return []; }
+}
+function saveInitSnapshots(arr) {
+  localStorage.setItem(INIT_SNAPSHOTS_KEY, JSON.stringify(arr.slice(0, 20)));
+}
+
+function saveInitiativeSnapshot() {
+  if (!initiativeList.length) { showToast('No active initiative to snapshot', '#cc4444'); return; }
+  const allHp = {};
+  const allConds = loadAllConditions ? loadAllConditions() : {};
+  initiativeList.forEach(e => { allHp[e.name] = getCharHP(e.name, e.maxHp); });
+  const snap = {
+    id: Date.now(),
+    label: `Round ${currentRound} — ${new Date().toLocaleTimeString()}`,
+    round: currentRound,
+    turnIdx: currentTurnIdx,
+    list: JSON.parse(JSON.stringify(initiativeList)),
+    hp: allHp,
+    conds: JSON.parse(JSON.stringify(allConds)),
+    condDur: JSON.parse(JSON.stringify(condDurations)),
+  };
+  const snaps = loadInitSnapshots();
+  snaps.unshift(snap);
+  saveInitSnapshots(snaps);
+  showToast(`📸 Snapshot saved: ${snap.label}`, '#44ccaa');
+}
+
+function restoreInitiativeSnapshot(id) {
+  const snaps = loadInitSnapshots();
+  const snap = snaps.find(s => s.id === id);
+  if (!snap) return;
+  // Restore initiative
+  initiativeList = snap.list;
+  currentTurnIdx = snap.turnIdx;
+  currentRound = snap.round;
+  document.getElementById('initRoundBadge').textContent = `Round ${currentRound}`;
+  // Restore HP
+  Object.entries(snap.hp).forEach(([name, hp]) => { hpState[name] = hp; });
+  saveHp();
+  // Restore conditions
+  localStorage.setItem('tiamat_conditions', JSON.stringify(snap.conds));
+  // Restore durations
+  condDurations = snap.condDur || {};
+  saveCondDurations();
+  renderInitiative();
+  renderGrid();
+  document.getElementById('initiativeSnapOverlay')?.remove();
+  showToast(`📂 Snapshot restored: ${snap.label}`, '#44ccaa');
+}
+
+function deleteInitiativeSnapshot(id) {
+  const snaps = loadInitSnapshots().filter(s => s.id !== id);
+  saveInitSnapshots(snaps);
+  openInitiativeSnapshots(); // re-render
+}
+
+function openInitiativeSnapshots() {
+  const existing = document.getElementById('initiativeSnapOverlay');
+  if (existing) { existing.remove(); return; }
+  const snaps = loadInitSnapshots();
+  const overlay = document.createElement('div');
+  overlay.id = 'initiativeSnapOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.65);z-index:9500;display:flex;align-items:flex-start;justify-content:center;padding-top:8vh';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  const rows = snaps.length
+    ? snaps.map(s => `
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #1e2040;border-radius:8px;margin-bottom:6px">
+        <div style="flex:1">
+          <div style="font-size:12px;color:#c8d0e8">${s.label}</div>
+          <div style="font-size:10px;color:#4a5272">${s.list.length} combatants · Round ${s.round}</div>
+        </div>
+        <button onclick="restoreInitiativeSnapshot(${s.id})" style="background:rgba(68,204,170,0.1);border:1px solid rgba(68,204,170,0.4);color:#44ccaa;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px">↺ Restore</button>
+        <button onclick="deleteInitiativeSnapshot(${s.id})" style="background:none;border:1px solid #2a2a50;color:#cc4444;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px">✕</button>
+      </div>`)
+    .join('')
+    : '<div style="color:#4a5272;font-size:12px;text-align:center;padding:20px">No snapshots yet — click 📸 Snap in the initiative panel</div>';
+  overlay.innerHTML = `
+    <div style="background:#0d0d1a;border:1px solid rgba(68,204,170,0.4);border-radius:14px;padding:24px;width:480px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.7)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:700;color:#44ccaa">📂 Combat Snapshots</div>
+        <button onclick="document.getElementById('initiativeSnapOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <div style="max-height:400px;overflow-y:auto">${rows}</div>
+    </div>`;
+  document.body.appendChild(overlay);
 }
 
 // ══════════════════════════════════════════════════════════
