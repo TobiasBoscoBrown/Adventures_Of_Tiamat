@@ -9337,15 +9337,52 @@ function nextTurn() {
 }
 
 function clearInitiative() {
+  // Combat summary if real combat happened
+  if (currentRound > 1 && initiativeList.length > 0) {
+    showCombatSummary(initiativeList.slice(), currentRound);
+  }
+  // Clear scene effects from combat
+  if (sceneEffects && sceneEffects.length) {
+    sceneEffects = [];
+    renderSceneEffects();
+  }
   initiativeList = [];
   currentTurnIdx = 0;
   currentRound = 1;
   clearTurnActions();
+  moveState = {};
+  advState = {};
   document.getElementById('initRoundBadge').textContent = 'Round 1';
   document.getElementById('initiativePanel').classList.remove('open');
   renderInitiative();
   renderGrid();
   updateHud();
+}
+
+function showCombatSummary(combatants, rounds) {
+  const existing = document.getElementById('combatSummaryPopup');
+  if (existing) existing.remove();
+
+  const downed = combatants.filter(e => e.maxHp > 0 && getCharHP(e.name, e.maxHp) === 0);
+  const monsters = combatants.filter(e => { const c = UNIQUE_CHARS.find(x=>x.name===e.name); return c && parseFloat(c.cr)>=1; });
+  const xpEarned = monsters.reduce((s, e) => { const c = UNIQUE_CHARS.find(x=>x.name===e.name); return s + (c ? (XP_BY_CR[c.cr]||0) : 0); }, 0);
+
+  const popup = document.createElement('div');
+  popup.id = 'combatSummaryPopup';
+  popup.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:linear-gradient(160deg,#07041a,#100820);border:1px solid rgba(201,162,39,.5);border-radius:16px;padding:20px 24px;z-index:9999;min-width:280px;max-width:400px;box-shadow:0 12px 48px rgba(0,0,0,.95);font-size:12px';
+  popup.innerHTML = `
+    <div style="font-family:'Cinzel',serif;font-size:15px;color:#c9a227;font-weight:700;margin-bottom:12px;text-align:center">⚔ COMBAT SUMMARY</div>
+    <div style="display:flex;gap:16px;justify-content:center;margin-bottom:12px">
+      <div style="text-align:center"><div style="font-size:24px;font-weight:700;color:#f0c060;font-family:'Cinzel',serif">${rounds}</div><div style="font-size:10px;color:#4a5272">ROUNDS</div></div>
+      <div style="text-align:center"><div style="font-size:24px;font-weight:700;color:#9098b8;font-family:'Cinzel',serif">${combatants.length}</div><div style="font-size:10px;color:#4a5272">COMBATANTS</div></div>
+      ${downed.length ? `<div style="text-align:center"><div style="font-size:24px;font-weight:700;color:#cc3333;font-family:'Cinzel',serif">${downed.length}</div><div style="font-size:10px;color:#4a5272">DOWNED</div></div>` : ''}
+      ${xpEarned ? `<div style="text-align:center"><div style="font-size:24px;font-weight:700;color:#44aa44;font-family:'Cinzel',serif">${xpEarned.toLocaleString()}</div><div style="font-size:10px;color:#4a5272">XP</div></div>` : ''}
+    </div>
+    ${downed.length ? `<div style="margin-bottom:8px;font-size:11px;color:#cc5555">⚠ Down: ${downed.map(e=>escHtml(e.name)).join(', ')}</div>` : ''}
+    ${xpEarned ? `<div style="font-size:10px;color:#3a5030;margin-bottom:8px">Award XP: click ⭐ XP button → Award Encounter XP</div>` : ''}
+    <button onclick="this.closest('#combatSummaryPopup').remove()" style="width:100%;background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.4);color:#c9a227;border-radius:8px;padding:8px;cursor:pointer;font-size:12px;font-family:'Cinzel',serif">Dismiss</button>`;
+  document.body.appendChild(popup);
+  logEntry('combat', `⚔ <strong>Combat ended</strong>: ${rounds} rounds, ${combatants.length} combatants${downed.length?`, ${downed.length} downed`:''}${xpEarned?`, ${xpEarned.toLocaleString()} XP available`:''}`);
 }
 
 // ══════════════════════════════════════════════════════════
