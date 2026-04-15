@@ -5852,6 +5852,7 @@ function buildStatsPanel(c) {
     ${buildMulticlassSection(c)}
     ${buildAttunementSection(c)}
     ${buildInspirationSection(c)}
+    ${buildExhaustionSection(c)}
     ${buildAlignmentSection(c)}
     ${buildProficienciesSection(c)}
     ${buildTraitsSection(c)}
@@ -8740,6 +8741,83 @@ function buildInspirationSection(c) {
       : `<div style="color:#4a5272;font-size:12px;font-style:italic;">No inspiration. DM awards for exceptional roleplay.</div>`
     }
   </div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 97: Exhaustion Level Tracker — track 6 levels of
+//   exhaustion per character with mechanical effect reminders.
+//   Stored in tiamat_exhaustion.
+// ══════════════════════════════════════════════════════════
+const EXHAUSTION_KEY = 'tiamat_exhaustion';
+const EXHAUSTION_EFFECTS = [
+  'No exhaustion',
+  'Disadvantage on ability checks',
+  'Speed halved',
+  'Disadvantage on attack rolls and saving throws',
+  'Hit point maximum halved',
+  'Speed reduced to 0',
+  'Death',
+];
+const EXHAUSTION_COLORS = ['#4a5272','#c9a227','#ee8833','#cc6622','#cc3333','#aa2222','#660000'];
+
+function getExhaustion(charName) {
+  try {
+    const all = JSON.parse(localStorage.getItem(EXHAUSTION_KEY) || '{}');
+    return all[charName] || 0;
+  } catch { return 0; }
+}
+function setExhaustion(charName, level) {
+  const all = JSON.parse(localStorage.getItem(EXHAUSTION_KEY) || '{}');
+  const clamped = Math.max(0, Math.min(6, level));
+  if (clamped === 0) delete all[charName];
+  else all[charName] = clamped;
+  localStorage.setItem(EXHAUSTION_KEY, JSON.stringify(all));
+  if (typeof showToast === 'function') {
+    const msg = clamped === 0 ? `${charName} recovered from exhaustion` : `${charName}: Exhaustion level ${clamped} — ${EXHAUSTION_EFFECTS[clamped]}`;
+    const col = clamped === 0 ? '#44cc88' : EXHAUSTION_COLORS[clamped];
+    showToast(msg, col);
+  }
+  if (typeof logEntry === 'function' && clamped > 0) {
+    logEntry(`😴 ${charName} reached <b>Exhaustion ${clamped}</b>: ${EXHAUSTION_EFFECTS[clamped]}`);
+  }
+}
+
+function buildExhaustionSection(c) {
+  const lvl = getExhaustion(c.name);
+  const col = EXHAUSTION_COLORS[lvl] || '#4a5272';
+  const pips = Array.from({length:6}, (_,i) =>
+    `<span onclick="setCharExhaustion('${c.name.replace(/'/g,"\\'")}',${i+1},event)" title="Level ${i+1}: ${EXHAUSTION_EFFECTS[i+1]}" style="cursor:pointer;display:inline-block;width:18px;height:18px;border-radius:50%;border:1px solid ${i < lvl ? EXHAUSTION_COLORS[i+1] : '#2a3358'};background:${i < lvl ? EXHAUSTION_COLORS[i+1]+'44' : 'transparent'};font-size:10px;line-height:18px;text-align:center;color:${i < lvl ? EXHAUSTION_COLORS[i+1] : '#4a5272'};">${i+1}</span>`
+  ).join('');
+  return `<div class="stats-section">
+    <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center;">
+      😴 Exhaustion ${lvl > 0 ? `<span style="color:${col};font-size:11px;">Level ${lvl}</span>` : ''}
+      ${lvl > 0 ? `<button onclick="setCharExhaustion('${c.name.replace(/'/g,"\\'")}',${lvl-1},event)" style="background:#2a3358;border:none;color:#9098b8;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px;">− Recover</button>` : ''}
+    </div>
+    <div style="display:flex;gap:4px;margin-bottom:6px;">${pips}</div>
+    <div style="font-size:12px;color:${col};">
+      ${lvl === 0 ? '<span style="color:#4a5272;font-style:italic;">No exhaustion.</span>' : `Current effects: ${Array.from({length:lvl}, (_,i) => EXHAUSTION_EFFECTS[i+1]).join(' · ')}`}
+    </div>
+  </div>`;
+}
+
+function setCharExhaustion(charName, level, evt) {
+  evt && evt.stopPropagation();
+  const curr = getExhaustion(charName);
+  const newLvl = (curr === level) ? level - 1 : level; // click same level = decrease by 1
+  setExhaustion(charName, newLvl);
+  // Refresh modal section by re-rendering parent
+  const modal = document.querySelector('.modal-body');
+  if (modal) {
+    const c = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS.find(x => x.name === charName) : null;
+    if (c) {
+      const sections = modal.querySelectorAll('.stats-section');
+      sections.forEach(sec => {
+        if (sec.querySelector('.stats-section-title')?.textContent?.includes('Exhaustion')) {
+          sec.outerHTML = buildExhaustionSection(c);
+        }
+      });
+    }
+  }
 }
 
 function buildMulticlassSection(c) {
