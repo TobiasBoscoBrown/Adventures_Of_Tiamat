@@ -5330,6 +5330,13 @@ function applyHpAction(type) {
     logEntry('damage', `<strong>${popupCharName}</strong> took <strong>${dmg} damage</strong> → ${newHp}/${maxHp} HP${newHp===0?' <strong style="color:#cc3333">⚠ DOWN</strong>':''}${srcSuffix}`);
     logHpEvent(popupCharName, 'dmg', dmg, currHp, newHp, maxHp);
     if (typeof checkConcOnDamage === 'function') checkConcOnDamage(popupCharName, dmg);
+    // Threshold alerts
+    const prevPct = maxHp > 0 ? currHp / maxHp : 1;
+    const newPct = maxHp > 0 ? newHp / maxHp : 0;
+    if (newHp > 0) {
+      if (prevPct > 0.5 && newPct <= 0.5) logEntry('damage', `<span style="color:#dd8822;font-weight:700">🩸 ${escHtml(popupCharName)} is BLOODIED (≤50% HP)</span>`);
+      else if (prevPct > 0.25 && newPct <= 0.25) logEntry('damage', `<span style="color:#cc3333;font-weight:700">☠ ${escHtml(popupCharName)} is CRITICAL (≤25% HP)</span>`);
+    }
   } else if (type === 'heal' && newHp !== currHp) {
     const healed = newHp - currHp;
     logEntry('heal', `<strong>${popupCharName}</strong> healed <strong>${healed} HP</strong> → ${newHp}/${maxHp} HP${srcSuffix}`);
