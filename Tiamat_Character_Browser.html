@@ -27238,6 +27238,173 @@ function openSecretsBoard() {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 170: Character Arc Tracker — track personal story arcs for each NPC/PC
+// Arc types, goals, key moments, progress. Better than DND Beyond: story-first DM tool.
+
+const ARC_KEY = 'tiamat_arcs';
+const ARC_TYPES = ['Redemption','Revenge','Love & Loss','Duty & Honor','Ambition & Power','Survival','Faith & Doubt','Grief','Betrayal','Mentorship','Discovery','Corruption','Sacrifice'];
+
+function _loadArcs() { try { return JSON.parse(localStorage.getItem(ARC_KEY)||'{}'); } catch { return {}; } }
+function _saveArcs(d) { localStorage.setItem(ARC_KEY, JSON.stringify(d)); }
+
+function openArcTracker(preChar) {
+  const ex = document.getElementById('arcTrackerOverlay');
+  if (ex && !preChar) { ex.remove(); return; }
+  if (ex) ex.remove();
+  const ov = document.createElement('div');
+  ov.id = 'arcTrackerOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9200;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+
+  const arcs = _loadArcs();
+  const chars = (typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : []);
+  const charsWithArcs = Object.keys(arcs);
+  const allCharNames = chars.map(c => c.name);
+
+  ov.innerHTML = `
+    <div style="width:760px;max-width:100%;color:#c8d0e8;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;position:sticky;top:0;background:rgba(6,6,26,0.97);padding:12px 0;border-bottom:1px solid rgba(155,109,255,0.25);backdrop-filter:blur(4px);z-index:10">
+        <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:700;color:#9b6dff">📖 Character Arc Tracker</div>
+        <div style="display:flex;gap:8px">
+          <select id="arcCharSel" onchange="_arcLoadChar(this.value)" style="background:#0c0c20;border:1px solid #2a2050;color:#c8d0e8;border-radius:6px;padding:5px 8px;font-size:12px;cursor:pointer">
+            <option value="">— Add / Edit Arc —</option>
+            ${allCharNames.map(n=>`<option value="${escHtml(n)}" ${n===preChar?'selected':''}>${escHtml(n)}${arcs[n]?` (${arcs[n].type||'arc'})`:''}$</option>`).join('')}
+          </select>
+          <button onclick="document.getElementById('arcTrackerOverlay').remove()" style="background:none;border:1px solid #2a2040;color:#6a5aaa;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px">✕</button>
+        </div>
+      </div>
+      <!-- Arc editor (shown when a char is selected) -->
+      <div id="arcEditorDiv" style="display:none;background:rgba(0,0,0,0.35);border:1px solid rgba(155,109,255,0.2);border-radius:12px;padding:16px;margin-bottom:16px">
+        <!-- filled by _arcLoadChar() -->
+      </div>
+      <!-- All arcs overview -->
+      <div style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:16px;padding-bottom:40px">
+        <div style="font-size:10px;color:#4a5272;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">All Active Arcs</div>
+        <div id="arcOverviewGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">
+          ${charsWithArcs.length ? charsWithArcs.map(name => {
+            const a = arcs[name];
+            const prog = a.progress || 0;
+            const pColor = prog >= 80 ? '#44aa44' : prog >= 50 ? '#c9a227' : '#9b6dff';
+            return `<div style="background:rgba(155,109,255,0.07);border:1px solid rgba(155,109,255,0.2);border-radius:8px;padding:12px;cursor:pointer" onclick="_arcLoadChar('${name.replace(/'/g,"\\'")}');document.getElementById('arcCharSel').value='${name.replace(/'/g,"\\'")}'">
+              <div style="font-size:12px;font-weight:700;color:#e0e0ff;margin-bottom:4px">${escHtml(name)}</div>
+              <div style="font-size:10px;color:#9b6dff;margin-bottom:6px">${escHtml(a.type||'Unknown Arc')}</div>
+              <div style="font-size:10px;color:#6a7090;margin-bottom:6px;line-height:1.4">${escHtml((a.goal||'').substring(0,80))}${(a.goal||'').length>80?'…':''}</div>
+              <div style="background:#1a1a30;border-radius:4px;height:6px;overflow:hidden">
+                <div style="width:${prog}%;height:100%;background:${pColor};border-radius:4px"></div>
+              </div>
+              <div style="font-size:9px;color:${pColor};margin-top:3px">${prog}% — ${prog>=80?'Near Resolution':prog>=50?'Developing':'Early Stage'}</div>
+            </div>`;
+          }).join('') : '<div style="color:#4a5272;font-size:12px;text-align:center;grid-column:1/-1;padding:20px">No arcs tracked yet. Select a character above to start tracking their story arc.</div>'}
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  if (preChar) { setTimeout(() => { document.getElementById('arcCharSel').value = preChar; _arcLoadChar(preChar); }, 50); }
+}
+
+function _arcLoadChar(name) {
+  const edDiv = document.getElementById('arcEditorDiv');
+  if (!edDiv) return;
+  if (!name) { edDiv.style.display = 'none'; return; }
+  edDiv.style.display = 'block';
+  const arcs = _loadArcs();
+  const arc = arcs[name] || { type: 'Redemption', goal: '', progress: 0, moments: [], resolution: '' };
+
+  edDiv.innerHTML = `
+    <div style="font-size:14px;font-weight:700;color:#9b6dff;font-family:'Cinzel',serif;margin-bottom:14px">${escHtml(name)}'s Arc</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div>
+        <div style="font-size:10px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Arc Type</div>
+        <select id="arcType" style="width:100%;background:#0c0c20;border:1px solid #2a2050;color:#c8d0e8;border-radius:6px;padding:6px;font-size:12px">
+          ${ARC_TYPES.map(t=>`<option value="${t}" ${arc.type===t?'selected':''}>${t}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <div style="font-size:10px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Arc Progress</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input id="arcProgress" type="range" min="0" max="100" value="${arc.progress||0}" oninput="document.getElementById('arcProgLabel').textContent=this.value+'%'" style="flex:1;accent-color:#9b6dff">
+          <span id="arcProgLabel" style="font-size:12px;color:#9b6dff;min-width:36px;font-weight:700">${arc.progress||0}%</span>
+        </div>
+      </div>
+    </div>
+    <div style="margin-bottom:10px">
+      <div style="font-size:10px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Arc Goal / Driving Motivation</div>
+      <textarea id="arcGoal" style="width:100%;background:#0c0c20;border:1px solid #2a2050;color:#c8d0e8;border-radius:6px;padding:7px;font-size:11px;font-family:inherit;resize:vertical;min-height:52px;box-sizing:border-box" placeholder="What does this character ultimately want or need?">${escHtml(arc.goal||'')}</textarea>
+    </div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:10px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Resolution / Endpoint</div>
+      <textarea id="arcResolution" style="width:100%;background:#0c0c20;border:1px solid #2a2050;color:#c8d0e8;border-radius:6px;padding:7px;font-size:11px;font-family:inherit;resize:vertical;min-height:44px;box-sizing:border-box" placeholder="How could this arc end? What would resolution look like?">${escHtml(arc.resolution||'')}</textarea>
+    </div>
+    <!-- Key moments -->
+    <div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div style="font-size:10px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px">Key Story Moments</div>
+        <button onclick="_arcAddMoment('${name.replace(/'/g,"\\'")}',this)" style="background:rgba(155,109,255,0.1);border:1px solid rgba(155,109,255,0.3);color:#9b6dff;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:10px">+ Add</button>
+      </div>
+      <div id="arcMomentsList">${(arc.moments||[]).map((m,i) => `
+        <div style="display:flex;gap:6px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);align-items:flex-start">
+          <span style="font-size:10px;color:#9b6dff;min-width:14px">★</span>
+          <span style="font-size:11px;color:#9098b8;flex:1">${escHtml(m.text||m)}</span>
+          <span style="font-size:9px;color:#4a5272">${m.ts||''}</span>
+          <button onclick="_arcDeleteMoment('${name.replace(/'/g,"\\'")}',${i})" style="background:none;border:none;color:#3a3060;cursor:pointer;font-size:12px;padding:0">×</button>
+        </div>`).join('')||'<div style="font-size:11px;color:#4a5272;padding:6px 0;font-style:italic">No key moments logged yet.</div>'}</div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button onclick="_arcDelete('${name.replace(/'/g,"\\'")}');document.getElementById('arcEditorDiv').style.display='none';openArcTracker()" style="background:rgba(204,68,68,0.1);border:1px solid rgba(204,68,68,0.3);color:#cc4444;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:12px">🗑 Delete Arc</button>
+      <button onclick="_arcSave('${name.replace(/'/g,"\\'")}');showToast('Arc saved','#9b6dff')" style="background:rgba(155,109,255,0.15);border:1px solid rgba(155,109,255,0.5);color:#9b6dff;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:12px;font-weight:700">✓ Save Arc</button>
+    </div>`;
+}
+
+function _arcSave(name) {
+  const arcs = _loadArcs();
+  arcs[name] = {
+    type: document.getElementById('arcType')?.value || 'Unknown',
+    goal: document.getElementById('arcGoal')?.value || '',
+    resolution: document.getElementById('arcResolution')?.value || '',
+    progress: parseInt(document.getElementById('arcProgress')?.value || 0),
+    moments: arcs[name]?.moments || [],
+  };
+  _saveArcs(arcs);
+}
+
+function _arcAddMoment(name, btn) {
+  const text = prompt('Describe this key story moment:');
+  if (!text?.trim()) return;
+  const arcs = _loadArcs();
+  if (!arcs[name]) arcs[name] = { type: 'Unknown', goal: '', resolution: '', progress: 0, moments: [] };
+  if (!arcs[name].moments) arcs[name].moments = [];
+  arcs[name].moments.push({ text: text.trim(), ts: new Date().toLocaleDateString() });
+  _saveArcs(arcs);
+  _arcLoadChar(name);
+}
+
+function _arcDeleteMoment(name, idx) {
+  const arcs = _loadArcs();
+  if (arcs[name]?.moments) { arcs[name].moments.splice(idx, 1); _saveArcs(arcs); _arcLoadChar(name); }
+}
+
+function _arcDelete(name) {
+  const arcs = _loadArcs();
+  delete arcs[name];
+  _saveArcs(arcs);
+}
+
+// Add Arc Tracker button
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'Character Arc Tracker — track story arcs, goals, key moments, and progress';
+    btn.style.cssText = 'border-color:#9b6dff;color:#9b6dff';
+    btn.textContent = '📖 Arcs';
+    btn.onclick = () => openArcTracker(null);
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
