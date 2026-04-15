@@ -3067,6 +3067,20 @@
     margin-top: 3px;
   }
 
+  /* ── Class Feature Usage Tracker (Iteration 72) ── */
+  .feat-use-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #0e0e24; }
+  .feat-use-row:last-child { border-bottom: none; }
+  .feat-use-name { flex: 1; font-size: 12px; color: #dce0f0; }
+  .feat-use-meta { font-size: 10px; color: #4a5272; }
+  .feat-use-pips { display: flex; gap: 4px; align-items: center; }
+  .feat-pip { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid #4488ff; cursor: pointer; transition: all .15s; display: flex; align-items: center; justify-content: center; font-size: 9px; }
+  .feat-pip.used { background: #2a2a50; border-color: #2a2a50; color: #1a1a3a; }
+  .feat-pip.avail { background: rgba(68,136,255,.15); color: #4488ff; }
+  .feat-pip.avail:hover { background: #4488ff; color: #fff; }
+  .feat-pip.used:hover { background: rgba(68,136,255,.1); border-color: #4488ff; color: #4488ff; }
+  .feat-add-btn { font-size: 11px; background: none; border: 1px dashed #2a2a50; color: #4a5272; border-radius: 6px; padding: 4px 10px; cursor: pointer; width: 100%; margin-top: 6px; transition: all .2s; }
+  .feat-add-btn:hover { border-color: #9b6dff; color: #9b6dff; }
+
   /* ── Spell Slots ── */
   .spell-level-row {
     display: flex;
@@ -5040,6 +5054,8 @@ function shortRestAll() {
     total++;
   });
   if (total) { saveHp(); renderGrid(); logEntry('heal', `☽ <strong>Short Rest</strong> — ${total} characters recovered hit dice`); }
+  // Reset short-rest class features for all characters
+  if (typeof resetFeaturesForChar === 'function') UNIQUE_CHARS.forEach(c => resetFeaturesForChar(c.name, 'short'));
 }
 
 function longRestAll() {
@@ -5057,7 +5073,9 @@ function longRestAll() {
   saveDeathSaves();
   saveSlots();
   renderGrid();
-  logEntry('heal', `☀ <strong>Long Rest</strong> — all characters restored to full HP and spell slots`);
+  // Reset ALL class features on long rest
+  if (typeof resetFeaturesForChar === 'function') UNIQUE_CHARS.forEach(c => resetFeaturesForChar(c.name, 'long'));
+  logEntry('heal', `☀ <strong>Long Rest</strong> — all characters restored to full HP, spell slots, and class features`);
 }
 
 initHp();
@@ -5624,6 +5642,7 @@ function buildStatsPanel(c) {
     </div>
     ${buildProficienciesSection(c)}
     ${buildTraitsSection(c)}
+    ${buildFeatureTracker(c)}
     ${isSpellcaster(c) ? `
     <div class="stats-section">
       <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
@@ -6321,6 +6340,144 @@ function generateTimeline(c) {
   events.push({ label:'Present Day', desc: lore.slice(0, 100) + (lore.length > 100 ? '…' : '') });
 
   return events.slice(0, 6);
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 72: Class Feature Usage Tracker — track limited-use
+//   class abilities (Action Surge, Ki Points, Bardic Inspiration,
+//   Channel Divinity, etc.) with short/long rest resets.
+// ══════════════════════════════════════════════════════════
+const FEAT_USE_KEY = 'tiamat_feat_use';
+const FEAT_USE_CUSTOM_KEY = 'tiamat_feat_custom';
+
+// Common class features: { name, max, restOn: 'short'|'long', hint }
+const CLASS_FEATURE_PRESETS = [
+  { name:'Action Surge', max:1, restOn:'short', hint:'Fighter: extra action on your turn' },
+  { name:'Bardic Inspiration', max:5, restOn:'long', hint:'Bard: grant d6 bonus to ally' },
+  { name:'Channel Divinity', max:1, restOn:'short', hint:'Cleric/Paladin: channel divine power' },
+  { name:'Ki Points', max:5, restOn:'short', hint:'Monk: fuel ki features' },
+  { name:'Lay on Hands', max:25, restOn:'long', hint:'Paladin: pool of healing (hp)' },
+  { name:'Rage', max:2, restOn:'long', hint:'Barbarian: enter rage' },
+  { name:'Second Wind', max:1, restOn:'short', hint:'Fighter: heal 1d10+level HP' },
+  { name:'Sneak Attack', max:1, restOn:'turn', hint:'Rogue: extra damage once per turn' },
+  { name:'Wild Shape', max:2, restOn:'short', hint:'Druid: transform into beast' },
+  { name:'Sorcery Points', max:4, restOn:'long', hint:'Sorcerer: metamagic fuel' },
+  { name:'Arcane Recovery', max:1, restOn:'long', hint:'Wizard: recover spell slots on short rest' },
+  { name:'Cunning Action', max:1, restOn:'turn', hint:'Rogue: bonus action Dash/Disengage/Hide' },
+  { name:'Uncanny Dodge', max:1, restOn:'turn', hint:'Rogue: halve damage from one attack' },
+  { name:'Evasion', max:1, restOn:'turn', hint:'Rogue/Monk: avoid AoE damage' },
+  { name:'Eldritch Invocations', max:2, restOn:'long', hint:'Warlock: special invocation uses' },
+  { name:'Aura of Protection', max:0, restOn:'long', hint:'Paladin: passive, no charges' },
+  { name:'Superiority Dice', max:4, restOn:'short', hint:'Fighter: combat maneuver dice (d8s)' },
+  { name:'Divine Smite', max:3, restOn:'long', hint:'Paladin: expend spell slot to smite' },
+  { name:'Cutting Words', max:5, restOn:'long', hint:'Bard: reduce creature\'s roll' },
+  { name:'Healing Word', max:3, restOn:'long', hint:'Bard/Cleric: bonus action heal' },
+];
+
+function loadFeatUses() {
+  try { return JSON.parse(localStorage.getItem(FEAT_USE_KEY)) || {}; } catch { return {}; }
+}
+function saveFeatUses(data) { localStorage.setItem(FEAT_USE_KEY, JSON.stringify(data)); }
+function loadCustomFeats() {
+  try { return JSON.parse(localStorage.getItem(FEAT_USE_CUSTOM_KEY)) || {}; } catch { return {}; }
+}
+function saveCustomFeats(data) { localStorage.setItem(FEAT_USE_CUSTOM_KEY, JSON.stringify(data)); }
+
+function getFeatUsed(charName, featName) {
+  return (loadFeatUses()[charName] || {})[featName] || 0;
+}
+function setFeatUsed(charName, featName, val) {
+  const d = loadFeatUses();
+  if (!d[charName]) d[charName] = {};
+  d[charName][featName] = val;
+  saveFeatUses(d);
+}
+function toggleFeatPip(charName, featName, max, pipIdx) {
+  const used = getFeatUsed(charName, featName);
+  // If clicking a used pip → mark it available (reduce used count)
+  // If clicking an available pip → mark it used (increase used count)
+  const newUsed = (pipIdx < used) ? pipIdx : pipIdx + 1;
+  setFeatUsed(charName, featName, Math.min(newUsed, max));
+  // Re-render the pip row
+  const el = document.getElementById('featpips_' + safeId(charName) + '_' + safeId(featName));
+  if (el) el.innerHTML = buildFeatPips(charName, featName, max);
+}
+function buildFeatPips(charName, featName, max) {
+  if (max === 0) return '<span style="font-size:10px;color:#4a5272;font-style:italic">passive</span>';
+  const used = getFeatUsed(charName, featName);
+  const nameJ = JSON.stringify(charName); const featJ = JSON.stringify(featName);
+  return Array.from({length: Math.min(max, 10)}, (_, i) =>
+    `<div class="feat-pip ${i < used ? 'used' : 'avail'}" onclick="toggleFeatPip(${nameJ},${featJ},${max},${i})" title="${i < used ? 'Click to restore' : 'Click to use'}">${i < used ? '●' : '○'}</div>`
+  ).join('') + (max > 10 ? `<span style="font-size:10px;color:#4a5272"> +${max-10}</span>` : '');
+}
+function resetFeaturesForChar(charName, restType) {
+  const uses = loadFeatUses();
+  const custom = loadCustomFeats()[charName] || [];
+  const allFeats = [...CLASS_FEATURE_PRESETS, ...custom];
+  if (!uses[charName]) return;
+  allFeats.forEach(f => {
+    if (restType === 'long' || f.restOn === restType || f.restOn === 'turn') {
+      uses[charName][f.name] = 0;
+    }
+  });
+  saveFeatUses(uses);
+}
+function buildFeatureTracker(c) {
+  const custom = (loadCustomFeats()[c.name] || []);
+  const nameJ = JSON.stringify(c.name);
+  // Show preset + custom features. Presets shown always; custom per character.
+  const allFeats = [...CLASS_FEATURE_PRESETS, ...custom];
+  const restColors = { short: '#23b478', long: '#c9a227', turn: '#9b6dff' };
+  const rows = allFeats.map(f => {
+    const pipId = 'featpips_' + safeId(c.name) + '_' + safeId(f.name);
+    return `<div class="feat-use-row">
+      <div>
+        <div class="feat-use-name">${f.name}</div>
+        <div class="feat-use-meta" title="${f.hint||''}">${f.hint ? f.hint.slice(0,40)+'…' : ''} · <span style="color:${restColors[f.restOn]||'#9098b8'}">${f.restOn} rest</span></div>
+      </div>
+      <div class="feat-use-pips" id="${pipId}">${buildFeatPips(c.name, f.name, f.max)}</div>
+    </div>`;
+  }).join('');
+
+  return `<div class="stats-section">
+    <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>Class Features & Limited Uses</span>
+      <div style="display:flex;gap:4px">
+        <button onclick="resetAllFeats(${nameJ},'short')" style="background:rgba(35,180,120,.1);border:1px solid #23b478;color:#23b478;border-radius:4px;padding:2px 7px;cursor:pointer;font-size:10px">↺ Short</button>
+        <button onclick="resetAllFeats(${nameJ},'long')" style="background:rgba(201,162,39,.1);border:1px solid #c9a227;color:#c9a227;border-radius:4px;padding:2px 7px;cursor:pointer;font-size:10px">☀ Long</button>
+      </div>
+    </div>
+    ${rows}
+    <button class="feat-add-btn" onclick="addCustomFeat(${nameJ})">+ Add Custom Feature</button>
+  </div>`;
+}
+function resetAllFeats(charName, restType) {
+  resetFeaturesForChar(charName, restType);
+  // Re-render the feature tracker in the stats panel
+  const section = document.querySelector(`[data-feat-tracker="${CSS.escape(charName)}"]`);
+  if (section) {
+    const c = filteredChars[currentModalIdx];
+    if (c) section.outerHTML = buildFeatureTracker(c);
+  } else {
+    // Full re-render of stats panel
+    const c = filteredChars[currentModalIdx];
+    if (c) document.getElementById('statsPanel').innerHTML = buildStatsPanel(c);
+  }
+  showToast(`↺ ${charName}: ${restType} rest features restored`, '#23b478');
+}
+function addCustomFeat(charName) {
+  const name = prompt('Feature name (e.g. "Hunter\'s Mark", "Divine Intervention"):');
+  if (!name) return;
+  const maxStr = prompt('Max uses per rest (0 = passive):');
+  const max = parseInt(maxStr) || 0;
+  const restOn = prompt('Resets on: short / long / turn') || 'long';
+  const hint = prompt('Description (optional):') || '';
+  const custom = loadCustomFeats();
+  if (!custom[charName]) custom[charName] = [];
+  custom[charName].push({ name, max, restOn: ['short','long','turn'].includes(restOn)?restOn:'long', hint });
+  saveCustomFeats(custom);
+  const c = filteredChars[currentModalIdx];
+  if (c) document.getElementById('statsPanel').innerHTML = buildStatsPanel(c);
 }
 
 // ══════════════════════════════════════════════════════════
