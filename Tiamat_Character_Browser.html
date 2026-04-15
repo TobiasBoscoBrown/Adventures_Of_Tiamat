@@ -3562,6 +3562,7 @@
     <button class="encounter-open-btn" onclick="togglePassivePanel()" style="border-color:#23b478;color:#23b478" id="passiveBtn" title="Party Passive Skills — perception, investigation, insight at a glance">👁 Passives</button>
     <button class="encounter-open-btn" onclick="toggleAwardsPanel()" style="border-color:#c9a227;color:#c9a227" id="awardsBtn" title="Inspiration & Awards — grant inspiration, log heroic moments">⭐ Awards</button>
     <button class="encounter-open-btn" onclick="openGroupCheckPanel()" style="border-color:#aa66ff;color:#aa66ff" title="Group Check Roller — roll Stealth, Perception, etc. for all party members at once">🎲 Group Roll</button>
+    <button class="encounter-open-btn" onclick="openConcDashboard()" style="border-color:#c9a227;color:#c9a227" title="Concentration Dashboard — who is concentrating, quick break concentration saves">🔮 Conc</button>
     <div class="stat-badge"><strong id="totalCount">0</strong> Characters</div>
     <div class="stat-badge"><strong id="visibleCount">0</strong> Showing</div>
     <div class="stat-badge stat-live" id="statDown" onclick="filterToDown()" title="Click to show downed characters" style="display:none"><strong id="downCount">0</strong> ⚠ Down</div>
@@ -9511,6 +9512,86 @@ function removeAward(idx) {
   const awards = loadAwards();
   awards.splice(idx, 1);
   saveAwards(awards);
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 81: Concentration Dashboard — shows all concentrating
+//   casters in one panel with quick break/save functions.
+//   Roll CON saves directly against incoming damage DCs.
+// ══════════════════════════════════════════════════════════
+function openConcDashboard() {
+  const existing = document.getElementById('concDashOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'concDashOverlay';
+  overlay.style.cssText = 'position:fixed;top:60px;left:50%;transform:translateX(-50%);width:min(520px,96vw);max-height:80vh;background:linear-gradient(160deg,#0d0b00,#100e00);border:1px solid rgba(201,162,39,0.5);border-radius:14px;z-index:9500;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.9)';
+  document.body.appendChild(overlay);
+  renderConcDashboard();
+}
+function renderConcDashboard() {
+  const overlay = document.getElementById('concDashOverlay');
+  if (!overlay) return;
+  const allConc = loadAllConc();
+  const concEntries = Object.entries(allConc);
+  const chars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+
+  const rows = concEntries.length ? concEntries.map(([charName, spell]) => {
+    const c = chars.find(ch => ch.name === charName);
+    const conMod = c ? (() => { const a = (c.abilities||[]).find(([n])=>n==='CON'); return a ? parseInt(a[2])||0 : 0; })() : 0;
+    const conModStr = conMod >= 0 ? `+${conMod}` : `${conMod}`;
+    return `<div style="background:#06060a;border:1px solid rgba(201,162,39,0.25);border-radius:10px;padding:12px 14px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div>
+          <div style="font-family:'Cinzel',serif;font-size:13px;color:#dce0f0;font-weight:700">${charName}</div>
+          <div style="font-size:12px;color:#c9a227;margin-top:2px">🔮 ${spell}</div>
+        </div>
+        <button onclick="clearConc(${JSON.stringify(charName)},null);renderConcDashboard()" style="background:rgba(204,51,51,.1);border:1px solid #cc3333;color:#ff6666;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px">Break</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div style="font-size:10px;color:#4a5272;text-transform:uppercase;letter-spacing:.5px">CON save ${conModStr} vs DC:</div>
+        <input id="concDC_${safeId(charName)}" type="number" value="10" min="1" max="30" style="width:50px;background:#0a0a14;border:1px solid #2a2a50;color:#e0e0ff;border-radius:4px;padding:3px 6px;font-size:12px;text-align:center;outline:none">
+        <button onclick="rollConcSave(${JSON.stringify(charName)},${JSON.stringify(spell)},${conMod})" style="background:rgba(68,136,255,.1);border:1px solid #4488ff;color:#88aaff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px">🎲 Roll Save</button>
+      </div>
+      <div id="concSaveResult_${safeId(charName)}" style="margin-top:6px;font-size:11px;height:18px"></div>
+    </div>`;
+  }).join('') : `<div style="text-align:center;padding:20px;color:#4a5272;font-style:italic">No active concentration spells</div>`;
+
+  overlay.innerHTML = `
+    <div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(201,162,39,0.2)">
+      <span style="font-family:'Cinzel',serif;color:#c9a227;font-size:13px;font-weight:700;letter-spacing:1px">🔮 CONCENTRATION TRACKER</span>
+      <div style="display:flex;gap:8px">
+        <button onclick="clearAllConc()" style="background:rgba(204,51,51,.1);border:1px solid #cc4444;color:#ff6666;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px">Break All</button>
+        <button onclick="document.getElementById('concDashOverlay').remove()" style="background:none;border:1px solid #3a2a00;color:#6a5020;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px">✕</button>
+      </div>
+    </div>
+    <div style="padding:14px 16px">
+      <div style="font-size:10px;color:#4a5272;margin-bottom:10px">${concEntries.length} active concentration spell${concEntries.length===1?'':'s'} · DC = 10 or half damage taken (whichever is higher)</div>
+      ${rows}
+    </div>`;
+}
+function rollConcSave(charName, spell, conMod) {
+  const dcEl = document.getElementById('concDC_' + safeId(charName));
+  const dc = parseInt(dcEl?.value || 10);
+  const roll = Math.floor(Math.random()*20)+1;
+  const total = roll + conMod;
+  const success = total >= dc;
+  const isCrit = roll === 20, isFumble = roll === 1;
+  const modStr = conMod >= 0 ? `+${conMod}` : `${conMod}`;
+  const resEl = document.getElementById('concSaveResult_' + safeId(charName));
+  if (resEl) {
+    const color = success ? (isCrit?'#44ff88':'#4cdf88') : (isFumble?'#ff4444':'#cc6666');
+    resEl.innerHTML = `<span style="color:${color}">${isCrit?'★ CRIT ':isFumble?'☠ FUMBLE ':''}d20(${roll})${modStr}=${total} vs DC ${dc} → <strong>${success?'MAINTAINS':'BREAKS'}</strong></span>`;
+    if (!success) { clearConc(charName, null); setTimeout(renderConcDashboard, 500); }
+    logEntry('roll', `🔮 <strong>${charName}</strong> CON save d20(${roll})${modStr}=${total} vs DC ${dc} — ${success?'maintains':'BREAKS'} concentration on ${spell}`);
+  }
+}
+function clearAllConc() {
+  if (!confirm('Break ALL concentration spells?')) return;
+  const all = loadAllConc();
+  Object.keys(all).forEach(name => { logEntry('roll', `🔮 <strong>${name}</strong> broke concentration on ${all[name]}`); });
+  saveAllConc({});
+  updateHeaderStats();
+  renderConcDashboard();
 }
 
 // ══════════════════════════════════════════════════════════
