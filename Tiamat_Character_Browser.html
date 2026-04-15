@@ -25883,6 +25883,171 @@ function _confirmLevelUp(charName, newLv) {
   renderGrid();
 }
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 161: DM Quick Reference Screen — compact rules reference overlay
+// Conditions, actions, cover, common DCs, carrying capacity, all in one place.
+
+function openDmQuickRef() {
+  const ex = document.getElementById('dmQuickRefOverlay');
+  if (ex) { ex.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'dmQuickRefOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.90);z-index:9200;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+
+  const sections = [
+    {
+      title: '🎯 Actions In Combat',
+      color: '#cc4444',
+      items: [
+        ['Attack', 'Make one or more weapon/spell attacks per the Attack action'],
+        ['Cast a Spell', 'Cast a spell with a casting time of 1 action'],
+        ['Dash', 'Gain extra movement = your Speed this turn'],
+        ['Disengage', 'Your movement doesn\'t provoke opportunity attacks this turn'],
+        ['Dodge', 'Attackers have disadvantage; DEX saves with advantage'],
+        ['Help', 'Give an ally advantage on their next ability check or attack'],
+        ['Hide', 'DEX (Stealth) check to become hidden'],
+        ['Ready', 'Choose a trigger and an action reaction to it'],
+        ['Search', 'Devote attention to finding something (WIS Perception or INT Investigate)'],
+        ['Use an Object', 'Interact with a second object (first is free)'],
+      ]
+    },
+    {
+      title: '⚡ Bonus Actions & Reactions',
+      color: '#cc8822',
+      items: [
+        ['Offhand Attack', 'Light weapon in each hand: bonus action attack, no ability mod to damage'],
+        ['Shove (BA)', 'Shove as bonus action if you took the Attack action (some features)'],
+        ['Opportunity Attack', 'Reaction: when a creature leaves your reach without Disengaging'],
+        ['Counterspell', 'Reaction: when you see a spell being cast within 60 ft'],
+        ['Shield', 'Reaction: +5 AC until start of next turn (Shield spell)'],
+        ['Uncanny Dodge', 'Rogue: reaction to halve damage from a visible attacker'],
+      ]
+    },
+    {
+      title: '🛡 Cover',
+      color: '#4488ff',
+      items: [
+        ['Half Cover', '+2 AC and DEX saving throws (low wall, creature, furniture)'],
+        ['Three-Quarters Cover', '+5 AC and DEX saving throws (portcullis, arrow slit)'],
+        ['Total Cover', 'Can\'t be targeted directly by attacks or spells'],
+      ]
+    },
+    {
+      title: '😵 Conditions Reference',
+      color: '#aa44cc',
+      items: [
+        ['Blinded', 'Auto-fail sight checks. Attack rolls against = adv. Your attacks = disadv.'],
+        ['Charmed', 'Can\'t attack charmer. Charmer has adv on social checks vs you.'],
+        ['Deafened', 'Auto-fail hearing checks.'],
+        ['Exhaustion', '1=disadv checks; 2=halved speed; 3=disadv attacks/saves; 4=halved HP max; 5=speed 0; 6=dead'],
+        ['Frightened', 'Disadv on checks/attacks while source in sight. Can\'t move closer.'],
+        ['Grappled', 'Speed = 0. Ends if grappler incapacitated or you are removed.'],
+        ['Incapacitated', 'No actions or reactions.'],
+        ['Invisible', 'Unseen. Attack rolls = adv. Attacks vs you = disadv.'],
+        ['Paralyzed', 'Incapacitated. Auto-fail STR/DEX saves. Attacks adv. Hits within 5ft = crit.'],
+        ['Petrified', 'Turned to stone. Incapacitated, auto-fail STR/DEX, resist all damage, immune to poison/disease.'],
+        ['Poisoned', 'Disadvantage on attack rolls and ability checks.'],
+        ['Prone', 'Move only by crawling (half speed). Melee attacks = adv, ranged = disadv. Your attacks = disadv.'],
+        ['Restrained', 'Speed = 0. Attack rolls = disadv. Attacks vs you = adv. DEX saves = disadv.'],
+        ['Stunned', 'Incapacitated, can\'t move. Auto-fail STR/DEX saves. Attacks vs you = adv.'],
+        ['Unconscious', 'Incapacitated, prone, drop held items. Auto-fail STR/DEX saves. Attacks adv; hits within 5ft = crit.'],
+      ]
+    },
+    {
+      title: '🎲 Common DCs',
+      color: '#c9a227',
+      items: [
+        ['DC 5', 'Very Easy — picking up a coin, noticing a bonfire'],
+        ['DC 10', 'Easy — climbing a knotted rope, recalling common knowledge'],
+        ['DC 15', 'Medium — pick a simple lock, notice hidden door, recall specific lore'],
+        ['DC 20', 'Hard — climb a slippery surface, pick a complex lock'],
+        ['DC 25', 'Very Hard — break down a reinforced door, navigate dense fog'],
+        ['DC 30', 'Nearly Impossible — track a ghost, detect a perfect forgery'],
+      ]
+    },
+    {
+      title: '🏃 Movement & Carrying',
+      color: '#44aa88',
+      items: [
+        ['Difficult Terrain', 'Every 1 ft of movement costs 1 extra ft'],
+        ['Crawling', 'Every 1 ft costs 1 extra ft'],
+        ['Climbing', 'Every 1 ft costs 1 extra ft (unless trained)'],
+        ['Long Jump', 'Running start: STR score in feet. Standing: half STR score.'],
+        ['High Jump', 'Running: 3 + STR modifier ft. Standing: half that.'],
+        ['Carry Capacity', 'STR score × 15 lbs = carrying capacity'],
+        ['Push/Drag/Lift', 'Up to STR × 30 lbs; speed halved'],
+        ['Encumbered', 'Carrying > STR × 5: speed −10 ft'],
+        ['Heavily Encumbered', 'Carrying > STR × 10: speed −20 ft, disadv STR/DEX/CON checks/saves/attacks'],
+      ]
+    },
+    {
+      title: '🎭 Social Interaction DCs',
+      color: '#44aacc',
+      items: [
+        ['Friendly NPC', 'DC 10 — willing to help with most things, small favors'],
+        ['Indifferent NPC', 'DC 15 — needs convincing; provide reason or incentive'],
+        ['Hostile NPC', 'DC 20 — deeply skeptical; must neutralize suspicion first'],
+        ['Deception (DC)', 'Opposed by Insight. Elaborate lies = disadvantage.'],
+        ['Persuasion', 'Appeal to interests: gold, power, safety, honor.'],
+        ['Intimidation', 'Physical threat or authority. Target must fear consequences.'],
+      ]
+    },
+    {
+      title: '💀 Death & Dying',
+      color: '#888',
+      items: [
+        ['Death Saves', 'At 0 HP: d20 each turn. 10+ = success. 1-9 = failure. 3 fail = dead. 3 success = stable.'],
+        ['Natural 1', 'Counts as 2 death save failures'],
+        ['Natural 20', 'Regain 1 HP, become conscious'],
+        ['Damage at 0 HP', 'If damage = max HP or more, instant death'],
+        ['Stabilize', 'Medicine DC 10 stops death saves. Still unconscious.'],
+        ['Regaining HP', 'Any HP restores consciousness; stand up uses movement'],
+      ]
+    },
+  ];
+
+  ov.innerHTML = `
+    <div style="width:900px;max-width:100%;color:#c8d0e8;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;position:sticky;top:0;background:rgba(6,6,26,0.95);padding:12px 0;border-bottom:1px solid rgba(155,109,255,0.2);backdrop-filter:blur(4px)">
+        <div style="font-family:'Cinzel',serif;font-size:20px;font-weight:700;color:#9b6dff">📋 DM Quick Reference</div>
+        <button onclick="document.getElementById('dmQuickRefOverlay').remove()" style="background:none;border:1px solid #2a2040;color:#6a5aaa;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:13px">✕ Close</button>
+      </div>
+      <div style="columns:2;column-gap:16px;padding-bottom:40px">
+        ${sections.map(sec => `
+          <div style="break-inside:avoid;margin-bottom:16px;background:rgba(0,0,0,0.35);border:1px solid ${sec.color}33;border-radius:12px;padding:14px">
+            <div style="font-size:12px;font-weight:700;color:${sec.color};margin-bottom:10px;letter-spacing:0.5px">${sec.title}</div>
+            <table style="width:100%;border-collapse:collapse">
+              ${sec.items.map(([term, desc]) => `
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+                  <td style="padding:4px 8px 4px 0;font-size:11px;font-weight:700;color:#e0e0ff;white-space:nowrap;vertical-align:top;width:35%">${escHtml(term)}</td>
+                  <td style="padding:4px 0 4px 0;font-size:10.5px;color:#8090b0;line-height:1.4;vertical-align:top">${escHtml(desc)}</td>
+                </tr>`).join('')}
+            </table>
+          </div>`).join('')}
+      </div>
+    </div>`;
+
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+// Add DM Quick Ref button to toolbar (dm-tools row)
+(function() {
+  const toolRows = document.querySelectorAll('.dm-tools-row, .filter-row');
+  // Find the row that has the "encounter-open-btn" buttons (main DM tools row)
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'DM Quick Reference — conditions, actions, cover, DCs';
+    btn.style.cssText = 'border-color:#9b6dff;color:#9b6dff';
+    btn.textContent = '📋 Rules Ref';
+    btn.onclick = openDmQuickRef;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
