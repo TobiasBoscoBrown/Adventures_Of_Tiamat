@@ -3563,6 +3563,7 @@
     <button class="encounter-open-btn" onclick="toggleAwardsPanel()" style="border-color:#c9a227;color:#c9a227" id="awardsBtn" title="Inspiration & Awards — grant inspiration, log heroic moments">⭐ Awards</button>
     <button class="encounter-open-btn" onclick="openGroupCheckPanel()" style="border-color:#aa66ff;color:#aa66ff" title="Group Check Roller — roll Stealth, Perception, etc. for all party members at once">🎲 Group Roll</button>
     <button class="encounter-open-btn" onclick="openConcDashboard()" style="border-color:#c9a227;color:#c9a227" title="Concentration Dashboard — who is concentrating, quick break concentration saves">🔮 Conc</button>
+    <button class="encounter-open-btn" onclick="toggleSlotDashboard()" style="border-color:#4488ff;color:#4488ff" id="slotDashBtn" title="Party Spell Slot Dashboard — all casters' slots at a glance">✦ Slots</button>
     <div class="stat-badge"><strong id="totalCount">0</strong> Characters</div>
     <div class="stat-badge"><strong id="visibleCount">0</strong> Showing</div>
     <div class="stat-badge stat-live" id="statDown" onclick="filterToDown()" title="Click to show downed characters" style="display:none"><strong id="downCount">0</strong> ⚠ Down</div>
@@ -9512,6 +9513,86 @@ function removeAward(idx) {
   const awards = loadAwards();
   awards.splice(idx, 1);
   saveAwards(awards);
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 82: Party Spell Slot Dashboard — fixed panel showing
+//   all spellcasters' remaining slots by level, with quick expend
+//   and restore buttons. Essential for tracking resource economy.
+// ══════════════════════════════════════════════════════════
+let slotDashOpen = false;
+function toggleSlotDashboard() {
+  slotDashOpen = !slotDashOpen;
+  let panel = document.getElementById('slotDashPanel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'slotDashPanel';
+    panel.style.cssText = 'position:fixed;top:60px;right:20px;width:340px;max-height:78vh;background:linear-gradient(160deg,#060820,#0a0c28);border:1px solid rgba(68,136,255,0.4);border-radius:14px;z-index:347;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.9);overflow:hidden';
+    document.body.appendChild(panel);
+  }
+  panel.style.display = slotDashOpen ? 'flex' : 'none';
+  const btn = document.getElementById('slotDashBtn');
+  if (btn) { btn.style.background = slotDashOpen ? 'rgba(68,136,255,.15)' : ''; btn.style.color = slotDashOpen ? '#88aaff' : '#4488ff'; }
+  if (slotDashOpen) renderSlotDashboard();
+}
+function renderSlotDashboard() {
+  const panel = document.getElementById('slotDashPanel');
+  if (!panel) return;
+  const chars = (typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : []).filter(c => typeof isSpellcaster === 'function' && isSpellcaster(c));
+  const ordinals = ['','1st','2nd','3rd','4th','5th','6th','7th','8th','9th'];
+  const casterRows = chars.map(c => {
+    const slotMax = typeof getMaxSlotsForChar === 'function' ? getMaxSlotsForChar(c) : null;
+    if (!slotMax) return '';
+    const usedSlots = typeof getUsedSlots === 'function' ? getUsedSlots(c.name) : {};
+    const nameJ = JSON.stringify(c.name);
+    const slots = Object.keys(slotMax).sort((a,b)=>a-b).map(lvl => {
+      const max = slotMax[lvl]; const used = usedSlots[lvl] || 0; const rem = max - used;
+      const color = rem === 0 ? '#2a2a50' : rem <= max/2 ? '#c9a227' : '#4488ff';
+      const pips = Array.from({length:max}, (_, i) =>
+        `<span onclick="quickToggleSlot(${nameJ},${lvl},${i < rem ? 1 : -1})" title="${i < rem ? 'Expend slot' : 'Restore slot'}" style="cursor:pointer;font-size:14px;color:${i < rem ? color : '#1e2040'}">${i < rem ? '◈' : '◇'}</span>`
+      ).join('');
+      return `<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">
+        <span style="font-size:9px;color:#4a5272;min-width:24px">${ordinals[lvl]||lvl}</span>
+        <div style="display:flex;gap:2px">${pips}</div>
+        <span style="font-size:9px;color:${color};margin-left:4px">${rem}/${max}</span>
+      </div>`;
+    }).join('');
+    const concSpell = typeof getConcSpell === 'function' ? getConcSpell(c.name) : null;
+    return `<div style="background:#06060e;border:1px solid rgba(68,136,255,0.2);border-radius:8px;padding:10px 12px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:12px;color:#dce0f0;font-weight:600">${c.name}</span>
+        <button onclick="if(typeof resetSlots==='function')resetSlots(${nameJ},null);renderSlotDashboard()" style="background:none;border:1px solid rgba(68,136,255,0.3);color:#4488ff;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:9px">↺ Reset</button>
+      </div>
+      ${slots}
+      ${concSpell ? `<div style="margin-top:6px;font-size:10px;color:#c9a227">🔮 ${concSpell}</div>` : ''}
+    </div>`;
+  }).join('');
+  panel.innerHTML = `
+    <div style="padding:12px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(68,136,255,0.2)">
+      <span style="font-family:'Cinzel',serif;color:#4488ff;font-size:13px;font-weight:700;letter-spacing:1px">✦ PARTY SPELL SLOTS</span>
+      <button onclick="toggleSlotDashboard()" style="background:none;border:1px solid #1e2040;color:#4a5272;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px">✕</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:12px 14px">
+      ${chars.length ? casterRows : '<div style="color:#3a3a6a;font-size:11px;font-style:italic">No spellcasters in roster</div>'}
+      <div style="font-size:9px;color:#2a2a50;margin-top:8px;text-align:center">◈ = available · ◇ = used · click pip to toggle</div>
+    </div>`;
+}
+function quickToggleSlot(charName, level, direction) {
+  // direction: 1 = expend, -1 = restore
+  const c = (typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : []).find(ch => ch.name === charName);
+  if (!c) return;
+  const slotMax = typeof getMaxSlotsForChar === 'function' ? getMaxSlotsForChar(c) : null;
+  if (!slotMax || !slotMax[level]) return;
+  const used = typeof getUsedSlots === 'function' ? getUsedSlots(charName) : {};
+  const curr = used[level] || 0;
+  const max = slotMax[level];
+  const newUsed = Math.max(0, Math.min(max, curr + direction));
+  if (typeof slotState !== 'undefined') {
+    if (!slotState[charName]) slotState[charName] = {};
+    slotState[charName][level] = newUsed;
+    if (typeof saveSlots === 'function') saveSlots();
+  }
+  renderSlotDashboard();
 }
 
 // ══════════════════════════════════════════════════════════
