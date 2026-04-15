@@ -26550,6 +26550,129 @@ function _factRender() {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 165: Roll Probability Calculator — % chance to succeed a DC check
+// Given DC, bonus, advantage/disadvantage, inspiration — live success probability.
+
+function openProbCalc() {
+  const ex = document.getElementById('probCalcOverlay');
+  if (ex) { ex.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'probCalcOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9200;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML = `
+    <div style="width:480px;max-width:100%;background:linear-gradient(160deg,#0e0820,#180e30);border:2px solid rgba(68,136,255,0.4);border-radius:16px;padding:24px;color:#c8d0e8;font-family:'Inter',sans-serif;box-shadow:0 0 40px rgba(68,136,255,0.15)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div style="font-family:'Cinzel',serif;font-size:17px;font-weight:700;color:#4488ff">🎯 Probability Calculator</div>
+        <button onclick="document.getElementById('probCalcOverlay').remove()" style="background:none;border:1px solid #2a2040;color:#6a5aaa;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px">✕</button>
+      </div>
+      <!-- Inputs -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div>
+          <label style="font-size:10px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">DC (Difficulty Class)</label>
+          <input id="pcDC" type="number" value="15" min="1" max="30" oninput="_pcUpdate()" style="width:100%;background:#0c0c20;border:1px solid #2a2050;color:#e0e0ff;border-radius:6px;padding:8px;font-size:16px;font-weight:700;box-sizing:border-box;text-align:center">
+        </div>
+        <div>
+          <label style="font-size:10px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">Modifier (+/−)</label>
+          <input id="pcMod" type="number" value="0" min="-10" max="20" oninput="_pcUpdate()" style="width:100%;background:#0c0c20;border:1px solid #2a2050;color:#e0e0ff;border-radius:6px;padding:8px;font-size:16px;font-weight:700;box-sizing:border-box;text-align:center">
+        </div>
+      </div>
+      <!-- Roll type -->
+      <div style="margin-bottom:14px">
+        <label style="font-size:10px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:8px">Roll Type</label>
+        <div style="display:flex;gap:8px">
+          <button id="pcRollNorm" onclick="_pcSetType('normal',this)" style="flex:1;background:rgba(68,136,255,0.25);border:2px solid rgba(68,136,255,0.6);color:#4488ff;border-radius:8px;padding:8px;cursor:pointer;font-size:12px;font-weight:700">Normal</button>
+          <button id="pcRollAdv" onclick="_pcSetType('adv',this)" style="flex:1;background:rgba(0,0,0,0.2);border:1px solid #2a2040;color:#6a5aaa;border-radius:8px;padding:8px;cursor:pointer;font-size:12px">Advantage</button>
+          <button id="pcRollDis" onclick="_pcSetType('dis',this)" style="flex:1;background:rgba(0,0,0,0.2);border:1px solid #2a2040;color:#6a5aaa;border-radius:8px;padding:8px;cursor:pointer;font-size:12px">Disadvantage</button>
+        </div>
+      </div>
+      <!-- Result display -->
+      <div id="pcResult" style="background:rgba(0,0,0,0.4);border:1px solid rgba(68,136,255,0.2);border-radius:12px;padding:20px;text-align:center;margin-bottom:14px">
+        <!-- filled by _pcUpdate() -->
+      </div>
+      <!-- Breakeven bonus -->
+      <div id="pcBreakeven" style="font-size:11px;color:#4a5272;text-align:center"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  window._pcType = 'normal';
+  _pcUpdate();
+}
+
+function _pcSetType(type, btn) {
+  window._pcType = type;
+  ['Normal','Advantage','Disadvantage'].forEach((label, i) => {
+    const ids = ['pcRollNorm','pcRollAdv','pcRollDis'];
+    const b = document.getElementById(ids[i]);
+    if (!b) return;
+    const isActive = (i === 0 && type==='normal') || (i===1 && type==='adv') || (i===2 && type==='dis');
+    b.style.background = isActive ? 'rgba(68,136,255,0.25)' : 'rgba(0,0,0,0.2)';
+    b.style.border = isActive ? '2px solid rgba(68,136,255,0.6)' : '1px solid #2a2040';
+    b.style.color = isActive ? '#4488ff' : '#6a5aaa';
+    b.style.fontWeight = isActive ? '700' : '400';
+  });
+  _pcUpdate();
+}
+
+function _pcCalcChance(dc, mod, type) {
+  // d20 roll: need dc - mod or higher
+  const needed = dc - mod; // minimum d20 roll required
+  // normal: P(d20 >= needed) = (20 - needed + 1) / 20 = (21 - needed) / 20
+  const norm = Math.min(20, Math.max(0, 21 - needed)) / 20;
+  if (type === 'normal') return norm;
+  if (type === 'adv') {
+    // P(max of two d20 >= needed) = 1 - P(both < needed) = 1 - ((needed-1)/20)^2
+    const fail = (Math.max(0, Math.min(20, needed - 1))) / 20;
+    return 1 - fail * fail;
+  }
+  // disadvantage: P(min of two d20 >= needed) = P(both >= needed) = ((21-needed)/20)^2
+  return norm * norm;
+}
+
+function _pcUpdate() {
+  const dc = parseInt(document.getElementById('pcDC')?.value || 15);
+  const mod = parseInt(document.getElementById('pcMod')?.value || 0);
+  const type = window._pcType || 'normal';
+  const chance = _pcCalcChance(dc, mod, type);
+  const pct = Math.round(chance * 100);
+  const color = pct >= 75 ? '#44aa44' : pct >= 50 ? '#c9a227' : pct >= 25 ? '#cc8822' : '#cc4444';
+  const label = pct >= 75 ? 'Very Likely' : pct >= 50 ? 'Coin Flip' : pct >= 25 ? 'Unlikely' : 'Very Risky';
+
+  const el = document.getElementById('pcResult');
+  if (el) {
+    // Bar width
+    const barPct = Math.max(2, pct);
+    el.innerHTML = `
+      <div style="font-size:48px;font-weight:900;color:${color};font-family:'Cinzel',serif;line-height:1">${pct}%</div>
+      <div style="font-size:13px;color:${color};margin:4px 0 12px">${label}</div>
+      <div style="background:#1a1a30;border-radius:8px;height:12px;overflow:hidden">
+        <div style="width:${barPct}%;height:100%;background:${color};border-radius:8px;transition:width 0.3s"></div>
+      </div>
+      <div style="font-size:10px;color:#4a5272;margin-top:8px">DC ${dc} with ${mod>=0?'+'+mod:mod} modifier (${type})</div>`;
+  }
+
+  // Breakeven: what modifier makes it exactly 50%?
+  // For normal: need (21 - (dc - mod)) / 20 = 0.5 → dc - mod = 11 → mod = dc - 11
+  const breakevenMod = dc - 11;
+  const beEl = document.getElementById('pcBreakeven');
+  if (beEl) beEl.innerHTML = `50% breakeven modifier for DC ${dc}: <strong style="color:#4488ff">${breakevenMod >= 0 ? '+' : ''}${breakevenMod}</strong>`;
+}
+
+// Add Probability Calc button
+(function() {
+  const allBtns = document.querySelectorAll('.filter-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.title = 'Roll Probability Calculator — % chance to hit a DC with bonus/advantage';
+    btn.style.cssText = 'border-color:#4488ff;color:#4488ff';
+    btn.textContent = '🎯 Prob Calc';
+    btn.onclick = openProbCalc;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
