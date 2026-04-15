@@ -3712,6 +3712,7 @@
   <button class="filter-btn" onclick="openTreasureGenerator()" style="border-color:#c9a227;color:#c9a227;" title="Random treasure generator by CR">💎 Treasure</button>
   <button class="filter-btn" onclick="openMagicItemGen()" style="border-color:#cc44cc;color:#cc44cc;" title="Magic Item Generator — random items by rarity">✨ Magic Items</button>
   <button class="filter-btn" onclick="openMerchantGen()" style="border-color:#aa8833;color:#aa8833;" title="Merchant Generator — random shop with inventory and prices">🏪 Shop</button>
+  <button class="filter-btn" onclick="openPotionPanel()" style="border-color:#cc4488;color:#cc4488;" title="Potion Quick-Use — drink potions, roll healing dice, track quantities">🧪 Potions</button>
   <button class="filter-btn" onclick="openRandomEncTable()" style="border-color:#cc8844;color:#cc8844;" title="Random Encounter Table — roll by terrain">🎲 Enc Table</button>
   <button class="filter-btn" onclick="openCampaignTimeline()" style="border-color:#44cc88;color:#44cc88;" title="Campaign timeline — track key events">📅 Timeline</button>
   <button class="filter-btn" onclick="openWeatherPanel()" style="border-color:#2299bb;color:#2299bb;" title="Weather &amp; Environment — ambient conditions affecting gameplay">🌤 Weather</button>
@@ -21003,6 +21004,150 @@ function clearPrepList(charName, evt) {
   if (evt) evt.stopPropagation();
   saveSpellPrep(charName, { prepared: [] });
   refreshPrepListSection(charName);
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 115: Potion Quick-Use Panel — fast-access overlay
+//   for drinking potions. Tracks quantities per character,
+//   rolls healing dice inline, logs results to session log.
+//   Toolbar: 🧪 Potions
+// ══════════════════════════════════════════════════════════
+const POTION_STOCK_KEY = 'tiamat_potion_stock';
+
+const POTION_TYPES = [
+  { name:'Healing',          dice:'2d4+2',  color:'#cc4444', desc:'Regain 2d4+2 HP', cost:'50gp',  emoji:'🔴' },
+  { name:'Greater Healing',  dice:'4d4+4',  color:'#dd6633', desc:'Regain 4d4+4 HP', cost:'100gp', emoji:'🟠' },
+  { name:'Superior Healing', dice:'8d4+8',  color:'#cc8822', desc:'Regain 8d4+8 HP', cost:'500gp', emoji:'🟡' },
+  { name:'Supreme Healing',  dice:'10d4+20',color:'#aa44cc', desc:'Regain 10d4+20 HP',cost:'5000gp',emoji:'🟣' },
+  { name:'Speed',            dice:'',       color:'#44aacc', desc:'Haste for 1 min', cost:'150gp', emoji:'🔵' },
+  { name:'Invisibility',     dice:'',       color:'#aaaaaa', desc:'Invisible for 1hr or until attack/spell', cost:'500gp', emoji:'⚪' },
+  { name:'Fire Breath',      dice:'',       color:'#ee4422', desc:'3d6 fire as bonus action, 5 charges', cost:'150gp', emoji:'🔥' },
+  { name:'Resistance',       dice:'',       color:'#44cc88', desc:'Resistance to one damage type 1hr', cost:'300gp', emoji:'🟢' },
+  { name:'Climbing',         dice:'',       color:'#aa8844', desc:'Climb speed = walking speed 1hr', cost:'75gp',  emoji:'🟤' },
+  { name:'Water Breathing',  dice:'',       color:'#2266aa', desc:'Breathe underwater 1hr', cost:'75gp', emoji:'💧' },
+];
+
+function getPotionStock() {
+  return JSON.parse(localStorage.getItem(POTION_STOCK_KEY) || '{}');
+}
+function savePotionStock(stock) {
+  localStorage.setItem(POTION_STOCK_KEY, JSON.stringify(stock));
+}
+
+function openPotionPanel() {
+  const existing = document.getElementById('potionPanelOverlay');
+  if (existing) { existing.remove(); return; }
+
+  const chars = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS : [];
+  const charOptions = chars.map(c => `<option value="${escHtml(c.name)}">${escHtml(c.name)}</option>`).join('');
+
+  const stock = getPotionStock();
+
+  const rows = POTION_TYPES.map((p, idx) => {
+    const qty = (stock[p.name] || 0);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;background:rgba(20,20,40,0.4);margin-bottom:4px;border:1px solid rgba(80,80,120,0.2)">
+      <span style="font-size:18px;flex-shrink:0">${p.emoji}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:${p.color}">${escHtml(p.name)}</div>
+        <div style="font-size:10px;color:#7a7aaa">${escHtml(p.desc)}</div>
+        ${p.dice ? `<div style="font-size:10px;color:#c9a227">🎲 ${p.dice}</div>` : ''}
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+        <button onclick="adjustPotionQty(${JSON.stringify(p.name)},-1)" style="background:rgba(200,60,60,0.15);border:1px solid rgba(200,60,60,0.3);color:#cc4444;border-radius:4px;padding:1px 7px;cursor:pointer;font-size:14px;line-height:1.4">−</button>
+        <span id="potionQty_${safeId(p.name)}" style="font-size:14px;font-weight:700;color:#e8e8f8;min-width:24px;text-align:center">${qty}</span>
+        <button onclick="adjustPotionQty(${JSON.stringify(p.name)},1)" style="background:rgba(60,200,100,0.1);border:1px solid rgba(60,200,100,0.3);color:#44cc88;border-radius:4px;padding:1px 7px;cursor:pointer;font-size:14px;line-height:1.4">+</button>
+      </div>
+      <button onclick="drinkPotion(${JSON.stringify(p.name)},event)"
+        style="background:rgba(${p.color.replace('#','').match(/.{2}/g).map(h=>parseInt(h,16)).join(',')},0.15);border:1px solid ${p.color}44;color:${p.color};border-radius:5px;padding:3px 10px;cursor:pointer;font-size:11px;font-weight:600;flex-shrink:0"
+        title="Drink — uses 1, rolls healing">🍶 Drink</button>
+    </div>`;
+  }).join('');
+
+  const ov = document.createElement('div');
+  ov.id = 'potionPanelOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:3000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick = e => { if(e.target===ov) ov.remove(); };
+  ov.innerHTML = `<div style="background:#0d0d1a;border:1px solid #2a2a5a;border-radius:12px;padding:20px;max-width:540px;width:100%;max-height:85vh;overflow-y:auto;position:relative">
+    <button onclick="document.getElementById('potionPanelOverlay').remove()" style="position:absolute;top:10px;right:14px;background:none;border:none;color:#7a7aaa;font-size:20px;cursor:pointer;line-height:1">✕</button>
+    <div style="font-size:18px;font-weight:700;color:#cc4488;margin-bottom:4px">🧪 Potion Quick-Use</div>
+    <div style="font-size:11px;color:#7a7aaa;margin-bottom:14px">Track party potion stock. Click Drink to consume one and roll healing.</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;background:rgba(20,20,50,0.5);padding:8px;border-radius:6px">
+      <span style="font-size:12px;color:#9098b8;flex-shrink:0">Who drinks:</span>
+      <select id="potionDrinkerSel" style="flex:1;background:#0d0d1a;border:1px solid #2a2a50;color:#e8e8f8;border-radius:4px;padding:3px 6px;font-size:12px">
+        <option value="">— All characters —</option>
+        ${charOptions}
+      </select>
+    </div>
+    <div id="potionList">${rows}</div>
+    <div id="potionResultBox" style="margin-top:12px;min-height:40px;padding:8px;background:rgba(20,20,50,0.4);border-radius:6px;font-size:13px;color:#c9a227;text-align:center;display:none"></div>
+    <button onclick="clearPotionResults()" style="margin-top:8px;width:100%;background:rgba(80,80,120,0.15);border:1px solid #2a2a50;color:#7a7aaa;border-radius:5px;padding:4px;cursor:pointer;font-size:11px">Clear Last Result</button>
+  </div>`;
+  document.body.appendChild(ov);
+}
+
+function adjustPotionQty(potionName, delta) {
+  const stock = getPotionStock();
+  stock[potionName] = Math.max(0, (stock[potionName] || 0) + delta);
+  savePotionStock(stock);
+  const el = document.getElementById('potionQty_' + safeId(potionName));
+  if (el) el.textContent = stock[potionName];
+}
+
+function drinkPotion(potionName, evt) {
+  if (evt) evt.stopPropagation();
+  const stock = getPotionStock();
+  const qty = stock[potionName] || 0;
+  if (qty <= 0) {
+    const box = document.getElementById('potionResultBox');
+    if (box) { box.style.display='block'; box.style.color='#cc4444'; box.textContent = `No ${potionName} potions left!`; }
+    return;
+  }
+  stock[potionName] = qty - 1;
+  savePotionStock(stock);
+  const qtyEl = document.getElementById('potionQty_' + safeId(potionName));
+  if (qtyEl) qtyEl.textContent = stock[potionName];
+
+  const pt = POTION_TYPES.find(p => p.name === potionName);
+  const drinker = document.getElementById('potionDrinkerSel')?.value || '';
+
+  let resultText = '';
+  let healAmt = 0;
+  if (pt && pt.dice) {
+    // Parse dice like "2d4+2" or "10d4+20"
+    const m = pt.dice.match(/(\d+)d(\d+)\+?(\d*)/);
+    if (m) {
+      const num = parseInt(m[1]), sides = parseInt(m[2]), bonus = parseInt(m[3]||'0');
+      let rolls = [];
+      for (let i=0;i<num;i++) rolls.push(Math.floor(Math.random()*sides)+1);
+      healAmt = rolls.reduce((a,b)=>a+b,0) + bonus;
+      resultText = `🍶 Potion of ${potionName}: rolled ${pt.dice} = [${rolls.join(',')}]+${bonus} = <strong>${healAmt} HP</strong>`;
+    }
+  } else if (pt) {
+    resultText = `🍶 Potion of ${potionName}: ${pt.desc}`;
+  }
+
+  // Apply healing if target selected
+  if (drinker && healAmt > 0 && typeof setCharHP === 'function') {
+    const char = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS.find(c => c.name === drinker) : null;
+    if (char) {
+      const curHp = typeof getCharHP === 'function' ? getCharHP(drinker) : (char.hp || 0);
+      const maxHp = parseInt(char.hp) || 0;
+      const newHp = Math.min(maxHp, (typeof curHp === 'number' ? curHp : maxHp) + healAmt);
+      setCharHP(drinker, newHp);
+      resultText += ` → ${escHtml(drinker)} now at <strong>${newHp}/${maxHp} HP</strong>`;
+    }
+  }
+
+  if (drinker) resultText = `<strong>${escHtml(drinker)}</strong> drinks. ` + resultText;
+  if (typeof logEntry === 'function') logEntry('roll', resultText.replace(/<[^>]+>/g,''));
+
+  const box = document.getElementById('potionResultBox');
+  if (box) { box.style.display='block'; box.style.color='#c9a227'; box.innerHTML = resultText; }
+}
+
+function clearPotionResults() {
+  const box = document.getElementById('potionResultBox');
+  if (box) { box.style.display='none'; box.textContent=''; }
 }
 // ────────────────────────────────────────────────────────
 </script>
