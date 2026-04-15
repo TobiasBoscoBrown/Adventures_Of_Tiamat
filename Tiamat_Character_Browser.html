@@ -3843,6 +3843,7 @@
       <button class="init-ctrl-btn" onclick="toggleSceneEffects()" title="Scene Effects — track active area spells and environmental effects" style="border-color:#6699ff;color:#6699ff" id="sceneEffectsBtn">🌀 FX</button>
       <button class="init-ctrl-btn" onclick="saveInitiativeSnapshot()" title="Save combat snapshot — restore later" style="border-color:#44ccaa;color:#44ccaa">📸 Snap</button>
       <button class="init-ctrl-btn" onclick="openInitiativeSnapshots()" title="View &amp; restore saved snapshots" style="border-color:#44ccaa;color:#4a5272">📂</button>
+      <button class="init-ctrl-btn" onclick="toggleEncounterNotes(true)" title="Toggle encounter notes" id="encNotesBtn" style="border-color:#c9a227;color:#c9a227">📋</button>
       <button class="init-ctrl-btn" onclick="clearInitiative()" title="Clear initiative">✕</button>
     </div>
   </div>
@@ -3856,6 +3857,14 @@
   </div>
   <!-- Active Turn Stats Bar -->
   <div id="activeTurnBar" style="display:none;padding:6px 12px;border-bottom:1px solid #1e2040;background:rgba(240,192,96,.04)"></div>
+  <!-- Encounter Notes -->
+  <div id="encounterNotesArea" style="display:none;padding:5px 10px;border-bottom:1px solid rgba(201,162,39,.15);background:rgba(201,162,39,.03)">
+    <div style="display:flex;gap:5px;align-items:flex-start">
+      <span style="font-size:10px;color:#c9a227;margin-top:4px;flex-shrink:0">📋</span>
+      <textarea id="encounterNotesText" placeholder="Encounter notes — special mechanics, win conditions, lair features…" oninput="saveEncounterNotes()" style="flex:1;background:transparent;border:none;color:#9098b8;font-size:11px;line-height:1.4;resize:none;outline:none;min-height:28px;max-height:80px;overflow:hidden" rows="2"></textarea>
+      <button onclick="toggleEncounterNotes(false)" style="background:none;border:none;color:#3a3050;cursor:pointer;font-size:11px;flex-shrink:0" title="Hide notes">✕</button>
+    </div>
+  </div>
   <!-- Scene Effects Panel -->
   <div id="sceneEffectsArea" style="display:none;padding:6px 10px;border-bottom:1px solid rgba(102,153,255,.2);background:rgba(102,153,255,.04)">
     <div style="display:flex;gap:6px;align-items:center;margin-bottom:5px">
@@ -10886,6 +10895,25 @@ function initDrop(event, targetName) {
   renderInitiative();
   _initDragName = null;
 }
+
+// ── ENCOUNTER NOTES ──────────────────────────────────────
+let _encounterNotesVisible = false;
+function toggleEncounterNotes(show) {
+  _encounterNotesVisible = show !== undefined ? show : !_encounterNotesVisible;
+  const area = document.getElementById('encounterNotesArea');
+  const btn = document.getElementById('encNotesBtn');
+  if (area) area.style.display = _encounterNotesVisible ? 'block' : 'none';
+  if (btn) { btn.style.background = _encounterNotesVisible ? 'rgba(201,162,39,.15)' : ''; btn.style.color = _encounterNotesVisible ? '#ffcc44' : '#c9a227'; }
+  if (_encounterNotesVisible) {
+    const ta = document.getElementById('encounterNotesText');
+    if (ta) { ta.value = sessionStorage.getItem('tiamat_enc_notes') || ''; ta.focus(); }
+  }
+}
+function saveEncounterNotes() {
+  const ta = document.getElementById('encounterNotesText');
+  if (ta) { sessionStorage.setItem('tiamat_enc_notes', ta.value); ta.style.height='auto'; ta.style.height=ta.scrollHeight+'px'; }
+}
+// ─────────────────────────────────────────────────────────
 
 // ── SCENE EFFECTS TRACKER ────────────────────────────────
 let sceneEffects = []; // [{id, name, rounds, desc, source}]
