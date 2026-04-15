@@ -7022,7 +7022,45 @@ function buildCombatBar(c) {
     </div>
   </div>`;
 
-  return mainBar + passiveRow;
+  // Spell DC row — only for spellcasters
+  let spellRow = '';
+  if (typeof inferSpells === 'function' && (inferSpells(c)||[]).length > 0) {
+    // Determine spellcasting ability: use highlighted ability among INT/WIS/CHA, else highest
+    const spellAbs = ['INT','WIS','CHA'];
+    const highlighted = spellAbs.filter(n => (c.abilities||[]).find(a=>a[0]===n&&a[3]));
+    const spellAbName = highlighted.length > 0 ? highlighted.reduce((best, n) => {
+      return (ab[n]?.mod||0) > (ab[best]?.mod||0) ? n : best;
+    }, highlighted[0]) : spellAbs.reduce((best, n) => (ab[n]?.mod||0) > (ab[best]?.mod||0) ? n : best, 'INT');
+    const spellMod = ab[spellAbName]?.mod || 0;
+    const spellDC = 8 + prof + spellMod;
+    const spellAtk = prof + spellMod;
+    const spellAtkStr = spellAtk >= 0 ? `+${spellAtk}` : `${spellAtk}`;
+    spellRow = `<div style="display:flex;gap:8px;padding:4px 12px 6px;background:#06061a;border-top:1px solid #0a0a20;flex-wrap:wrap">
+      <div title="Spell Save DC = 8 + Prof + ${spellAbName} mod" style="display:flex;align-items:center;gap:5px;padding:3px 10px;background:#0a0a1e;border:1px solid rgba(155,109,255,0.25);border-radius:8px;cursor:default">
+        <span style="font-size:10px;color:#4a5272;letter-spacing:0.5px">🔮 SPELL DC</span>
+        <span style="font-size:15px;font-weight:700;color:#9b6dff;font-family:'Cinzel',serif">${spellDC}</span>
+      </div>
+      <div title="Spell Attack Bonus = Prof + ${spellAbName} mod" style="display:flex;align-items:center;gap:5px;padding:3px 10px;background:#0a0a1e;border:1px solid rgba(155,109,255,0.25);border-radius:8px;cursor:pointer" onclick="rollSpellAttack(${JSON.stringify(c.name)},${spellAtk})" title="Click to roll spell attack">
+        <span style="font-size:10px;color:#4a5272;letter-spacing:0.5px">✨ SPELL ATK</span>
+        <span style="font-size:15px;font-weight:700;color:#9b6dff;font-family:'Cinzel',serif">${spellAtkStr}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:5px;padding:3px 10px;background:#0a0a1e;border:1px solid rgba(155,109,255,0.15);border-radius:8px;cursor:default">
+        <span style="font-size:10px;color:#4a5272;letter-spacing:0.5px">📖 CASTING</span>
+        <span style="font-size:12px;font-weight:700;color:#7a5aaa">${spellAbName}</span>
+      </div>
+    </div>`;
+  }
+
+  return mainBar + passiveRow + spellRow;
+}
+
+function rollSpellAttack(charName, bonus) {
+  const roll = Math.floor(Math.random() * 20) + 1;
+  const total = roll + bonus;
+  const isCrit = roll === 20, isFumble = roll === 1;
+  const bStr = bonus >= 0 ? `+${bonus}` : `${bonus}`;
+  showModalRollResult(`Spell Attack: d20(${roll})${bStr} = ${total}${isCrit?' ★ CRITICAL HIT!':isFumble?' ☠ Fumble':''}`, isCrit, isFumble, total);
+  logEntry('roll', `<strong>${escHtml(charName)}</strong> Spell Attack: ${roll}${bStr} = <strong>${total}</strong>${isCrit?' ★':isFumble?' ☠':''}`);
 }
 
 function rollModalInitiative(dexMod) {
