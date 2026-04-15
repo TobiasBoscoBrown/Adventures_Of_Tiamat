@@ -3784,6 +3784,7 @@
   <button class="filter-btn" onclick="openRaceRef()" style="border-color:#44aacc;color:#44aacc;" title="Race Features Reference — traits for all PHB races">🧝 Races</button>
   <button class="filter-btn" onclick="openRoomGen()" style="border-color:#aa7744;color:#aa7744;" title="Dungeon Room Generator — instant room descriptions for improvised dungeon crawling">🏰 Room</button>
   <button class="filter-btn" onclick="openSpellSlotRef()" style="border-color:#9b6dff;color:#9b6dff;" title="Spell Slot Reference — spell slots per level for all caster types">✨ Slots Ref</button>
+  <button class="filter-btn" onclick="openLocGen()" style="border-color:#c9a227;color:#c9a227;" title="Location Generator — instant taverns, shops, temples for improvised urban play">🏠 Location</button>
   <button class="filter-btn" onclick="printPartySheet()" style="border-color:#4488ff;color:#4488ff;" title="Print Party Sheet — all party members on one printable page">🖨 Party Sheet</button>
   <button class="filter-btn" onclick="openWorldMap()" style="border-color:#44cc88;color:#44cc88;" title="World Map — pin characters to the Tiamat campaign map (hotkey: M)">🗺 World Map</button>
   <span style="color: #333; margin: 0 4px;">|</span>
@@ -25574,6 +25575,163 @@ function openSpellSlotRef() {
     </div>`;
   document.body.appendChild(ov);
   ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 159: Location Generator — instant named taverns/shops/temples for
+//   improvisational urban encounters. Generates name, atmosphere, patrons,
+//   a notable NPC, a rumor, and a potential adventure hook.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const LOC_DATA = {
+  Tavern: {
+    adj1:['Rusty','Gilded','Broken','Wandering','Howling','Silver','Crooked','Drowsy','Laughing','Salty'],
+    noun1:['Flagon','Dragon','Lantern','Sword','Anvil','Crow','Barrel','Hound','Rose','Goblin'],
+    atmo:['Low beams, straw on the floor, firelight flickering. Smells of roasting meat and spilled ale.',
+          'Surprisingly clean and well-kept. The barkeep eyes strangers carefully.',
+          'Rowdy crowd of dock workers and merchants. A bard plays off-key in the corner.',
+          'Near-empty midday. A few hooded figures nurse their drinks in silence.',
+          'Walls covered in wanted posters and hunting trophies. Feels like a fighting arena between services.',
+          'Upstairs: private gambling den accessible by password. Downstairs: perfectly ordinary tavern.'],
+    npc:['a retired mercenary with a long scar from ear to jaw, drinking alone',
+         'a gnome merchant loudly arguing about shipping rates',
+         'a young noble clearly out of their comfort zone',
+         'a half-orc bounty hunter studying a parchment intently',
+         'the barkeep, who knows everything but charges 5gp per rumor',
+         'a travel-worn elf who seems to recognize one of the party from afar'],
+    rumor:['Something is stealing livestock from the farms to the east — at night, leaving no tracks.',
+           'The mayor\'s daughter hasn\'t been seen in three days. The guards are telling everyone she\'s "visiting family."',
+           'A new merchant in town is paying double for "unusual objects." No questions asked.',
+           'The old temple on the hill was broken into last week. They say nothing was taken — but something was left behind.',
+           'Two guild factions are about to go to war over a trade route. Smart money bets on the smaller one.',
+           'A ship arrived last night with no crew. It\'s moored at the docks and the authorities are stumped.'],
+    hook:['A messenger bursts in asking if anyone knows a doctor — an important person has been poisoned.',
+          'A hooded figure slides a folded note onto your table without saying a word and leaves.',
+          'A brawl erupts near the door — in the chaos, someone\'s coin purse goes missing.',
+          'The barkeep quietly asks if you\'re looking for work. Something about his expression says it\'s serious.',
+          'A drunk soldier starts shouting about "what they saw in the sewers" before passing out cold.',
+          'The candles all gutter simultaneously, and for a moment everyone sees the same shadow on the wall.']
+  },
+  Shop: {
+    adj1:['Humble','Grand','Hidden','Creaking','Dusty','Gilded','Ancient','Peculiar'],
+    noun1:['Emporium','Goods','Wares','Curiosities','Trading Post','Shoppe','Market','Exchange'],
+    atmo:['Packed floor to ceiling. The shopkeeper knows where everything is but will never tell you.',
+          'Nearly empty shelves — something happened to the last shipment.',
+          'Magical chimes at the door. Everything is organized with obsessive precision.',
+          'Cats everywhere. At least five are visible. More are suspected.',
+          'A sign reads: "All sales final. No refunds. No arguing." — in seven languages.',
+          'Smells of spices, old paper, and something faintly magical.'],
+    npc:['the owner, an elderly halfling who haggles for sport',
+         'an apprentice clearly left in charge who has no idea what anything costs',
+         'another customer who\'s buying the last of exactly what you need',
+         'a dwarven auditor doing inventory — owner is stressed',
+         'the owner\'s child, bored, who will tell the party anything for 5sp'],
+    rumor:['The merchant guild just doubled its protection fees. Half the shops may close.',
+           'Someone is selling counterfeit goods. The fakes are nearly perfect.',
+           'A rare component shipment was waylaid outside the city. Hijackers unknown.',
+           'The shop two doors down burned last night. They\'re calling it an accident.',
+           'A buyer came in yesterday offering three times market rate for a specific item. Didn\'t say why.'],
+    hook:['The shopkeeper whispers: "The item you\'re looking for — I had it. Someone bought it an hour ago. I know where they went."',
+          'A thief snatches something off the counter and bolts. The shopkeeper begs you to stop them.',
+          'You notice a false back panel on one of the display cases.',
+          'The item you need has a faint magical aura — the shopkeeper doesn\'t seem to know why.']
+  },
+  Temple: {
+    adj1:['Crumbling','Gilded','Ancient','Hidden','Blessed','Shadowed','Solemn'],
+    noun1:['Shrine','Temple','Sanctum','Chapel','Reliquary','Vault','Hall of'],
+    atmo:['Incense so thick you can barely see the altar. Monks chant in the shadows.',
+          'Empty during off-hours. An acolyte sweeps the floor nervously.',
+          'Refugees are sheltering here — the city is troubled, and the temple opened its doors.',
+          'Grand and imposing. Guards at the doors. The high priest does not see visitors without appointment.',
+          'The god of this temple was recently declared illegal by city decree. The priests are defiant.',
+          'Warm light, flowers everywhere. Worshippers weep openly. Someone important has just died.'],
+    npc:['a young acolyte who overheard something they shouldn\'t have',
+         'the high priest, who looks at the party with unsettling knowing',
+         'a penitent noble seeking absolution for something the party might recognize',
+         'a pilgrim from very far away with a strange artifact to donate',
+         'an injured adventurer recovering in the temple infirmary'],
+    rumor:['The temple\'s holy relic has gone missing. The priests are covering it up.',
+           'The god spoke to the high priest last night. The message was unusual.',
+           'Someone has been making offerings at the wrong altar — and the wrong god is answering.',
+           'Two rival sects of this religion are about to split. The city may be caught in the middle.'],
+    hook:['The priests ask the party to investigate "a disturbance" in the crypts below.',
+          'A dying stranger presses a sealed letter into the party\'s hands: "For the high priest. Trust no one."',
+          'The god\'s statue has been vandalized. The priests want justice — and are willing to pay.',
+          'A holy day ceremony is about to be interrupted by something the party can stop.']
+  }
+};
+
+function _locName(type) {
+  const d = LOC_DATA[type];
+  return `The ${_pick(d.adj1)} ${_pick(d.noun1)}`;
+}
+
+function openLocGen() {
+  const ex = document.getElementById('locGenOverlay');
+  if (ex) { ex.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'locGenOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9100;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML = `
+    <div style="background:linear-gradient(160deg,#0e0c04,#1c1800);border:1px solid rgba(201,162,39,0.4);border-radius:14px;width:540px;max-width:100%;padding:22px;color:#c8d0e8;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div style="font-size:17px;font-weight:700;font-family:'Cinzel',serif;color:#c9a227">🏠 Location Generator</div>
+        <button onclick="document.getElementById('locGenOverlay').remove()" style="background:none;border:1px solid #2a1a00;color:#c9a227;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px">✕</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        ${['Tavern','Shop','Temple'].map(t=>`<button onclick="_setLocType('${t}')" id="locTyp_${t}"
+          style="flex:1;background:${t==='Tavern'?'rgba(201,162,39,0.15)':'none'};border:1px solid ${t==='Tavern'?'rgba(201,162,39,0.5)':'#2a2010'};color:${t==='Tavern'?'#c9a227':'#6a5020'};border-radius:8px;padding:8px;cursor:pointer;font-size:12px;font-weight:700;transition:all 0.15s">${t}</button>`).join('')}
+      </div>
+      <button onclick="_rollLoc()" style="width:100%;background:rgba(201,162,39,0.12);border:1px solid rgba(201,162,39,0.4);color:#c9a22799;border-radius:8px;padding:10px;cursor:pointer;font-size:13px;font-weight:700;margin-bottom:12px">🎲 Generate Location</button>
+      <div id="locResult" style="min-height:100px;background:rgba(0,0,0,0.3);border:1px solid rgba(201,162,39,0.15);border-radius:10px;padding:14px;font-size:12px;color:#4a5272;font-style:italic;text-align:center">
+        Click "Generate Location" to begin.
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  window._locType = 'Tavern';
+  _rollLoc();
+}
+
+function _setLocType(t) {
+  window._locType = t;
+  ['Tavern','Shop','Temple'].forEach(x => {
+    const btn = document.getElementById('locTyp_' + x);
+    if (!btn) return;
+    btn.style.background = x===t ? 'rgba(201,162,39,0.15)' : 'none';
+    btn.style.borderColor = x===t ? 'rgba(201,162,39,0.5)' : '#2a2010';
+    btn.style.color = x===t ? '#c9a227' : '#6a5020';
+  });
+  _rollLoc();
+}
+
+function _rollLoc() {
+  const t = window._locType || 'Tavern';
+  const d = LOC_DATA[t];
+  if (!d) return;
+  const el = document.getElementById('locResult');
+  if (!el) return;
+  const name = _locName(t);
+  const atmo = _pick(d.atmo);
+  const npc = _pick(d.npc);
+  const rumor = _pick(d.rumor);
+  const hook = _pick(d.hook);
+
+  el.style.color = '#c8d0e8'; el.style.fontStyle = 'normal'; el.style.textAlign = 'left';
+  el.innerHTML = `
+    <div style="font-size:15px;font-weight:700;font-family:'Cinzel',serif;color:#c9a227;margin-bottom:8px">${escHtml(name)}</div>
+    <div style="font-style:italic;color:#c9a88a;font-size:12px;line-height:1.6;margin-bottom:10px">${escHtml(atmo)}</div>
+    <div style="display:grid;gap:6px">
+      ${[['👤 Notable NPC',npc,'#4488ff'],['💬 Rumor Overheard',rumor,'#44aa44'],['🪝 Adventure Hook',hook,'#cc4444']].map(([label,text,col])=>`
+        <div style="padding:7px 10px;background:rgba(0,0,0,0.2);border-left:3px solid ${col}55;border-radius:0 6px 6px 0">
+          <div style="font-size:10px;color:${col};font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">${label}</div>
+          <div style="font-size:11px;color:#9098b8;line-height:1.5">${escHtml(text)}</div>
+        </div>`).join('')}
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
+      <button onclick="_rollLoc()" style="background:rgba(201,162,39,0.1);border:1px solid rgba(201,162,39,0.3);color:#c9a22799;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:11px">🎲 Reroll</button>
+      <button onclick="logEntry('note','🏠 Location: <strong>${escHtml(name)}</strong> (${t})')" style="background:rgba(68,136,255,0.08);border:1px solid rgba(68,136,255,0.2);color:#4488ff88;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:11px">📋 Log</button>
+      <button onclick="navigator.clipboard?.writeText(${JSON.stringify(`${name}\n\n${atmo}\n\nNPC: ${npc}\n\nRumor: ${rumor}\n\nHook: ${hook}`)}).then(()=>showToast('Copied','#c9a227'))" style="background:rgba(68,204,136,0.08);border:1px solid rgba(68,204,136,0.2);color:#44cc8888;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:11px">📋 Copy</button>
+    </div>`;
 }
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
