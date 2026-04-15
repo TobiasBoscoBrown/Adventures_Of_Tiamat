@@ -3542,6 +3542,8 @@
   <button class="filter-btn" onclick="openTreasureGenerator()" style="border-color:#c9a227;color:#c9a227;" title="Random treasure generator by CR">💎 Treasure</button>
   <button class="filter-btn" onclick="openCampaignTimeline()" style="border-color:#44cc88;color:#44cc88;" title="Campaign timeline — track key events">📅 Timeline</button>
   <button class="filter-btn" onclick="openGraveyardPanel()" style="border-color:#555;color:#888;" title="Character graveyard — fallen heroes and villains">💀 Graveyard</button>
+  <button class="filter-btn" onclick="openShortcutsHelp()" style="border-color:#4488ff;color:#4488ff;" title="Keyboard shortcuts — press ? anytime">⌨ ?</button>
+  <button class="filter-btn" onclick="openGlobalSearch()" style="border-color:#c9a227;color:#9098b8;" title="Global search — Ctrl+K">🔍 Search All</button>
   <span style="color: #333; margin: 0 4px;">|</span>
   <span style="font-size:11px;color:#4a5272;margin-right:4px">View:</span>
   <button class="filter-btn view-btn active" id="viewGrid" onclick="setView('grid',this)" title="Grid view">⊞ Grid</button>
@@ -9844,6 +9846,84 @@ function clearTagFilter(dropdown) {
   renderGrid();
 }
 // ────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// ITERATION 59: Keyboard Shortcuts Help Panel — press ?
+//   to see all keyboard shortcuts. Comprehensive hotkey ref.
+// ══════════════════════════════════════════════════════════
+const KEYBOARD_SHORTCUTS = [
+  { group: 'Navigation', keys: [
+    { key: '/', desc: 'Focus search box' },
+    { key: '← →', desc: 'Navigate between characters in modal' },
+    { key: 'Esc', desc: 'Close modal / popup' },
+    { key: 'Ctrl+K', desc: 'Open global spotlight search' },
+    { key: '?', desc: 'Show this help panel' },
+  ]},
+  { group: 'Character Modal', keys: [
+    { key: 'Right-click card', desc: 'Open compact stat block popup' },
+    { key: 'Left-click card', desc: 'Open full character modal' },
+    { key: '⬇ Export', desc: 'Download character JSON snapshot' },
+    { key: '📋 Copy MD', desc: 'Copy stat block as Markdown' },
+    { key: '🖨 Print', desc: 'Print character card' },
+  ]},
+  { group: 'Combat', keys: [
+    { key: '⚔ on card', desc: 'Add/remove from initiative' },
+    { key: 'HP bar', desc: 'Click to open HP adjustment popup' },
+    { key: '⚡ Bulk', desc: 'Apply condition to all in initiative' },
+    { key: '⚄ Roll All', desc: 'Roll initiative for everyone' },
+    { key: 'Next ▶', desc: 'Advance to next turn' },
+    { key: '☽ Short / ☀ Long', desc: 'Rest all characters' },
+  ]},
+  { group: 'Filters & Views', keys: [
+    { key: 'Group buttons', desc: 'Filter by faction/group' },
+    { key: 'Theme buttons', desc: 'Filter by character theme' },
+    { key: '★ Favorites', desc: 'Show only favorited characters' },
+    { key: '🏷 Tags', desc: 'Filter by custom tag' },
+    { key: '⊞ ☰ ⊡', desc: 'Switch grid/list/compact view' },
+    { key: 'Name/CR/HP/AC', desc: 'Sort by attribute' },
+  ]},
+  { group: 'Tools', keys: [
+    { key: '💎 Treasure', desc: 'Random loot generator by CR' },
+    { key: '📅 Timeline', desc: 'Campaign event timeline' },
+    { key: '💀 Graveyard', desc: 'Fallen character tracker' },
+    { key: '💥 AoE', desc: 'Area damage/heal tool' },
+    { key: '+ NPC', desc: 'Create custom NPC' },
+    { key: '⚖ Compare', desc: 'Compare multiple characters' },
+  ]},
+];
+function openShortcutsHelp() {
+  const existing = document.getElementById('shortcutsModal');
+  if (existing) { existing.remove(); return; }
+  const modal = document.createElement('div');
+  modal.id = 'shortcutsModal';
+  modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#0a0a1e;border:1px solid rgba(68,136,255,.4);border-radius:14px;padding:20px;z-index:9500;box-shadow:0 8px 48px rgba(0,0,0,.9);min-width:340px;max-width:700px;width:90vw;max-height:85vh;overflow-y:auto';
+  modal.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <span style="font-size:16px;font-weight:700;color:#4488ff;font-family:'Cinzel',serif">⌨ Keyboard Shortcuts & Tips</span>
+      <button onclick="document.getElementById('shortcutsModal').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">
+      ${KEYBOARD_SHORTCUTS.map(g => `
+        <div style="background:#06061a;border:1px solid #1e2040;border-radius:8px;padding:12px">
+          <div style="font-size:10px;color:#4488ff;letter-spacing:1px;font-weight:700;margin-bottom:8px">${g.group.toUpperCase()}</div>
+          ${g.keys.map(k => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid rgba(30,32,64,0.5)">
+              <span style="font-size:11px;color:#9098b8">${k.desc}</span>
+              <kbd style="background:#0a0a1e;border:1px solid #2a2a50;color:#4488ff;border-radius:4px;padding:1px 6px;font-size:10px;font-family:monospace;flex-shrink:0;margin-left:8px">${k.key}</kbd>
+            </div>`).join('')}
+        </div>`).join('')}
+    </div>
+    <div style="margin-top:12px;padding-top:10px;border-top:1px solid #1e2040;font-size:11px;color:#4a5272;text-align:center">Press <kbd style="background:#0a0a1e;border:1px solid #2a2a50;color:#4488ff;border-radius:3px;padding:1px 5px;font-size:10px">?</kbd> anywhere to toggle this panel</div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => e.stopPropagation());
+  document.addEventListener('click', function rem(e) { if (!modal.contains(e.target)) { modal.remove(); document.removeEventListener('click', rem); } });
+}
+// ? key shortcut
+document.addEventListener('keydown', function(e) {
+  if (e.key === '?' && !['INPUT','TEXTAREA'].includes(document.activeElement?.tagName)) {
+    openShortcutsHelp();
+  }
+});
+
 // ══════════════════════════════════════════════════════════
 // ITERATION 58: Global Deep Search — search ALL content:
 //   lore, traits, spells, quotes, notes, conditions.
