@@ -5741,6 +5741,7 @@ function buildStatsPanel(c) {
     ${buildCurrencySection(c.name)}
     ${buildHitDiceSection(c)}
     ${buildDamageDefenseSection(c)}
+    ${buildHpSparkline(c)}
     ${buildSpeedSection(c)}
     <div class="stats-section">
       <div class="stats-section-title">Ability Scores <span style="font-size:10px;color:#4a5272;font-weight:400;font-family:'Inter',sans-serif">— click to roll</span></div>
@@ -8308,6 +8309,32 @@ function clearLog() {
   sessionLog = [];
   saveSessionLog();
   renderLog();
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 86: HP History Sparkline — renders a text-based
+//   sparkline of HP changes during this session in the modal.
+// ══════════════════════════════════════════════════════════
+function buildHpSparkline(c) {
+  if (typeof hpLog === 'undefined') return '';
+  const log = (hpLog[c.name] || []).slice(-20);
+  if (log.length < 2) return '';
+  const maxHp = parseInt(c.hp) || 1;
+  const BLOCKS = '▁▂▃▄▅▆▇█';
+  const bars = log.map(e => {
+    const pct = Math.max(0, Math.min(1, (e.afterHp || 0) / maxHp));
+    const idx = Math.floor(pct * (BLOCKS.length - 1));
+    const col = e.type === 'heal' ? '#44cc44' : e.type === 'dmg' ? '#cc3333' : '#9098b8';
+    return `<span style="color:${col}" title="${e.type}: ${e.amount} → ${e.afterHp}/${maxHp} HP">${BLOCKS[idx]}</span>`;
+  }).join('');
+  const last = log[log.length - 1];
+  const trend = log[log.length-1].afterHp > log[0].afterHp ? '↑ Recovering' : log[log.length-1].afterHp < log[0].afterHp ? '↓ Taking damage' : '→ Stable';
+  const trendCol = trend.startsWith('↑') ? '#44cc44' : trend.startsWith('↓') ? '#cc3333' : '#9098b8';
+  return `<div class="stats-section">
+    <div class="stats-section-title">📈 HP History <span style="font-size:10px;color:${trendCol};font-weight:400;font-family:'Inter',sans-serif">${trend}</span></div>
+    <div style="font-size:20px;letter-spacing:1px;margin-bottom:6px;line-height:1">${bars}</div>
+    <div style="font-size:10px;color:#4a5272">${log.length} events · Last: <span style="color:${last.type==='heal'?'#44cc44':'#cc3333'}">${last.type==='heal'?'+':'-'}${Math.abs(last.amount)}</span> → ${last.afterHp}/${maxHp} HP</div>
+  </div>`;
 }
 
 // ══════════════════════════════════════════════════════════
