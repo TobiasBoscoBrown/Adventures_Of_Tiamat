@@ -5514,6 +5514,7 @@ function buildStatsPanel(c) {
       <div id="spellSlotsFor_${safeId(c.name)}">${buildSpellSlotsHtml(c)}</div>
     </div>` : ''}
     ${buildSpellBook(c)}
+    ${buildSpellCombos(c)}
     <div class="stats-section">
       <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
         <span>Relationships</span>
@@ -9895,6 +9896,56 @@ function buildDamageDefenseSection(c) {
     ${immunities.length ? `<div style="margin-bottom:6px"><span style="font-size:9px;color:#888;letter-spacing:1px">IMMUNE </span>${immunities.map(d => chip(d,'immune')).join('')}</div>` : ''}
     ${resistances.length ? `<div style="margin-bottom:6px"><span style="font-size:9px;color:#4488ff;letter-spacing:1px">RESIST </span>${resistances.map(d => chip(d,'resist')).join('')}</div>` : ''}
     ${vulnerabilities.length ? `<div><span style="font-size:9px;color:#cc4444;letter-spacing:1px">VULNER </span>${vulnerabilities.map(d => chip(d,'vuln')).join('')}</div>` : ''}
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 63: Spell Combo Builder — shows tactical synergies
+//   between this character's spells and traits. Highlights
+//   powerful combos (Concentration + AoE, Debuff + Damage, etc.)
+// ══════════════════════════════════════════════════════════
+const SPELL_COMBOS = [
+  { name:'Hypnotic Pattern + Fireball', tags:['hypnotic pattern','fireball'], desc:'Incapacitate a cluster, then detonate — targets can\'t dodge.', color:'#cc4422', icon:'💥' },
+  { name:'Hold Person + Sneak/Crits', tags:['hold person','paralyzed'], desc:'Paralyzed targets grant auto-crits to adjacent melee attackers.', color:'#9b6dff', icon:'⚡' },
+  { name:'Banishment + Action Surge', tags:['banishment','action surge'], desc:'Remove the biggest threat, then focus down others.', color:'#4488ff', icon:'🌀' },
+  { name:'Web + Fire', tags:['web','fireball'], desc:'Web restrains, fire ignites it — double damage zone.', color:'#cc4422', icon:'🔥' },
+  { name:'Darkness + Devil\'s Sight', tags:["darkness","devil's sight"], desc:'Blind all enemies while you see perfectly.', color:'#888', icon:'👁' },
+  { name:'Slow + Multiattack', tags:['slow'], desc:'Slow halves enemy actions and AC — devastating against bosses.', color:'#44ccaa', icon:'🐢' },
+  { name:'Haste + Multiattack', tags:['haste'], desc:'Double attacks on your strongest melee fighter.', color:'#88aa22', icon:'⚡' },
+  { name:'Wall of Fire + Forced Movement', tags:['wall of fire'], desc:'Push enemies into persistent fire wall with spells or attacks.', color:'#cc4422', icon:'🔥' },
+  { name:'Polymorph + Counterspell', tags:['polymorph','counterspell'], desc:'Transform the caster, countering their signature spells.', color:'#9b6dff', icon:'🦎' },
+  { name:'Fog Cloud + Blindsense', tags:['fog cloud'], desc:'Create fog to negate ranged attacks if your team has other senses.', color:'#9098b8', icon:'🌫' },
+  { name:'Phantasmal Killer + Frightened', tags:['phantasmal killer','fear'], desc:'Layer fear effects for persistent Wisdom saves.', color:'#cc4444', icon:'💀' },
+  { name:'Bless + Sharpshooter', tags:['bless'], desc:'Bless offsets Sharpshooter/GWM penalty — massive damage gain.', color:'#c9a227', icon:'✦' },
+  { name:'Spirit Guardians + Sentinel', tags:['spirit guardians'], desc:'Slow enemies into melee range, sentinel stops their escape.', color:'#44ccaa', icon:'🛡' },
+  { name:'Contagion + Disadvantage Aura', tags:['contagion'], desc:'Contagion stacks with any disadvantage source for near-perfect hit suppression.', color:'#44aa44', icon:'☠' },
+  { name:'Dissonant Whispers + Opportunity', tags:['dissonant whispers'], desc:'Force flee → trigger free opportunity attacks from allies.', color:'#9b6dff', icon:'👂' },
+];
+
+function buildSpellCombos(c) {
+  if (!isSpellcaster(c)) return '';
+  const spells = inferSpells(c).map(s => s.toLowerCase());
+  const traitText = (c.traits || []).join(' ').toLowerCase();
+  const loreText = (c.lore || '').toLowerCase();
+  const allText = spells.join(' ') + ' ' + traitText + ' ' + loreText;
+
+  const matches = SPELL_COMBOS.filter(combo =>
+    combo.tags.some(tag => allText.includes(tag.toLowerCase()))
+  );
+  if (!matches.length) return '';
+
+  const chips = matches.map(combo => `
+    <div style="display:flex;gap:8px;align-items:flex-start;padding:9px 10px;background:${combo.color}11;border:1px solid ${combo.color}33;border-radius:8px;margin-bottom:6px">
+      <span style="font-size:16px;flex-shrink:0">${combo.icon}</span>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:${combo.color};margin-bottom:2px">${combo.name}</div>
+        <div style="font-size:11px;color:#9098b8;line-height:1.5">${combo.desc}</div>
+      </div>
+    </div>`).join('');
+
+  return `<div class="stats-section">
+    <div class="stats-section-title">✨ Spell Combos <span style="font-size:10px;color:#4a5272;font-weight:400;font-family:'Inter',sans-serif">— tactical synergies detected</span></div>
+    ${chips}
   </div>`;
 }
 
