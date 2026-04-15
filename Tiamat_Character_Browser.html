@@ -3717,6 +3717,7 @@
   <button class="filter-btn" onclick="openFeatBrowser()" style="border-color:#44cc88;color:#44cc88;" title="Feat Browser — searchable PHB feat reference with prerequisites and descriptions">📖 Feats</button>
   <button class="filter-btn" onclick="openBackgroundBrowser()" style="border-color:#c9a227;color:#c9a227;" title="Background Browser — searchable PHB background reference with skills, features, and equipment">📜 BGs</button>
   <button class="filter-btn" onclick="openRaceBrowser()" style="border-color:#9b6dff;color:#9b6dff;" title="Race Browser — PHB races and subraces with traits, ASIs, and darkvision">🧝 Races</button>
+  <button class="filter-btn" onclick="openClassBrowser()" style="border-color:#cc4444;color:#cc4444;" title="Class Browser — all 13 PHB classes with features and subclass options">⚔ Classes</button>
   <button class="filter-btn" onclick="openRandomEncTable()" style="border-color:#cc8844;color:#cc8844;" title="Random Encounter Table — roll by terrain">🎲 Enc Table</button>
   <button class="filter-btn" onclick="openCampaignTimeline()" style="border-color:#44cc88;color:#44cc88;" title="Campaign timeline — track key events">📅 Timeline</button>
   <button class="filter-btn" onclick="openWeatherPanel()" style="border-color:#2299bb;color:#2299bb;" title="Weather &amp; Environment — ambient conditions affecting gameplay">🌤 Weather</button>
@@ -21594,6 +21595,113 @@ function renderRaceList() {
       <div style="font-size:12px;color:#44cc88;margin-bottom:8px;font-weight:600">${escHtml(r.asi)}</div>
       <div style="font-size:10px;color:#c9a227;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Racial Traits</div>
       <div>${r.traits.map(t => `<div style="font-size:11px;color:#b0b8d8;padding:2px 0 2px 8px;border-left:2px solid #2a2a50;margin-bottom:3px">• ${escHtml(t)}</div>`).join('')}</div>
+    </div>
+  </details>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 120: Class Reference Browser — searchable panel
+//   with all 13 PHB classes: hit die, primary ability, saves,
+//   armor/weapon profs, key features per level, and subclass
+//   list. Toolbar: ⚔ Classes
+// ══════════════════════════════════════════════════════════
+const CLASS_LIST = [
+  { name:'Artificer', hd:'d8', primary:'INT', saves:'CON, INT', armor:'Light, Medium, Shields', weapons:'Simple', spellcast:'INT, prepared',
+    features:['1: Magical Tinkering, Spellcasting','2: Infuse Item (2 infusions)','3: Artificer Specialist','4: ASI','5: Arcane Jolt','6: Tool Expertise','7: Flash of Genius','8: ASI','10: Magic Item Adept','11: Spell-Storing Item','12: ASI','14: Magic Item Savant','15: Soul of Artifice','16: ASI','18: Magic Item Master','19: ASI','20: Soul of Artifice (+6 to saves with magic items)'],
+    subclasses:['Alchemist','Armorer','Artillerist','Battle Smith'] },
+  { name:'Barbarian', hd:'d12', primary:'STR', saves:'STR, CON', armor:'Light, Medium, Shields', weapons:'Simple, Martial', spellcast:'None',
+    features:['1: Rage (2/day), Unarmored Defense (AC 10+DEX+CON)','2: Reckless Attack, Danger Sense','3: Primal Path','4: ASI','5: Extra Attack, Fast Movement','6: Path Feature','7: Feral Instinct','8: ASI','9: Brutal Critical (1 extra die)','10: Path Feature','11: Relentless Rage','12: ASI','13: Brutal Critical (2 extra dice)','14: Path Feature','15: Persistent Rage','16: ASI','17: Brutal Critical (3 extra dice)','18: Indomitable Might','19: ASI','20: Primal Champion (+4 STR, +4 CON)'],
+    subclasses:['Berserker','Totem Warrior','Ancestral Guardian','Battlerager','Storm Herald','Zealot','Beast','Wild Magic','Giant'] },
+  { name:'Bard', hd:'d8', primary:'CHA', saves:'DEX, CHA', armor:'Light', weapons:'Simple, hand crossbow, longsword, rapier, shortsword', spellcast:'CHA, known',
+    features:['1: Bardic Inspiration (d6, CHA mod/day)','2: Jack of All Trades, Song of Rest (d6)','3: Bard College, Expertise','4: ASI','5: Bardic Inspiration (d8), Font of Inspiration','6: Countercharm, College Feature','7-9: Spells','10: Expertise, Magical Secrets','11: Bardic Inspiration (d10)','12: ASI','13: Song of Rest (d10)','14: Magical Secrets, College Feature','15: Bardic Inspiration (d12)','16: ASI','17: Song of Rest (d12)','18: Magical Secrets','19: ASI','20: Superior Inspiration (regain one use on initiative)'],
+    subclasses:['Lore','Valor','Glamour','Swords','Whispers','Eloquence','Creation','Spirits'] },
+  { name:'Cleric', hd:'d8', primary:'WIS', saves:'WIS, CHA', armor:'Light, Medium, Shields', weapons:'Simple', spellcast:'WIS, prepared',
+    features:['1: Spellcasting, Divine Domain','2: Channel Divinity (1/rest), Domain Feature','3: 2nd Domain Spell','5: Destroy Undead (CR 1/2), Domain Spell','6: Channel Divinity (2/rest), Domain Feature','7: 4th Domain Spell','8: Potent Spellcasting/Divine Strike, Domain Feature','9: 5th Domain Spell','10: Divine Intervention','11: Destroy Undead (CR 1)','12: ASI','14: Destroy Undead (CR 2)','15: 8th Domain Spell','16: ASI','17: Destroy Undead (CR 3), Domain Feature','18: Channel Divinity (3/rest)','19: ASI','20: Divine Intervention (auto success)'],
+    subclasses:['Knowledge','Life','Light','Nature','Tempest','Trickery','War','Arcana','Death','Forge','Grave','Order','Peace','Twilight'] },
+  { name:'Druid', hd:'d8', primary:'WIS', saves:'INT, WIS', armor:'Light, Medium, Shields (no metal)', weapons:'Clubs, daggers, darts, javelins, maces, quarterstaffs, scimitars, sickles, slings, spears', spellcast:'WIS, prepared',
+    features:['1: Druidic, Spellcasting','2: Wild Shape (CR 1/4), Druid Circle','4: Wild Shape (CR 1/2 — swim speed), ASI','5: Wild Shape (flying speed)','6: Circle Feature','8: Wild Shape (CR 1), ASI','10: Circle Feature','12: ASI','14: Circle Feature','16: ASI','18: Beast Spells, Timeless Body','19: ASI','20: Archdruid (unlimited Wild Shape)'],
+    subclasses:['Land','Moon','Dreams','Shepherd','Spores','Stars','Wildfire'] },
+  { name:'Fighter', hd:'d10', primary:'STR or DEX', saves:'STR, CON', armor:'All, Shields', weapons:'Simple, Martial', spellcast:'INT (Eldritch Knight)',
+    features:['1: Fighting Style, Second Wind','2: Action Surge (1/rest)','3: Martial Archetype','4: ASI','5: Extra Attack','6: ASI','7: Archetype Feature','8: ASI','9: Indomitable (1/long rest)','10: Archetype Feature','11: Extra Attack (2)','12: ASI','13: Indomitable (2/long rest)','14: ASI','15: Archetype Feature','16: ASI','17: Action Surge (2/rest), Indomitable (3/long rest)','18: Archetype Feature','19: ASI','20: Extra Attack (3)'],
+    subclasses:['Champion','Battle Master','Eldritch Knight','Arcane Archer','Cavalier','Samurai','Psi Warrior','Rune Knight','Echo Knight'] },
+  { name:'Monk', hd:'d8', primary:'DEX & WIS', saves:'STR, DEX', armor:'None', weapons:'Simple, shortsword', spellcast:'None',
+    features:['1: Unarmored Defense (AC 10+DEX+WIS), Martial Arts','2: Ki (2 points), Unarmored Movement','3: Monastic Tradition, Deflect Missiles','4: Slow Fall, ASI','5: Extra Attack, Stunning Strike','6: Ki-Empowered Strikes, Tradition Feature','7: Evasion, Stillness of Mind','8: ASI','9: Unarmored Movement (wall run)','10: Purity of Body','11: Tradition Feature','12: ASI','13: Tongue of the Sun and Moon','14: Diamond Soul','15: Timeless Body','16: ASI','17: Tradition Feature','18: Empty Body','19: ASI','20: Perfect Self'],
+    subclasses:['Open Hand','Shadow','Four Elements','Drunken Master','Kensei','Sun Soul','Ascendant Dragon','Mercy','Astral Self'] },
+  { name:'Paladin', hd:'d10', primary:'STR & CHA', saves:'WIS, CHA', armor:'All, Shields', weapons:'Simple, Martial', spellcast:'CHA, prepared',
+    features:['1: Divine Sense, Lay on Hands (5×level HP pool)','2: Fighting Style, Spellcasting, Divine Smite','3: Sacred Oath, Divine Health','4: ASI','5: Extra Attack','6: Aura of Protection (+CHA to saves 10ft)','7: Oath Feature','8: ASI','9: 3rd-level Spells','10: Aura of Courage (fear immunity 10ft)','11: Improved Divine Smite (+1d8 all melee)','12: ASI','13: 4th-level Spells','14: Cleansing Touch','15: Oath Feature','16: ASI','17: 5th-level Spells, Aura improvements (30ft)','18: Aura Improvements','19: ASI','20: Sacred Oath Capstone'],
+    subclasses:['Devotion','Ancients','Vengeance','Conquest','Redemption','Glory','Watchers','Oathbreaker'] },
+  { name:'Ranger', hd:'d10', primary:'DEX & WIS', saves:'STR, DEX', armor:'Light, Medium, Shields', weapons:'Simple, Martial', spellcast:'WIS, known',
+    features:['1: Favored Enemy, Natural Explorer','2: Fighting Style, Spellcasting','3: Ranger Archetype, Primeval Awareness','4: ASI','5: Extra Attack','6: Favored Enemy & Natural Explorer improvements','7: Archetype Feature','8: Land\'s Stride, ASI','9: 3rd-level Spells','10: Hide in Plain Sight, Natural Explorer improvement','11: Archetype Feature','12: ASI','13: 4th-level Spells','14: Vanish, Favored Enemy improvement','15: Archetype Feature','16: ASI','17: 5th-level Spells','18: Feral Senses','19: ASI','20: Foe Slayer'],
+    subclasses:['Hunter','Beast Master','Gloom Stalker','Horizon Walker','Monster Slayer','Fey Wanderer','Swarmkeeper','Drakewarden'] },
+  { name:'Rogue', hd:'d8', primary:'DEX', saves:'DEX, INT', armor:'Light', weapons:'Simple, hand crossbow, longsword, rapier, shortsword', spellcast:'INT (Arcane Trickster)',
+    features:['1: Expertise, Sneak Attack (1d6), Thieves\' Cant','2: Cunning Action (Dash/Disengage/Hide as bonus)','3: Roguish Archetype','4: ASI','5: Uncanny Dodge (halve damage)','6: Expertise','7: Evasion','8: ASI','9: Archetype Feature','10: ASI','11: Reliable Talent (min 10 on proficient checks)','12: ASI','13: Archetype Feature','14: Blindsense','15: Slippery Mind (WIS save proficiency)','16: ASI','17: Archetype Feature','18: Elusive (no advantage vs you when not incapacitated)','19: ASI','20: Stroke of Luck (turn miss to hit or failed check to 20, 1/rest)'],
+    subclasses:['Thief','Assassin','Arcane Trickster','Inquisitive','Mastermind','Scout','Swashbuckler','Phantom','Soulknife'] },
+  { name:'Sorcerer', hd:'d6', primary:'CHA', saves:'CON, CHA', armor:'None', weapons:'Daggers, darts, slings, quarterstaffs, light crossbows', spellcast:'CHA, known',
+    features:['1: Spellcasting, Sorcerous Origin','2: Font of Magic (Sorcery Points = level)','3: Metamagic (2 options)','4: ASI','5: Metamagic','8: ASI','10: Metamagic','12: ASI','16: ASI','17: Metamagic','19: ASI','20: Sorcerous Restoration (4 sorcery points on short rest)'],
+    subclasses:['Draconic Bloodline','Wild Magic','Divine Soul','Shadow Magic','Storm Sorcery','Aberrant Mind','Clockwork Soul'] },
+  { name:'Warlock', hd:'d8', primary:'CHA', saves:'WIS, CHA', armor:'Light', weapons:'Simple', spellcast:'CHA, known (short rest slots)',
+    features:['1: Otherworldly Patron, Pact Magic (1 slot)','2: Eldritch Invocations (2)','3: Pact Boon','4: ASI','5: 3rd-level Spells','6: Patron Feature','7: 4th-level Spells','8: ASI','9: 5th-level Spells','10: Patron Feature','11: Mystic Arcanum (6th)','12: ASI','13: Mystic Arcanum (7th)','14: Patron Feature','15: Mystic Arcanum (8th)','16: ASI','17: Mystic Arcanum (9th)','18: Invocations','19: ASI','20: Eldritch Master (1/long rest regain all slots)'],
+    subclasses:['Archfey','Fiend','Great Old One','Celestial','Hexblade','Fathomless','Genie','Undead','Undying'] },
+  { name:'Wizard', hd:'d6', primary:'INT', saves:'INT, WIS', armor:'None', weapons:'Daggers, darts, slings, quarterstaffs, light crossbows', spellcast:'INT, prepared from spellbook',
+    features:['1: Spellcasting, Arcane Recovery (regain slots = half level)','2: Arcane Tradition','4: ASI','5: Spell Mastery (1st+2nd spell at will)','6: Tradition Feature','8: ASI','10: Tradition Feature','12: ASI','14: Tradition Feature','18: Spell Mastery','19: ASI','20: Signature Spells (2 free 3rd-level spell slots)'],
+    subclasses:['Abjuration','Conjuration','Divination','Enchantment','Evocation','Illusion','Necromancy','Transmutation','Bladesinging','War Magic','Chronurgy','Graviturgy','Scribes','Order of Scribes'] },
+];
+
+function openClassBrowser() {
+  const existing = document.getElementById('classBrowserOv');
+  if (existing) { existing.remove(); return; }
+
+  const ov = document.createElement('div');
+  ov.id = 'classBrowserOv';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:3000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick = e => { if(e.target===ov) ov.remove(); };
+  ov.innerHTML = `<div style="background:#0d0d1a;border:1px solid #2a2a5a;border-radius:12px;padding:20px;max-width:680px;width:100%;max-height:88vh;display:flex;flex-direction:column;position:relative">
+    <button onclick="document.getElementById('classBrowserOv').remove()" style="position:absolute;top:10px;right:14px;background:none;border:none;color:#7a7aaa;font-size:20px;cursor:pointer">✕</button>
+    <div style="font-size:18px;font-weight:700;color:#cc4444;margin-bottom:4px">⚔ Class Browser</div>
+    <div style="font-size:11px;color:#7a7aaa;margin-bottom:10px">${CLASS_LIST.length} PHB classes with features and subclass options</div>
+    <input id="classSearchInp" type="text" placeholder="Search class, feature, subclass…" oninput="renderClassList()"
+      style="background:#0a0a18;border:1px solid #2a2a50;color:#e8e8f8;border-radius:5px;padding:7px 10px;font-size:12px;margin-bottom:12px;outline:none">
+    <div id="classListScroll" style="overflow-y:auto;flex:1"></div>
+  </div>`;
+  document.body.appendChild(ov);
+  renderClassList();
+  ov.querySelector('#classSearchInp').focus();
+}
+
+function renderClassList() {
+  const q = (document.getElementById('classSearchInp')?.value || '').toLowerCase();
+  const container = document.getElementById('classListScroll');
+  if (!container) return;
+
+  const classes = CLASS_LIST.filter(cl =>
+    !q || cl.name.toLowerCase().includes(q) || cl.primary.toLowerCase().includes(q) ||
+    cl.subclasses.join(' ').toLowerCase().includes(q) ||
+    cl.features.join(' ').toLowerCase().includes(q) ||
+    cl.saves.toLowerCase().includes(q)
+  );
+
+  if (!classes.length) {
+    container.innerHTML = '<div style="color:#4a5272;text-align:center;padding:20px">No classes match</div>';
+    return;
+  }
+
+  container.innerHTML = classes.map(cl => `<details style="border:1px solid #1a1a3a;border-radius:6px;margin-bottom:5px;background:rgba(20,20,40,0.3)">
+    <summary style="padding:8px 12px;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;user-select:none">
+      <span style="font-size:13px;font-weight:700;color:#cc4444;flex:1">${escHtml(cl.name)}</span>
+      <span style="font-size:10px;color:#c9a227">d${cl.hd}</span>
+      <span style="font-size:10px;color:#44aacc">${escHtml(cl.primary)}</span>
+      <span style="font-size:10px;color:#7a7aaa">Saves: ${escHtml(cl.saves)}</span>
+      <span style="color:#4a5272;font-size:12px">▾</span>
+    </summary>
+    <div style="padding:8px 12px 10px;border-top:1px solid #1a1a3a">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;font-size:11px">
+        <div><span style="color:#4a5272">Armor: </span><span style="color:#9098b8">${escHtml(cl.armor)}</span></div>
+        <div><span style="color:#4a5272">Spellcasting: </span><span style="color:${cl.spellcast==='None'?'#4a5272':'#aa66ff'}">${escHtml(cl.spellcast)}</span></div>
+      </div>
+      <div style="font-size:10px;color:#44cc88;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Key Features by Level</div>
+      <div style="margin-bottom:8px">${cl.features.map(f => `<div style="font-size:11px;color:#b0b8d8;padding:1px 0 1px 8px;border-left:2px solid #2a2a50;margin-bottom:2px">• ${escHtml(f)}</div>`).join('')}</div>
+      <div style="font-size:10px;color:#c9a227;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Subclasses</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">${cl.subclasses.map(s => `<span style="font-size:10px;color:#c9a227;border:1px solid #c9a22733;border-radius:3px;padding:1px 6px">${escHtml(s)}</span>`).join('')}</div>
     </div>
   </details>`).join('');
 }
