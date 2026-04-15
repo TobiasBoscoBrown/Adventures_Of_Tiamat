@@ -12069,7 +12069,7 @@ function renderActiveTurnBar() {
   const spellBonus = spellAb ? prof + (parseInt(spellAb[2])||0) : 0;
   const satkStr = spellBonus >= 0 ? `+${spellBonus}` : `${spellBonus}`;
 
-  const atkBtn = (label, title, bonus, type) => `<button onclick="rollInitAttack(${JSON.stringify(char.name)},${JSON.stringify(title)},${bonus},event)" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:#9098b8;border-radius:4px;padding:2px 7px;cursor:pointer;font-size:10px;line-height:1.4" title="${title} attack">${label} (${type})</button>`;
+  const atkBtn = (label, title, bonus, type) => `<button onclick="rollInitAttack(${JSON.stringify(char.name)},${JSON.stringify(title)},${bonus},event)" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:#9098b8;border-radius:4px;padding:2px 7px;cursor:pointer;font-size:10px;line-height:1.4" title="${title} attack (${type}) · Shift+click for Attack+Damage combo">${label} (${type})</button>`;
 
   const multiAtkCount = document.getElementById('multiAtkCount')?.value || '1';
   // Infer weapon damage die from CR
@@ -12179,19 +12179,39 @@ function renderActiveTurnBar() {
 
 function rollInitAttack(charName, type, bonus, event) {
   if (event) event.stopPropagation();
+  const isCombo = event && event.shiftKey; // Shift+click = attack + damage combo
   const count = parseInt(document.getElementById('multiAtkCount')?.value || '1');
   const bStr = bonus >= 0 ? `+${bonus}` : `${bonus}`;
   const advLabel = advState[charName] ? ` (${advState[charName]})` : '';
   let anyCrit = false;
-  const results = Array.from({length:count}, () => {
+  const attackResults = Array.from({length:count}, () => {
     const { die, detail } = rollWithAdv(charName, bonus);
     const total = die + bonus;
     const isCrit = die === 20, isFumble = die === 1;
     if (isCrit) anyCrit = true;
-    return `d20${detail?detail:`(${die})`}${bStr}=<strong>${total}</strong>${isCrit?'★':isFumble?'☠':''}`;
+    return { total, isCrit, isFumble, str: `d20${detail?detail:`(${die})`}${bStr}=<strong>${total}</strong>${isCrit?'★':isFumble?'☠':''}` };
   });
   const multiLabel = count > 1 ? ` ×${count}` : '';
-  logEntry('roll', `<strong>${escHtml(charName)}</strong> ${type} Attack${multiLabel}${advLabel}: ${results.join(' | ')}`);
+  // If Shift+click, also roll damage
+  if (isCombo) {
+    const char = UNIQUE_CHARS.find(c => c.name === charName);
+    const crNum = char ? (parseFloat(char.cr) || 1) : 1;
+    const wepDie = crNum >= 21 ? 12 : crNum >= 13 ? 10 : crNum >= 7 ? 8 : crNum >= 3 ? 6 : 4;
+    const sM = char ? (parseInt(((char.abilities||[]).find(a=>a[0]==='STR')||[])[2])||0) : 0;
+    const dM = char ? (parseInt(((char.abilities||[]).find(a=>a[0]==='DEX')||[])[2])||0) : 0;
+    const dmgMod = type === 'Ranged' ? dM : Math.max(sM, dM);
+    const dmgParts = attackResults.map(r => {
+      if (r.isFumble) return `<span style="color:#cc3333">[miss/fumble]</span>`;
+      const diceCount = r.isCrit ? 2 : 1;
+      const dmgRolls = Array.from({length:diceCount}, () => Math.floor(Math.random() * wepDie) + 1);
+      const dmgTotal = dmgRolls.reduce((a,b)=>a+b, 0) + dmgMod;
+      const modStr = dmgMod >= 0 ? `+${dmgMod}` : `${dmgMod}`;
+      return `[${dmgRolls.join('+')}]${modStr}=<strong style="color:#cc5555">${dmgTotal}</strong>${r.isCrit?' 💥':''}`;
+    });
+    logEntry('roll', `<strong>${escHtml(charName)}</strong> ${type} Attack+Dmg${multiLabel}${advLabel}: ${attackResults.map(r=>r.str).join(' | ')} → ${dmgParts.join(' | ')}`);
+  } else {
+    logEntry('roll', `<strong>${escHtml(charName)}</strong> ${type} Attack${multiLabel}${advLabel}: ${attackResults.map(r=>r.str).join(' | ')}`);
+  }
   playSound?.(anyCrit ? 'crit' : 'roll');
 }
 
