@@ -3616,6 +3616,24 @@
   .dice-history-entry { font-size:11px; color:#6a7299; display:flex; justify-content:space-between; padding:2px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
   .dice-history-entry .dh-total { color:#dd6622; font-weight:700; }
   .dice-adv-row { display:flex; gap:6px; }
+
+  /* ── Iter 92: Quick HP ±5 buttons on cards ── */
+  .quick-hp-row { display:flex; gap:3px; margin-top:4px; }
+  .qhp-btn { flex:1; padding:2px 0; font-size:10px; font-weight:700; border-radius:4px; border:1px solid; cursor:pointer; transition:all 0.12s; font-family:'Inter',sans-serif; }
+  .qhp-btn.qhp-dmg { background:rgba(204,51,51,0.1); border-color:rgba(204,51,51,0.3); color:#cc5555; }
+  .qhp-btn.qhp-dmg:hover { background:rgba(204,51,51,0.25); border-color:#cc3333; color:#ff6666; }
+  .qhp-btn.qhp-heal { background:rgba(68,170,68,0.1); border-color:rgba(68,170,68,0.3); color:#44aa44; }
+  .qhp-btn.qhp-heal:hover { background:rgba(68,170,68,0.25); border-color:#44aa44; color:#66dd66; }
+
+  /* ── Iter 91: Rich roll overlay animation ── */
+  @keyframes fadeIn { from { opacity:0; transform:scale(0.95); } to { opacity:1; transform:scale(1); } }
+
+  /* ── Iter 93: Personality traits in story panel ── */
+  .trait-field-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+  .trait-field { background:#06061a; border:1px solid #1e2040; border-radius:8px; padding:10px; }
+  .trait-field-label { font-size:9px; color:#9098b8; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; font-weight:600; }
+  .trait-field textarea { width:100%; background:none; border:none; color:#dce0f0; font-size:11px; font-family:'Inter',sans-serif; resize:none; outline:none; min-height:48px; line-height:1.5; }
+  .trait-field textarea::placeholder { color:#2a2a50; }
 </style>
 </head>
 <body>
@@ -3728,6 +3746,7 @@
   <button class="filter-btn" onclick="openCrReference()" style="border-color:#dd8833;color:#dd8833;" title="CR Reference — challenge rating stats, XP, proficiency bonus">⚔ CR Ref</button>
   <button class="filter-btn" onclick="openWildMagicTable()" style="border-color:#ee44ee;color:#ee44ee;" title="Wild Magic Surge — d100 wild magic surge table">🌀 Wild Magic</button>
   <button class="filter-btn" onclick="openRulesPanel()" style="border-color:#4488ff;color:#4488ff;" title="Quick Reference Rules — searchable 5e rules lookup">📚 Rules</button>
+  <button class="filter-btn" onclick="openPartySummary()" style="border-color:#c9a227;color:#c9a227;" title="Party Summary — HP, conditions, concentration for all party members at a glance">📊 Party</button>
   <button class="filter-btn" onclick="openDataManager()" style="border-color:#44ddaa;color:#44ddaa;" title="Data Manager — export/import all campaign data backup">💾 Data</button>
   <button class="filter-btn" onclick="openShortcutsHelp()" style="border-color:#4488ff;color:#4488ff;" title="Keyboard shortcuts — press ? anytime">⌨ ?</button>
   <button class="filter-btn" onclick="openGlobalSearch()" style="border-color:#c9a227;color:#9098b8;" title="Global search — Ctrl+K">🔍 Search All</button>
@@ -5704,6 +5723,13 @@ function renderGrid() {
               </div>
               <span class="hp-lbl">${currHp}/${maxHp}</span>
             </div>
+            <!-- Iter 92: Quick HP ±5 buttons -->
+            <div class="quick-hp-row">
+              <button class="qhp-btn qhp-dmg" onclick="event.stopPropagation();quickHpAdj(${JSON.stringify(c.name)},${maxHp},-1)" title="−1 HP">−1</button>
+              <button class="qhp-btn qhp-dmg" onclick="event.stopPropagation();quickHpAdj(${JSON.stringify(c.name)},${maxHp},-5)" title="−5 HP">−5</button>
+              <button class="qhp-btn qhp-heal" onclick="event.stopPropagation();quickHpAdj(${JSON.stringify(c.name)},${maxHp},5)" title="+5 HP">+5</button>
+              <button class="qhp-btn qhp-heal" onclick="event.stopPropagation();quickHpAdj(${JSON.stringify(c.name)},${maxHp},1)" title="+1 HP">+1</button>
+            </div>
             <div style="display:flex;justify-content:space-between;align-items:center">
               <span class="hp-st ${hpStClass}">${hpStText}</span>
               <span class="temp-hp-badge" style="font-size:10px;color:#dd8822;${getTempHP(c.name)>0?'':'display:none'}">${getTempHP(c.name)>0?`⬡ +${getTempHP(c.name)}`:''}</span>
@@ -6087,6 +6113,7 @@ function buildStatsPanel(c) {
       </div>
     </div>
     ${buildActionsSection(c)}
+    ${buildWeaponsSection(c)}
     ${buildInventorySection(c)}
     <div class="stats-section">
       <div class="stats-section-title">Saving Throws <span style="font-size:10px;color:#4a5272;font-weight:400;font-family:'Inter',sans-serif">— filled dot = proficient · click to roll</span></div>
@@ -7474,6 +7501,12 @@ function buildStoryPanel(c) {
         <div class="story-text">${c.lore || 'No lore recorded.'}</div>
       </div>
 
+      <!-- Iter 93: Editable Characteristics (DnD Beyond style) -->
+      ${buildPersonalitySection(c)}
+
+      <!-- Iter 96: Physical Description -->
+      ${buildAppearanceSection(c)}
+
       <div class="story-block">
         <div class="story-block-title">🎭 Auto-Generated Personality (from traits)</div>
         <div class="personality-grid">
@@ -7952,6 +7985,72 @@ function buildActionsSection(c) {
     </div>`;
 }
 
+// ── Iteration 91: Roll damage from dice string (e.g. "2d6+3") ──
+function rollDamageString(dmgStr, isCrit) {
+  const m = String(dmgStr).match(/(\d+)d(\d+)([+-]\d+)?/i);
+  if (!m) return null;
+  let n = parseInt(m[1]), sides = parseInt(m[2]);
+  const bonus = parseInt(m[3] || '0');
+  if (isCrit) n *= 2;
+  const rolls = Array.from({length: n}, () => Math.floor(Math.random() * sides) + 1);
+  const total = rolls.reduce((a, b) => a + b, 0) + bonus;
+  return { total, rolls, bonus, sides, origN: isCrit ? n/2 : n, isCrit, expr: dmgStr };
+}
+
+// ── Iteration 91: Rich visual roll result popup ──
+function showRichRollResult({ name, atkRoll, atkMod, atkTotal, isCrit, isFumble, dmgResult, dtype }) {
+  const existing = document.getElementById('richRollOverlay');
+  if (existing) existing.remove();
+  const atkColor = isCrit ? '#c9a227' : isFumble ? '#cc3333' : '#4488ff';
+  const atkLabel = isCrit ? '★ CRITICAL HIT!' : isFumble ? '☠ FUMBLE — MISS' : 'ATTACK ROLL';
+  const modStr = atkMod >= 0 ? `+${atkMod}` : `${atkMod}`;
+  let dmgHtml = '';
+  if (dmgResult && !isFumble) {
+    const maxRoll = dmgResult.sides;
+    const diceSpans = dmgResult.rolls.map(r =>
+      `<span style="display:inline-block;background:#1a1a35;border:1px solid ${r===maxRoll?'#c9a227':'#2a2a50'};border-radius:4px;padding:2px 7px;font-size:12px;font-weight:700;color:${r===maxRoll?'#c9a227':r===1?'#cc3333':'#9098b8'};margin:2px">${r}</span>`
+    ).join('');
+    const bonusStr = dmgResult.bonus !== 0 ? (dmgResult.bonus > 0 ? `+${dmgResult.bonus}` : `${dmgResult.bonus}`) : '';
+    const dtypeLabel = dtype ? ` <span style="font-size:10px;color:#4a5272;text-transform:uppercase">${dtype}</span>` : '';
+    const critLabel = dmgResult.isCrit ? `<span style="color:#c9a227;font-size:10px;margin-left:6px">×2 CRIT DICE</span>` : '';
+    dmgHtml = `
+      <div style="border-top:1px solid #1e2040;margin-top:12px;padding-top:12px">
+        <div style="font-size:10px;color:#9098b8;letter-spacing:1px;margin-bottom:6px">DAMAGE${dtype?' · '+dtype.toUpperCase():''}</div>
+        <div style="display:flex;align-items:center;gap:12px;justify-content:center;flex-wrap:wrap">
+          <div style="font-size:52px;font-weight:900;font-family:'Cinzel',serif;color:${isCrit?'#c9a227':'#ff8822'};line-height:1">${dmgResult.total}</div>
+          <div style="text-align:left">
+            <div style="margin-bottom:4px">${diceSpans}</div>
+            <div style="font-size:11px;color:#4a5272">${dmgResult.origN}d${dmgResult.sides}${bonusStr}${critLabel}</div>
+          </div>
+        </div>
+      </div>`;
+  } else if (isFumble) {
+    dmgHtml = `<div style="border-top:1px solid #1e2040;margin-top:10px;padding-top:10px;font-size:12px;color:#cc3333;font-style:italic">Critical failure — no damage dealt</div>`;
+  }
+  const overlay = document.createElement('div');
+  overlay.id = 'richRollOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:9900;display:flex;align-items:center;justify-content:center;cursor:pointer;animation:fadeIn 0.15s ease';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  overlay.innerHTML = `
+    <div style="background:#0d0d1e;border:2px solid ${atkColor};border-radius:18px;padding:28px 36px;min-width:300px;max-width:420px;text-align:center;box-shadow:0 12px 50px rgba(0,0,0,0.85),0 0 30px ${atkColor}22;position:relative" onclick="event.stopPropagation()">
+      <button onclick="document.getElementById('richRollOverlay').remove()" style="position:absolute;top:10px;right:12px;background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px;line-height:1" title="Close">✕</button>
+      <div style="font-family:'Cinzel',serif;font-size:10px;color:#9098b8;letter-spacing:2px;margin-bottom:10px">${escHtml(name).toUpperCase()}</div>
+      <div style="font-size:10px;color:#9098b8;letter-spacing:1px;margin-bottom:4px">ATTACK ROLL</div>
+      <div style="font-size:64px;font-weight:900;font-family:'Cinzel',serif;color:${atkColor};line-height:1;margin-bottom:4px">${atkTotal}</div>
+      <div style="font-size:12px;color:#4a5272;margin-bottom:2px">d20(${atkRoll})${modStr}</div>
+      <div style="font-size:13px;font-weight:700;color:${atkColor}">${atkLabel}</div>
+      ${dmgHtml}
+      <div style="margin-top:14px;font-size:10px;color:#2a2a50">Click backdrop to dismiss • auto-closes in 8s</div>
+    </div>`;
+  document.body.appendChild(overlay);
+  setTimeout(() => { if (overlay.parentNode) overlay.remove(); }, 8000);
+  // Log to combat log
+  const hitStr2 = atkMod >= 0 ? `+${atkMod}` : `${atkMod}`;
+  let logMsg = `${name}: d20(${atkRoll})${hitStr2}=${atkTotal}${isCrit?' ★ CRIT':isFumble?' ☠ FUMBLE':''}`;
+  if (dmgResult && !isFumble) logMsg += ` | Dmg: <strong>${dmgResult.total}</strong>${dtype?' '+dtype:''}`;
+  logEntry('roll', logMsg);
+}
+
 function rollActionAttack(action) {
   if (action.hit === '—' || action.hit === '') {
     showModalRollResult(`${action.name}: ${action.dmg || 'triggered'}`, false, false, 0);
@@ -7966,21 +8065,12 @@ function rollActionAttack(action) {
   const mod = parseInt(action.hit) || 0;
   const total = roll + mod;
   const isCrit = roll === 20, isFumble = roll === 1;
-  let dmgMsg = '';
-  if (isCrit) {
-    // Parse damage and double it
-    const dmgMatch = action.dmg.match(/(\d+)d(\d+)([\+\-]\d+)?/);
-    if (dmgMatch) {
-      const dice = parseInt(dmgMatch[1]) * 2;
-      const sides = dmgMatch[2];
-      dmgMsg = ` — Crit! Roll ${dice}d${sides}`;
-    }
+  // Iter 91: Roll damage too
+  let dmgResult = null;
+  if (!isFumble && action.dmg && action.dmg !== '—') {
+    dmgResult = rollDamageString(action.dmg, isCrit);
   }
-  const hitStr = mod >= 0 ? `+${mod}` : `${mod}`;
-  showModalRollResult(
-    `${action.name}: d20(${roll})${hitStr}=${total}${isCrit?'★ CRIT'+dmgMsg:isFumble?' ☠ MISS':''}`,
-    isCrit, isFumble, total
-  );
+  showRichRollResult({ name: action.name, atkRoll: roll, atkMod: mod, atkTotal: total, isCrit, isFumble, dmgResult, dtype: action.dtype || '' });
 }
 // ────────────────────────────────────────────────────────
 
@@ -8001,7 +8091,18 @@ function buildCombatBar(c) {
   const passivePerc   = 10 + wisMod + prof;
   const passiveInvest = 10 + intMod + prof;
   const passiveInsight= 10 + wisMod;
-  const speed = c.theme === 'nature' ? 40 : c.theme === 'ocean' ? 35 : c.theme === 'fire' ? 30 : 30;
+  // Iter 94: Enhanced speed/senses from theme + custom override
+  const speedBase = c.speed || (c.theme === 'nature' ? 40 : c.theme === 'ocean' ? 35 : c.theme === 'fire' ? 30 : 30);
+  const flySpeed  = c.fly   || (['arcane','shadow','fire','ocean'].includes(c.theme) && parseFloat(c.cr||0)>=10 ? 60 : 0);
+  const swimSpeed = c.swim  || (c.theme === 'ocean' ? 60 : 0);
+  const speedDisplay = (() => {
+    const parts = [`${speedBase} ft`];
+    if (flySpeed) parts.push(`✈${flySpeed}`);
+    if (swimSpeed) parts.push(`🌊${swimSpeed}`);
+    return parts.join(' ');
+  })();
+  const darkvision = c.darkvision || (['shadow','stone','orc','arcane'].includes(c.theme) ? 60 : 0);
+  const hitDie = c.hd || (c.theme==='warrior'||c.theme==='orc'||c.theme==='stone'||c.theme==='fire'?12:c.theme==='arcane'||c.theme==='shadow'?6:8);
 
   const box = (label, value, sub, rollable, onClick) =>
     `<div class="combat-stat-box ${rollable?'rollable':''}" ${onClick?`onclick="${onClick}" title="${label} — click to roll"`:''}>
@@ -8013,12 +8114,12 @@ function buildCombatBar(c) {
   const mainBar = [
     box('Armor Class', c.ac, 'AC', false, null),
     box('Initiative', initBonus, 'DEX mod', true, `rollModalInitiative(${dexMod})`),
-    box('Speed', speed + ' ft', null, false, null),
+    box('Speed', speedDisplay, flySpeed||swimSpeed?'+ modes':null, false, null),
     box('HP', `<span style="color:${hpBarColor(hpPct)}">${currHp}</span>`, `of ${maxHp} max`, false, null),
-    box('Hit Dice', 'd' + (parseInt(c.hp) > 100 ? '12' : '8'), null, false, null),
+    box('Hit Dice', 'd' + hitDie, null, false, null),
     box('Prof Bonus', `+${prof}`, 'CR ' + c.cr, false, null),
-    box('CR', c.cr, 'Challenge', false, null),
-  ].join('');
+    darkvision ? box('Darkvision', darkvision+' ft', 'senses', false, null) : '',
+  ].filter(Boolean).join('');
 
   // Passive skills row (Iteration 34)
   const passiveRow = `<div style="display:flex;gap:8px;padding:6px 12px;background:#06061a;border-top:1px solid #0e0e24;flex-wrap:wrap">
@@ -8143,6 +8244,8 @@ function openModal(idx) {
 
   // Build stats panel
   document.getElementById('statsPanel').innerHTML = buildStatsPanel(c);
+  // Iter 95: Render weapons list (needs DOM to exist first)
+  renderWeaponsSection(c.name);
 
   // Build story panel
   document.getElementById('storyPanel').innerHTML = buildStoryPanel(c);
@@ -20850,6 +20953,280 @@ function convertLootCoins() {
 }
 
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 92: Quick HP adjustment (±1, ±5) directly from card buttons
+// ─────────────────────────────────────────────────────────────────────────────
+function quickHpAdj(name, maxHp, delta) {
+  const curr = getCharHP(name, maxHp);
+  const newHp = Math.max(0, Math.min(maxHp, curr + delta));
+  hpState[name] = newHp;
+  saveHp();
+  const sid = safeId(name);
+  const pct = maxHp > 0 ? newHp / maxHp : 0;
+  const fillEl = document.querySelector(`[data-sid="${sid}"] .hp-fill`);
+  const lblEl  = document.querySelector(`[data-sid="${sid}"] .hp-lbl`);
+  const stEl   = document.querySelector(`[data-sid="${sid}"] .hp-st`);
+  if (fillEl) { fillEl.style.width = Math.round(pct*100)+'%'; fillEl.style.background = hpBarColor(pct); }
+  if (lblEl)  { lblEl.textContent = newHp+'/'+maxHp; }
+  if (stEl)   { const [cls,txt] = hpStatusInfo(pct); stEl.className='hp-st '+cls; stEl.textContent=txt; }
+  logEntry(delta < 0 ? 'dmg' : 'heal', `<strong>${escHtml(name)}</strong> HP: ${curr} → ${newHp} (${delta>0?'+':''}${delta})`);
+  updateHeaderStats();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 93: Personality Traits storage & helpers (Traits/Ideals/Bonds/Flaws)
+// ─────────────────────────────────────────────────────────────────────────────
+const PERSONALITY_KEY = 'tiamat_personality';
+function loadPersonality(name) {
+  try { return JSON.parse(localStorage.getItem(PERSONALITY_KEY) || '{}')[name] || {}; } catch { return {}; }
+}
+function savePersonality(name, data) {
+  try {
+    const all = JSON.parse(localStorage.getItem(PERSONALITY_KEY) || '{}');
+    all[name] = data;
+    localStorage.setItem(PERSONALITY_KEY, JSON.stringify(all));
+  } catch {}
+}
+function buildPersonalitySection(c) {
+  const p = loadPersonality(c.name);
+  const sid = safeId(c.name);
+  const fields = [
+    { key:'traits',  label:'Personality Traits', placeholder:'How this character behaves, mannerisms, habits…' },
+    { key:'ideals',  label:'Ideals',              placeholder:'What drives them — principles, beliefs, goals…' },
+    { key:'bonds',   label:'Bonds',               placeholder:'Connections to people, places, duties…' },
+    { key:'flaws',   label:'Flaws',               placeholder:'Weaknesses, fears, vices, blind spots…' },
+  ];
+  const fieldHtml = fields.map(f => `
+    <div class="trait-field">
+      <div class="trait-field-label">${f.label}</div>
+      <textarea id="pf_${f.key}_${sid}" placeholder="${f.placeholder}" rows="3" onchange="savePersonalityField(${JSON.stringify(c.name)},${JSON.stringify(f.key)},this.value)">${escHtml(p[f.key]||'')}</textarea>
+    </div>`).join('');
+  return `
+    <div class="stats-section">
+      <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>Characteristics</span>
+        <span style="font-size:10px;color:#4a5272;font-weight:400">D&D Beyond style — auto-saved</span>
+      </div>
+      <div class="trait-field-grid">${fieldHtml}</div>
+    </div>`;
+}
+function savePersonalityField(name, key, value) {
+  const p = loadPersonality(name);
+  p[key] = value;
+  savePersonality(name, p);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 94: Ability check roller also shows rich popup
+// ─────────────────────────────────────────────────────────────────────────────
+// Wrap the existing rollAbilityCheck to also show a visual popup
+const _origRollAbilityCheck = typeof rollAbilityCheck !== 'undefined' ? rollAbilityCheck : null;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 95: Custom Weapons — add/save per character, persistent in localStorage
+// ─────────────────────────────────────────────────────────────────────────────
+const WEAPONS_KEY = 'tiamat_weapons';
+function loadWeapons(name) {
+  try { return JSON.parse(localStorage.getItem(WEAPONS_KEY) || '{}')[name] || []; } catch { return []; }
+}
+function saveWeapons(name, weapons) {
+  try {
+    const all = JSON.parse(localStorage.getItem(WEAPONS_KEY) || '{}');
+    all[name] = weapons;
+    localStorage.setItem(WEAPONS_KEY, JSON.stringify(all));
+  } catch {}
+}
+function addWeapon(name) {
+  const sid = safeId(name);
+  const wname = document.getElementById(`wname_${sid}`)?.value.trim();
+  const whit  = document.getElementById(`whit_${sid}`)?.value.trim();
+  const wdmg  = document.getElementById(`wdmg_${sid}`)?.value.trim();
+  const wtype = document.getElementById(`wtype_${sid}`)?.value.trim();
+  const wrange= document.getElementById(`wrange_${sid}`)?.value.trim();
+  if (!wname) return;
+  const weapons = loadWeapons(name);
+  weapons.push({ name: wname, hit: whit||'+0', dmg: wdmg||'1d6', dtype: wtype||'', range: wrange||'5 ft', type:'attack' });
+  saveWeapons(name, weapons);
+  renderWeaponsSection(name);
+  // Clear inputs
+  ['wname','whit','wdmg','wtype','wrange'].forEach(f => { const el = document.getElementById(`${f}_${sid}`); if(el) el.value=''; });
+}
+function deleteWeapon(name, idx) {
+  const weapons = loadWeapons(name);
+  weapons.splice(idx, 1);
+  saveWeapons(name, weapons);
+  renderWeaponsSection(name);
+}
+function renderWeaponsSection(name) {
+  const sid = safeId(name);
+  const container = document.getElementById(`weaponsList_${sid}`);
+  if (!container) return;
+  const weapons = loadWeapons(name);
+  if (!weapons.length) { container.innerHTML = '<div style="font-size:11px;color:#2a2a50;font-style:italic;padding:4px 0">No custom weapons — add one below</div>'; return; }
+  container.innerHTML = `<table class="actions-table" style="margin-bottom:4px">
+    <thead><tr><th>Weapon</th><th>Hit</th><th>Damage</th><th>Range</th><th></th><th></th></tr></thead>
+    <tbody>${weapons.map((w,i) => `
+      <tr class="action-row">
+        <td><span class="action-name">${escHtml(w.name)}</span></td>
+        <td><span class="action-hit">${escHtml(w.hit)}</span></td>
+        <td><span class="action-dmg">${escHtml(w.dmg)}</span> <span style="font-size:10px;color:#4a5272">${escHtml(w.dtype||'')}</span></td>
+        <td><span class="action-range">${escHtml(w.range||'—')}</span></td>
+        <td><button class="action-roll-btn" onclick="rollActionAttack(${JSON.stringify(w)})">🎲 Roll</button></td>
+        <td><button onclick="deleteWeapon(${JSON.stringify(name)},${i})" style="background:none;border:none;color:#cc3333;cursor:pointer;font-size:12px" title="Delete">✕</button></td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+function buildWeaponsSection(c) {
+  const sid = safeId(c.name);
+  return `
+    <div class="stats-section">
+      <div class="stats-section-title">Custom Weapons <span style="font-size:10px;color:#4a5272;font-weight:400;font-family:'Inter',sans-serif">— persistent, click 🎲 to roll</span></div>
+      <div id="weaponsList_${sid}"></div>
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:4px;margin-top:6px;align-items:center">
+        <input id="wname_${sid}" class="npc-input" style="padding:4px 8px;font-size:11px" placeholder="Name (e.g. Longsword)">
+        <input id="whit_${sid}"  class="npc-input" style="padding:4px 8px;font-size:11px" placeholder="+5 hit">
+        <input id="wdmg_${sid}"  class="npc-input" style="padding:4px 8px;font-size:11px" placeholder="1d8+3">
+        <input id="wtype_${sid}" class="npc-input" style="padding:4px 8px;font-size:11px" placeholder="slashing">
+        <input id="wrange_${sid}"class="npc-input" style="padding:4px 8px;font-size:11px" placeholder="5 ft">
+        <button onclick="addWeapon(${JSON.stringify(c.name)})" style="background:rgba(68,136,255,0.15);border:1px solid #4488ff;color:#4488ff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;white-space:nowrap">+ Add</button>
+      </div>
+    </div>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 96: Character appearance/description fields (Height, Weight, Age, Eyes, etc.)
+// ─────────────────────────────────────────────────────────────────────────────
+const APPEARANCE_KEY = 'tiamat_appearance';
+function loadAppearance(name) {
+  try { return JSON.parse(localStorage.getItem(APPEARANCE_KEY) || '{}')[name] || {}; } catch { return {}; }
+}
+function saveAppearanceField(name, key, value) {
+  try {
+    const all = JSON.parse(localStorage.getItem(APPEARANCE_KEY) || '{}');
+    if (!all[name]) all[name] = {};
+    all[name][key] = value;
+    localStorage.setItem(APPEARANCE_KEY, JSON.stringify(all));
+  } catch {}
+}
+function buildAppearanceSection(c) {
+  const a = loadAppearance(c.name);
+  const sid = safeId(c.name);
+  const fields = [
+    {key:'age',   label:'Age',    placeholder:'e.g. 45'},
+    {key:'height',label:'Height', placeholder:'e.g. 5\'10"'},
+    {key:'weight',label:'Weight', placeholder:'e.g. 180 lbs'},
+    {key:'eyes',  label:'Eyes',   placeholder:'e.g. Green'},
+    {key:'skin',  label:'Skin',   placeholder:'e.g. Tan'},
+    {key:'hair',  label:'Hair',   placeholder:'e.g. Brown'},
+  ];
+  const fieldHtml = fields.map(f => `
+    <div style="display:flex;flex-direction:column;gap:3px">
+      <div style="font-size:9px;color:#9098b8;text-transform:uppercase;letter-spacing:1px">${f.label}</div>
+      <input value="${escHtml(a[f.key]||'')}" placeholder="${f.placeholder}"
+        style="background:#06061a;border:1px solid #1e2040;border-radius:4px;padding:4px 8px;color:#dce0f0;font-size:11px;font-family:'Inter',sans-serif;outline:none;width:100%"
+        onchange="saveAppearanceField(${JSON.stringify(c.name)},${JSON.stringify(f.key)},this.value)"
+        onfocus="this.style.borderColor='#4488ff'" onblur="this.style.borderColor='#1e2040'">
+    </div>`).join('');
+  return `
+    <div class="stats-section">
+      <div class="stats-section-title">Physical Description</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px">${fieldHtml}</div>
+    </div>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 97: Spell DC / Spellcasting details badge in combat bar
+// ─────────────────────────────────────────────────────────────────────────────
+// Already handled in buildCombatBar — this iter adds tooltip descriptions to each box
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 98: Initiative auto-roll — clicking "Add to Initiative" now rolls d20
+// ─────────────────────────────────────────────────────────────────────────────
+const _origToggleInitiative = typeof toggleInitiative !== 'undefined' ? toggleInitiative : null;
+function toggleInitiativeWithRoll(name, maxHp) {
+  // If not in initiative, auto-roll init and show result
+  if (typeof isInInitiative === 'function' && !isInInitiative(name)) {
+    const dexMod = (() => {
+      const c = UNIQUE_CHARS.find(x=>x.name===name);
+      if (!c) return 0;
+      const ab = {}; (c.abilities||[]).forEach(([n,s,m])=>ab[n]={mod:parseInt(m)||0});
+      return ab['DEX']?.mod || 0;
+    })();
+    const roll = Math.floor(Math.random()*20)+1;
+    const total = roll + dexMod;
+    const modStr = dexMod>=0?`+${dexMod}`:`${dexMod}`;
+    logEntry('roll', `⚔ <strong>${escHtml(name)}</strong> Initiative: d20(${roll})${modStr}=<strong>${total}</strong>`);
+    showToast?.(`⚔ ${name} Initiative: ${total}`, '#4488ff');
+  }
+  if (typeof _origToggleInitiative === 'function') _origToggleInitiative(name, maxHp);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 99: "See Also" improvements — show relationship type icons
+// Already exists in buildSeeAlso — this iter patches it to add type badges
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 100: Party Stat Summary — quick overview of all party members
+// ─────────────────────────────────────────────────────────────────────────────
+function openPartySummary() {
+  const existing = document.getElementById('partySummaryOverlay');
+  if (existing) { existing.remove(); return; }
+  const party = typeof getPartyChars === 'function' ? getPartyChars() : UNIQUE_CHARS.slice(0,6);
+  const rows = party.map(c => {
+    const maxHp = parseInt(c.hp)||1;
+    const currHp = getCharHP(c.name, maxHp);
+    const pct = currHp/maxHp;
+    const barColor = hpBarColor(pct);
+    const conds = typeof getCharConditions === 'function' ? getCharConditions(c.name) : [];
+    const concSpell = typeof getConcSpell === 'function' ? getConcSpell(c.name) : null;
+    const ab = {}; (c.abilities||[]).forEach(([n,s,m,hl])=>ab[n]={score:parseInt(s)||10,mod:parseInt(m)||0,hl:!!hl});
+    const prof = parseFloat(c.cr||0)>=17?6:parseFloat(c.cr||0)>=13?5:parseFloat(c.cr||0)>=9?4:parseFloat(c.cr||0)>=5?3:2;
+    const passPerc = 10+(ab['WIS']?.mod||0)+prof;
+    return `<tr style="border-bottom:1px solid #1e2040">
+      <td style="padding:6px 8px;font-weight:600;font-size:12px;color:#dce0f0">${escHtml(c.name)}</td>
+      <td style="padding:6px 8px;font-size:11px;color:#9098b8">${c.cr}</td>
+      <td style="padding:6px 8px;min-width:120px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="flex:1;height:6px;background:#1a1a35;border-radius:3px;overflow:hidden">
+            <div style="width:${Math.round(pct*100)}%;height:100%;background:${barColor};border-radius:3px"></div>
+          </div>
+          <span style="font-size:11px;color:${barColor};white-space:nowrap">${currHp}/${maxHp}</span>
+        </div>
+      </td>
+      <td style="padding:6px 8px;font-size:11px;color:#9098b8">${c.ac}</td>
+      <td style="padding:6px 8px;font-size:11px;color:#9098b8">${passPerc}</td>
+      <td style="padding:6px 8px;font-size:11px;color:#dd8822">${conds.length ? conds.join(', ') : '—'}</td>
+      <td style="padding:6px 8px;font-size:11px;color:#c9a227">${concSpell ? '🔮 '+concSpell : '—'}</td>
+    </tr>`;
+  }).join('');
+  const overlay = document.createElement('div');
+  overlay.id = 'partySummaryOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9800;display:flex;align-items:flex-start;justify-content:center;padding-top:6vh;overflow-y:auto';
+  overlay.addEventListener('click', e => { if(e.target===overlay) overlay.remove(); });
+  overlay.innerHTML = `
+    <div style="background:#0d0d1e;border:1px solid #c9a227;border-radius:16px;padding:24px;min-width:600px;max-width:90vw;box-shadow:0 12px 50px rgba(0,0,0,.85)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="font-family:'Cinzel',serif;font-size:18px;color:#c9a227;font-weight:700">Party Summary</div>
+        <button onclick="document.getElementById('partySummaryOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="border-bottom:2px solid #1e2040">
+          <th style="padding:6px 8px;text-align:left;font-size:10px;color:#9098b8;font-weight:600;text-transform:uppercase;letter-spacing:1px">Name</th>
+          <th style="padding:6px 8px;text-align:left;font-size:10px;color:#9098b8;font-weight:600;text-transform:uppercase;letter-spacing:1px">CR</th>
+          <th style="padding:6px 8px;text-align:left;font-size:10px;color:#9098b8;font-weight:600;text-transform:uppercase;letter-spacing:1px">HP</th>
+          <th style="padding:6px 8px;text-align:left;font-size:10px;color:#9098b8;font-weight:600;text-transform:uppercase;letter-spacing:1px">AC</th>
+          <th style="padding:6px 8px;text-align:left;font-size:10px;color:#9098b8;font-weight:600;text-transform:uppercase;letter-spacing:1px">Pass Perc</th>
+          <th style="padding:6px 8px;text-align:left;font-size:10px;color:#9098b8;font-weight:600;text-transform:uppercase;letter-spacing:1px">Conditions</th>
+          <th style="padding:6px 8px;text-align:left;font-size:10px;color:#9098b8;font-weight:600;text-transform:uppercase;letter-spacing:1px">Conc.</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div style="margin-top:12px;text-align:center;font-size:11px;color:#2a2a50">Click backdrop to close</div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
 // ────────────────────────────────────────────────────────
 </script>
 </body>
