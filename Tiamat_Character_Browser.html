@@ -4261,24 +4261,46 @@
 
 <!-- AoE Damage/Heal Modal -->
 <div class="modal-backdrop" id="aoeDmgModal" onclick="if(event.target===this)closeAoeDmg()" style="display:none;align-items:center;justify-content:center">
-  <div class="session-manager-content" style="max-width:560px;width:96%">
+  <div class="session-manager-content" style="max-width:580px;width:96%">
     <div class="session-manager-header">
       <div class="session-manager-title">💥 AoE DAMAGE / HEAL</div>
       <button class="modal-close" onclick="closeAoeDmg()">✕</button>
+    </div>
+    <!-- Spell Quick-fill row -->
+    <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap">
+      <span style="font-size:11px;color:#4a5272;white-space:nowrap">Quick Spell:</span>
+      <select id="aoeSpellPicker" onchange="aoeLoadSpell(this.value)" style="flex:1;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer">
+        <option value="">— pick a spell to auto-fill —</option>
+        <option value="fireball|8d6|DEX|fire|20">Fireball (8d6 fire, DEX save, 20ft)</option>
+        <option value="lightning_bolt|8d6|DEX|lightning|5">Lightning Bolt (8d6 lightning, DEX save, 5ft wide)</option>
+        <option value="cone_of_cold|8d8|CON|cold|60">Cone of Cold (8d8 cold, CON save, 60ft cone)</option>
+        <option value="shatter|3d8|CON|thunder|10">Shatter (3d8 thunder, CON save, 10ft radius)</option>
+        <option value="thunderwave|2d8|CON|thunder|15">Thunderwave (2d8 thunder, CON save, 15ft cube)</option>
+        <option value="hypnotic_pattern|0|WIS|psychic|30">Hypnotic Pattern (WIS save, 30ft cube)</option>
+        <option value="slow|0|WIS|none|40">Slow (WIS save, 40ft cube)</option>
+        <option value="earthquake|2d8|CON|bludgeoning|100">Earthquake (2d8, CON save, 100ft radius)</option>
+        <option value="meteor_swarm|40d6|DEX|fire|40">Meteor Swarm (20d6 fire+20d6 bludgeoning, 40ft radius)</option>
+        <option value="mass_cure_wounds|3d8+5|heal|heal|30">Mass Cure Wounds (3d8+5 heal, 30ft radius)</option>
+        <option value="spirit_guardians|3d8|WIS|radiant|15">Spirit Guardians (3d8, WIS save, 15ft radius)</option>
+        <option value="cloud_of_daggers|4d4|DEX|slashing|5">Cloud of Daggers (4d4, DEX save, 5ft cube)</option>
+      </select>
+      <span id="aoeSpellInfo" style="font-size:10px;color:#4a5272"></span>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
       <input type="number" id="aoeAmount" placeholder="Amount" style="width:90px;background:#06061a;border:1px solid #2a2a50;border-radius:8px;padding:8px 12px;color:#e0e0ff;font-size:14px;outline:none" min="1">
       <button onclick="applyAoe('dmg')" style="background:rgba(204,51,51,.15);border:1px solid #cc3333;color:#cc3333;border-radius:8px;padding:8px 16px;cursor:pointer;font-size:13px;font-weight:600">⚔ Damage All</button>
       <button onclick="applyAoe('half')" style="background:rgba(204,51,51,.08);border:1px solid #cc333388;color:#cc333388;border-radius:8px;padding:8px 16px;cursor:pointer;font-size:13px">½ Half Dmg</button>
       <button onclick="applyAoe('heal')" style="background:rgba(68,170,68,.15);border:1px solid #44aa44;color:#44aa44;border-radius:8px;padding:8px 16px;cursor:pointer;font-size:13px;font-weight:600">✚ Heal All</button>
+      <button onclick="aoeRollDamage()" style="background:rgba(255,136,34,.1);border:1px solid #ff8822;color:#ff8822;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:12px" title="Roll the spell's damage dice and auto-fill">🎲 Roll</button>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:10px">
       <button onclick="aoeSelectAll(true)" style="background:none;border:1px solid #2a2a50;color:#7a7aaa;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">Select All</button>
       <button onclick="aoeSelectAll(false)" style="background:none;border:1px solid #2a2a50;color:#7a7aaa;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">None</button>
       <button onclick="aoeSelectCombat()" style="background:none;border:1px solid #dd6622;color:#dd6622;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">⚔ In Combat</button>
+      <button onclick="aoeSelectEnemies()" style="background:none;border:1px solid #cc3333;color:#cc3333;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">👹 Enemies</button>
       <span id="aoeSelCount" style="font-size:11px;color:#4a5272;margin-left:auto;align-self:center"></span>
     </div>
-    <div id="aoeCharList" style="max-height:360px;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:4px"></div>
+    <div id="aoeCharList" style="max-height:320px;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:4px"></div>
     <div id="aoeResult" style="margin-top:10px;font-size:12px;color:#9098b8;min-height:20px"></div>
   </div>
 </div>
@@ -9900,6 +9922,45 @@ function buildDamageDefenseSection(c) {
     ${resistances.length ? `<div style="margin-bottom:6px"><span style="font-size:9px;color:#4488ff;letter-spacing:1px">RESIST </span>${resistances.map(d => chip(d,'resist')).join('')}</div>` : ''}
     ${vulnerabilities.length ? `<div><span style="font-size:9px;color:#cc4444;letter-spacing:1px">VULNER </span>${vulnerabilities.map(d => chip(d,'vuln')).join('')}</div>` : ''}
   </div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 66: AoE Spell Targeting — spell quick-fill, dice roller,
+//   and "enemies only" selector for AoE panel.
+// ══════════════════════════════════════════════════════════
+let currentAoeSpell = null;
+
+function aoeLoadSpell(val) {
+  if (!val) { currentAoeSpell = null; document.getElementById('aoeSpellInfo').textContent = ''; return; }
+  const [id, diceStr, save, dmgType, radius] = val.split('|');
+  currentAoeSpell = { id, diceStr, save, dmgType, radius };
+  const saveLabel = save === 'heal' ? '' : ` · ${save} save`;
+  const dmgLabel = dmgType === 'none' || dmgType === 'heal' ? '' : ` · ${dmgType}`;
+  document.getElementById('aoeSpellInfo').textContent = `${diceStr}${dmgLabel}${saveLabel} · ${radius}ft`;
+  if (diceStr !== '0') aoeRollDamage();
+}
+
+function aoeRollDamage() {
+  const spell = currentAoeSpell;
+  if (!spell || spell.diceStr === '0') { showToast('Pick a damaging spell first', '#cc4444'); return; }
+  const res = rollDiceExpr(spell.diceStr);
+  if (res) {
+    document.getElementById('aoeAmount').value = res.total;
+    showToast(`🎲 ${spell.id.replace(/_/g,' ')}: ${res.total} [${res.rolls.join('+')}]`, '#ff8822');
+  }
+}
+
+function aoeSelectEnemies() {
+  // Select characters whose group contains "Enemy", "Monster", "Boss", or cr > 5
+  aoeSelected.clear();
+  UNIQUE_CHARS.forEach(c => {
+    const grp = (c.group || '').toLowerCase();
+    const cr = parseFloat(c.cr) || 0;
+    if (grp.includes('enemy') || grp.includes('monster') || grp.includes('boss') || grp.includes('villain') || grp.includes('npc') || cr >= 5) {
+      aoeSelected.add(c.name);
+    }
+  });
+  renderAoeList();
 }
 
 // ══════════════════════════════════════════════════════════
