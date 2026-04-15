@@ -3838,7 +3838,8 @@
       <span id="encounterDiffBadge" style="display:none;font-size:9px;padding:2px 7px;border-radius:8px;border:1px solid;letter-spacing:0.5px;font-weight:700;cursor:pointer" onclick="openXpBudget()" title="Click to open XP Budget calculator"></span>
     </div>
     <div class="initiative-controls">
-      <button class="init-ctrl-btn" onclick="rollAllInitiative()" title="Roll initiative for all NPCs">⚄ Roll All</button>
+      <button class="init-ctrl-btn" onclick="rollAllInitiative()" title="Re-roll initiative for all already-added characters">⚄ Roll All</button>
+      <button class="init-ctrl-btn" onclick="addAllVisibleToInit()" title="Add all currently visible characters to initiative" style="border-color:#44aa66;color:#44aa66">⚔ + All</button>
       <button class="init-ctrl-btn next-btn" onclick="nextTurn()" title="Next turn">Next ▶</button>
       <button class="init-ctrl-btn" onclick="toggleGroupRoll()" title="Group saving throw / ability check" style="border-color:#aa66dd;color:#aa66dd">⚔ Save</button>
       <button class="init-ctrl-btn" onclick="toggleBulkCond(event)" title="Apply condition to all in initiative" style="border-color:#dd8822;color:#dd8822">⚡ Bulk</button>
@@ -9572,6 +9573,31 @@ function rollAllInitiative() {
   initiativeList.sort((a, b) => b.initiative - a.initiative);
   currentTurnIdx = 0;
   renderInitiative();
+}
+
+function addAllVisibleToInit() {
+  const visible = typeof filteredChars !== 'undefined' ? filteredChars : UNIQUE_CHARS;
+  let added = 0;
+  visible.forEach(c => {
+    if (!isInInitiative(c.name)) {
+      const dexBonus = getDexBonus(c.name);
+      const roll = Math.floor(Math.random() * 20) + 1 + dexBonus;
+      const maxHp = parseInt(c.hp) || 1;
+      initiativeList.push({ name: c.name, maxHp, initiative: roll, isNpc: true });
+      added++;
+    }
+  });
+  if (added > 0) {
+    initiativeList.sort((a, b) => b.initiative - a.initiative);
+    if (currentTurnIdx >= initiativeList.length) currentTurnIdx = 0;
+    openInitiativePanel();
+    renderInitiative();
+    renderGrid();
+    updateHeaderStats();
+    logEntry('combat', `Added ${added} character${added>1?'s':''} to initiative`);
+  } else {
+    showToast?.('All visible characters are already in initiative', '#4a5272');
+  }
 }
 
 function addCustomToInitiative() {
