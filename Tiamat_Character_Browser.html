@@ -29950,6 +29950,518 @@ document.addEventListener('change', e => {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 191: Curse & Blessing Tracker
+const CURSE_KEY = 'tiamat_curses';
+function _curseLoad() { try { return JSON.parse(localStorage.getItem(CURSE_KEY)||'[]'); } catch(e){return[];} }
+function _curseSave(d) { localStorage.setItem(CURSE_KEY, JSON.stringify(d)); }
+
+const CURSE_PRESETS = [
+  { type:'curse', name:'Bestow Curse (WIS)', effect:'Disadvantage on WIS checks and saves', remove:'Remove Curse', color:'#aa44aa' },
+  { type:'curse', name:'Bestow Curse (STR)', effect:'Disadvantage on STR checks and saves', remove:'Remove Curse', color:'#aa44aa' },
+  { type:'curse', name:'Bestow Curse (Attacks)', effect:'Disadvantage on attack rolls', remove:'Remove Curse', color:'#aa44aa' },
+  { type:'curse', name:'Werewolf Lycanthropy', effect:'Transforms at full moon; WIS DC 13 to control', remove:'Remove Curse at 5th+', color:'#cc6633' },
+  { type:'curse', name:'Mummy Rot', effect:'Max HP −XP match each day, no natural healing', remove:'Remove Curse', color:'#886633' },
+  { type:'curse', name:'Geas (hostile)', effect:'Must follow command or 5d10 psychic/day', remove:'Dispel Magic (5th) or Greater Restoration', color:'#9b6dff' },
+  { type:'curse', name:'Haunt', effect:'Supernatural dread; disadv on short rest benefits', remove:'Ceremony / exorcism', color:'#666688' },
+  { type:'curse', name:'Mark of Tiamat', effect:'Dragon-kin track you; -2 saves vs dragons', remove:'Ritual at draconic shrine', color:'#cc4444' },
+  { type:'blessing', name:"Bless", effect:'+1d4 to attack rolls and saving throws', remove:'Concentration ends', color:'#ffdd44' },
+  { type:'blessing', name:'Death Ward', effect:'Once: survive to 1 HP instead of dying', remove:'Triggered or 8 hours', color:'#44bb88' },
+  { type:'blessing', name:'Heroes\' Feast', effect:'+2d10 max HP, immune to fear/poison, WIS saves adv', remove:'24 hours', color:'#c9a227' },
+  { type:'blessing', name:'Guidance of the Divine', effect:'+1d4 to one ability check (call before roll)', remove:'Concentration ends', color:'#ffdd88' },
+  { type:'blessing', name:'Mark of the Oracle', effect:'+2 Passive Perception; advantage on Insight', remove:'Campaign event', color:'#88ddff' },
+];
+
+function openCurseTracker() {
+  document.getElementById('curseOverlay')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'curseOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9300;display:flex;align-items:center;justify-content:center';
+
+  const chars = (window.CHARS||window.UNIQUE_CHARS||[]);
+  const charOpts = chars.map(c=>`<option value="${escHtml(c.name)}">${escHtml(c.name)}</option>`).join('');
+  const presetOpts = CURSE_PRESETS.map((p,i)=>`<option value="${i}">[${p.type==='curse'?'Curse':'Blessing'}] ${p.name}</option>`).join('');
+
+  ov.innerHTML = `
+    <div style="background:#10102a;border:1px solid #aa44aa;border-radius:12px;padding:24px;max-width:680px;width:95%;max-height:90vh;overflow-y:auto;font-family:inherit">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <h2 style="margin:0;color:#aa44aa;font-size:1.3rem">🌑 Curses & Blessings</h2>
+        <button onclick="document.getElementById('curseOverlay').remove()" style="background:none;border:none;color:#aaa;font-size:1.4rem;cursor:pointer">✕</button>
+      </div>
+      <div style="background:rgba(170,68,170,0.07);border:1px solid #aa44aa33;border-radius:8px;padding:12px;margin-bottom:14px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          <select id="curseChar" style="flex:1.5;padding:6px 8px;background:#1a1a3a;border:1px solid #aa44aa44;border-radius:6px;color:#c9a227;min-width:120px">${charOpts}</select>
+          <select id="cursePreset" style="flex:2;padding:6px 8px;background:#1a1a3a;border:1px solid #33333344;border-radius:6px;color:#aaa;min-width:140px">${presetOpts}</select>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input id="curseCustomName" placeholder="Custom name..." style="flex:1.5;padding:6px 8px;background:#1a1a3a;border:1px solid #333;border-radius:6px;color:#fff">
+          <input id="curseCustomEffect" placeholder="Custom effect..." style="flex:2;padding:6px 8px;background:#1a1a3a;border:1px solid #333;border-radius:6px;color:#fff">
+          <button onclick="_curseAdd()" style="padding:6px 14px;background:rgba(170,68,170,0.15);border:1px solid #aa44aa;border-radius:6px;color:#aa44aa;cursor:pointer;font-weight:700">+ Apply</button>
+        </div>
+        <div style="font-size:0.75rem;color:#666;margin-top:6px">Leave custom fields blank to use preset name/effect.</div>
+      </div>
+      <div id="curseBody"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _curseRender();
+}
+
+function _curseAdd() {
+  const char = document.getElementById('curseChar')?.value;
+  const presetIdx = parseInt(document.getElementById('cursePreset')?.value||'0');
+  const customName = document.getElementById('curseCustomName')?.value?.trim();
+  const customEffect = document.getElementById('curseCustomEffect')?.value?.trim();
+  const p = CURSE_PRESETS[presetIdx] || CURSE_PRESETS[0];
+  const d = _curseLoad();
+  d.push({
+    char,
+    type: p.type,
+    name: customName || p.name,
+    effect: customEffect || p.effect,
+    remove: p.remove || 'DM discretion',
+    color: p.color,
+    ts: new Date().toLocaleDateString()
+  });
+  _curseSave(d);
+  if (document.getElementById('curseCustomName')) document.getElementById('curseCustomName').value='';
+  if (document.getElementById('curseCustomEffect')) document.getElementById('curseCustomEffect').value='';
+  showToast(`${p.type==='curse'?'Cursed':'Blessed'}: ${char}`,'#aa44aa');
+  _curseRender();
+}
+
+function _curseRemove(i) { const d=_curseLoad(); d.splice(i,1); _curseSave(d); _curseRender(); }
+
+function _curseRender() {
+  const body = document.getElementById('curseBody');
+  if (!body) return;
+  const d = _curseLoad();
+  if (!d.length) { body.innerHTML='<p style="color:#666;text-align:center;font-size:0.85rem">No active curses or blessings.</p>'; return; }
+  // Group by character
+  const byChar = {};
+  d.forEach((e,i) => {
+    if (!byChar[e.char]) byChar[e.char] = [];
+    byChar[e.char].push({...e,_i:i});
+  });
+  body.innerHTML = Object.entries(byChar).map(([char,items]) => `
+    <div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:12px;margin-bottom:8px">
+      <div style="color:#c9a227;font-weight:700;margin-bottom:8px">${escHtml(char)}</div>
+      ${items.map(it => {
+        const isCurse = it.type==='curse';
+        const col = it.color||'#aa44aa';
+        return `<div style="display:flex;align-items:flex-start;gap:10px;padding:6px;background:rgba(0,0,0,0.3);border-left:3px solid ${col};border-radius:4px;margin-bottom:5px">
+          <span style="font-size:1.1rem">${isCurse?'🌑':'✨'}</span>
+          <div style="flex:1">
+            <div style="color:${col};font-weight:700;font-size:0.88rem">${escHtml(it.name)}</div>
+            <div style="color:#bbb;font-size:0.8rem;margin:2px 0">${escHtml(it.effect)}</div>
+            <div style="color:#666;font-size:0.75rem">Remove: ${escHtml(it.remove)}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+            <span style="color:#555;font-size:0.7rem">${it.ts||''}</span>
+            <button onclick="_curseRemove(${it._i})" style="padding:2px 7px;background:rgba(255,80,80,0.12);border:1px solid #ff5050;border-radius:4px;color:#ff5050;cursor:pointer;font-size:0.72rem">Remove</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`).join('');
+}
+
+// Add Curse Tracker button
+(function() {
+  const allBtns = document.querySelectorAll('.filter-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.title = 'Curse & Blessing Tracker — persistent magical effects on characters';
+    btn.style.cssText = 'border-color:#aa44aa;color:#aa44aa';
+    btn.textContent = '🌑 Curses';
+    btn.onclick = openCurseTracker;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 192: Session Zero / Campaign Setup Checklist
+const SZ_KEY = 'tiamat_session_zero';
+function _szLoad() { try { return JSON.parse(localStorage.getItem(SZ_KEY)||'{}'); } catch(e){return{};} }
+function _szSave(d) { localStorage.setItem(SZ_KEY, JSON.stringify(d)); }
+
+const SZ_SECTIONS = [
+  { id:'tone', title:'Tone & Themes', icon:'🎭', color:'#9b6dff', items:[
+    'Discuss campaign tone (gritty/heroic/epic/dark)',
+    'Agree on content boundaries (session X / hard nos)',
+    'Establish genre expectations (low/high magic, politics, horror)',
+    'Confirm horror/violence comfort level',
+    'Discuss romantic subplots: yes/no/off-screen only',
+  ]},
+  { id:'world', title:'World & Lore', icon:'🌍', color:'#4488ff', items:[
+    'Present world overview (Tiamat setting)',
+    'Explain major factions and their agendas',
+    'Share pantheon (which gods are active/worshipped)',
+    'Explain calendar and current year',
+    'Describe geography: key cities, dangers, travel',
+  ]},
+  { id:'chars', title:'Character Creation', icon:'🧙', color:'#c9a227', items:[
+    'Set starting level and XP/milestone system',
+    'Agree on allowed sources (PHB, Xanathar\'s, homebrew)',
+    'Set stat generation method (point buy / roll / standard)',
+    'Discuss multiclassing and feats (allowed?)',
+    'Assign starting gold / equipment packs',
+    'Collect character backgrounds from all players',
+    'Check for duplicate race/class combos or clashes',
+  ]},
+  { id:'table', title:'Table Rules', icon:'📋', color:'#44bb88', items:[
+    'Set session day/time/duration',
+    'Establish attendance policy (session cancels if X absent)',
+    'Decide on phones/distractions at table',
+    'Agree on PvP (never/rare/consensual)',
+    'Set rules for character death (raise dead available?)',
+    'Establish metagaming expectations',
+    'Food/snacks responsibility',
+  ]},
+  { id:'dm', title:'DM Prep', icon:'📖', color:'#ff7733', items:[
+    'Prepare session 1 hook (reason party is together)',
+    'Have starting location detailed and mapped',
+    'Prepare 3 rumor hooks for early exploration',
+    'Set up initiative tracker with all PCs',
+    'Prepare NPC cards for important session 1 NPCs',
+    'Review party composition for balance gaps',
+    'Prepare downtime options for between sessions',
+  ]},
+];
+
+function openSessionZero() {
+  document.getElementById('szOverlay')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'szOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9300;display:flex;align-items:center;justify-content:center';
+  const state = _szLoad();
+
+  let sectHtml = SZ_SECTIONS.map(sec => {
+    const total = sec.items.length;
+    const done = sec.items.filter((_,i) => state[sec.id+'_'+i]).length;
+    const pct = Math.round((done/total)*100);
+    const rows = sec.items.map((item, i) => {
+      const checked = !!state[sec.id+'_'+i];
+      return `<div onclick="_szToggle('${sec.id}',${i})" style="display:flex;align-items:center;gap:8px;padding:5px 4px;cursor:pointer;border-radius:4px;opacity:${checked?0.5:1}" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background='transparent'">
+        <span style="font-size:1rem">${checked?'✅':'⬜'}</span>
+        <span style="font-size:0.85rem;color:${checked?'#666':'#ccc'};text-decoration:${checked?'line-through':'none'}">${escHtml(item)}</span>
+      </div>`;
+    }).join('');
+    return `<div style="background:rgba(0,0,0,0.3);border:1px solid ${sec.color}33;border-radius:8px;padding:14px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="color:${sec.color};font-weight:700">${sec.icon} ${sec.title}</span>
+        <span style="color:${done===total?'#44bb88':'#888'};font-size:0.8rem">${done}/${total}</span>
+      </div>
+      <div style="background:#1a1a3a;border-radius:4px;height:4px;margin-bottom:10px"><div style="background:${sec.color};height:4px;border-radius:4px;width:${pct}%"></div></div>
+      ${rows}
+    </div>`;
+  }).join('');
+
+  const totalItems = SZ_SECTIONS.reduce((s,sec)=>s+sec.items.length,0);
+  const totalDone = SZ_SECTIONS.reduce((s,sec)=>s+sec.items.filter((_,i)=>!!state[sec.id+'_'+i]).length,0);
+  const overallPct = Math.round((totalDone/totalItems)*100);
+
+  ov.innerHTML = `
+    <div style="background:#10102a;border:1px solid #9b6dff;border-radius:12px;padding:24px;max-width:680px;width:95%;max-height:90vh;overflow-y:auto;font-family:inherit">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <h2 style="margin:0;color:#9b6dff;font-size:1.3rem">📋 Session Zero Checklist</h2>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button onclick="_szClear()" style="padding:4px 10px;background:rgba(255,80,80,0.1);border:1px solid #ff5050;border-radius:6px;color:#ff5050;cursor:pointer;font-size:0.78rem">Reset</button>
+          <button onclick="document.getElementById('szOverlay').remove()" style="background:none;border:none;color:#aaa;font-size:1.4rem;cursor:pointer">✕</button>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <div style="flex:1;background:#1a1a3a;border-radius:6px;height:10px"><div style="background:${overallPct===100?'#44bb88':'#9b6dff'};height:10px;border-radius:6px;width:${overallPct}%;transition:width 0.3s"></div></div>
+        <span style="color:${overallPct===100?'#44bb88':'#9b6dff'};font-weight:700;min-width:40px">${overallPct}%</span>
+      </div>
+      <div id="szSections">${sectHtml}</div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+function _szToggle(secId, itemIdx) {
+  const d = _szLoad();
+  const key = secId+'_'+itemIdx;
+  d[key] = !d[key];
+  _szSave(d);
+  // Re-render just the overlay content
+  openSessionZero();
+}
+
+function _szClear() {
+  if (!confirm('Reset entire Session Zero checklist?')) return;
+  localStorage.removeItem(SZ_KEY);
+  openSessionZero();
+}
+
+// Add Session Zero button
+(function() {
+  const allBtns = document.querySelectorAll('.filter-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.title = 'Session Zero Checklist — campaign setup tasks before first session';
+    btn.style.cssText = 'border-color:#9b6dff;color:#9b6dff';
+    btn.textContent = '📋 Sesh Zero';
+    btn.onclick = openSessionZero;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 193: NPC Voice & Roleplay Cheat Sheet
+const NPC_VOICE_KEY = 'tiamat_npc_voices';
+function _voiceLoad() { try { return JSON.parse(localStorage.getItem(NPC_VOICE_KEY)||'{}'); } catch(e){return{};} }
+function _voiceSave(d) { localStorage.setItem(NPC_VOICE_KEY, JSON.stringify(d)); }
+
+const VOICE_ACCENTS = ['Deep/Gruff','High/Raspy','Smooth/Silky','Nervous/Stuttering','Aristocratic','Cockney/Low','Irish/Lilting','Eastern European','Southern Drawl','Nordic/Harsh','French/Refined','Theatrical','Monotone','Old/Wheeze','Young/Eager','Gravel','Whispery','Booming'];
+const VOICE_MOODS = ['Friendly','Suspicious','Fearful','Arrogant','Bored','Enthusiastic','Sad','Manic','Calculating','Warm','Cold','Weary'];
+const VOICE_PHRASES = ['Says "my friend" a lot','Never breaks eye contact','Trails off mid-sentence','Laughs at own jokes','Uses formal titles always','Speaks in third person','Whispers for emphasis','Gestures wildly when excited','Long pauses before answering','Corrects others\' grammar','Drops hints and half-truths','Uses archaic words (forsooth, mayhaps)'];
+
+function openNpcVoiceSheet() {
+  document.getElementById('voiceOverlay')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'voiceOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9300;display:flex;align-items:center;justify-content:center';
+
+  const chars = (window.CHARS||window.UNIQUE_CHARS||[]);
+  const charOpts = chars.map(c=>`<option value="${escHtml(c.name)}">${escHtml(c.name)}</option>`).join('');
+  const accentOpts = VOICE_ACCENTS.map(a=>`<option value="${a}">${a}</option>`).join('');
+  const moodOpts = VOICE_MOODS.map(m=>`<option value="${m}">${m}</option>`).join('');
+  const phraseOpts = VOICE_PHRASES.map(p=>`<option value="${p}">${p}</option>`).join('');
+
+  ov.innerHTML = `
+    <div style="background:#10102a;border:1px solid #ff88cc;border-radius:12px;padding:24px;max-width:700px;width:95%;max-height:90vh;overflow-y:auto;font-family:inherit">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <h2 style="margin:0;color:#ff88cc;font-size:1.3rem">🎭 NPC Voice & Roleplay Sheet</h2>
+        <button onclick="document.getElementById('voiceOverlay').remove()" style="background:none;border:none;color:#aaa;font-size:1.4rem;cursor:pointer">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px">
+        <div>
+          <label style="color:#888;font-size:0.8rem;display:block;margin-bottom:4px">Character</label>
+          <select id="voiceChar" style="width:100%;padding:7px 8px;background:#1a1a3a;border:1px solid #ff88cc44;border-radius:6px;color:#c9a227">${charOpts}</select>
+        </div>
+        <div>
+          <label style="color:#888;font-size:0.8rem;display:block;margin-bottom:4px">Accent / Tone</label>
+          <select id="voiceAccent" style="width:100%;padding:7px 8px;background:#1a1a3a;border:1px solid #33333344;border-radius:6px;color:#aaa">${accentOpts}</select>
+        </div>
+        <div>
+          <label style="color:#888;font-size:0.8rem;display:block;margin-bottom:4px">Default Mood</label>
+          <select id="voiceMood" style="width:100%;padding:7px 8px;background:#1a1a3a;border:1px solid #33333344;border-radius:6px;color:#aaa">${moodOpts}</select>
+        </div>
+        <div>
+          <label style="color:#888;font-size:0.8rem;display:block;margin-bottom:4px">Speech Quirk</label>
+          <select id="voicePhrase" style="width:100%;padding:7px 8px;background:#1a1a3a;border:1px solid #33333344;border-radius:6px;color:#aaa">${phraseOpts}</select>
+        </div>
+      </div>
+      <div style="margin-bottom:10px">
+        <label style="color:#888;font-size:0.8rem;display:block;margin-bottom:4px">Opening Line / Sample Dialogue</label>
+        <input id="voiceLine" placeholder='"Ah, welcome travelers. I have been expecting someone like you..."' style="width:100%;padding:7px 10px;background:#1a1a3a;border:1px solid #333;border-radius:6px;color:#fff;box-sizing:border-box">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="color:#888;font-size:0.8rem;display:block;margin-bottom:4px">DM Notes (mannerisms, what they want, what they hide)</label>
+        <textarea id="voiceNotes" rows="3" placeholder="E.g. always nervous when asked about the docks; refuses to say the king's name; fidgets with ring..." style="width:100%;padding:7px 10px;background:#1a1a3a;border:1px solid #333;border-radius:6px;color:#fff;resize:vertical;box-sizing:border-box"></textarea>
+      </div>
+      <button onclick="_voiceSaveChar()" style="width:100%;padding:8px;background:rgba(255,136,204,0.15);border:1px solid #ff88cc;border-radius:6px;color:#ff88cc;cursor:pointer;font-weight:700;margin-bottom:14px">💾 Save Voice Profile</button>
+      <div id="voiceList"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _voiceRender();
+}
+
+function _voiceSaveChar() {
+  const char = document.getElementById('voiceChar')?.value;
+  const accent = document.getElementById('voiceAccent')?.value;
+  const mood = document.getElementById('voiceMood')?.value;
+  const phrase = document.getElementById('voicePhrase')?.value;
+  const line = document.getElementById('voiceLine')?.value?.trim();
+  const notes = document.getElementById('voiceNotes')?.value?.trim();
+  if (!char) return;
+  const d = _voiceLoad();
+  d[char] = { accent, mood, phrase, line, notes };
+  _voiceSave(d);
+  showToast('Voice profile saved for '+char,'#ff88cc');
+  _voiceRender();
+}
+
+function _voiceDeleteChar(char) { const d=_voiceLoad(); delete d[char]; _voiceSave(d); _voiceRender(); }
+
+function _voiceRender() {
+  const list = document.getElementById('voiceList');
+  if (!list) return;
+  const d = _voiceLoad();
+  const keys = Object.keys(d);
+  if (!keys.length) { list.innerHTML='<p style="color:#666;text-align:center;font-size:0.85rem">No voice profiles saved yet.</p>'; return; }
+  list.innerHTML = keys.map(char => {
+    const v = d[char];
+    return `<div style="background:rgba(255,136,204,0.05);border:1px solid #ff88cc22;border-radius:8px;padding:12px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="color:#c9a227;font-weight:700">${escHtml(char)}</span>
+        <button onclick="_voiceDeleteChar('${char.replace(/'/g,"\\'")}') " style="padding:2px 7px;background:rgba(255,80,80,0.1);border:1px solid #ff5050;border-radius:4px;color:#ff5050;cursor:pointer;font-size:0.72rem">Delete</button>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:6px;font-size:0.82rem">
+        <span>🎙 <span style="color:#ff88cc">${escHtml(v.accent||'')}</span></span>
+        <span>😐 <span style="color:#aaa">${escHtml(v.mood||'')}</span></span>
+        <span>💬 <span style="color:#888;font-style:italic">${escHtml(v.phrase||'')}</span></span>
+      </div>
+      ${v.line?`<div style="color:#ccc;font-style:italic;font-size:0.85rem;margin-bottom:4px">"${escHtml(v.line)}"</div>`:''}
+      ${v.notes?`<div style="color:#777;font-size:0.8rem">${escHtml(v.notes)}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// Add NPC Voice Sheet button
+(function() {
+  const allBtns = document.querySelectorAll('.filter-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.title = 'NPC Voice & Roleplay Sheet — accent, mood, quirks, opening lines per NPC';
+    btn.style.cssText = 'border-color:#ff88cc;color:#ff88cc';
+    btn.textContent = '🎭 NPC Voice';
+    btn.onclick = openNpcVoiceSheet;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 194: Active Spell Duration Timeline
+const SPELL_DUR_KEY = 'tiamat_spell_durations';
+function _sdLoad() { try { return JSON.parse(localStorage.getItem(SPELL_DUR_KEY)||'[]'); } catch(e){return[];} }
+function _sdSave(d) { localStorage.setItem(SPELL_DUR_KEY, JSON.stringify(d)); }
+
+const SD_DURATIONS = ['1 round','6 rounds (1 min)','10 rounds','1 minute','10 minutes','1 hour','8 hours','24 hours','Until dispelled','Concentration (1 min)','Concentration (10 min)','Concentration (1 hr)'];
+
+function openSpellTimeline() {
+  document.getElementById('sdOverlay')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'sdOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9300;display:flex;align-items:center;justify-content:center';
+
+  const chars = (window.CHARS||window.UNIQUE_CHARS||[]);
+  const charOpts = chars.map(c=>`<option value="${escHtml(c.name)}">${escHtml(c.name)}</option>`).join('');
+  const durOpts = SD_DURATIONS.map(d=>`<option value="${d}">${d}</option>`).join('');
+  // Pull spells from FULL_SPELLS or use a simple input
+  const spellList = typeof FULL_SPELLS !== 'undefined' ? FULL_SPELLS.map(s=>s.name) : [];
+  const spellDatalist = spellList.length ? `<datalist id="sdSpellList">${spellList.map(s=>`<option value="${escHtml(s)}">`).join('')}</datalist>` : '';
+
+  ov.innerHTML = `
+    <div style="background:#10102a;border:1px solid #4488ff;border-radius:12px;padding:24px;max-width:680px;width:95%;max-height:90vh;overflow-y:auto;font-family:inherit">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <h2 style="margin:0;color:#4488ff;font-size:1.3rem">⏱ Active Spell Duration Tracker</h2>
+        <div style="display:flex;gap:8px">
+          <button onclick="_sdTickRound()" style="padding:5px 10px;background:rgba(68,136,255,0.12);border:1px solid #4488ff;border-radius:6px;color:#4488ff;cursor:pointer;font-size:0.8rem">⏩ Tick Round</button>
+          <button onclick="document.getElementById('sdOverlay').remove()" style="background:none;border:none;color:#aaa;font-size:1.4rem;cursor:pointer">✕</button>
+        </div>
+      </div>
+      ${spellDatalist}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+        <select id="sdChar" style="flex:1.5;padding:6px 8px;background:#1a1a3a;border:1px solid #4488ff44;border-radius:6px;color:#c9a227;min-width:120px">${charOpts}</select>
+        <input id="sdSpell" list="sdSpellList" placeholder="Spell name..." style="flex:2;padding:6px 8px;background:#1a1a3a;border:1px solid #333;border-radius:6px;color:#fff">
+        <select id="sdDur" style="flex:1.5;padding:6px 8px;background:#1a1a3a;border:1px solid #33333344;border-radius:6px;color:#aaa;min-width:130px">${durOpts}</select>
+        <button onclick="_sdAdd()" style="padding:6px 14px;background:rgba(68,136,255,0.15);border:1px solid #4488ff;border-radius:6px;color:#4488ff;cursor:pointer;font-weight:700">+ Cast</button>
+      </div>
+      <div id="sdBody"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _sdRender();
+}
+
+function _sdDurToRounds(dur) {
+  const map = {
+    '1 round':1,'6 rounds (1 min)':6,'10 rounds':10,'1 minute':10,'10 minutes':100,
+    '1 hour':600,'8 hours':4800,'24 hours':14400,'Until dispelled':9999,
+    'Concentration (1 min)':10,'Concentration (10 min)':100,'Concentration (1 hr)':600
+  };
+  return map[dur] || 10;
+}
+
+function _sdAdd() {
+  const char = document.getElementById('sdChar')?.value;
+  const spell = document.getElementById('sdSpell')?.value?.trim();
+  const dur = document.getElementById('sdDur')?.value;
+  if (!char || !spell) { showToast('Select character and spell','#cc4444'); return; }
+  const isConc = dur.startsWith('Concentration');
+  const d = _sdLoad();
+  // Conflict check
+  if (isConc) {
+    const existConc = d.find(s=>s.char===char&&s.conc&&s.rounds>0);
+    if (existConc) {
+      if (!confirm(`${char} is already concentrating on ${existConc.spell}. Drop it for ${spell}?`)) return;
+      const idx = d.indexOf(existConc);
+      d.splice(idx,1);
+    }
+  }
+  d.push({ char, spell, dur, rounds: _sdDurToRounds(dur), maxRounds:_sdDurToRounds(dur), conc:isConc, ts:new Date().toLocaleDateString() });
+  _sdSave(d);
+  if (document.getElementById('sdSpell')) document.getElementById('sdSpell').value='';
+  showToast(`${spell} active (${dur})`,'#4488ff');
+  _sdRender();
+}
+
+function _sdExpire(i) { const d=_sdLoad(); d.splice(i,1); _sdSave(d); _sdRender(); }
+
+function _sdTickRound() {
+  const d = _sdLoad();
+  const expired = [];
+  d.forEach(s => {
+    if (s.rounds !== 9999) s.rounds = Math.max(0, s.rounds - 1);
+    if (s.rounds === 0) expired.push(s.spell+' ('+s.char+')');
+  });
+  // Remove expired
+  const active = d.filter(s=>s.rounds>0||s.rounds===9999);
+  _sdSave(active);
+  _sdRender();
+  if (expired.length) showToast('Expired: '+expired.join(', '),'#cc4444');
+}
+
+function _sdRender() {
+  const body = document.getElementById('sdBody');
+  if (!body) return;
+  const d = _sdLoad();
+  if (!d.length) { body.innerHTML='<p style="color:#666;text-align:center;font-size:0.85rem">No active spells. Cast above.</p>'; return; }
+  body.innerHTML = d.map((s,i) => {
+    const pct = s.rounds===9999?100:Math.max(0,(s.rounds/s.maxRounds)*100);
+    const col = s.conc?'#9b6dff':'#4488ff';
+    const urgent = s.rounds<=3 && s.rounds!==9999;
+    return `<div style="background:rgba(68,136,255,0.06);border:1px solid ${col}22;border-radius:8px;padding:10px 12px;margin-bottom:6px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+        <div>
+          <span style="color:#c9a227;font-size:0.82rem">${escHtml(s.char)}</span>
+          <span style="color:${col};font-weight:700;font-size:0.9rem;margin-left:8px">${escHtml(s.spell)}</span>
+          ${s.conc?'<span style="color:#9b6dff;font-size:0.72rem;margin-left:6px">🔵 Conc</span>':''}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="color:${urgent?'#cc4444':col};font-size:0.82rem">${s.rounds===9999?'∞':s.rounds} rds</span>
+          <button onclick="_sdExpire(${i})" style="padding:2px 6px;background:rgba(255,80,80,0.1);border:1px solid #ff5050;border-radius:4px;color:#ff5050;cursor:pointer;font-size:0.72rem">End</button>
+        </div>
+      </div>
+      <div style="background:#1a1a3a;border-radius:4px;height:4px"><div style="background:${urgent?'#cc4444':col};height:4px;border-radius:4px;width:${pct}%"></div></div>
+    </div>`;
+  }).join('');
+}
+
+// Add Spell Timeline button
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'Active Spell Duration Tracker — see all active spells, tick rounds, auto-expire';
+    btn.style.cssText = 'border-color:#4488ff;color:#4488ff';
+    btn.textContent = '⏱ Spells';
+    btn.onclick = openSpellTimeline;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
