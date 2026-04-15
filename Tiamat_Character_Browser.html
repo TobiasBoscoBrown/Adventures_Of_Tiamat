@@ -3533,6 +3533,7 @@
     <button class="encounter-open-btn" onclick="openTheaterMode()" style="border-color:#44aacc;color:#44aacc" title="Theater mode — fullscreen battle board for second screen">🎭 Theater</button>
     <button class="encounter-open-btn" onclick="toggleXpPanel()" style="border-color:#c9a227;color:#c9a227" id="xpTrackerBtn" title="Party XP & Level Tracker — award XP, track level progress">⭐ XP</button>
     <button class="encounter-open-btn" onclick="toggleSkillChallenge()" style="border-color:#dd8822;color:#dd8822" id="skillChallengeBtn" title="Skill Challenge Tracker — track successes & failures">⚡ Challenge</button>
+    <button class="encounter-open-btn" onclick="togglePartySlots()" style="border-color:#bb88ff;color:#bb88ff" id="partySlotsBtn" title="Party spell slot overview — all casters at a glance">✨ Slots</button>
     <button class="encounter-open-btn" onclick="toggleSpellSearch()" style="border-color:#44aacc;color:#44aacc" id="spellSearchBtn" title="Search spells by name, school, or level">📖 Spells</button>
     <button class="encounter-open-btn" onclick="togglePassivesPanel()" style="border-color:#9b6dff;color:#9b6dff" id="passivesBtn" title="Passive Perception, Investigation & Insight for all characters">👁 Passives</button>
     <button class="encounter-open-btn" onclick="toggleGroupRoll()" style="border-color:#5588dd;color:#5588dd" id="groupRollBtn" title="Roll any skill/ability for all visible characters at once">🎲 Group Roll</button>
@@ -4442,6 +4443,13 @@
     <button onclick="recordSCResult(true)" id="scSuccessBtn" style="flex:1;background:rgba(68,170,68,.15);border:2px solid #44aa44;color:#44aa44;border-radius:8px;padding:8px;cursor:pointer;font-size:13px;font-weight:700">✓ Success</button>
     <button onclick="recordSCResult(false)" id="scFailBtn" style="flex:1;background:rgba(204,51,51,.1);border:2px solid #cc3333;color:#cc3333;border-radius:8px;padding:8px;cursor:pointer;font-size:13px;font-weight:700">✗ Failure</button>
   </div>
+</div>
+<div id="partySlotsPanel" style="position:fixed;top:60px;right:20px;width:360px;max-height:82vh;background:linear-gradient(160deg,#06031a,#0f0828);border:1px solid rgba(187,136,255,0.4);border-radius:14px;z-index:353;display:none;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.9);overflow:hidden">
+  <div style="padding:10px 14px;border-bottom:1px solid rgba(187,136,255,0.25);display:flex;justify-content:space-between;align-items:center;background:rgba(187,136,255,0.04);flex-shrink:0">
+    <span style="font-family:'Cinzel',serif;color:#bb88ff;font-size:13px;font-weight:700;letter-spacing:1px">✨ PARTY SPELL SLOTS</span>
+    <button onclick="togglePartySlots()" style="background:none;border:1px solid #2a1a40;color:#4a2a60;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px">✕</button>
+  </div>
+  <div id="partySlotsBody" style="overflow-y:auto;flex:1;padding:8px 0"></div>
 </div>
 <div id="spellSearchPanel" style="position:fixed;top:60px;right:20px;width:360px;max-height:82vh;background:linear-gradient(160deg,#030d14,#071828);border:1px solid rgba(68,170,204,0.4);border-radius:14px;z-index:351;display:none;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.9);overflow:hidden">
   <div style="padding:10px 14px;border-bottom:1px solid rgba(68,170,204,0.25);display:flex;justify-content:space-between;align-items:center;background:rgba(68,170,204,0.04);flex-shrink:0">
@@ -14942,6 +14950,80 @@ function renderSkillChallenge() {
   const sBtn = document.getElementById('scSuccessBtn'), fBtn = document.getElementById('scFailBtn');
   if (sBtn) sBtn.style.opacity = resolved ? '.3' : '1';
   if (fBtn) fBtn.style.opacity = resolved ? '.3' : '1';
+}
+
+// ── PARTY SPELL SLOTS OVERVIEW ────────────────────────────
+let partySlotsOpen = false;
+function togglePartySlots() {
+  partySlotsOpen = !partySlotsOpen;
+  const panel = document.getElementById('partySlotsPanel');
+  panel.style.display = partySlotsOpen ? 'flex' : 'none';
+  const btn = document.getElementById('partySlotsBtn');
+  if (btn) { btn.style.background = partySlotsOpen ? 'rgba(187,136,255,.15)' : ''; btn.style.color = partySlotsOpen ? '#ddaaff' : '#bb88ff'; }
+  if (partySlotsOpen) renderPartySlots();
+}
+
+function renderPartySlots() {
+  const el = document.getElementById('partySlotsBody');
+  if (!el) return;
+
+  // Find all characters with spell slots
+  const casters = UNIQUE_CHARS.filter(c => {
+    const sm = getMaxSlotsForChar(c);
+    return sm && Object.keys(sm).length > 0;
+  });
+
+  if (!casters.length) {
+    el.innerHTML = '<div style="text-align:center;color:#3a2a60;font-size:12px;padding:24px">No spellcasters found</div>';
+    return;
+  }
+
+  // Get all slot levels used
+  const allLevels = new Set();
+  casters.forEach(c => { const sm = getMaxSlotsForChar(c); Object.keys(sm).forEach(l => allLevels.add(parseInt(l))); });
+  const levels = [...allLevels].sort((a,b)=>a-b);
+
+  let html = `<table style="width:100%;border-collapse:collapse;font-size:11px">
+    <tr style="font-size:9px;color:#4a2a80;font-weight:600;letter-spacing:.5px">
+      <th style="padding:5px 12px;text-align:left;border-bottom:1px solid rgba(187,136,255,.2)">CASTER</th>
+      ${levels.map(l=>`<th style="padding:5px 5px;text-align:center;border-bottom:1px solid rgba(187,136,255,.2)" title="Level ${l} slots">Lv${l}</th>`).join('')}
+      <th style="padding:5px 10px;text-align:center;border-bottom:1px solid rgba(187,136,255,.2)" title="Click to restore all slots">↺</th>
+    </tr>`;
+
+  casters.forEach(c => {
+    const sm = getMaxSlotsForChar(c);
+    const used = getUsedSlots(c.name);
+    const cells = levels.map(l => {
+      if (!sm[l]) return `<td style="padding:4px 5px;text-align:center;color:#2a2a50;font-size:10px">—</td>`;
+      const rem = sm[l] - (used[l]||0);
+      const col = rem === 0 ? '#3a3a60' : rem <= sm[l]/2 ? '#c9a227' : '#9b6dff';
+      const pips = Array.from({length:sm[l]},(_,i)=>`<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${i<rem?col:'rgba(100,100,150,.2)'};border:1px solid ${i<rem?col:'rgba(100,100,150,.3)'};margin:1px" title="${rem}/${sm[l]} remaining"></span>`).join('');
+      return `<td style="padding:4px 5px;text-align:center" onclick="useSlot(${JSON.stringify(c.name)},${l},event);renderPartySlots()" title="${rem}/${sm[l]} Level ${l} slots">${pips}<div style="font-size:8px;color:${col};line-height:1">${rem}/${sm[l]}</div></td>`;
+    }).join('');
+
+    const conc = getConcSpell(c.name);
+    html += `<tr style="border-top:1px solid rgba(187,136,255,.06)" onclick="openModal(UNIQUE_CHARS.findIndex(x=>x.name===${JSON.stringify(c.name)}))" style="cursor:pointer">
+      <td style="padding:4px 12px;color:#9098b8;font-size:11px;white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis">
+        ${escHtml(c.name.length>14?c.name.slice(0,13)+'…':c.name)}
+        ${conc ? `<span style="font-size:8px;color:#c9a227" title="Concentrating: ${escHtml(conc)}">🔮</span>` : ''}
+      </td>
+      ${cells}
+      <td style="padding:4px 10px;text-align:center"><button onclick="event.stopPropagation();restoreAllSlots(${JSON.stringify(c.name)});renderPartySlots()" style="background:none;border:none;color:#3a2a60;cursor:pointer;font-size:11px;padding:0" title="Restore all slots">↺</button></td>
+    </tr>`;
+  });
+
+  html += `</table>`;
+  html += `<div style="padding:6px 12px;display:flex;gap:8px;border-top:1px solid rgba(187,136,255,.1)">
+    <button onclick="UNIQUE_CHARS.filter(c=>{const s=getMaxSlotsForChar(c);return s&&Object.keys(s).length}).forEach(c=>restoreAllSlots(c.name));renderPartySlots()" style="background:rgba(187,136,255,.1);border:1px solid rgba(187,136,255,.3);color:#bb88ff;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:11px">↺ Restore ALL Casters</button>
+  </div>`;
+  el.innerHTML = html;
+}
+
+function restoreAllSlots(charName) {
+  if (slotState[charName]) delete slotState[charName];
+  if (typeof saveSlots === 'function') saveSlots();
+  logEntry('rest', `<strong>${escHtml(charName)}</strong>'s spell slots restored`);
+  updateHeaderStats();
 }
 
 // ── SPELL SEARCH PANEL ────────────────────────────────────
