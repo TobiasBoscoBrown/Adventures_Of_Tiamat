@@ -3778,6 +3778,7 @@
   <button class="filter-btn" onclick="openUpcastCalc()" style="border-color:#9b6dff;color:#9b6dff;" title="Spell Upcast Calculator — calculate scaled spell damage at higher slot levels">🔮 Upcast</button>
   <button class="filter-btn" onclick="openContestRoller()" style="border-color:#4488ff;color:#4488ff;" title="Skill Contest — roll two characters against each other (Athletics vs Athletics, Stealth vs Perception)">⚔ Contest</button>
   <button class="filter-btn" onclick="openItemCompendium()" style="border-color:#bb88ff;color:#bb88ff;" title="Magic Item Compendium — searchable 5e magic items with full descriptions, rarity filter, assign to character">🔮 Magic Items</button>
+  <button class="filter-btn" onclick="openFeatCompendium()" style="border-color:#44ccaa;color:#44ccaa;" title="Feat Compendium — searchable 5e feats with full descriptions, assign to character">⚡ Feats</button>
   <button class="filter-btn" onclick="printPartySheet()" style="border-color:#4488ff;color:#4488ff;" title="Print Party Sheet — all party members on one printable page">🖨 Party Sheet</button>
   <button class="filter-btn" onclick="openWorldMap()" style="border-color:#44cc88;color:#44cc88;" title="World Map — pin characters to the Tiamat campaign map (hotkey: M)">🗺 World Map</button>
   <span style="color: #333; margin: 0 4px;">|</span>
@@ -24654,6 +24655,184 @@ function _giveItem(itemName) {
   localStorage.setItem(invKey, JSON.stringify(inv));
   showToast(`${itemName} → ${charName}`, '#bb88ff');
   logEntry('loot', `🔮 <strong>${escHtml(itemName)}</strong> given to <strong>${escHtml(charName)}</strong>`);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 152: Feat Compendium — searchable PHB/SRD feats with full descriptions,
+//   category filter, and one-click "Assign to Character" saved to localStorage.
+//   Also shows assigned feats in the character BG tab.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const FEAT_COMP = [
+  { name:'Alert',              cat:'Utility',   desc:'+5 to initiative. Cannot be surprised while conscious. Hidden attackers get no advantage against you.' },
+  { name:'Athlete',            cat:'Physical',  desc:'+1 STR or DEX. Stand from prone uses 5 ft. Climbing no movement penalty. Running long/high jump needs 0 ft run-up.' },
+  { name:'Actor',              cat:'Social',    desc:'+1 CHA. Mimic any voice/sound (Deception/Performance check vs Insight). Advantage on Deception/Performance to impersonate.' },
+  { name:'Charger',            cat:'Combat',    desc:'Dash → melee attack or shove as bonus action. Attack +5 damage; shove 10 ft.' },
+  { name:'Crossbow Expert',    cat:'Combat',    desc:'Ignore loading. No disadvantage in 5 ft. Bonus action: attack with hand crossbow after one-hand weapon attack.' },
+  { name:'Defensive Duelist',  cat:'Combat',    desc:'Reaction: +proficiency bonus to AC vs one melee attack (finesse weapon).' },
+  { name:'Dual Wielder',       cat:'Combat',    desc:'+1 AC with two weapons. Two-weapon fight with non-light weapons. Draw/stow two weapons instead of one.' },
+  { name:'Dungeon Delver',     cat:'Utility',   desc:'Advantage on detecting secret doors. Advantage on saves vs traps. Resistance to trap damage. Search at normal pace.' },
+  { name:'Durable',            cat:'Physical',  desc:'+1 CON. When spending HD during rest, minimum roll is 2×CON modifier.' },
+  { name:'Elemental Adept',    cat:'Magic',     desc:'Choose damage type: spells ignore resistance; treat 1s as 2s on damage dice. Can take multiple times for different types.' },
+  { name:'Grappler',           cat:'Combat',    desc:'Advantage on attack rolls against creature you are grappling. Can pin: restrain both of you.' },
+  { name:'Great Weapon Master', cat:'Combat',   desc:'Crit/kill as bonus action: extra attack. Before attack: -5 to hit for +10 damage.' },
+  { name:'Healer',             cat:'Utility',   desc:'Stabilize + restore 1 HP with healer's kit. Use kit to heal 1d6+4+HD HP (once per creature per short rest).' },
+  { name:'Heavily Armored',    cat:'Physical',  desc:'+1 STR. Proficiency with heavy armor.' },
+  { name:'Heavy Armor Master', cat:'Combat',    desc:'+1 STR. Bludgeoning/piercing/slashing from non-magic weapons: −3 damage while in heavy armor.' },
+  { name:'Inspiring Leader',   cat:'Social',    desc:'10 min speech: 6 creatures + you gain temp HP equal to your CHA modifier + level. Once per short rest per person.' },
+  { name:'Keen Mind',          cat:'Utility',   desc:'+1 INT. Always know north. Know within 1 hr how long ago you were outdoors. Perfectly recall everything in last month.' },
+  { name:'Lightly Armored',    cat:'Physical',  desc:'+1 STR or DEX. Proficiency with light armor.' },
+  { name:'Linguist',           cat:'Utility',   desc:'+1 INT. Learn 3 languages. Create ciphers (INT check DC 15+ your INT modifier to crack).' },
+  { name:'Lucky',              cat:'Utility',   desc:'3 luck points/long rest. Spend 1 to reroll attack/ability/save, or force attacker to reroll against you (take lower).' },
+  { name:'Mage Slayer',        cat:'Combat',    desc:'Reaction: melee attack vs spellcaster who casts. Target has disadvantage on concentration saves. Advantage on saves vs adjacent spellcasters.' },
+  { name:'Magic Initiate',     cat:'Magic',     desc:'Choose a class: learn 2 cantrips + 1 1st-level spell (once/long rest). CHA/WIS/INT based on chosen class.' },
+  { name:'Martial Adept',      cat:'Combat',    desc:'Learn 2 Battle Master maneuvers. 1 superiority die (d6) per short rest.' },
+  { name:'Medium Armor Master', cat:'Physical', desc:'No stealth disadvantage in medium armor. +3 DEX to AC in medium armor (instead of +2).' },
+  { name:'Mobile',             cat:'Combat',    desc:'+10 ft speed. Dash ignores difficult terrain. Melee attack → no opportunity attack from that target that turn.' },
+  { name:'Moderately Armored', cat:'Physical',  desc:'+1 STR or DEX. Proficiency with medium armor and shields.' },
+  { name:'Mounted Combatant',  cat:'Combat',    desc:'Advantage on melee vs unmounted smaller creatures. Force attacks targeting mount to hit you instead. Mount passes DEX saves.' },
+  { name:'Observant',          cat:'Utility',   desc:'+1 INT or WIS. Read lips. +5 passive Perception/Investigation.' },
+  { name:'Polearm Master',     cat:'Combat',    desc:'Bonus action attack (1d4 bludgeoning) with polearm butt. Opportunity attack when creature enters reach.' },
+  { name:'Resilient',          cat:'Utility',   desc:'+1 to chosen ability score. Proficiency in saving throws using that ability.' },
+  { name:'Ritual Caster',      cat:'Magic',     desc:'Choose a class: get a ritual book with 2 ritual spells. Can add any ritual spell from that class to the book.' },
+  { name:'Savage Attacker',    cat:'Combat',    desc:'Once per turn, reroll melee weapon damage dice and use either result.' },
+  { name:'Sentinel',           cat:'Combat',    desc:'Opportunity attack: target speed = 0. Reaction: melee attack vs creature that attacks someone else adjacent to you. No Disengage against you.' },
+  { name:'Sharpshooter',       cat:'Combat',    desc:'No disadvantage at long range. Ignore half/three-quarters cover. -5 to hit for +10 damage.' },
+  { name:'Shield Master',      cat:'Combat',    desc:'Bonus action shove. Add shield bonus to DEX saves. DEX save for half: take no damage instead.' },
+  { name:'Skilled',            cat:'Utility',   desc:'Gain proficiency in any combination of 3 skills or tools.' },
+  { name:'Skulker',            cat:'Utility',   desc:'Hide when lightly obscured. Miss ranged attack while hidden: still hidden. Dim light doesn\'t give disadvantage on Perception.' },
+  { name:'Spell Sniper',       cat:'Magic',     desc:'Double range of attack-roll spells. Ignore half/three-quarters cover. Learn 1 attack-roll cantrip from any class.' },
+  { name:'Tavern Brawler',     cat:'Combat',    desc:'+1 STR or CON. Proficiency with improvised weapons and unarmed (1d4). Bonus action grapple after hit.' },
+  { name:'Tough',              cat:'Physical',  desc:'HP max +2 per level (current and future).' },
+  { name:'War Caster',         cat:'Magic',     desc:'Advantage on concentration saves. Cast spell while holding weapons/shield. Reaction: cast spell as opportunity attack.' },
+  { name:'Weapon Master',      cat:'Combat',    desc:'+1 STR or DEX. Proficiency with 4 weapons of your choice.' },
+  { name:'Fey Touched',        cat:'Magic',     desc:'+1 INT/WIS/CHA. Misty Step + 1st-level Enchantment or Divination spell once per long rest, no slot.' },
+  { name:'Shadow Touched',     cat:'Magic',     desc:'+1 INT/WIS/CHA. Invisibility + 1st-level Illusion or Necromancy spell once per long rest, no slot.' },
+  { name:'Fighting Initiate',  cat:'Combat',    desc:'Learn 1 Fighting Style from the Fighter list. Can take again for a different style.' },
+  { name:'Telekinetic',        cat:'Magic',     desc:'+1 INT/WIS/CHA. Mage Hand as a bonus action (invisible, extra 30 ft). Bonus action: shove 5 ft (STR save = 8+prof+mod).' },
+  { name:'Telepathic',         cat:'Social',    desc:'+1 INT/WIS/CHA. Speak telepathically 60 ft. Detect Thoughts once/long rest.' },
+  { name:'Piercer',            cat:'Combat',    desc:'+1 STR or DEX. Reroll 1 piercing die once per attack. Crit adds extra die.' },
+  { name:'Slasher',            cat:'Combat',    desc:'+1 STR or DEX. Hit: reduce speed by 10 ft until next turn. Crit: disadvantage on all attacks until your next turn.' },
+  { name:'Crusher',            cat:'Combat',    desc:'+1 STR or CON. Hit: push 5 ft. Crit: advantage for all attackers until your next turn.' },
+];
+
+const FEAT_CHAR_KEY = 'tiamat_feats';
+function getCharFeats(name) { try { return JSON.parse(localStorage.getItem(FEAT_CHAR_KEY)||'{}')[name]||[]; } catch { return []; } }
+function saveCharFeat(name, featName) {
+  const all = (() => { try { return JSON.parse(localStorage.getItem(FEAT_CHAR_KEY)||'{}'); } catch { return {}; } })();
+  if (!all[name]) all[name] = [];
+  if (!all[name].includes(featName)) all[name].push(featName);
+  localStorage.setItem(FEAT_CHAR_KEY, JSON.stringify(all));
+  showToast(`${featName} → ${name}`, '#44ccaa');
+  logEntry('note', `⚡ <strong>${escHtml(name)}</strong> gained feat: <strong>${escHtml(featName)}</strong>`);
+}
+function removeCharFeat(name, featName) {
+  const all = (() => { try { return JSON.parse(localStorage.getItem(FEAT_CHAR_KEY)||'{}'); } catch { return {}; } })();
+  if (all[name]) all[name] = all[name].filter(f => f !== featName);
+  localStorage.setItem(FEAT_CHAR_KEY, JSON.stringify(all));
+}
+
+function openFeatCompendium() {
+  const ex = document.getElementById('featCompOverlay');
+  if (ex) { ex.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'featCompOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9100;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto';
+  ov.innerHTML = `
+    <div style="background:linear-gradient(160deg,#0a1f1a,#0e2a22);border:1px solid rgba(68,204,170,0.4);border-radius:14px;width:760px;max-width:100%;padding:20px;color:#c8d0e8;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div style="font-size:17px;font-weight:700;font-family:'Cinzel',serif;color:#44ccaa">⚡ Feat Compendium</div>
+        <button onclick="document.getElementById('featCompOverlay').remove()" style="background:#0a1f1a;border:1px solid #1a4030;color:#44ccaa;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px">✕ Close</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <input id="featSearch" type="text" placeholder="Search feats…" oninput="_filterFeats()"
+          style="flex:1;min-width:160px;background:rgba(0,0,0,0.3);border:1px solid rgba(68,204,170,0.3);color:#c8d0e8;border-radius:8px;padding:7px 11px;font-size:12px;outline:none">
+        <select id="featCat" onchange="_filterFeats()" style="background:#0a1f1a;border:1px solid rgba(68,204,170,0.3);color:#c8d0e8;border-radius:8px;padding:7px;font-size:12px;cursor:pointer">
+          <option value="">All Categories</option>
+          ${['Combat','Magic','Physical','Social','Utility'].map(c=>`<option value="${c}">${c}</option>`).join('')}
+        </select>
+        <select id="featChar" style="background:#0a1f1a;border:1px solid rgba(68,204,170,0.3);color:#c8d0e8;border-radius:8px;padding:7px;font-size:12px;cursor:pointer;max-width:160px">
+          <option value="">Assign to…</option>
+          ${(typeof UNIQUE_CHARS!=='undefined'?UNIQUE_CHARS:[]).map(c=>`<option value="${escHtml(c.name)}">${escHtml(c.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div id="featResults" style="max-height:64vh;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px"></div>
+      <div style="margin-top:10px;font-size:10px;color:#4a5272;text-align:center">${FEAT_COMP.length} feats · PHB/Tasha's · Click to expand · Assignments saved per-character</div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _filterFeats();
+}
+
+function _filterFeats() {
+  const q = (document.getElementById('featSearch')?.value||'').toLowerCase();
+  const cat = document.getElementById('featCat')?.value||'';
+  const el = document.getElementById('featResults');
+  if (!el) return;
+  const filtered = FEAT_COMP.filter(f => {
+    if (cat && f.cat !== cat) return false;
+    if (q && !f.name.toLowerCase().includes(q) && !f.desc.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  if (!filtered.length) { el.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#4a5272;padding:24px;font-size:13px">No feats found.</div>'; return; }
+  const catColor = { Combat:'#cc3333', Magic:'#9b6dff', Physical:'#c9a227', Social:'#44aacc', Utility:'#44cc88' };
+  el.innerHTML = filtered.map((f,i) => {
+    const col = catColor[f.cat] || '#44ccaa';
+    return `<div style="background:rgba(0,0,0,0.3);border:1px solid ${col}33;border-radius:10px;padding:10px;cursor:pointer;transition:border-color 0.15s"
+              onmouseover="this.style.borderColor='${col}88'" onmouseout="this.style.borderColor='${col}33'"
+              onclick="_toggleFeatDesc(${i})">
+        <div style="font-size:12px;font-weight:700;color:${col}">${escHtml(f.name)}</div>
+        <div style="font-size:10px;color:#4a5272;margin-top:1px">${escHtml(f.cat)}</div>
+        <div id="featDesc_${i}" style="display:none;font-size:11px;color:#9098b8;line-height:1.5;margin-top:6px;border-top:1px solid ${col}22;padding-top:6px">
+          ${escHtml(f.desc)}
+          <div style="margin-top:8px">
+            <button onclick="event.stopPropagation();_assignFeat(${JSON.stringify(f.name)})" style="background:rgba(68,204,170,0.1);border:1px solid rgba(68,204,170,0.3);color:#44ccaa;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:10px;font-weight:700">Assign to Character →</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function _toggleFeatDesc(i) {
+  const el = document.getElementById('featDesc_' + i);
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function _assignFeat(featName) {
+  const sel = document.getElementById('featChar');
+  const charName = sel?.value;
+  if (!charName) { showToast('Select a character in "Assign to…" first', '#cc4444'); return; }
+  saveCharFeat(charName, featName);
+}
+
+// Show assigned feats in the BG panel (appended at bottom if any feats exist)
+const _origRenderBgPanel = typeof renderBgPanel === 'function' ? renderBgPanel : null;
+function renderBgPanel(c) {
+  if (_origRenderBgPanel) _origRenderBgPanel(c);
+  // Append feats section
+  const feats = getCharFeats(c.name);
+  const el = document.getElementById('bgPanel');
+  if (!el) return;
+  const catColor = { Combat:'#cc3333', Magic:'#9b6dff', Physical:'#c9a227', Social:'#44aacc', Utility:'#44cc88' };
+  const featSection = `
+    <div style="margin-top:14px;padding:10px 12px;background:rgba(68,204,170,0.04);border:1px solid rgba(68,204,170,0.2);border-radius:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#44ccaa;text-transform:uppercase">⚡ Feats</div>
+        <button onclick="openFeatCompendium()" style="background:none;border:1px solid rgba(68,204,170,0.3);color:#44ccaa;border-radius:6px;padding:2px 8px;cursor:pointer;font-size:10px">+ Add Feat</button>
+      </div>
+      ${feats.length === 0 ? '<div style="font-size:11px;color:#4a5272;font-style:italic">No feats assigned. Click + Add Feat.</div>' :
+        feats.map(f => {
+          const fd = FEAT_COMP.find(x => x.name === f);
+          const col = catColor[fd?.cat] || '#44ccaa';
+          return `<div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:5px;padding:5px 8px;background:rgba(0,0,0,0.2);border-radius:6px;border:1px solid ${col}22">
+            <div style="flex:1">
+              <div style="font-size:11px;font-weight:700;color:${col}">${escHtml(f)}</div>
+              ${fd ? `<div style="font-size:10px;color:#7a8aaa;margin-top:1px">${escHtml(fd.desc.substring(0,80))}…</div>` : ''}
+            </div>
+            <button onclick="removeCharFeat(${JSON.stringify(c.name)},${JSON.stringify(f)});renderBgPanel(filteredChars[currentModalIdx])" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:12px;padding:0;line-height:1" title="Remove feat">✕</button>
+          </div>`;
+        }).join('')}
+    </div>`;
+  el.innerHTML += featSection;
 }
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
