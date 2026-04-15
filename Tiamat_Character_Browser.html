@@ -13535,17 +13535,33 @@ function rollHitDie(name) {
   if(res) res.textContent=`Rolled ${roll}${conMod>=0?'+':''}${conMod}=+${heal} HP`;
   renderRestShortTab(); if(typeof renderGrid==='function') renderGrid();
 }
-function doShortRestAll() { getPartyChars().forEach(c=>rollHitDie(c.name)); }
+function doShortRestAll() {
+  getPartyChars().forEach(c=>{
+    rollHitDie(c.name);
+    // Restore short-rest resources
+    if(typeof getCharResources==='function'){
+      const list=getCharResources(c.name);
+      const updated=list.map(r=>(/short\s*rest/i.test(r.recharge||''))?{...r,used:0}:r);
+      if(updated.some((r,i)=>r.used!==list[i].used)) saveCharResources(c.name,updated);
+    }
+  });
+}
 function doLongRest() {
-  const party=getPartyChars(); let hpR=0,sR=0,eR=0;
+  const party=getPartyChars(); let hpR=0,sR=0,eR=0,resR=0;
   party.forEach(c=>{
     const maxHp=parseInt(c.hp||'1'); if(getCharHP(c.name,maxHp)<maxHp){hpState[c.name]=maxHp;hpR++;}
     if(slotState[c.name]){delete slotState[c.name];sR++;}
     const ex=typeof getExhaustLevel==='function'?getExhaustLevel(c.name):0;
     if(ex>0&&typeof setExhaustLevel==='function'){setExhaustLevel(c.name,ex-1);eR++;}
+    // Restore long-rest resources
+    if(typeof getCharResources==='function'){
+      const list=getCharResources(c.name);
+      const updated=list.map(r=>({...r,used:0}));
+      if(updated.some((r,i)=>r.used!==list[i].used)){saveCharResources(c.name,updated);resR++;}
+    }
   });
   saveHp(); if(typeof saveSlots==='function') saveSlots();
-  logEntry('roll',`🌙 <strong>Long Rest</strong> — ${party.length} party members. HP:${hpR} slots:${sR} exhaust:${eR}`);
+  logEntry('roll',`🌙 <strong>Long Rest</strong> — ${party.length} party members. HP:${hpR} slots:${sR} exhaust:${eR} resources:${resR}`);
   playSound?.('heal'); if(typeof renderGrid==='function') renderGrid(); renderRestLongTab();
   const btn=document.getElementById('longRestBtn');
   if(btn){btn.textContent='✓ Long Rest Complete!';btn.style.background='rgba(35,180,120,0.3)';setTimeout(()=>{btn.textContent='🌙 Take Long Rest';btn.style.background='';},2500);}
