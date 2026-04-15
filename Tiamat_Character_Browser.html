@@ -8524,6 +8524,8 @@ function nextTurn() {
     logEntry('combat', `<strong>Round ${currentRound}</strong> begins`);
     // Clear all action states at start of new round
     clearTurnActions();
+    // Tick down condition durations
+    if (typeof tickCondDurations === 'function') tickCondDurations();
   }
   const active = initiativeList[currentTurnIdx];
   if (active) logEntry('combat', `<strong>${active.name}</strong>'s turn (Init: ${active.initiative})`);
@@ -8544,6 +8546,81 @@ function clearInitiative() {
   renderInitiative();
   renderGrid();
   updateHud();
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 67: Status Effect Duration Tracker — attach round
+//   durations to conditions in the initiative list.
+//   nextTurn() decrements, expired conditions auto-removed.
+// ══════════════════════════════════════════════════════════
+// condDurations: { charName: { conditionName: roundsRemaining } }
+const COND_DUR_KEY = 'tiamat_cond_durations';
+let condDurations = {};
+function loadCondDurations() {
+  try { condDurations = JSON.parse(localStorage.getItem(COND_DUR_KEY)) || {}; }
+  catch(e) { condDurations = {}; }
+}
+function saveCondDurations() { localStorage.setItem(COND_DUR_KEY, JSON.stringify(condDurations)); }
+loadCondDurations();
+
+function setCondDuration(charName, condName, rounds) {
+  if (!condDurations[charName]) condDurations[charName] = {};
+  if (rounds <= 0) { delete condDurations[charName][condName]; }
+  else { condDurations[charName][condName] = rounds; }
+  saveCondDurations();
+}
+function getCondDuration(charName, condName) {
+  return (condDurations[charName] || {})[condName] || 0;
+}
+function tickCondDurations() {
+  // Called at end of each round (when currentTurnIdx wraps to 0)
+  const expired = [];
+  Object.entries(condDurations).forEach(([charName, conds]) => {
+    Object.entries(conds).forEach(([condName, rounds]) => {
+      const newRounds = rounds - 1;
+      if (newRounds <= 0) {
+        delete conds[condName];
+        expired.push({ charName, condName });
+      } else {
+        conds[condName] = newRounds;
+      }
+    });
+    if (!Object.keys(conds).length) delete condDurations[charName];
+  });
+  saveCondDurations();
+  // Auto-remove expired conditions
+  expired.forEach(({ charName, condName }) => {
+    if (typeof removeCondition === 'function') removeCondition(charName, condName);
+    else if (typeof getCharConditions === 'function') {
+      const conds = getCharConditions(charName).filter(c => c !== condName);
+      const allConds = loadAllConditions();
+      allConds[charName] = conds;
+      localStorage.setItem('tiamat_conditions', JSON.stringify(allConds));
+    }
+    showToast(`⏱ ${condName} expired on ${charName}`, '#c9a227');
+  });
+  if (expired.length) renderGrid();
+}
+
+function openCondDurationPicker(charName, condName, evt) {
+  if (evt) evt.stopPropagation();
+  const cur = getCondDuration(charName, condName);
+  const panel = document.createElement('div');
+  panel.style.cssText = 'position:fixed;background:#0d0d1a;border:1px solid rgba(201,162,39,0.5);border-radius:10px;padding:14px;z-index:9900;box-shadow:0 4px 20px rgba(0,0,0,.8)';
+  const rect = evt?.target?.getBoundingClientRect() || {left:200,top:200};
+  panel.style.left = Math.min(rect.left, window.innerWidth - 220) + 'px';
+  panel.style.top  = (rect.bottom + 6) + 'px';
+  panel.innerHTML = `
+    <div style="font-size:11px;color:#c9a227;margin-bottom:8px">⏱ ${condName} on ${charName}</div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <span style="font-size:11px;color:#9098b8">Rounds:</span>
+      ${[1,2,3,4,5,6,10].map(r =>
+        `<button onclick="setCondDuration(${JSON.stringify(charName)},${JSON.stringify(condName)},${r});this.closest('div[style*=fixed]').remove();renderInitiative()" style="background:${cur===r?'rgba(201,162,39,0.2)':'none'};border:1px solid ${cur===r?'#c9a227':'#2a2a50'};color:${cur===r?'#c9a227':'#9098b8'};border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px">${r}</button>`
+      ).join('')}
+      <button onclick="setCondDuration(${JSON.stringify(charName)},${JSON.stringify(condName)},0);this.closest('div[style*=fixed]').remove();renderInitiative()" style="background:none;border:1px solid #cc3333;color:#cc3333;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px">✕</button>
+    </div>`;
+  document.body.appendChild(panel);
+  setTimeout(() => document.addEventListener('click', function h(e){ if(!panel.contains(e.target)){panel.remove();document.removeEventListener('click',h);}}, {once:false}), 100);
 }
 
 // Reaction/Bonus Action tracker state (per name, per round)
@@ -8605,6 +8682,13 @@ function renderInitiative() {
       const used = ts[type];
       return `<button class="init-action-pip ${used?'used':''}" onclick="toggleTurnAction(${JSON.stringify(e.name)},'${type}',event)" title="${type} — click to toggle" style="border-color:${used?'#2a2a50':color};color:${used?'#2a2a50':color};background:${used?'transparent':'rgba(0,0,0,0)'};">${used?'○':label}</button>`;
     };
+    // Build duration badges for conditions
+    const eConds = (typeof getCharConditions === 'function') ? getCharConditions(e.name) : [];
+    const durBadges = eConds.length ? eConds.map(cn => {
+      const dur = getCondDuration(e.name, cn);
+      const col = dur > 0 ? '#c9a227' : '#4a5272';
+      return `<span onclick="openCondDurationPicker(${JSON.stringify(e.name)},${JSON.stringify(cn)},event)" title="Set duration for ${cn}" style="cursor:pointer;font-size:9px;padding:1px 5px;border-radius:8px;border:1px solid ${col}55;color:${col};background:${col}11">${cn}${dur > 0 ? ' ⏱'+dur : ''}</span>`;
+    }).join('') : '';
     return `<div class="init-entry ${isActive ? 'active-turn' : ''} ${isDefeated ? 'defeated' : ''}" title="${e.name}">
       <div class="init-score">${e.initiative}</div>
       <div class="init-name">${e.name}</div>
@@ -8615,6 +8699,7 @@ function renderInitiative() {
       </div>
       ${hpText ? `<div class="init-hp-mini">${hpText}</div>` : ''}
       <button class="init-remove-btn" onclick="removeFromInitiative(${JSON.stringify(e.name)})">✕</button>
+      ${durBadges ? `<div style="width:100%;padding:0 8px 4px;display:flex;gap:3px;flex-wrap:wrap">${durBadges}</div>` : ''}
     </div>`;
   };
 
