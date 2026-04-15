@@ -7033,13 +7033,35 @@ function getCondClass(type) {
   return map[type] || 'cond-debuff';
 }
 
+// ── CONDITION DURATION TRACKER ───────────────────────────
+const COND_DUR_KEY = 'tiamat_cond_durations';
+function loadCondDurations() { try { return JSON.parse(localStorage.getItem(COND_DUR_KEY))||{}; } catch { return {}; } }
+function saveCondDurations(d) { localStorage.setItem(COND_DUR_KEY, JSON.stringify(d)); }
+function getCondDuration(charName, condName) { return ((loadCondDurations()[charName])||{})[condName]??null; }
+function setCondDuration(charName, condName, rounds) {
+  const d=loadCondDurations();
+  if(!d[charName]) d[charName]={};
+  if(rounds===null||rounds===''||isNaN(rounds)) delete d[charName][condName];
+  else d[charName][condName]=Math.max(0,parseInt(rounds));
+  if(d[charName]&&!Object.keys(d[charName]).length) delete d[charName];
+  saveCondDurations(d);
+}
+function tickCondDurations(charName) {
+  const all=loadAllConditions(), conds=all[charName]||[], d=loadCondDurations(); let expired=[];
+  conds.forEach(cname=>{ const dur=(d[charName]||{})[cname]; if(dur!==null&&dur!==undefined){ const nw=dur-1; if(nw<=0){expired.push(cname);if(d[charName])delete d[charName][cname];}else{d[charName]=d[charName]||{};d[charName][cname]=nw;} } });
+  saveCondDurations(d);
+  if(expired.length){ expired.forEach(cname=>{const idx=(all[charName]||[]).indexOf(cname);if(idx>=0)all[charName].splice(idx,1);}); if(!all[charName]?.length)delete all[charName]; saveAllConditions(all); logEntry('cond',`⏱ <strong>${escHtml(charName)}</strong> conditions expired: ${expired.map(escHtml).join(', ')}`); updateHeaderStats(); playSound?.('heal'); } renderInitiative?.();
+}
+
 function getConditionBadgesHtml(name) {
   const conds = getCharConditions(name);
   if (!conds.length) return '';
   return conds.map(cname => {
     const cd = CONDITIONS.find(c => c.name === cname);
     const cls = cd ? getCondClass(cd.type) : 'cond-debuff';
-    return `<span class="condition-badge ${cls}" onclick="openCondPopup(${JSON.stringify(name)},event)" title="Click to manage conditions">${cname}</span>`;
+    const dur = getCondDuration(name, cname);
+    const durBadge = dur!==null ? `<span style="font-size:8px;background:rgba(0,0,0,0.4);border-radius:6px;padding:0 3px;margin-left:2px;color:${dur<=1?'#ff4444':'#c9a227'}">${dur}</span>` : '';
+    return `<span class="condition-badge ${cls}" onclick="openCondPopup(${JSON.stringify(name)},event)" title="${cname}${dur!==null?' ('+dur+' rounds)':''}">${cname}${durBadge}</span>`;
   }).join('');
 }
 
@@ -7061,6 +7083,12 @@ function openCondPopup(name, event) {
     const isActive = active.includes(c.name);
     const typeClass = {debuff:'cond-debuff',control:'cond-control',status:'cond-status',movement:'cond-movement'}[c.type]||'cond-debuff';
     const effectsHtml = (c.effects || []).map(e => `<li>${e}</li>`).join('');
+    const dur = isActive ? getCondDuration(name, c.name) : null;
+    const durInput = isActive ? `<div onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;margin-top:5px">
+      <span style="font-size:9px;color:#4a5272">⏱ Rounds:</span>
+      <input type="number" min="0" max="99" placeholder="∞" value="${dur!==null?dur:''}" onchange="setCondDuration(${JSON.stringify(name)},${JSON.stringify(c.name)},this.value||null)" onclick="event.stopPropagation()" style="width:40px;background:#0a0a1a;border:1px solid #2a2a50;color:#c9a227;border-radius:4px;padding:1px 4px;font-size:10px;text-align:center">
+      ${dur!==null?`<span style="font-size:9px;color:${dur<=1?'#ff4444':'#8888aa'}">${dur} left</span>`:''}
+    </div>` : '';
     return `<div class="cond-card ${isActive?'cond-card-active':''}" onclick="toggleCondition(${JSON.stringify(c.name)});this.classList.toggle('cond-card-active')" style="border-color:${isActive?c.color:'#1e2040'}">
       <div class="cond-card-header">
         <span class="cond-card-icon">${c.icon||'◆'}</span>
@@ -7068,6 +7096,7 @@ function openCondPopup(name, event) {
         <span class="cond-card-type ${typeClass}">${c.type}</span>
       </div>
       ${c.effects && c.effects.length ? `<ul class="cond-card-effects">${effectsHtml}</ul>` : ''}
+      ${durInput}
     </div>`;
   }).join('');
   const popup = document.getElementById('condPopup');
@@ -8538,7 +8567,7 @@ function nextTurn() {
   if (!initiativeList.length) return;
   // Clear action state for the character whose turn is ending
   const endingChar = initiativeList[currentTurnIdx];
-  if (endingChar) delete turnActionState[endingChar.name];
+  if (endingChar) { delete turnActionState[endingChar.name]; if (typeof tickCondDurations === 'function') tickCondDurations(endingChar.name); }
   currentTurnIdx = (currentTurnIdx + 1) % initiativeList.length;
   if (currentTurnIdx === 0) {
     currentRound++;
