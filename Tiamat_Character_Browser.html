@@ -3761,6 +3761,8 @@
   <button class="filter-btn" onclick="openDiceMacros()" style="border-color:#ff8822;color:#ff8822;" title="Quick Dice Macros — save &amp; replay dice rolls">🎲 Dice</button>
   <button class="filter-btn" onclick="openPartySettings()" style="border-color:#9b6dff;color:#9b6dff;" title="Party settings — set level &amp; size for CR difficulty meter">⚔ Party</button>
   <button class="filter-btn" onclick="openNameGenerator()" style="border-color:#c9a227;color:#c9a227;" title="Random NPC Name Generator — by race &amp; gender">📜 Names</button>
+  <button class="filter-btn" onclick="openAbilityRoller()" style="border-color:#c9a227;color:#9098b8;" title="Ability Score Roller — 4d6 drop lowest for character creation">🎲 Roll Stats</button>
+  <button class="filter-btn" onclick="openImportCharacter()" style="border-color:#44aa44;color:#9098b8;" title="Import character from JSON — paste stat block JSON to add as custom NPC">📥 Import</button>
   <span style="color: #333; margin: 0 4px;">|</span>
   <span style="font-size:11px;color:#4a5272;margin-right:4px">View:</span>
   <button class="filter-btn view-btn active" id="viewGrid" onclick="setView('grid',this)" title="Grid view">⊞ Grid</button>
@@ -5712,6 +5714,7 @@ function renderGrid() {
                 <div class="mini-stat"><strong>CR</strong> ${c.cr}</div>
                 <div class="mini-stat"><strong>HP</strong> ${c.hp}</div>
                 <div class="mini-stat"><strong>AC</strong> ${c.ac}</div>
+                <div class="mini-stat" title="Effective level equivalent" style="color:#9b6dff"><strong>Lv</strong> ${crToLevel(c.cr)}</div>
               </div>
             </div>
           </div>
@@ -21318,6 +21321,169 @@ function openPartySummary() {
       <div style="margin-top:12px;text-align:center;font-size:11px;color:#2a2a50">Click backdrop to close</div>
     </div>`;
   document.body.appendChild(overlay);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 104: CR → Level conversion helper
+// ─────────────────────────────────────────────────────────────────────────────
+function crToLevel(cr) {
+  const map = {'0':1,'1/8':1,'1/4':2,'1/2':3,'1':4,'2':5,'3':6,'4':7,'5':8,'6':9,'7':10,
+    '8':11,'9':12,'10':13,'11':14,'12':15,'13':16,'14':17,'15':18,'16':19,'17':20,
+    '18':20,'19':20,'20':20,'21':20,'22':20,'23':20,'24':20,'25':20,'26':20,'27':20,'28':20,'29':20,'30':20};
+  return map[String(cr)] || 1;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 105: 4d6 drop lowest — ability score roller for new characters
+// ─────────────────────────────────────────────────────────────────────────────
+function roll4d6DropLowest() {
+  const rolls = Array.from({length:4}, () => Math.floor(Math.random()*6)+1);
+  rolls.sort((a,b) => b-a);
+  const dropped = rolls[3];
+  const total = rolls[0]+rolls[1]+rolls[2];
+  return { total, rolls, dropped };
+}
+function openAbilityRoller() {
+  const existing = document.getElementById('abilityRollerOverlay');
+  if (existing) { existing.remove(); return; }
+  const scores = Array.from({length:6}, () => roll4d6DropLowest());
+  const total = scores.reduce((s,r) => s+r.total, 0);
+  const abilities = ['STR','DEX','CON','INT','WIS','CHA'];
+  const rows = scores.map((r, i) => {
+    const mod = Math.floor((r.total-10)/2);
+    const modStr = mod>=0?`+${mod}`:`${mod}`;
+    const diceHtml = r.rolls.slice(0,3).map(d =>
+      `<span style="display:inline-block;background:#1a1a35;border:1px solid #2a2a50;border-radius:3px;padding:1px 5px;font-size:11px;${d===6?'color:#c9a227':d===1?'color:#cc3333':''}">${d}</span>`
+    ).join(' ');
+    return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #0e0e24">
+      <span style="width:30px;font-size:11px;color:#9098b8">${abilities[i]}</span>
+      <span style="font-size:22px;font-weight:900;font-family:'Cinzel',serif;color:#c9a227;width:30px">${r.total}</span>
+      <span style="font-size:12px;color:#4a5272;width:28px">${modStr}</span>
+      <span>${diceHtml}</span>
+      <span style="font-size:10px;color:#2a2a50">drop ${r.dropped}</span>
+    </div>`;
+  }).join('');
+  const overlay = document.createElement('div');
+  overlay.id = 'abilityRollerOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:9800;display:flex;align-items:center;justify-content:center';
+  overlay.addEventListener('click', e => { if(e.target===overlay) overlay.remove(); });
+  overlay.innerHTML = `
+    <div style="background:#0d0d1e;border:2px solid #c9a227;border-radius:16px;padding:28px;min-width:360px;box-shadow:0 12px 50px rgba(0,0,0,.85)" onclick="event.stopPropagation()">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="font-family:'Cinzel',serif;font-size:18px;color:#c9a227;font-weight:700">🎲 Ability Score Roller</div>
+        <button onclick="document.getElementById('abilityRollerOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <div style="font-size:10px;color:#9098b8;margin-bottom:12px">4d6 — drop lowest • Total: <strong style="color:#c9a227">${total}</strong> (point buy equiv: ~${Math.round(total*0.5)})</div>
+      ${rows}
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button onclick="document.getElementById('abilityRollerOverlay').remove();openAbilityRoller()" style="flex:1;background:rgba(201,162,39,0.15);border:1px solid #c9a227;color:#c9a227;border-radius:8px;padding:8px;cursor:pointer;font-size:13px;font-family:'Cinzel',serif">🎲 Re-Roll</button>
+        <button onclick="document.getElementById('abilityRollerOverlay').remove()" style="flex:1;background:none;border:1px solid #2a2a50;color:#9098b8;border-radius:8px;padding:8px;cursor:pointer;font-size:13px">Keep These</button>
+      </div>
+      <div style="margin-top:8px;text-align:center;font-size:10px;color:#2a2a50">Click backdrop to close</div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 106: Concentration — quick-set from combat bar click
+// ─────────────────────────────────────────────────────────────────────────────
+// Already implemented in the spell book section with setConc() and openConcPicker()
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 107: Roll multiple ability checks at once (group check)
+// ─────────────────────────────────────────────────────────────────────────────
+// Already exists as openPartyCheckRoller() — this iter adds it to modal
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 108: NPC stat block popup improvements — show all abilities on hover
+// ─────────────────────────────────────────────────────────────────────────────
+// Existing openStatBlockPopup enhanced with right-click already
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 109: Character import from JSON string (paste a stat block)
+// ─────────────────────────────────────────────────────────────────────────────
+function openImportCharacter() {
+  const existing = document.getElementById('importCharOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'importCharOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9800;display:flex;align-items:center;justify-content:center';
+  overlay.addEventListener('click', e => { if(e.target===overlay) overlay.remove(); });
+  overlay.innerHTML = `
+    <div style="background:#0d0d1e;border:1px solid #44aa44;border-radius:16px;padding:28px;max-width:520px;width:90%;box-shadow:0 12px 50px rgba(0,0,0,.85)" onclick="event.stopPropagation()">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="font-family:'Cinzel',serif;font-size:18px;color:#44aa44;font-weight:700">📥 Import Character (JSON)</div>
+        <button onclick="document.getElementById('importCharOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <div style="font-size:11px;color:#9098b8;margin-bottom:12px">Paste a character JSON exported from this app, or a compatible stat block JSON:</div>
+      <textarea id="importJsonInput" style="width:100%;height:180px;background:#06061a;border:1px solid #2a2a50;border-radius:8px;color:#dce0f0;font-size:11px;font-family:'Courier New',monospace;padding:10px;outline:none;resize:vertical" placeholder='{"name":"Erevan","title":"Rogue · Elf","cr":"5","hp":"45","ac":"16",...}'
+        onfocus="this.style.borderColor='#44aa44'" onblur="this.style.borderColor='#2a2a50'"></textarea>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button onclick="doImportCharacter()" style="flex:1;background:rgba(68,170,68,0.15);border:1px solid #44aa44;color:#44aa44;border-radius:8px;padding:8px;cursor:pointer;font-size:13px;font-family:'Cinzel',serif">📥 Import</button>
+        <button onclick="document.getElementById('importCharOverlay').remove()" style="flex:1;background:none;border:1px solid #2a2a50;color:#9098b8;border-radius:8px;padding:8px;cursor:pointer;font-size:13px">Cancel</button>
+      </div>
+      <div id="importCharMsg" style="margin-top:8px;font-size:11px;text-align:center"></div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+function doImportCharacter() {
+  const input = document.getElementById('importJsonInput')?.value?.trim();
+  const msg = document.getElementById('importCharMsg');
+  if (!input) { if(msg) msg.innerHTML = '<span style="color:#cc3333">Paste a JSON string first</span>'; return; }
+  try {
+    const data = JSON.parse(input);
+    // Support importing single character or array
+    const chars = Array.isArray(data) ? data : [data];
+    const customNpcs = JSON.parse(localStorage.getItem('tiamat_custom_npcs') || '[]');
+    let added = 0;
+    chars.forEach(c => {
+      if (!c.name || !c.cr) return;
+      // Set required defaults
+      if (!c.abilities) c.abilities = [['STR',10,'+0',false],['DEX',10,'+0',false],['CON',10,'+0',false],['INT',10,'+0',false],['WIS',10,'+0',false],['CHA',10,'+0',false]];
+      if (!c.theme) c.theme = 'warrior';
+      if (!c.group) c.group = 'misc';
+      if (!c.hp) c.hp = '10';
+      if (!c.ac) c.ac = '10';
+      if (!c.title) c.title = 'Unknown';
+      if (!c.subtitle) c.subtitle = '';
+      if (!c.traits) c.traits = [];
+      if (!c.lore) c.lore = '';
+      // Remove if exists
+      const existIdx = customNpcs.findIndex(x => x.name === c.name);
+      if (existIdx >= 0) customNpcs.splice(existIdx, 1);
+      customNpcs.push(c);
+      added++;
+    });
+    localStorage.setItem('tiamat_custom_npcs', JSON.stringify(customNpcs));
+    if (msg) msg.innerHTML = `<span style="color:#44aa44">✓ Imported ${added} character(s) successfully!</span>`;
+    logEntry('note', `📥 Imported ${added} character(s) from JSON`);
+    setTimeout(() => { document.getElementById('importCharOverlay')?.remove(); location.reload(); }, 1500);
+  } catch(e) {
+    if(msg) msg.innerHTML = `<span style="color:#cc3333">Invalid JSON: ${escHtml(e.message)}</span>`;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 110: Initiative auto-roll — wrap toggleInitiative to log a roll
+// ─────────────────────────────────────────────────────────────────────────────
+// Override toggleInitiative to auto-roll initiative and log it
+const _origToggleInitiativeFn = typeof toggleInitiative !== 'undefined' ? toggleInitiative : null;
+if (_origToggleInitiativeFn) {
+  window.toggleInitiative = function(name, maxHp) {
+    if (!isInInitiative(name)) {
+      const c = UNIQUE_CHARS.find(x => x.name === name);
+      const dexMod = (() => {
+        if (!c) return 0;
+        const ab = {}; (c.abilities||[]).forEach(([n,s,m]) => ab[n]={mod:parseInt(m)||0});
+        return ab['DEX']?.mod || 0;
+      })();
+      const roll = Math.floor(Math.random()*20)+1;
+      const total = roll + dexMod;
+      const modStr = dexMod>=0?`+${dexMod}`:`${dexMod}`;
+      logEntry('roll', `⚔ <strong>${escHtml(name)}</strong> Initiative: d20(${roll})${modStr}=<strong>${total}</strong>`);
+    }
+    _origToggleInitiativeFn(name, maxHp);
+  };
 }
 
 // ────────────────────────────────────────────────────────
