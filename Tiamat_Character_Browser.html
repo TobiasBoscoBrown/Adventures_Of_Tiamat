@@ -28832,6 +28832,575 @@ function _cdStop() {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 182: Multi-Damage-Type Roll Calculator
+function openMultiDmgCalc() {
+  document.getElementById('multiDmgOverlay')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'multiDmgOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9300;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `
+    <div style="background:#10102a;border:1px solid #c9a227;border-radius:12px;padding:24px;max-width:620px;width:95%;max-height:90vh;overflow-y:auto;font-family:inherit">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h2 style="margin:0;color:#c9a227;font-size:1.3rem">⚔ Multi-Damage Calculator</h2>
+        <button onclick="document.getElementById('multiDmgOverlay').remove()" style="background:none;border:none;color:#aaa;font-size:1.4rem;cursor:pointer">✕</button>
+      </div>
+      <p style="color:#aaa;font-size:0.85rem;margin:0 0 14px">Build a damage roll with multiple types. Each row = one damage component.</p>
+      <div id="mdcRows" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <button onclick="_mdcAddRow()" style="flex:1;padding:8px;background:rgba(201,162,39,0.12);border:1px solid #c9a22744;border-radius:6px;color:#c9a227;cursor:pointer">+ Add Component</button>
+        <button onclick="_mdcRoll()" style="flex:1;padding:8px;background:rgba(201,162,39,0.2);border:1px solid #c9a227;border-radius:6px;color:#c9a227;font-weight:700;cursor:pointer;font-size:1rem">🎲 Roll All</button>
+      </div>
+      <div id="mdcResult" style="display:none;background:rgba(0,0,0,0.4);border-radius:8px;padding:14px"></div>
+      <div id="mdcLog" style="margin-top:12px;max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  // Add 2 starter rows
+  _mdcAddRow('2d6', 'Fire');
+  _mdcAddRow('1d8', 'Radiant');
+}
+
+const MDC_TYPES = ['Acid','Bludgeoning','Cold','Fire','Force','Lightning','Necrotic','Piercing','Poison','Psychic','Radiant','Slashing','Thunder','Untyped'];
+const MDC_TYPE_COLORS = {
+  Acid:'#aadd44', Bludgeoning:'#aaaaaa', Cold:'#88ddff', Fire:'#ff7733',
+  Force:'#bb88ff', Lightning:'#ffee44', Necrotic:'#aa44aa', Piercing:'#ddaaaa',
+  Poison:'#66bb44', Psychic:'#ff88cc', Radiant:'#ffdd88', Slashing:'#cc8866',
+  Thunder:'#8888ff', Untyped:'#cccccc'
+};
+
+let _mdcRowCount = 0;
+function _mdcAddRow(dice, type) {
+  _mdcRowCount++;
+  const id = 'mdcRow' + _mdcRowCount;
+  const container = document.getElementById('mdcRows');
+  if (!container) return;
+  const row = document.createElement('div');
+  row.id = id;
+  row.style.cssText = 'display:flex;gap:8px;align-items:center';
+  const typeOpts = MDC_TYPES.map(t => `<option value="${t}"${t===(type||'Fire')?'selected':''}>${t}</option>`).join('');
+  row.innerHTML = `
+    <input id="${id}dice" value="${dice||'1d6'}" placeholder="2d6+3" style="flex:1.5;padding:6px 8px;background:#1a1a3a;border:1px solid #444;border-radius:6px;color:#fff;font-size:0.95rem">
+    <select id="${id}type" style="flex:1;padding:6px 8px;background:#1a1a3a;border:1px solid #444;border-radius:6px;color:#fff;font-size:0.9rem">${typeOpts}</select>
+    <button onclick="document.getElementById('${id}').remove()" style="padding:4px 8px;background:rgba(255,80,80,0.15);border:1px solid #ff5050;border-radius:6px;color:#ff5050;cursor:pointer;font-size:1rem">✕</button>`;
+  container.appendChild(row);
+}
+
+function _mdcParseDice(expr) {
+  // Parse expressions like "2d6+3", "1d8-1", "5", "d4"
+  let total = 0;
+  let rolls = [];
+  const clean = expr.trim().toLowerCase().replace(/\s+/g,'');
+  // Split on + and - (keeping sign)
+  const parts = clean.split(/(?=[+\-])/);
+  for (let p of parts) {
+    if (!p) continue;
+    const sign = p.startsWith('-') ? -1 : 1;
+    const s = p.replace(/^[+\-]/,'');
+    const dMatch = s.match(/^(\d*)d(\d+)$/);
+    if (dMatch) {
+      const count = parseInt(dMatch[1]||'1');
+      const sides = parseInt(dMatch[2]);
+      for (let i=0;i<count;i++) {
+        const r = Math.floor(Math.random()*sides)+1;
+        rolls.push(r*sign);
+        total += r*sign;
+      }
+    } else {
+      const flat = parseInt(s)||0;
+      rolls.push(flat*sign);
+      total += flat*sign;
+    }
+  }
+  return { total, rolls };
+}
+
+function _mdcRoll() {
+  const rows = document.querySelectorAll('#mdcRows > div[id^="mdcRow"]');
+  if (!rows.length) { showToast('Add at least one damage component','#cc4444'); return; }
+  const byType = {};
+  let grandTotal = 0;
+  const details = [];
+  rows.forEach(row => {
+    const id = row.id;
+    const diceExpr = document.getElementById(id+'dice')?.value?.trim() || '1d6';
+    const dmgType = document.getElementById(id+'type')?.value || 'Untyped';
+    const result = _mdcParseDice(diceExpr);
+    if (!byType[dmgType]) byType[dmgType] = 0;
+    byType[dmgType] += result.total;
+    grandTotal += result.total;
+    details.push({ expr: diceExpr, type: dmgType, rolls: result.rolls, total: result.total });
+  });
+
+  // Build result HTML
+  let html = `<div style="color:#c9a227;font-size:1.6rem;font-weight:700;text-align:center;margin-bottom:12px">${grandTotal} damage</div>`;
+  html += `<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:12px">`;
+  for (const [t, v] of Object.entries(byType)) {
+    const col = MDC_TYPE_COLORS[t] || '#ccc';
+    html += `<div style="background:rgba(0,0,0,0.4);border:1px solid ${col}44;border-radius:8px;padding:8px 14px;text-align:center">
+      <div style="color:${col};font-size:1.3rem;font-weight:700">${v}</div>
+      <div style="color:${col}aa;font-size:0.78rem">${t}</div>
+    </div>`;
+  }
+  html += `</div><div style="border-top:1px solid #333;padding-top:10px">`;
+  details.forEach(d => {
+    const col = MDC_TYPE_COLORS[d.type] || '#ccc';
+    const rollStr = d.rolls.join(', ');
+    html += `<div style="display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:4px">
+      <span style="color:#aaa">${escHtml(d.expr)} <span style="color:${col}">(${escHtml(d.type)})</span></span>
+      <span style="color:#fff">[${escHtml(rollStr)}] = <b>${d.total}</b></span>
+    </div>`;
+  });
+  html += `</div>`;
+
+  const res = document.getElementById('mdcResult');
+  if (res) { res.style.display='block'; res.innerHTML = html; }
+
+  // Log entry
+  const logEl = document.getElementById('mdcLog');
+  if (logEl) {
+    const summary = Object.entries(byType).map(([t,v])=>`${v} ${t}`).join(' + ');
+    const entry = document.createElement('div');
+    entry.style.cssText = 'background:rgba(201,162,39,0.07);border-radius:4px;padding:4px 8px;font-size:0.8rem;color:#aaa';
+    entry.innerHTML = `<span style="color:#c9a227">${grandTotal}</span> — ${escHtml(summary)}`;
+    logEl.insertBefore(entry, logEl.firstChild);
+    if (logEl.children.length > 10) logEl.removeChild(logEl.lastChild);
+  }
+  logEntry('combat', `Multi-damage: ${grandTotal} (${Object.entries(byType).map(([t,v])=>v+' '+t).join(', ')})`);
+}
+
+// Add Multi-Damage button
+(function() {
+  const allBtns = document.querySelectorAll('.filter-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.title = 'Multi-Damage-Type Calculator — roll composite damage with multiple types';
+    btn.style.cssText = 'border-color:#ff7733;color:#ff7733';
+    btn.textContent = '⚔ Multi-Dmg';
+    btn.onclick = openMultiDmgCalc;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 183: Party Spell Slot Panel — see & burn/recover slots for all casters at once
+const SSP_KEY = 'tiamat_party_slots';
+function _sspLoad() { try { return JSON.parse(localStorage.getItem(SSP_KEY)||'{}'); } catch(e){return{};} }
+function _sspSave(d) { localStorage.setItem(SSP_KEY, JSON.stringify(d)); }
+
+function openPartySlotPanel() {
+  document.getElementById('sspOverlay')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'sspOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9300;display:flex;align-items:center;justify-content:center';
+
+  // Collect caster characters (those with spells or spellcasting keywords)
+  const casters = (window.CHARS||window.UNIQUE_CHARS||[]).filter(c => {
+    const t = (c.title||'').toLowerCase();
+    return c.spells?.length || /wizard|sorcerer|cleric|druid|bard|warlock|paladin|ranger|artificer|mage|mystic/.test(t);
+  });
+
+  const data = _sspLoad();
+  // Ensure state for each caster
+  casters.forEach(c => {
+    if (!data[c.name]) {
+      // Estimate max slots by class
+      const t = (c.title||'').toLowerCase();
+      const isHalf = /paladin|ranger/.test(t);
+      const isThird = /artificer|eldritch knight|arcane trickster/.test(t);
+      const maxSlots = isThird ? [0,2,1,0,0,0,0,0,0] : isHalf ? [0,4,3,2,0,0,0,0,0] : [0,4,3,3,3,2,1,1,1];
+      data[c.name] = { slots: [...maxSlots], max: [...maxSlots] };
+    }
+  });
+
+  let html = `
+    <div style="background:#10102a;border:1px solid #9b6dff;border-radius:12px;padding:24px;max-width:760px;width:95%;max-height:90vh;overflow-y:auto;font-family:inherit">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <h2 style="margin:0;color:#9b6dff;font-size:1.3rem">✨ Party Spell Slots</h2>
+        <div style="display:flex;gap:8px">
+          <button onclick="_sspLongRest()" style="padding:6px 12px;background:rgba(155,109,255,0.15);border:1px solid #9b6dff;border-radius:6px;color:#9b6dff;cursor:pointer;font-size:0.85rem">🌙 Long Rest All</button>
+          <button onclick="document.getElementById('sspOverlay').remove()" style="background:none;border:none;color:#aaa;font-size:1.4rem;cursor:pointer">✕</button>
+        </div>
+      </div>
+      <div id="sspBody">`;
+
+  if (!casters.length) {
+    html += `<p style="color:#aaa;text-align:center">No casters found in character list.</p>`;
+  } else {
+    casters.forEach(c => {
+      const st = data[c.name];
+      const slotDots = st.slots.map((cur, lvl) => {
+        if (lvl === 0) return '';
+        const maxV = st.max[lvl];
+        if (!maxV) return '';
+        const dots = Array.from({length:maxV}, (_,i) => {
+          const used = i >= cur;
+          return `<span onclick="_sspToggle('${c.name.replace(/'/g,"\\'")}',${lvl},${i})" title="Lvl ${lvl} slot ${i+1}" style="cursor:pointer;display:inline-block;width:16px;height:16px;border-radius:50%;border:2px solid #9b6dff;background:${used?'transparent':'#9b6dff'};margin:2px;vertical-align:middle"></span>`;
+        }).join('');
+        return `<span style="font-size:0.75rem;color:#888;margin-right:2px">${lvl}:</span>${dots}`;
+      }).filter(Boolean).join('<span style="margin:0 6px;color:#444">|</span>');
+      html += `<div style="background:rgba(155,109,255,0.06);border:1px solid #9b6dff22;border-radius:8px;padding:10px 14px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="color:#c9a227;font-weight:700;font-size:0.95rem">${escHtml(c.name)}</span>
+          <span style="color:#888;font-size:0.78rem">${escHtml((c.title||'').split('·')[1]?.trim()||'')}</span>
+        </div>
+        <div id="sspDots_${c.name.replace(/\s+/g,'_')}" style="line-height:2">${slotDots||'<span style="color:#666;font-size:0.8rem">No slots configured</span>'}</div>
+      </div>`;
+    });
+  }
+  html += `</div></div>`;
+  ov.innerHTML = html;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+function _sspToggle(name, level, idx) {
+  const data = _sspLoad();
+  if (!data[name]) return;
+  const cur = data[name].slots[level];
+  const max = data[name].max[level];
+  // clicking a filled dot = use slot; clicking empty dot = recover 1
+  if (idx < cur) { data[name].slots[level] = Math.max(0, cur - 1); }
+  else { data[name].slots[level] = Math.min(max, cur + 1); }
+  _sspSave(data);
+  // Refresh dot display
+  const key = name.replace(/\s+/g,'_');
+  const el = document.getElementById('sspDots_'+key);
+  if (!el) return;
+  const st = data[name];
+  const slotDots = st.slots.map((c2, lvl) => {
+    if (!lvl || !st.max[lvl]) return '';
+    const dots = Array.from({length:st.max[lvl]}, (_,i) => {
+      const used = i >= c2;
+      return `<span onclick="_sspToggle('${name.replace(/'/g,"\\'")}',${lvl},${i})" title="Lvl ${lvl} slot ${i+1}" style="cursor:pointer;display:inline-block;width:16px;height:16px;border-radius:50%;border:2px solid #9b6dff;background:${used?'transparent':'#9b6dff'};margin:2px;vertical-align:middle"></span>`;
+    }).join('');
+    return `<span style="font-size:0.75rem;color:#888;margin-right:2px">${lvl}:</span>${dots}`;
+  }).filter(Boolean).join('<span style="margin:0 6px;color:#444">|</span>');
+  el.innerHTML = slotDots;
+}
+
+function _sspLongRest() {
+  const data = _sspLoad();
+  Object.values(data).forEach(d => { if (d.max) d.slots = [...d.max]; });
+  _sspSave(data);
+  showToast('Long rest! All spell slots restored.','#9b6dff');
+  openPartySlotPanel();
+}
+
+// Add Party Spell Slots button
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'Party Spell Slot Panel — see & track spell slots for all casters';
+    btn.style.cssText = 'border-color:#9b6dff;color:#9b6dff';
+    btn.textContent = '✨ Slots';
+    btn.onclick = openPartySlotPanel;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 184: NPC Patrol & Schedule Tracker
+const NPC_SCHED_KEY = 'tiamat_npc_schedules';
+function _npsLoad() { try { return JSON.parse(localStorage.getItem(NPC_SCHED_KEY)||'[]'); } catch(e){return[];} }
+function _npsSave(d) { localStorage.setItem(NPC_SCHED_KEY, JSON.stringify(d)); }
+
+const NPC_TIME_SLOTS = ['Dawn (6am)','Morning (9am)','Midday (12pm)','Afternoon (3pm)','Dusk (6pm)','Evening (8pm)','Night (10pm)','Midnight (12am)','Late Night (3am)'];
+
+function openNpcScheduler() {
+  document.getElementById('npsOverlay')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'npsOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9300;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `
+    <div style="background:#10102a;border:1px solid #4488ff;border-radius:12px;padding:24px;max-width:700px;width:95%;max-height:90vh;overflow-y:auto;font-family:inherit">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <h2 style="margin:0;color:#4488ff;font-size:1.3rem">🗓 NPC Schedules & Patrols</h2>
+        <button onclick="document.getElementById('npsOverlay').remove()" style="background:none;border:none;color:#aaa;font-size:1.4rem;cursor:pointer">✕</button>
+      </div>
+      <p style="color:#aaa;font-size:0.82rem;margin:0 0 14px">Track where NPCs are at each time of day — useful for stealth missions, tailing, or ambushes.</p>
+      <button onclick="_npsNewNpc()" style="width:100%;padding:8px;background:rgba(68,136,255,0.12);border:1px solid #4488ff44;border-radius:6px;color:#4488ff;cursor:pointer;margin-bottom:14px">+ Add NPC Schedule</button>
+      <div id="npsBody"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _npsRender();
+}
+
+function _npsRender() {
+  const body = document.getElementById('npsBody');
+  if (!body) return;
+  const npcs = _npsLoad();
+  if (!npcs.length) { body.innerHTML = '<p style="color:#666;text-align:center;font-size:0.85rem">No NPC schedules yet. Click "+ Add NPC Schedule" above.</p>'; return; }
+  body.innerHTML = npcs.map((n, ni) => {
+    const rows = NPC_TIME_SLOTS.map((slot, ti) => {
+      const loc = (n.times||[])[ti] || '';
+      return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
+        <span style="color:#888;font-size:0.78rem;min-width:120px">${slot}</span>
+        <input value="${escHtml(loc)}" placeholder="Location / activity..." oninput="_npsUpdateTime(${ni},${ti},this.value)" style="flex:1;padding:4px 8px;background:#1a1a3a;border:1px solid #333;border-radius:4px;color:#fff;font-size:0.82rem">
+      </div>`;
+    }).join('');
+    return `<div style="background:rgba(68,136,255,0.06);border:1px solid #4488ff22;border-radius:8px;padding:12px;margin-bottom:10px">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+        <input value="${escHtml(n.name||'')}" placeholder="NPC Name..." oninput="_npsUpdateName(${ni},this.value)" style="flex:2;padding:5px 8px;background:#1a1a3a;border:1px solid #4488ff44;border-radius:6px;color:#c9a227;font-weight:700;font-size:0.95rem">
+        <input value="${escHtml(n.role||'')}" placeholder="Role/location..." oninput="_npsUpdateRole(${ni},this.value)" style="flex:1.5;padding:5px 8px;background:#1a1a3a;border:1px solid #333;border-radius:6px;color:#aaa;font-size:0.82rem">
+        <button onclick="_npsDelete(${ni})" style="padding:4px 8px;background:rgba(255,80,80,0.12);border:1px solid #ff5050;border-radius:6px;color:#ff5050;cursor:pointer">🗑</button>
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
+}
+
+function _npsNewNpc() {
+  const d = _npsLoad();
+  d.push({ name:'', role:'', times: NPC_TIME_SLOTS.map(()=>'') });
+  _npsSave(d);
+  _npsRender();
+}
+
+function _npsUpdateName(i, v) { const d=_npsLoad(); if(d[i]) d[i].name=v; _npsSave(d); }
+function _npsUpdateRole(i, v) { const d=_npsLoad(); if(d[i]) d[i].role=v; _npsSave(d); }
+function _npsUpdateTime(i, ti, v) { const d=_npsLoad(); if(d[i]){if(!d[i].times)d[i].times=[];d[i].times[ti]=v;} _npsSave(d); }
+function _npsDelete(i) { const d=_npsLoad(); d.splice(i,1); _npsSave(d); _npsRender(); }
+
+// Add NPC Scheduler button
+(function() {
+  const allBtns = document.querySelectorAll('.filter-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.title = 'NPC Schedule & Patrol Tracker — where each NPC is at different times of day';
+    btn.style.cssText = 'border-color:#4488ff;color:#4488ff';
+    btn.textContent = '🗓 NPC Sched';
+    btn.onclick = openNpcScheduler;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 185: Encounter Hazard & Lair Effect Tracker
+const HAZARD_KEY = 'tiamat_hazards';
+function _hazLoad() { try { return JSON.parse(localStorage.getItem(HAZARD_KEY)||'[]'); } catch(e){return[];} }
+function _hazSave(d) { localStorage.setItem(HAZARD_KEY, JSON.stringify(d)); }
+
+const HAZARD_PRESETS = [
+  { name:'Poisonous Gas', effect:'DC 13 CON save or Poisoned each round', dur:5, color:'#66bb44' },
+  { name:'Blinding Smoke', effect:'Heavily obscured, disadvantage on attack rolls', dur:3, color:'#aaaaaa' },
+  { name:'Magma Floor', effect:'10ft area; 2d6 fire dmg entering or starting turn', dur:99, color:'#ff7733' },
+  { name:'Lair Action: Vines', effect:'DC 15 STR save or Restrained until end of next turn', dur:1, color:'#44bb66' },
+  { name:'Holy Ground', effect:'+1d4 radiant on attacks; undead have disadvantage', dur:99, color:'#ffdd88' },
+  { name:'Anti-Magic Zone', effect:'Spells fail; magic items suppressed', dur:99, color:'#9b6dff' },
+  { name:'Slippery Ice', effect:'DC 10 DEX save or Prone when moving; difficult terrain', dur:99, color:'#88ddff' },
+  { name:'Lightning Storm', effect:'On 1-2 initiative: random creature takes 2d6 lightning', dur:10, color:'#ffee44' },
+  { name:'Custom…', effect:'', dur:1, color:'#c9a227' },
+];
+
+function openHazardTracker() {
+  document.getElementById('hazOverlay')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'hazOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9300;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `
+    <div style="background:#10102a;border:1px solid #ff7733;border-radius:12px;padding:24px;max-width:660px;width:95%;max-height:90vh;overflow-y:auto;font-family:inherit">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <h2 style="margin:0;color:#ff7733;font-size:1.3rem">⚠ Encounter Hazards & Lair Effects</h2>
+        <button onclick="document.getElementById('hazOverlay').remove()" style="background:none;border:none;color:#aaa;font-size:1.4rem;cursor:pointer">✕</button>
+      </div>
+      <p style="color:#aaa;font-size:0.82rem;margin:0 0 12px">Track active environmental hazards. Tick down rounds at start of turn. Click ✓ to advance round / expire.</p>
+      <div style="margin-bottom:12px">
+        <select id="hazPresetSel" style="width:100%;padding:7px 10px;background:#1a1a3a;border:1px solid #ff773344;border-radius:6px;color:#ff7733;margin-bottom:8px">
+          ${HAZARD_PRESETS.map((p,i)=>`<option value="${i}">${p.name}</option>`).join('')}
+        </select>
+        <button onclick="_hazAddPreset()" style="width:100%;padding:8px;background:rgba(255,119,51,0.12);border:1px solid #ff773344;border-radius:6px;color:#ff7733;cursor:pointer">+ Add Hazard</button>
+      </div>
+      <div id="hazBody"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _hazRender();
+}
+
+function _hazRender() {
+  const body = document.getElementById('hazBody');
+  if (!body) return;
+  const hazards = _hazLoad();
+  if (!hazards.length) { body.innerHTML = '<p style="color:#666;text-align:center;font-size:0.85rem">No active hazards. Add from the preset list above.</p>'; return; }
+  body.innerHTML = hazards.map((h,i) => {
+    const col = h.color||'#ff7733';
+    const expired = h.rounds <= 0;
+    return `<div style="background:rgba(0,0,0,0.3);border:1px solid ${col}44;border-radius:8px;padding:12px;margin-bottom:8px;opacity:${expired?0.5:1}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="flex:1">
+          <input value="${escHtml(h.name)}" oninput="_hazUpdateName(${i},this.value)" style="width:100%;background:transparent;border:none;border-bottom:1px solid ${col}44;color:${col};font-weight:700;font-size:0.95rem;padding:0 0 2px;margin-bottom:6px">
+          <input value="${escHtml(h.effect)}" oninput="_hazUpdateEffect(${i},this.value)" style="width:100%;background:transparent;border:none;border-bottom:1px solid #33333388;color:#bbb;font-size:0.82rem;padding:0 0 2px">
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;min-width:50px">
+          <div style="font-size:1.4rem;font-weight:700;color:${expired?'#666':col}">${h.rounds>=99?'∞':h.rounds}</div>
+          <div style="font-size:0.7rem;color:#666">rounds</div>
+          <div style="display:flex;gap:4px">
+            <button onclick="_hazTick(${i})" title="Advance 1 round" style="padding:2px 5px;background:rgba(255,119,51,0.15);border:1px solid ${col};border-radius:4px;color:${col};cursor:pointer;font-size:0.8rem">–1</button>
+            <button onclick="_hazDelete(${i})" title="Remove hazard" style="padding:2px 5px;background:rgba(255,80,80,0.12);border:1px solid #ff5050;border-radius:4px;color:#ff5050;cursor:pointer;font-size:0.8rem">✕</button>
+          </div>
+        </div>
+      </div>
+      ${expired?'<div style="color:#cc4444;font-size:0.78rem;margin-top:6px">⚠ EXPIRED — remove or reset</div>':''}
+    </div>`;
+  }).join('');
+}
+
+function _hazAddPreset() {
+  const sel = document.getElementById('hazPresetSel');
+  const idx = parseInt(sel?.value||0);
+  const p = HAZARD_PRESETS[idx] || HAZARD_PRESETS[0];
+  const d = _hazLoad();
+  d.push({ name:p.name==='Custom…'?'Custom Hazard':p.name, effect:p.effect, rounds:p.dur, color:p.color });
+  _hazSave(d);
+  _hazRender();
+}
+
+function _hazUpdateName(i,v) { const d=_hazLoad(); if(d[i]) d[i].name=v; _hazSave(d); }
+function _hazUpdateEffect(i,v) { const d=_hazLoad(); if(d[i]) d[i].effect=v; _hazSave(d); }
+function _hazTick(i) { const d=_hazLoad(); if(d[i]&&d[i].rounds<99) d[i].rounds=Math.max(0,d[i].rounds-1); _hazSave(d); _hazRender(); }
+function _hazDelete(i) { const d=_hazLoad(); d.splice(i,1); _hazSave(d); _hazRender(); }
+
+// Add Hazard Tracker button
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'Encounter Hazard & Lair Effect Tracker — track active environmental effects';
+    btn.style.cssText = 'border-color:#ff7733;color:#ff7733';
+    btn.textContent = '⚠ Hazards';
+    btn.onclick = openHazardTracker;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 186: PC Wish List & Goals Tracker
+const WISH_KEY = 'tiamat_wishlist';
+function _wishLoad() { try { return JSON.parse(localStorage.getItem(WISH_KEY)||'{}'); } catch(e){return{};} }
+function _wishSave(d) { localStorage.setItem(WISH_KEY, JSON.stringify(d)); }
+
+const WISH_CATS = [
+  { id:'item', label:'Magic Item', icon:'⚗', color:'#c9a227' },
+  { id:'spell', label:'Spell', icon:'✨', color:'#9b6dff' },
+  { id:'goal', label:'Story Goal', icon:'🎯', color:'#44bb88' },
+  { id:'feat', label:'Feat / Ability', icon:'⭐', color:'#4488ff' },
+  { id:'ally', label:'Alliance / Contact', icon:'🤝', color:'#ff88cc' },
+  { id:'other', label:'Other', icon:'📌', color:'#aaa' },
+];
+
+function openWishList() {
+  document.getElementById('wishOverlay')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'wishOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9300;display:flex;align-items:center;justify-content:center';
+
+  const chars = (window.CHARS||window.UNIQUE_CHARS||[]);
+  const charOpts = chars.map(c=>`<option value="${escHtml(c.name)}">${escHtml(c.name)}</option>`).join('');
+  const catOpts = WISH_CATS.map(c=>`<option value="${c.id}">${c.icon} ${c.label}</option>`).join('');
+
+  ov.innerHTML = `
+    <div style="background:#10102a;border:1px solid #44bb88;border-radius:12px;padding:24px;max-width:680px;width:95%;max-height:90vh;overflow-y:auto;font-family:inherit">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <h2 style="margin:0;color:#44bb88;font-size:1.3rem">🎯 PC Wish List & Goals</h2>
+        <button onclick="document.getElementById('wishOverlay').remove()" style="background:none;border:none;color:#aaa;font-size:1.4rem;cursor:pointer">✕</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <select id="wishChar" style="flex:1.5;padding:7px 8px;background:#1a1a3a;border:1px solid #44bb8844;border-radius:6px;color:#c9a227;min-width:120px">${charOpts}</select>
+        <select id="wishCat" style="flex:1;padding:7px 8px;background:#1a1a3a;border:1px solid #33333344;border-radius:6px;color:#aaa;min-width:100px">${catOpts}</select>
+        <input id="wishText" placeholder="Item, spell, or goal..." style="flex:2.5;padding:7px 10px;background:#1a1a3a;border:1px solid #333;border-radius:6px;color:#fff;min-width:140px">
+        <button onclick="_wishAdd()" style="padding:7px 14px;background:rgba(68,187,136,0.15);border:1px solid #44bb88;border-radius:6px;color:#44bb88;cursor:pointer;font-weight:700">+ Add</button>
+      </div>
+      <div id="wishBody"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  document.getElementById('wishText')?.addEventListener('keydown', e => { if (e.key==='Enter') _wishAdd(); });
+  _wishRender();
+}
+
+function _wishAdd() {
+  const charEl = document.getElementById('wishChar');
+  const catEl = document.getElementById('wishCat');
+  const textEl = document.getElementById('wishText');
+  const char = charEl?.value;
+  const cat = catEl?.value || 'other';
+  const text = textEl?.value?.trim();
+  if (!char || !text) { showToast('Select a character and enter a wish','#cc4444'); return; }
+  const d = _wishLoad();
+  if (!d[char]) d[char] = [];
+  d[char].push({ cat, text, done:false, ts: Date.now() });
+  _wishSave(d);
+  if (textEl) textEl.value = '';
+  _wishRender();
+}
+
+function _wishToggle(char, idx) {
+  const d = _wishLoad();
+  if (d[char]?.[idx]) d[char][idx].done = !d[char][idx].done;
+  _wishSave(d);
+  _wishRender();
+}
+
+function _wishDelete(char, idx) {
+  const d = _wishLoad();
+  if (d[char]) d[char].splice(idx,1);
+  _wishSave(d);
+  _wishRender();
+}
+
+function _wishRender() {
+  const body = document.getElementById('wishBody');
+  if (!body) return;
+  const d = _wishLoad();
+  const chars = Object.keys(d).filter(k => d[k].length);
+  if (!chars.length) { body.innerHTML = '<p style="color:#666;text-align:center;font-size:0.85rem">No wishes yet. Add some above.</p>'; return; }
+
+  body.innerHTML = chars.map(char => {
+    const items = d[char];
+    const bycat = {};
+    items.forEach((it,i) => { if(!bycat[it.cat]) bycat[it.cat]=[]; bycat[it.cat].push({...it,_i:i}); });
+    const sections = WISH_CATS.filter(c=>bycat[c.id]).map(c => {
+      const rows = bycat[c.id].map(it => `
+        <div style="display:flex;align-items:center;gap:8px;padding:4px 0;opacity:${it.done?0.5:1}">
+          <span onclick="_wishToggle('${char.replace(/'/g,"\\'")}',${it._i})" style="cursor:pointer;font-size:1rem">${it.done?'✅':'⬜'}</span>
+          <span style="flex:1;color:${it.done?'#666':'#ccc'};font-size:0.88rem;text-decoration:${it.done?'line-through':'none'}">${escHtml(it.text)}</span>
+          <button onclick="_wishDelete('${char.replace(/'/g,"\\'")}',${it._i})" style="padding:1px 6px;background:none;border:1px solid #ff5050;border-radius:4px;color:#ff5050;cursor:pointer;font-size:0.75rem">✕</button>
+        </div>`).join('');
+      return `<div style="margin-bottom:8px"><div style="color:${c.color};font-size:0.78rem;font-weight:700;margin-bottom:4px">${c.icon} ${c.label}</div>${rows}</div>`;
+    }).join('');
+    return `<div style="background:rgba(68,187,136,0.05);border:1px solid #44bb8822;border-radius:8px;padding:12px;margin-bottom:10px">
+      <div style="color:#c9a227;font-weight:700;font-size:1rem;margin-bottom:10px">🧙 ${escHtml(char)}</div>
+      ${sections}
+    </div>`;
+  }).join('');
+}
+
+// Add Wish List button
+(function() {
+  const allBtns = document.querySelectorAll('.filter-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.title = 'PC Wish List & Goals Tracker — what each character wants to acquire or accomplish';
+    btn.style.cssText = 'border-color:#44bb88;color:#44bb88';
+    btn.textContent = '🎯 Wish List';
+    btn.onclick = openWishList;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
