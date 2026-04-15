@@ -3782,8 +3782,15 @@
   <span style="font-size:11px;color:#4a5272;margin-right:4px">Sort:</span>
   <button class="filter-btn sort-btn active" id="sortName" onclick="setSort('name',this)" title="Sort by name">Name</button>
   <button class="filter-btn sort-btn" id="sortCr" onclick="setSort('cr',this)" title="Sort by CR">CR</button>
-  <button class="filter-btn sort-btn" id="sortHp" onclick="setSort('hp',this)" title="Sort by HP">HP</button>
+  <button class="filter-btn sort-btn" id="sortHp" onclick="setSort('hp',this)" title="Sort by max HP">HP</button>
+  <button class="filter-btn sort-btn" id="sortHpPct" onclick="setSort('hpPct',this)" title="Sort by current HP % — most wounded first (descending)">HP%</button>
   <button class="filter-btn sort-btn" id="sortAc" onclick="setSort('ac',this)" title="Sort by AC">AC</button>
+  <div style="position:relative;display:inline-block">
+    <button class="filter-btn sort-btn" id="sortStat" onclick="_toggleAbilitySort(this)" title="Sort by ability score">Stat ▾</button>
+    <div id="abilitySortMenu" style="display:none;position:absolute;top:100%;left:0;z-index:200;background:#0d0f1e;border:1px solid #2a2a50;border-radius:8px;padding:4px;min-width:80px;box-shadow:0 4px 20px rgba(0,0,0,.9)">
+      ${['STR','DEX','CON','INT','WIS','CHA'].map(ab => `<button onclick="setSort('ab_${ab}',document.getElementById('sortStat'));document.getElementById('abilitySortMenu').style.display='none'" style="display:block;width:100%;background:none;border:none;color:#9098b8;padding:4px 10px;cursor:pointer;text-align:left;font-size:11px;border-radius:4px" onmouseover="this.style.background='rgba(155,109,255,0.15)';this.style.color='#9b6dff'" onmouseout="this.style.background='none';this.style.color='#9098b8'">${ab}</button>`).join('')}
+    </div>
+  </div>
   <button class="filter-btn" id="sortDirBtn" onclick="toggleSortDir()" title="Toggle sort direction" style="min-width:28px">↑</button>
 </div>
 
@@ -5649,7 +5656,17 @@ function renderGrid() {
       return dir * (crOrder.indexOf(a.cr) - crOrder.indexOf(b.cr));
     }
     if (currentSort === 'hp') return dir * ((parseInt(a.hp)||0) - (parseInt(b.hp)||0));
+    if (currentSort === 'hpPct') {
+      const pctA = getCharHP(a.name, parseInt(a.hp)||1) / (parseInt(a.hp)||1);
+      const pctB = getCharHP(b.name, parseInt(b.hp)||1) / (parseInt(b.hp)||1);
+      return dir * (pctA - pctB);
+    }
     if (currentSort === 'ac') return dir * ((parseInt(a.ac)||0) - (parseInt(b.ac)||0));
+    if (currentSort.startsWith('ab_')) {
+      const abKey = currentSort.slice(3);
+      const getAb = c => { const ab = (c.abilities||[]).find(([n])=>n===abKey); return ab ? parseInt(ab[1])||0 : 0; };
+      return dir * (getAb(a) - getAb(b));
+    }
     return dir * a.name.localeCompare(b.name);
   });
 
@@ -5866,7 +5883,8 @@ function filterGroup(group, btn) {
   btn.classList.add('active');
   // Re-activate sort btn
   document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('sort' + currentSort.charAt(0).toUpperCase() + currentSort.slice(1)).classList.add('active');
+  const _sortId = currentSort.startsWith('ab_') ? 'sortStat' : 'sort' + currentSort.charAt(0).toUpperCase() + currentSort.slice(1);
+  document.getElementById(_sortId)?.classList.add('active');
   renderGrid();
 }
 
@@ -22831,6 +22849,18 @@ function _combatAwardXp(amount) {
   if (typeof logEntry === 'function') logEntry('roll', `⭐ <strong>+${amount.toLocaleString()} XP</strong> awarded (combat) — Party at ${newXp.toLocaleString()} XP${levelUp ? ` 🎉 <strong>LEVEL UP → Lv ${newLvl}</strong>` : ''}`);
   if (levelUp && typeof playSound === 'function') playSound('crit');
   if (typeof renderXpPanel === 'function') renderXpPanel();
+}
+// Iter 137: Sort by ability score + current HP% in the character grid
+function _toggleAbilitySort(btn) {
+  const menu = document.getElementById('abilitySortMenu');
+  if (!menu) return;
+  const isOpen = menu.style.display === 'block';
+  menu.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) {
+    // Close on next outside click
+    const close = (e) => { if (!btn.contains(e.target) && !menu.contains(e.target)) { menu.style.display = 'none'; document.removeEventListener('click', close); } };
+    setTimeout(() => document.addEventListener('click', close), 10);
+  }
 }
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
