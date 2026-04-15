@@ -3559,6 +3559,7 @@
     <button class="encounter-open-btn" onclick="toggleRestPanel()" style="border-color:#23b478;color:#23b478" id="restBtn" title="Short Rest / Long Rest — spend hit dice or restore all resources">🌙 Rest</button>
     <button class="encounter-open-btn" onclick="toggleLootPanel()" style="border-color:#c9a227;color:#c9a227" id="lootBtn" title="Party Loot & Treasury">💰 Loot</button>
     <button class="encounter-open-btn" onclick="toggleDmNotes()" style="border-color:#9b6dff;color:#9b6dff" id="dmNotesBtn" title="DM Session Notes">📝 DM Notes</button>
+    <button class="encounter-open-btn" onclick="togglePassivePanel()" style="border-color:#23b478;color:#23b478" id="passiveBtn" title="Party Passive Skills — perception, investigation, insight at a glance">👁 Passives</button>
     <div class="stat-badge"><strong id="totalCount">0</strong> Characters</div>
     <div class="stat-badge"><strong id="visibleCount">0</strong> Showing</div>
     <div class="stat-badge stat-live" id="statDown" onclick="filterToDown()" title="Click to show downed characters" style="display:none"><strong id="downCount">0</strong> ⚠ Down</div>
@@ -3917,6 +3918,15 @@
   <div class="health-panel-body" id="healthPanelBody">
     <div style="text-align:center;color:#4a5272;font-size:12px;padding:20px">Loading...</div>
   </div>
+</div>
+
+<!-- Party Passive Skills Panel (Iteration 76) -->
+<div id="passivePanel" style="position:fixed;top:60px;right:20px;width:320px;max-height:80vh;background:linear-gradient(160deg,#061209,#0c1a10);border:1px solid rgba(35,180,120,0.4);border-radius:14px;z-index:347;display:none;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.9);overflow:hidden">
+  <div style="padding:12px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(35,180,120,0.2)">
+    <span style="font-family:'Cinzel',serif;color:#23b478;font-size:13px;font-weight:700;letter-spacing:1px">👁 PARTY PASSIVES</span>
+    <button onclick="togglePassivePanel()" style="background:none;border:1px solid #1a3a28;color:#4a7a5a;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px">✕</button>
+  </div>
+  <div id="passivePanelBody" style="flex:1;overflow-y:auto;padding:12px 14px"></div>
 </div>
 
 <!-- Quick Reference Panel -->
@@ -8991,6 +9001,72 @@ function openInitiativePanel() {
 
 // ── Party Health Panel ──────────────────────────────────
 let healthPanelOpen = false;
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 76: Party Passive Skills Panel — show all characters'
+//   passive Perception, Investigation, and Insight at a glance.
+//   Vital for DMs adjudicating stealth, secrets, and deception.
+// ══════════════════════════════════════════════════════════
+let passivePanelOpen = false;
+function togglePassivePanel() {
+  passivePanelOpen = !passivePanelOpen;
+  const panel = document.getElementById('passivePanel');
+  if (!panel) return;
+  panel.style.display = passivePanelOpen ? 'flex' : 'none';
+  const btn = document.getElementById('passiveBtn');
+  if (btn) {
+    btn.style.background = passivePanelOpen ? 'rgba(35,180,120,.15)' : '';
+    btn.style.color = passivePanelOpen ? '#88eebb' : '#23b478';
+  }
+  if (passivePanelOpen) renderPassivePanel();
+}
+function renderPassivePanel() {
+  const el = document.getElementById('passivePanelBody');
+  if (!el) return;
+  // Only show characters that have ability scores (unique chars)
+  const chars = (typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : []).filter(c => c.abilities && c.abilities.length);
+  if (!chars.length) { el.innerHTML = '<div style="color:#3a6a4a;font-size:11px;padding:10px">No characters with ability scores.</div>'; return; }
+
+  // Skill → ability mapping
+  function getAbMod(c, abName) {
+    const a = (c.abilities || []).find(([n]) => n === abName);
+    return a ? (parseInt(a[2]) || 0) : 0;
+  }
+  function passive(c, abName) { return 10 + getAbMod(c, abName); }
+
+  // Sort by passive perception descending
+  const sorted = [...chars].sort((a, b) => passive(b, 'WIS') - passive(a, 'WIS'));
+
+  const header = `<div style="display:grid;grid-template-columns:1fr auto auto auto;gap:6px;font-size:9px;color:#4a7a5a;text-transform:uppercase;letter-spacing:.6px;padding:0 0 6px;border-bottom:1px solid rgba(35,180,120,0.15);margin-bottom:6px">
+    <div>Character</div><div style="text-align:center">Perc</div><div style="text-align:center">Inv</div><div style="text-align:center">Ins</div>
+  </div>`;
+
+  const percColor = v => v >= 18 ? '#4cff99' : v >= 14 ? '#23b478' : v >= 10 ? '#9098b8' : '#cc6666';
+
+  const rows = sorted.map(c => {
+    const perc = passive(c, 'WIS');
+    const inv  = 10 + getAbMod(c, 'INT');
+    const ins  = passive(c, 'WIS');
+    const conds = typeof getCharConditions === 'function' ? getCharConditions(c.name) : [];
+    const isDown = parseInt(getCharHP ? getCharHP(c.name, parseInt(c.hp)||1) : c.hp) === 0;
+    return `<div style="display:grid;grid-template-columns:1fr auto auto auto;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(35,180,120,0.07)">
+      <div style="font-size:11px;color:${isDown?'#cc4444':'#c8d0e8'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.name}">${c.name}</div>
+      <div style="text-align:center;font-size:13px;font-weight:700;color:${percColor(perc)};font-family:'Cinzel',serif">${perc}</div>
+      <div style="text-align:center;font-size:13px;font-weight:700;color:${percColor(inv)};font-family:'Cinzel',serif">${inv}</div>
+      <div style="text-align:center;font-size:13px;font-weight:700;color:${percColor(ins)};font-family:'Cinzel',serif">${ins}</div>
+    </div>`;
+  }).join('');
+
+  const maxPerc = Math.max(...sorted.map(c => passive(c, 'WIS')));
+  const maxInv  = Math.max(...sorted.map(c => 10 + getAbMod(c, 'INT')));
+  el.innerHTML = `
+    <div style="font-size:10px;color:#3a6a4a;margin-bottom:10px">Perc = Passive Perception · Inv = Passive Investigation · Ins = Passive Insight<br>
+    <span style="color:#23b478">Best perception: <strong>${maxPerc}</strong></span> · <span style="color:#4488ff">Best investigation: <strong>${maxInv}</strong></span></div>
+    ${header}${rows}
+    <div style="margin-top:10px;font-size:9px;color:#2a5a3a;border-top:1px solid rgba(35,180,120,0.1);padding-top:8px">
+      📌 Passive checks trigger automatically — players don't roll. Set DC to match or beat these values.
+    </div>`;
+}
 
 function toggleHealthPanel() {
   healthPanelOpen = !healthPanelOpen;
