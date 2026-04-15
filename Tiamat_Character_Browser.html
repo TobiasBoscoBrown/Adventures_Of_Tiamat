@@ -3635,6 +3635,7 @@
     <button class="encounter-open-btn" onclick="openTheaterMode()" style="border-color:#44aacc;color:#44aacc" title="Theater mode — fullscreen battle board for second screen">🎭 Theater</button>
     <button class="encounter-open-btn" onclick="toggleXpPanel()" style="border-color:#c9a227;color:#c9a227" id="xpTrackerBtn" title="Party XP & Level Tracker — award XP, track level progress">⭐ XP</button>
     <button class="encounter-open-btn" onclick="toggleSkillChallenge()" style="border-color:#dd8822;color:#dd8822" id="skillChallengeBtn" title="Skill Challenge Tracker — track successes & failures">⚡ Challenge</button>
+    <button class="encounter-open-btn" onclick="togglePartySlots()" style="border-color:#bb88ff;color:#bb88ff" id="partySlotsBtn" title="Party spell slot overview — all casters at a glance">✨ Slots</button>
     <button class="encounter-open-btn" onclick="toggleSpellSearch()" style="border-color:#44aacc;color:#44aacc" id="spellSearchBtn" title="Search spells by name, school, or level">📖 Spells</button>
     <button class="encounter-open-btn" onclick="togglePassivesPanel()" style="border-color:#9b6dff;color:#9b6dff" id="passivesBtn" title="Passive Perception, Investigation & Insight for all characters">👁 Passives</button>
     <button class="encounter-open-btn" onclick="toggleGroupRoll()" style="border-color:#5588dd;color:#5588dd" id="groupRollBtn" title="Roll any skill/ability for all visible characters at once">🎲 Group Roll</button>
@@ -3960,8 +3961,10 @@
       <button class="init-ctrl-btn" onclick="toggleGroupRoll()" title="Group saving throw / ability check" style="border-color:#aa66dd;color:#aa66dd">⚔ Save</button>
       <button class="init-ctrl-btn" onclick="toggleBulkCond(event)" title="Apply condition to all in initiative" style="border-color:#dd8822;color:#dd8822">⚡ Bulk</button>
       <button class="init-ctrl-btn" id="lairActionBtn" onclick="toggleLairAction()" title="Toggle Lair Action at Init 20" style="border-color:#2a2a50;color:#4a5272">🏰 Lair</button>
+      <button class="init-ctrl-btn" onclick="toggleSceneEffects()" title="Scene Effects — track active area spells and environmental effects" style="border-color:#6699ff;color:#6699ff" id="sceneEffectsBtn">🌀 FX</button>
       <button class="init-ctrl-btn" onclick="saveInitiativeSnapshot()" title="Save combat snapshot — restore later" style="border-color:#44ccaa;color:#44ccaa">📸 Snap</button>
       <button class="init-ctrl-btn" onclick="openInitiativeSnapshots()" title="View &amp; restore saved snapshots" style="border-color:#44ccaa;color:#4a5272">📂</button>
+      <button class="init-ctrl-btn" onclick="toggleEncounterNotes(true)" title="Toggle encounter notes" id="encNotesBtn" style="border-color:#c9a227;color:#c9a227">📋</button>
       <button class="init-ctrl-btn" onclick="clearInitiative()" title="Clear initiative">✕</button>
     </div>
   </div>
@@ -3975,6 +3978,31 @@
   </div>
   <!-- Active Turn Stats Bar -->
   <div id="activeTurnBar" style="display:none;padding:6px 12px;border-bottom:1px solid #1e2040;background:rgba(240,192,96,.04)"></div>
+  <!-- DC Tracker -->
+  <div id="dcTrackerArea" style="padding:4px 10px;border-bottom:1px solid rgba(221,68,68,.15);background:rgba(221,68,68,.03);display:flex;align-items:center;gap:8px">
+    <span style="font-size:10px;color:#cc3333;letter-spacing:.5px;font-weight:600">DC</span>
+    <input type="number" id="activeDcInput" value="" placeholder="—" min="1" max="30" style="width:40px;background:#0a0a1e;border:1px solid rgba(204,51,51,.3);color:#e08888;border-radius:5px;padding:2px 6px;font-size:12px;font-weight:700;text-align:center;outline:none" oninput="updateDcDisplay()" onfocus="this.style.borderColor='#cc3333'" onblur="this.style.borderColor='rgba(204,51,51,.3)'" title="Set target DC — saves will auto-show pass/fail">
+    <span id="dcLabel" style="font-size:9px;color:#4a3030">for saves & checks</span>
+    <span style="font-size:9px;color:#4a5272;margin-left:auto">Quick:
+      ${[8,10,12,14,15,17,18,20].map(d=>`<button onclick="document.getElementById('activeDcInput').value=${d};updateDcDisplay()" style="background:none;border:1px solid #2a2a50;color:#6a7098;border-radius:3px;padding:0 4px;cursor:pointer;font-size:9px;margin:0 1px">${d}</button>`).join('')}
+    </span>
+  </div>
+  <!-- Encounter Notes -->
+  <div id="encounterNotesArea" style="display:none;padding:5px 10px;border-bottom:1px solid rgba(201,162,39,.15);background:rgba(201,162,39,.03)">
+    <div style="display:flex;gap:5px;align-items:flex-start">
+      <span style="font-size:10px;color:#c9a227;margin-top:4px;flex-shrink:0">📋</span>
+      <textarea id="encounterNotesText" placeholder="Encounter notes — special mechanics, win conditions, lair features…" oninput="saveEncounterNotes()" style="flex:1;background:transparent;border:none;color:#9098b8;font-size:11px;line-height:1.4;resize:none;outline:none;min-height:28px;max-height:80px;overflow:hidden" rows="2"></textarea>
+      <button onclick="toggleEncounterNotes(false)" style="background:none;border:none;color:#3a3050;cursor:pointer;font-size:11px;flex-shrink:0" title="Hide notes">✕</button>
+    </div>
+  </div>
+  <!-- Scene Effects Panel -->
+  <div id="sceneEffectsArea" style="display:none;padding:6px 10px;border-bottom:1px solid rgba(102,153,255,.2);background:rgba(102,153,255,.04)">
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:5px">
+      <span style="font-size:10px;color:#6699ff;letter-spacing:1px;font-family:'Cinzel',serif">🌀 SCENE EFFECTS</span>
+      <button onclick="addSceneEffect()" style="margin-left:auto;background:rgba(102,153,255,.1);border:1px solid rgba(102,153,255,.3);color:#6699ff;border-radius:5px;padding:1px 8px;cursor:pointer;font-size:10px">+ Add</button>
+    </div>
+    <div id="sceneEffectsList" style="display:flex;flex-wrap:wrap;gap:4px"></div>
+  </div>
   <!-- Group Roll Panel (collapsible) -->
   <div id="groupRollArea" style="display:none;padding:8px 10px;border-bottom:1px solid #1e2040;background:rgba(170,102,221,.05)">
     <div style="font-size:10px;color:#aa66dd;letter-spacing:1px;margin-bottom:6px;font-family:'Cinzel',serif">⚔ GROUP CHECK / SAVE</div>
@@ -4616,6 +4644,13 @@
     <button onclick="recordSCResult(true)" id="scSuccessBtn" style="flex:1;background:rgba(68,170,68,.15);border:2px solid #44aa44;color:#44aa44;border-radius:8px;padding:8px;cursor:pointer;font-size:13px;font-weight:700">✓ Success</button>
     <button onclick="recordSCResult(false)" id="scFailBtn" style="flex:1;background:rgba(204,51,51,.1);border:2px solid #cc3333;color:#cc3333;border-radius:8px;padding:8px;cursor:pointer;font-size:13px;font-weight:700">✗ Failure</button>
   </div>
+</div>
+<div id="partySlotsPanel" style="position:fixed;top:60px;right:20px;width:360px;max-height:82vh;background:linear-gradient(160deg,#06031a,#0f0828);border:1px solid rgba(187,136,255,0.4);border-radius:14px;z-index:353;display:none;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.9);overflow:hidden">
+  <div style="padding:10px 14px;border-bottom:1px solid rgba(187,136,255,0.25);display:flex;justify-content:space-between;align-items:center;background:rgba(187,136,255,0.04);flex-shrink:0">
+    <span style="font-family:'Cinzel',serif;color:#bb88ff;font-size:13px;font-weight:700;letter-spacing:1px">✨ PARTY SPELL SLOTS</span>
+    <button onclick="togglePartySlots()" style="background:none;border:1px solid #2a1a40;color:#4a2a60;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px">✕</button>
+  </div>
+  <div id="partySlotsBody" style="overflow-y:auto;flex:1;padding:8px 0"></div>
 </div>
 <div id="spellSearchPanel" style="position:fixed;top:60px;right:20px;width:360px;max-height:82vh;background:linear-gradient(160deg,#030d14,#071828);border:1px solid rgba(68,170,204,0.4);border-radius:14px;z-index:351;display:none;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.9);overflow:hidden">
   <div style="padding:10px 14px;border-bottom:1px solid rgba(68,170,204,0.25);display:flex;justify-content:space-between;align-items:center;background:rgba(68,170,204,0.04);flex-shrink:0">
@@ -11556,6 +11591,36 @@ function removeFromInitiative(name) {
   updateHeaderStats();
 }
 
+// ── TEMPORARY AC MODIFIER ────────────────────────────────
+let tempAcState = {}; // charName -> modifier number
+
+function setTempAc(charName, val) {
+  const n = parseInt(val);
+  if (isNaN(n) || n === 0) delete tempAcState[charName];
+  else tempAcState[charName] = n;
+  renderActiveTurnBar();
+}
+// ─────────────────────────────────────────────────────────
+
+// ── ADVANTAGE/DISADVANTAGE STATE ─────────────────────────
+let advState = {}; // charName -> 'adv' | 'dis' | null
+
+function setAdvState(charName, val) {
+  advState[charName] = advState[charName] === val ? null : val; // toggle off if same
+  renderActiveTurnBar();
+}
+
+function rollWithAdv(charName, bonus) {
+  const adv = advState[charName] || null;
+  function d20() { return Math.floor(Math.random()*20)+1; }
+  let die, detail;
+  if (adv === 'adv') { const r1=d20(),r2=d20(); die=Math.max(r1,r2); detail=`(${r1},${r2})↑`; }
+  else if (adv === 'dis') { const r1=d20(),r2=d20(); die=Math.min(r1,r2); detail=`(${r1},${r2})↓`; }
+  else { die=d20(); detail=null; }
+  return { die, detail };
+}
+// ─────────────────────────────────────────────────────────
+
 // ── MOVEMENT TRACKER ─────────────────────────────────────
 let moveState = {}; // charName -> remaining movement ft
 
@@ -11588,7 +11653,7 @@ function nextTurn() {
   if (!initiativeList.length) return;
   // Clear action state for the character whose turn is ending
   const endingChar = initiativeList[currentTurnIdx];
-  if (endingChar) { delete turnActionState[endingChar.name]; if (typeof tickCondDurations === 'function') tickCondDurations(endingChar.name); }
+  if (endingChar) { delete turnActionState[endingChar.name]; if (typeof tickCondDurations === 'function') tickCondDurations(endingChar.name); delete tempAcState[endingChar.name]; }
   currentTurnIdx = (currentTurnIdx + 1) % initiativeList.length;
   if (currentTurnIdx === 0) {
     currentRound++;
@@ -11601,6 +11666,8 @@ function nextTurn() {
     // Reset legendary actions for all legendary creatures
     if (typeof resetLegActionsForRound === 'function') resetLegActionsForRound();
     if (typeof resetLegendaryActions === 'function') resetLegendaryActions();
+    // Tick scene effects at round start
+    if (typeof tickSceneEffects === 'function') tickSceneEffects();
   }
   const active = initiativeList[currentTurnIdx];
   if (active) {
@@ -11615,15 +11682,52 @@ function nextTurn() {
 }
 
 function clearInitiative() {
+  // Combat summary if real combat happened
+  if (currentRound > 1 && initiativeList.length > 0) {
+    showCombatSummary(initiativeList.slice(), currentRound);
+  }
+  // Clear scene effects from combat
+  if (sceneEffects && sceneEffects.length) {
+    sceneEffects = [];
+    renderSceneEffects();
+  }
   initiativeList = [];
   currentTurnIdx = 0;
   currentRound = 1;
   clearTurnActions();
+  moveState = {};
+  advState = {};
   document.getElementById('initRoundBadge').textContent = 'Round 1';
   document.getElementById('initiativePanel').classList.remove('open');
   renderInitiative();
   renderGrid();
   updateHud();
+}
+
+function showCombatSummary(combatants, rounds) {
+  const existing = document.getElementById('combatSummaryPopup');
+  if (existing) existing.remove();
+
+  const downed = combatants.filter(e => e.maxHp > 0 && getCharHP(e.name, e.maxHp) === 0);
+  const monsters = combatants.filter(e => { const c = UNIQUE_CHARS.find(x=>x.name===e.name); return c && parseFloat(c.cr)>=1; });
+  const xpEarned = monsters.reduce((s, e) => { const c = UNIQUE_CHARS.find(x=>x.name===e.name); return s + (c ? (XP_BY_CR[c.cr]||0) : 0); }, 0);
+
+  const popup = document.createElement('div');
+  popup.id = 'combatSummaryPopup';
+  popup.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:linear-gradient(160deg,#07041a,#100820);border:1px solid rgba(201,162,39,.5);border-radius:16px;padding:20px 24px;z-index:9999;min-width:280px;max-width:400px;box-shadow:0 12px 48px rgba(0,0,0,.95);font-size:12px';
+  popup.innerHTML = `
+    <div style="font-family:'Cinzel',serif;font-size:15px;color:#c9a227;font-weight:700;margin-bottom:12px;text-align:center">⚔ COMBAT SUMMARY</div>
+    <div style="display:flex;gap:16px;justify-content:center;margin-bottom:12px">
+      <div style="text-align:center"><div style="font-size:24px;font-weight:700;color:#f0c060;font-family:'Cinzel',serif">${rounds}</div><div style="font-size:10px;color:#4a5272">ROUNDS</div></div>
+      <div style="text-align:center"><div style="font-size:24px;font-weight:700;color:#9098b8;font-family:'Cinzel',serif">${combatants.length}</div><div style="font-size:10px;color:#4a5272">COMBATANTS</div></div>
+      ${downed.length ? `<div style="text-align:center"><div style="font-size:24px;font-weight:700;color:#cc3333;font-family:'Cinzel',serif">${downed.length}</div><div style="font-size:10px;color:#4a5272">DOWNED</div></div>` : ''}
+      ${xpEarned ? `<div style="text-align:center"><div style="font-size:24px;font-weight:700;color:#44aa44;font-family:'Cinzel',serif">${xpEarned.toLocaleString()}</div><div style="font-size:10px;color:#4a5272">XP</div></div>` : ''}
+    </div>
+    ${downed.length ? `<div style="margin-bottom:8px;font-size:11px;color:#cc5555">⚠ Down: ${downed.map(e=>escHtml(e.name)).join(', ')}</div>` : ''}
+    ${xpEarned ? `<div style="font-size:10px;color:#3a5030;margin-bottom:8px">Award XP: click ⭐ XP button → Award Encounter XP</div>` : ''}
+    <button onclick="this.closest('#combatSummaryPopup').remove()" style="width:100%;background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.4);color:#c9a227;border-radius:8px;padding:8px;cursor:pointer;font-size:12px;font-family:'Cinzel',serif">Dismiss</button>`;
+  document.body.appendChild(popup);
+  logEntry('combat', `⚔ <strong>Combat ended</strong>: ${rounds} rounds, ${combatants.length} combatants${downed.length?`, ${downed.length} downed`:''}${xpEarned?`, ${xpEarned.toLocaleString()} XP available`:''}`);
 }
 
 // ══════════════════════════════════════════════════════════
@@ -13709,6 +13813,95 @@ function initDrop(event, targetName) {
   _initDragName = null;
 }
 
+// ── DC TRACKER ──────────────────────────────────────────
+function getActiveDC() { return parseInt(document.getElementById('activeDcInput')?.value) || null; }
+function updateDcDisplay() {
+  const dc = getActiveDC();
+  const lbl = document.getElementById('dcLabel');
+  if (lbl) lbl.textContent = dc ? `target DC — saves auto-compare` : 'for saves & checks';
+}
+// ─────────────────────────────────────────────────────────
+
+// ── ENCOUNTER NOTES ──────────────────────────────────────
+let _encounterNotesVisible = false;
+function toggleEncounterNotes(show) {
+  _encounterNotesVisible = show !== undefined ? show : !_encounterNotesVisible;
+  const area = document.getElementById('encounterNotesArea');
+  const btn = document.getElementById('encNotesBtn');
+  if (area) area.style.display = _encounterNotesVisible ? 'block' : 'none';
+  if (btn) { btn.style.background = _encounterNotesVisible ? 'rgba(201,162,39,.15)' : ''; btn.style.color = _encounterNotesVisible ? '#ffcc44' : '#c9a227'; }
+  if (_encounterNotesVisible) {
+    const ta = document.getElementById('encounterNotesText');
+    if (ta) { ta.value = sessionStorage.getItem('tiamat_enc_notes') || ''; ta.focus(); }
+  }
+}
+function saveEncounterNotes() {
+  const ta = document.getElementById('encounterNotesText');
+  if (ta) { sessionStorage.setItem('tiamat_enc_notes', ta.value); ta.style.height='auto'; ta.style.height=ta.scrollHeight+'px'; }
+}
+// ─────────────────────────────────────────────────────────
+
+// ── SCENE EFFECTS TRACKER ────────────────────────────────
+let sceneEffects = []; // [{id, name, rounds, desc, source}]
+let sceneEffectsVisible = false;
+
+function toggleSceneEffects() {
+  sceneEffectsVisible = !sceneEffectsVisible;
+  const area = document.getElementById('sceneEffectsArea');
+  const btn = document.getElementById('sceneEffectsBtn');
+  if (area) area.style.display = sceneEffectsVisible ? 'block' : 'none';
+  if (btn) { btn.style.background = sceneEffectsVisible ? 'rgba(102,153,255,.15)' : ''; btn.style.color = sceneEffectsVisible ? '#88aaff' : '#6699ff'; }
+  renderSceneEffects();
+}
+
+function addSceneEffect() {
+  const name = prompt('Effect name (e.g. Darkness, Wall of Force, Fog Cloud):');
+  if (!name || !name.trim()) return;
+  const roundsStr = prompt('Duration in rounds (blank = permanent):', '10');
+  const rounds = parseInt(roundsStr);
+  const desc = prompt('Description (optional):') || '';
+  sceneEffects.push({ id: Date.now().toString(36), name: name.trim(), rounds: isNaN(rounds) ? null : rounds, desc });
+  renderSceneEffects();
+  logEntry('roll', `🌀 Scene effect: <strong>${escHtml(name.trim())}</strong>${!isNaN(rounds)?` (${rounds} rounds)`:'(permanent)'}`);
+}
+
+function removeSceneEffect(id) {
+  const e = sceneEffects.find(x=>x.id===id);
+  if (e) logEntry('roll', `🌀 Scene effect ended: <em>${escHtml(e.name)}</em>`);
+  sceneEffects = sceneEffects.filter(x=>x.id!==id);
+  renderSceneEffects();
+}
+
+function tickSceneEffects() {
+  // Called at start of each new round
+  sceneEffects = sceneEffects.map(e => {
+    if (e.rounds === null) return e; // permanent
+    return { ...e, rounds: e.rounds - 1 };
+  });
+  const expired = sceneEffects.filter(e => e.rounds !== null && e.rounds <= 0);
+  expired.forEach(e => logEntry('roll', `🌀 Scene effect expired: <strong>${escHtml(e.name)}</strong>`));
+  sceneEffects = sceneEffects.filter(e => e.rounds === null || e.rounds > 0);
+  renderSceneEffects();
+}
+
+function renderSceneEffects() {
+  const el = document.getElementById('sceneEffectsList');
+  if (!el) return;
+  if (!sceneEffects.length) {
+    el.innerHTML = '<span style="font-size:10px;color:#2a3060;font-style:italic">No active effects</span>';
+    return;
+  }
+  el.innerHTML = sceneEffects.map(e => {
+    const durStr = e.rounds === null ? '∞' : `${e.rounds}r`;
+    const col = e.rounds !== null && e.rounds <= 2 ? '#dd8822' : '#6699ff';
+    return `<span style="background:rgba(102,153,255,.08);border:1px solid rgba(102,153,255,.25);border-radius:6px;padding:2px 6px;font-size:10px;color:${col};display:inline-flex;align-items:center;gap:4px" title="${escHtml(e.desc||e.name)}">
+      🌀 ${escHtml(e.name)} <span style="color:#4a5272">${durStr}</span>
+      <button onclick="removeSceneEffect(${JSON.stringify(e.id)})" style="background:none;border:none;color:#2a3050;cursor:pointer;font-size:9px;padding:0;line-height:1">✕</button>
+    </span>`;
+  }).join('');
+}
+// ─────────────────────────────────────────────────────────
+
 function renderActiveTurnBar() {
   const bar = document.getElementById('activeTurnBar');
   if (!bar) return;
@@ -13737,13 +13930,18 @@ function renderActiveTurnBar() {
   const moveCol = movePct > 0.5 ? '#44ccaa' : movePct > 0 ? '#c9a227' : '#cc3333';
   const moveBtn = (ft) => `<button onclick="useMove(${JSON.stringify(char.name)},${ft},event)" style="background:none;border:1px solid rgba(68,204,170,.3);color:#44ccaa;border-radius:4px;padding:1px 4px;cursor:pointer;font-size:9px;line-height:1">-${ft}</button>`;
 
+  const curAdv = advState[char.name] || null;
   let html = `<div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
     <span style="font-size:11px;color:#f0c060;font-weight:700;font-family:'Cinzel',serif;margin-right:4px">${escHtml(char.name.length>20?char.name.slice(0,19)+'…':char.name)}</span>
-    ${chip('AC', ac, '#88aaff')}
+    ${(()=>{const tAc=tempAcState[char.name];const totalAc=parseInt(ac)||0+(tAc||0);const acStr=tAc?`${ac}${tAc>=0?'+':'}${tAc}=${totalAc}`:ac;return chip('AC',acStr,tAc?'#44ccff':'#88aaff');})()}
     ${chip('HP', `${currHp}/${maxHp}`, currHp/maxHp < 0.25 ? '#ff6666' : currHp/maxHp < 0.5 ? '#dd8822' : '#44aa44')}
     ${chip('PP', pp, '#aa88ff')}
     ${conc ? chip('⊙', escHtml(conc.length>10?conc.slice(0,9)+'…':conc), '#c9a227') : ''}
     ${conds.slice(0,3).map(c=>chip('', escHtml(c.slice(0,2)+c.slice(2,12)), '#dd8822')).join('')}
+    <button onclick="setAdvState(${JSON.stringify(char.name)},'adv')" style="background:${curAdv==='adv'?'rgba(68,170,68,.3)':'rgba(68,170,68,.07)'};border:1px solid ${curAdv==='adv'?'#44aa44':'rgba(68,170,68,.3)'};color:${curAdv==='adv'?'#44ff44':'#44aa44'};border-radius:4px;padding:1px 6px;cursor:pointer;font-size:10px;font-weight:700" title="Toggle Advantage on all rolls">↑ Adv</button>
+    <button onclick="setAdvState(${JSON.stringify(char.name)},'dis')" style="background:${curAdv==='dis'?'rgba(204,51,51,.3)':'rgba(204,51,51,.07)'};border:1px solid ${curAdv==='dis'?'#cc3333':'rgba(204,51,51,.3)'};color:${curAdv==='dis'?'#ff4444':'#cc3333'};border-radius:4px;padding:1px 6px;cursor:pointer;font-size:10px;font-weight:700" title="Toggle Disadvantage on all rolls">↓ Dis</button>
+    <span style="font-size:9px;color:#4a5272;margin-left:2px">+AC:</span>
+    ${[2,5,-2].map(v=>{const cur=tempAcState[char.name]||0;return `<button onclick="setTempAc(${JSON.stringify(char.name)},${cur===v?0:v})" style="background:${cur===v?'rgba(68,204,255,.2)':'rgba(68,204,255,.05)'};border:1px solid rgba(68,204,255,${cur===v?'.5':'.2'});color:${cur===v?'#44ccff':'#4a6080'};border-radius:4px;padding:1px 5px;cursor:pointer;font-size:9px" title="${v>0?`+${v} (${v===2?'Half':'3/4 cover'})`:'-2 penalty'}">${v>=0?'+':''}${v}</button>`;}).join('')}
   </div>
   <div style="display:flex;gap:4px;align-items:center;margin-top:4px">
     <span style="font-size:9px;color:#4a5272;letter-spacing:.5px">MOVE</span>
@@ -13768,11 +13966,15 @@ function renderActiveTurnBar() {
 
   const atkBtn = (label, title, bonus, type) => `<button onclick="rollInitAttack(${JSON.stringify(char.name)},${JSON.stringify(title)},${bonus},event)" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:#9098b8;border-radius:4px;padding:2px 7px;cursor:pointer;font-size:10px;line-height:1.4" title="${title} attack">${label} (${type})</button>`;
 
+  const multiAtkCount = document.getElementById('multiAtkCount')?.value || '1';
   html += `<div style="display:flex;gap:4px;align-items:center;margin-top:3px;flex-wrap:wrap">
     <span style="font-size:9px;color:#4a5272;letter-spacing:.5px">ATK</span>
     ${atkBtn('⚔ Melee', 'Melee', meleeBonus, mStr)}
     ${atkBtn('🏹 Ranged', 'Ranged', rangedBonus, rStr)}
     ${isSpellcaster ? atkBtn('🔮 Spell', 'Spell', spellBonus, satkStr) : ''}
+    <select id="multiAtkCount" onchange="renderActiveTurnBar()" style="background:#0a0a1e;border:1px solid #2a2a50;color:#6a7098;border-radius:4px;padding:1px 3px;font-size:9px;cursor:pointer" title="Number of attacks to roll at once">
+      <option value="1">1×</option><option value="2">2×</option><option value="3">3×</option><option value="4">4×</option><option value="5">5×</option>
+    </select>
   </div>`;
 
   // Saving throws row
@@ -13790,27 +13992,174 @@ function renderActiveTurnBar() {
     ${saveBtns}
   </div>`;
 
+  // Smart Combat Hints
+  const hints = buildCombatHints(char);
+  if (hints.length) {
+    html += `<div style="margin-top:4px;border-top:1px solid rgba(255,255,255,.04);padding-top:3px">
+      <div style="display:flex;flex-wrap:wrap;gap:3px">
+        ${hints.map(h=>`<span style="font-size:9px;background:rgba(${h.col||'155,109,255'},.08);border:1px solid rgba(${h.col||'155,109,255'},.2);color:#${h.textcol||'9b6dff'};border-radius:6px;padding:1px 6px;cursor:help" title="${escHtml(h.detail||h.text)}">${h.icon} ${escHtml(h.text)}</span>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  // "Up Next" preview — next 2 combatants
+  if (initiativeList.length > 1) {
+    const next1idx = (currentTurnIdx + 1) % initiativeList.length;
+    const next2idx = (currentTurnIdx + 2) % initiativeList.length;
+    const nextEntries = [initiativeList[next1idx]];
+    if (initiativeList.length > 2) nextEntries.push(initiativeList[next2idx]);
+    const nextChips = nextEntries.map((ne, idx) => {
+      const nc = getCharHP(ne.name, ne.maxHp||1);
+      const nm = ne.maxHp || 0;
+      const nPct = nm > 0 ? nc/nm : 1;
+      const nCol = nPct < 0.25 ? '#cc3333' : nPct < 0.5 ? '#dd8822' : '#5a6280';
+      const nDowned = nm > 0 && nc === 0;
+      return `<span style="font-size:9px;color:${nDowned?'#cc3333':'#5a6280'};${nDowned?'text-decoration:line-through':''}">${idx===0?'→':' →'} ${escHtml(ne.name.length>12?ne.name.slice(0,11)+'…':ne.name)} <span style="color:${nCol}">${nm>0?`(${nc}/${nm})`:''}</span></span>`;
+    });
+    html += `<div style="margin-top:3px;border-top:1px solid rgba(255,255,255,.04);padding-top:3px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:9px;color:#3a3a60;letter-spacing:.5px">NEXT</span>
+      ${nextChips.join('')}
+    </div>`;
+  }
+
   bar.style.display = 'block';
   bar.innerHTML = html;
 }
 
 function rollInitAttack(charName, type, bonus, event) {
   if (event) event.stopPropagation();
-  const roll = Math.floor(Math.random() * 20) + 1;
-  const total = roll + bonus;
-  const isCrit = roll === 20, isFumble = roll === 1;
+  const count = parseInt(document.getElementById('multiAtkCount')?.value || '1');
   const bStr = bonus >= 0 ? `+${bonus}` : `${bonus}`;
-  logEntry('roll', `<strong>${escHtml(charName)}</strong> ${type} Attack: d20(${roll})${bStr} = <strong>${total}</strong>${isCrit?' ★ CRIT!':isFumble?' ☠ MISS':''}`);
-  playSound?.(isCrit ? 'crit' : 'roll');
+  const advLabel = advState[charName] ? ` (${advState[charName]})` : '';
+  let anyCrit = false;
+  const results = Array.from({length:count}, () => {
+    const { die, detail } = rollWithAdv(charName, bonus);
+    const total = die + bonus;
+    const isCrit = die === 20, isFumble = die === 1;
+    if (isCrit) anyCrit = true;
+    return `d20${detail?detail:`(${die})`}${bStr}=<strong>${total}</strong>${isCrit?'★':isFumble?'☠':''}`;
+  });
+  const multiLabel = count > 1 ? ` ×${count}` : '';
+  logEntry('roll', `<strong>${escHtml(charName)}</strong> ${type} Attack${multiLabel}${advLabel}: ${results.join(' | ')}`);
+  playSound?.(anyCrit ? 'crit' : 'roll');
+}
+
+function buildCombatHints(char) {
+  const hints = [];
+  const text = ((char.traits||'') + ' ' + (char.lore||'')).toLowerCase();
+  if (!text.trim()) return hints;
+
+  // Multiattack
+  const maMatch = text.match(/multiattack[^.]*?(\d+)\s*(?:times|attacks|strikes|weapon|melee|ranged)/);
+  if (maMatch) {
+    hints.push({ icon:'⚔', text:`${maMatch[1]}× Multiattack`, detail:`Makes ${maMatch[1]} attacks per action`, col:'255,165,0', textcol:'ffaa00' });
+  } else if (/multiattack/.test(text)) {
+    hints.push({ icon:'⚔', text:'Multiattack', detail:'Can make multiple attacks per action', col:'255,165,0', textcol:'ffaa00' });
+  }
+
+  // Legendary Resistance
+  const lrMatch = text.match(/legendary resistance[^.]*?(\d+)\/day/);
+  if (lrMatch) {
+    hints.push({ icon:'🛡', text:`Legendary Resist ×${lrMatch[1]}`, detail:`Can succeed on ${lrMatch[1]} failed saves per day`, col:'255,215,0', textcol:'ffd700' });
+  } else if (/legendary resistance/.test(text)) {
+    hints.push({ icon:'🛡', text:'Legendary Resistance', detail:'Can turn failed saves into successes', col:'255,215,0', textcol:'ffd700' });
+  }
+
+  // Frightful Presence
+  if (/frightful presence/.test(text)) {
+    hints.push({ icon:'😱', text:'Frightful Presence', detail:'Can frighten creatures within range (WIS save)', col:'148,0,211', textcol:'cc66ff' });
+  }
+
+  // Breath Weapon
+  const bwMatch = text.match(/breath weapon|fire breath|cold breath|lightning breath|acid breath|poison breath/);
+  if (bwMatch) {
+    hints.push({ icon:'💨', text:'Breath Weapon', detail:'Area damage breath — check recharge', col:'255,80,0', textcol:'ff5500' });
+  }
+
+  // Recharge abilities
+  const rechargeMatch = text.match(/recharge\s*(\d+)/);
+  if (rechargeMatch) {
+    hints.push({ icon:'🎲', text:`Recharge ${rechargeMatch[1]}–6`, detail:`Special ability recharges on roll of ${rechargeMatch[1]}+ at start of turn`, col:'0,200,200', textcol:'00cccc' });
+  }
+
+  // Spellcasting
+  if (/spellcasting|innate spellcasting/.test(text)) {
+    hints.push({ icon:'📖', text:'Spellcasting', detail:'Has innate or prepared spells — check abilities', col:'100,149,237', textcol:'6495ed' });
+  }
+
+  // Parry
+  if (/\bparry\b/.test(text)) {
+    hints.push({ icon:'🤺', text:'Parry (Reaction)', detail:'Can add AC bonus as a reaction when hit', col:'64,224,208', textcol:'40e0d0' });
+  }
+
+  // Shield / Blur / Mirror Image
+  if (/\bshield\b.*\bspell|\bblur\b|\bmirror image\b/.test(text)) {
+    hints.push({ icon:'🌀', text:'Defensive Magic', detail:'Has defensive spell abilities (Shield/Blur/Mirror Image)', col:'100,149,237', textcol:'6495ed' });
+  }
+
+  // Undead Fortitude
+  if (/undead fortitude/.test(text)) {
+    hints.push({ icon:'💀', text:'Undead Fortitude', detail:'CON save when dropped to 0 HP to stay at 1 HP instead', col:'100,100,100', textcol:'aaaaaa' });
+  }
+
+  // Pack Tactics
+  if (/pack tactics/.test(text)) {
+    hints.push({ icon:'🐺', text:'Pack Tactics', detail:'Advantage on attacks when ally is adjacent to target', col:'139,90,43', textcol:'c87941' });
+  }
+
+  // Magic Resistance
+  if (/magic resistance/.test(text)) {
+    hints.push({ icon:'✨', text:'Magic Resistance', detail:'Advantage on saves vs spells and magical effects', col:'155,109,255', textcol:'9b6dff' });
+  }
+
+  // Reckless Attack
+  if (/reckless attack/.test(text)) {
+    hints.push({ icon:'🔴', text:'Reckless Atk', detail:'Can attack with advantage, but grants advantage to attackers', col:'255,50,50', textcol:'ff3333' });
+  }
+
+  // Evasion
+  if (/\bevasion\b/.test(text)) {
+    hints.push({ icon:'💨', text:'Evasion', detail:'Takes no damage on successful DEX saves (half on fail)', col:'100,200,100', textcol:'64c864' });
+  }
+
+  // Sneak Attack
+  if (/sneak attack/.test(text)) {
+    hints.push({ icon:'🗡', text:'Sneak Attack', detail:'Extra damage when attacking with advantage or flanking', col:'60,60,120', textcol:'8080cc' });
+  }
+
+  // Regeneration
+  if (/\bregeneration\b/.test(text)) {
+    hints.push({ icon:'💚', text:'Regeneration', detail:'Regains HP at start of each turn unless condition prevents it', col:'0,180,0', textcol:'00bb00' });
+  }
+
+  // Swarm
+  if (/\bswarm\b/.test(text)) {
+    hints.push({ icon:'🐜', text:'Swarm', detail:'Occupies another creature\'s space; halved damage at half HP', col:'139,69,19', textcol:'aa7733' });
+  }
+
+  // Lair Actions reminder (only if has legendary actions, likely has lair)
+  if (/lair action/.test(text)) {
+    hints.push({ icon:'🏰', text:'Lair Actions', detail:'Acts on initiative 20 with lair actions', col:'180,120,0', textcol:'cc8800' });
+  }
+
+  return hints;
 }
 
 function rollInitSave(charName, ab, bonus, event) {
   if (event) event.stopPropagation();
-  const roll = Math.floor(Math.random() * 20) + 1;
-  const total = roll + bonus;
-  const isCrit = roll === 20, isFumble = roll === 1;
+  const { die, detail } = rollWithAdv(charName, bonus);
+  const total = die + bonus;
+  const isCrit = die === 20, isFumble = die === 1;
   const bStr = bonus >= 0 ? `+${bonus}` : `${bonus}`;
-  logEntry('roll', `<strong>${escHtml(charName)}</strong> ${ab} Save: d20(${roll})${bStr} = <strong>${total}</strong>${isCrit?' ★':isFumble?' ☠ auto-fail':''}`);
+  const advLabel = advState[charName] ? ` (${advState[charName]})` : '';
+  const dieStr2 = detail ? detail : `(${die})`;
+  const dc = getActiveDC ? getActiveDC() : null;
+  let dcResult = '';
+  if (dc) {
+    const passed = total >= dc;
+    dcResult = ` vs DC${dc}: <strong style="color:${passed?'#44aa44':'#cc3333'}">${passed?'✓ PASS':'✗ FAIL'}</strong>`;
+  }
+  logEntry('roll', `<strong>${escHtml(charName)}</strong> ${ab} Save${advLabel}: d20${dieStr2}${bStr} = <strong>${total}</strong>${isCrit?' ★':isFumble?' ☠ auto-fail':''}${dcResult}`);
   playSound?.('roll');
 }
 
@@ -17895,6 +18244,80 @@ function renderSkillChallenge() {
   const sBtn = document.getElementById('scSuccessBtn'), fBtn = document.getElementById('scFailBtn');
   if (sBtn) sBtn.style.opacity = resolved ? '.3' : '1';
   if (fBtn) fBtn.style.opacity = resolved ? '.3' : '1';
+}
+
+// ── PARTY SPELL SLOTS OVERVIEW ────────────────────────────
+let partySlotsOpen = false;
+function togglePartySlots() {
+  partySlotsOpen = !partySlotsOpen;
+  const panel = document.getElementById('partySlotsPanel');
+  panel.style.display = partySlotsOpen ? 'flex' : 'none';
+  const btn = document.getElementById('partySlotsBtn');
+  if (btn) { btn.style.background = partySlotsOpen ? 'rgba(187,136,255,.15)' : ''; btn.style.color = partySlotsOpen ? '#ddaaff' : '#bb88ff'; }
+  if (partySlotsOpen) renderPartySlots();
+}
+
+function renderPartySlots() {
+  const el = document.getElementById('partySlotsBody');
+  if (!el) return;
+
+  // Find all characters with spell slots
+  const casters = UNIQUE_CHARS.filter(c => {
+    const sm = getMaxSlotsForChar(c);
+    return sm && Object.keys(sm).length > 0;
+  });
+
+  if (!casters.length) {
+    el.innerHTML = '<div style="text-align:center;color:#3a2a60;font-size:12px;padding:24px">No spellcasters found</div>';
+    return;
+  }
+
+  // Get all slot levels used
+  const allLevels = new Set();
+  casters.forEach(c => { const sm = getMaxSlotsForChar(c); Object.keys(sm).forEach(l => allLevels.add(parseInt(l))); });
+  const levels = [...allLevels].sort((a,b)=>a-b);
+
+  let html = `<table style="width:100%;border-collapse:collapse;font-size:11px">
+    <tr style="font-size:9px;color:#4a2a80;font-weight:600;letter-spacing:.5px">
+      <th style="padding:5px 12px;text-align:left;border-bottom:1px solid rgba(187,136,255,.2)">CASTER</th>
+      ${levels.map(l=>`<th style="padding:5px 5px;text-align:center;border-bottom:1px solid rgba(187,136,255,.2)" title="Level ${l} slots">Lv${l}</th>`).join('')}
+      <th style="padding:5px 10px;text-align:center;border-bottom:1px solid rgba(187,136,255,.2)" title="Click to restore all slots">↺</th>
+    </tr>`;
+
+  casters.forEach(c => {
+    const sm = getMaxSlotsForChar(c);
+    const used = getUsedSlots(c.name);
+    const cells = levels.map(l => {
+      if (!sm[l]) return `<td style="padding:4px 5px;text-align:center;color:#2a2a50;font-size:10px">—</td>`;
+      const rem = sm[l] - (used[l]||0);
+      const col = rem === 0 ? '#3a3a60' : rem <= sm[l]/2 ? '#c9a227' : '#9b6dff';
+      const pips = Array.from({length:sm[l]},(_,i)=>`<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${i<rem?col:'rgba(100,100,150,.2)'};border:1px solid ${i<rem?col:'rgba(100,100,150,.3)'};margin:1px" title="${rem}/${sm[l]} remaining"></span>`).join('');
+      return `<td style="padding:4px 5px;text-align:center" onclick="useSlot(${JSON.stringify(c.name)},${l},event);renderPartySlots()" title="${rem}/${sm[l]} Level ${l} slots">${pips}<div style="font-size:8px;color:${col};line-height:1">${rem}/${sm[l]}</div></td>`;
+    }).join('');
+
+    const conc = getConcSpell(c.name);
+    html += `<tr style="border-top:1px solid rgba(187,136,255,.06)" onclick="openModal(UNIQUE_CHARS.findIndex(x=>x.name===${JSON.stringify(c.name)}))" style="cursor:pointer">
+      <td style="padding:4px 12px;color:#9098b8;font-size:11px;white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis">
+        ${escHtml(c.name.length>14?c.name.slice(0,13)+'…':c.name)}
+        ${conc ? `<span style="font-size:8px;color:#c9a227" title="Concentrating: ${escHtml(conc)}">🔮</span>` : ''}
+      </td>
+      ${cells}
+      <td style="padding:4px 10px;text-align:center"><button onclick="event.stopPropagation();restoreAllSlots(${JSON.stringify(c.name)});renderPartySlots()" style="background:none;border:none;color:#3a2a60;cursor:pointer;font-size:11px;padding:0" title="Restore all slots">↺</button></td>
+    </tr>`;
+  });
+
+  html += `</table>`;
+  html += `<div style="padding:6px 12px;display:flex;gap:8px;border-top:1px solid rgba(187,136,255,.1)">
+    <button onclick="UNIQUE_CHARS.filter(c=>{const s=getMaxSlotsForChar(c);return s&&Object.keys(s).length}).forEach(c=>restoreAllSlots(c.name));renderPartySlots()" style="background:rgba(187,136,255,.1);border:1px solid rgba(187,136,255,.3);color:#bb88ff;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:11px">↺ Restore ALL Casters</button>
+  </div>`;
+  el.innerHTML = html;
+}
+
+function restoreAllSlots(charName) {
+  if (slotState[charName]) delete slotState[charName];
+  if (typeof saveSlots === 'function') saveSlots();
+  logEntry('rest', `<strong>${escHtml(charName)}</strong>'s spell slots restored`);
+  updateHeaderStats();
 }
 
 // ── SPELL SEARCH PANEL ────────────────────────────────────
