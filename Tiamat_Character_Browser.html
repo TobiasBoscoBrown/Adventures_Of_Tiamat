@@ -9276,6 +9276,17 @@ function removeFromInitiative(name) {
   updateHeaderStats();
 }
 
+// ── TEMPORARY AC MODIFIER ────────────────────────────────
+let tempAcState = {}; // charName -> modifier number
+
+function setTempAc(charName, val) {
+  const n = parseInt(val);
+  if (isNaN(n) || n === 0) delete tempAcState[charName];
+  else tempAcState[charName] = n;
+  renderActiveTurnBar();
+}
+// ─────────────────────────────────────────────────────────
+
 // ── ADVANTAGE/DISADVANTAGE STATE ─────────────────────────
 let advState = {}; // charName -> 'adv' | 'dis' | null
 
@@ -9327,7 +9338,7 @@ function nextTurn() {
   if (!initiativeList.length) return;
   // Clear action state for the character whose turn is ending
   const endingChar = initiativeList[currentTurnIdx];
-  if (endingChar) { delete turnActionState[endingChar.name]; if (typeof tickCondDurations === 'function') tickCondDurations(endingChar.name); }
+  if (endingChar) { delete turnActionState[endingChar.name]; if (typeof tickCondDurations === 'function') tickCondDurations(endingChar.name); delete tempAcState[endingChar.name]; }
   currentTurnIdx = (currentTurnIdx + 1) % initiativeList.length;
   if (currentTurnIdx === 0) {
     currentRound++;
@@ -11025,13 +11036,15 @@ function renderActiveTurnBar() {
   const curAdv = advState[char.name] || null;
   let html = `<div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
     <span style="font-size:11px;color:#f0c060;font-weight:700;font-family:'Cinzel',serif;margin-right:4px">${escHtml(char.name.length>20?char.name.slice(0,19)+'…':char.name)}</span>
-    ${chip('AC', ac, '#88aaff')}
+    ${(()=>{const tAc=tempAcState[char.name];const totalAc=parseInt(ac)||0+(tAc||0);const acStr=tAc?`${ac}${tAc>=0?'+':'}${tAc}=${totalAc}`:ac;return chip('AC',acStr,tAc?'#44ccff':'#88aaff');})()}
     ${chip('HP', `${currHp}/${maxHp}`, currHp/maxHp < 0.25 ? '#ff6666' : currHp/maxHp < 0.5 ? '#dd8822' : '#44aa44')}
     ${chip('PP', pp, '#aa88ff')}
     ${conc ? chip('⊙', escHtml(conc.length>10?conc.slice(0,9)+'…':conc), '#c9a227') : ''}
     ${conds.slice(0,3).map(c=>chip('', escHtml(c.slice(0,2)+c.slice(2,12)), '#dd8822')).join('')}
     <button onclick="setAdvState(${JSON.stringify(char.name)},'adv')" style="background:${curAdv==='adv'?'rgba(68,170,68,.3)':'rgba(68,170,68,.07)'};border:1px solid ${curAdv==='adv'?'#44aa44':'rgba(68,170,68,.3)'};color:${curAdv==='adv'?'#44ff44':'#44aa44'};border-radius:4px;padding:1px 6px;cursor:pointer;font-size:10px;font-weight:700" title="Toggle Advantage on all rolls">↑ Adv</button>
     <button onclick="setAdvState(${JSON.stringify(char.name)},'dis')" style="background:${curAdv==='dis'?'rgba(204,51,51,.3)':'rgba(204,51,51,.07)'};border:1px solid ${curAdv==='dis'?'#cc3333':'rgba(204,51,51,.3)'};color:${curAdv==='dis'?'#ff4444':'#cc3333'};border-radius:4px;padding:1px 6px;cursor:pointer;font-size:10px;font-weight:700" title="Toggle Disadvantage on all rolls">↓ Dis</button>
+    <span style="font-size:9px;color:#4a5272;margin-left:2px">+AC:</span>
+    ${[2,5,-2].map(v=>{const cur=tempAcState[char.name]||0;return `<button onclick="setTempAc(${JSON.stringify(char.name)},${cur===v?0:v})" style="background:${cur===v?'rgba(68,204,255,.2)':'rgba(68,204,255,.05)'};border:1px solid rgba(68,204,255,${cur===v?'.5':'.2'});color:${cur===v?'#44ccff':'#4a6080'};border-radius:4px;padding:1px 5px;cursor:pointer;font-size:9px" title="${v>0?`+${v} (${v===2?'Half':'3/4 cover'})`:'-2 penalty'}">${v>=0?'+':''}${v}</button>`;}).join('')}
   </div>
   <div style="display:flex;gap:4px;align-items:center;margin-top:4px">
     <span style="font-size:9px;color:#4a5272;letter-spacing:.5px">MOVE</span>
