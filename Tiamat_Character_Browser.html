@@ -5455,6 +5455,7 @@ function buildStatsPanel(c) {
     </div>
     ${buildCurrencySection(c.name)}
     ${buildHitDiceSection(c)}
+    ${buildDamageDefenseSection(c)}
     ${buildSpeedSection(c)}
     <div class="stats-section">
       <div class="stats-section-title">Ability Scores <span style="font-size:10px;color:#4a5272;font-weight:400;font-family:'Inter',sans-serif">— click to roll</span></div>
@@ -9846,6 +9847,56 @@ function clearTagFilter(dropdown) {
   renderGrid();
 }
 // ────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// ITERATION 61: Damage Resistances & Immunities — auto-
+//   inferred from character traits, lore, and theme.
+//   Critical for combat: shows which damage types to avoid.
+// ══════════════════════════════════════════════════════════
+const DMG_TYPES = ['fire','cold','lightning','thunder','poison','acid','necrotic','radiant','psychic','force','bludgeoning','piercing','slashing','nonmagical'];
+const DMG_ICONS = { fire:'🔥',cold:'❄',lightning:'⚡',thunder:'🌩',poison:'☠',acid:'🧪',necrotic:'💀',radiant:'✨',psychic:'🧠',force:'💥',bludgeoning:'🔨',piercing:'🗡',slashing:'⚔',nonmagical:'⚔' };
+const DMG_COLORS = { fire:'#cc4422',cold:'#4499cc',lightning:'#cccc22',thunder:'#9966cc',poison:'#44aa22',acid:'#88aa00',necrotic:'#666',radiant:'#ccaa22',psychic:'#aa44cc',force:'#4488ff',bludgeoning:'#887755',piercing:'#aa7755',slashing:'#994444',nonmagical:'#555' };
+
+function inferDamageDefenses(c) {
+  const text = ((c.traits || []).join(' ') + ' ' + (c.lore || '') + ' ' + (c.subtitle || '')).toLowerCase();
+  const resistances = [];
+  const immunities = [];
+  const vulnerabilities = [];
+
+  DMG_TYPES.forEach(dmg => {
+    const key = dmg === 'nonmagical' ? 'nonmagical bludgeoning, piercing, and slashing' : dmg;
+    if (text.includes(`immune to ${dmg}`) || text.includes(`immunity to ${dmg}`) || text.includes(`${dmg} immunity`)) immunities.push(dmg);
+    else if (text.includes(`resistant to ${dmg}`) || text.includes(`resistance to ${dmg}`) || text.includes(`${dmg} resistance`)) resistances.push(dmg);
+    else if (text.includes(`vulnerable to ${dmg}`) || text.includes(`vulnerability to ${dmg}`)) vulnerabilities.push(dmg);
+  });
+
+  // Theme-based inference
+  const theme = c.theme || '';
+  if (theme === 'fire' && !immunities.includes('fire') && !resistances.includes('fire')) resistances.push('fire');
+  if (theme === 'shadow' && !resistances.includes('necrotic')) resistances.push('necrotic');
+  if (theme === 'ocean' && !resistances.includes('cold')) resistances.push('cold');
+  if (theme === 'stone' && !resistances.includes('bludgeoning')) resistances.push('bludgeoning');
+  const crNum = parseFloat(c.cr || '1');
+  if (crNum >= 20 && !immunities.includes('poison')) immunities.push('poison');
+
+  return { resistances, immunities, vulnerabilities };
+}
+function buildDamageDefenseSection(c) {
+  const { resistances, immunities, vulnerabilities } = inferDamageDefenses(c);
+  if (!resistances.length && !immunities.length && !vulnerabilities.length) return '';
+  const chip = (dmg, type) => {
+    const col = type === 'immune' ? '#888' : type === 'resist' ? DMG_COLORS[dmg]||'#9098b8' : '#cc4444';
+    const bg = type === 'immune' ? 'rgba(100,100,100,0.15)' : type === 'resist' ? `${DMG_COLORS[dmg]||'#666'}22` : 'rgba(200,50,50,0.15)';
+    const icon = DMG_ICONS[dmg] || '•';
+    return `<span title="${type.toUpperCase()}: ${dmg}" style="display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;border:1px solid ${col}44;background:${bg};color:${col};font-size:10px;margin:2px">${icon} ${dmg}</span>`;
+  };
+  return `<div class="stats-section">
+    <div class="stats-section-title">🛡 Damage Defenses</div>
+    ${immunities.length ? `<div style="margin-bottom:6px"><span style="font-size:9px;color:#888;letter-spacing:1px">IMMUNE </span>${immunities.map(d => chip(d,'immune')).join('')}</div>` : ''}
+    ${resistances.length ? `<div style="margin-bottom:6px"><span style="font-size:9px;color:#4488ff;letter-spacing:1px">RESIST </span>${resistances.map(d => chip(d,'resist')).join('')}</div>` : ''}
+    ${vulnerabilities.length ? `<div><span style="font-size:9px;color:#cc4444;letter-spacing:1px">VULNER </span>${vulnerabilities.map(d => chip(d,'vuln')).join('')}</div>` : ''}
+  </div>`;
+}
+
 // ══════════════════════════════════════════════════════════
 // ITERATION 59: Keyboard Shortcuts Help Panel — press ?
 //   to see all keyboard shortcuts. Comprehensive hotkey ref.
