@@ -9094,6 +9094,25 @@ function promptInitNote(name,event) {
   setInitNote(name,val.trim()); renderInitiative();
 }
 
+// Initiative drag-to-reorder
+let _initDragName = null;
+function initDragStart(event, name) { _initDragName = name; event.dataTransfer.effectAllowed = 'move'; }
+function initDragOver(event) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }
+function initDrop(event, targetName) {
+  event.preventDefault();
+  if (!_initDragName || _initDragName === targetName) return;
+  const fi = initiativeList.findIndex(e => e.name === _initDragName);
+  const ti = initiativeList.findIndex(e => e.name === targetName);
+  if (fi < 0 || ti < 0) return;
+  const [moved] = initiativeList.splice(fi, 1);
+  initiativeList.splice(ti, 0, moved);
+  if (currentTurnIdx === fi) currentTurnIdx = ti;
+  else if (fi < currentTurnIdx && ti >= currentTurnIdx) currentTurnIdx--;
+  else if (fi > currentTurnIdx && ti <= currentTurnIdx) currentTurnIdx++;
+  renderInitiative();
+  _initDragName = null;
+}
+
 function renderInitiative() {
   const el = document.getElementById('initiativeList');
   if (!initiativeList.length) {
@@ -9111,6 +9130,19 @@ function renderInitiative() {
     const isDefeated = currHp === 0;
     const ts = getTurnState(e.name);
     const note = getInitNote(e.name);
+    // Build compact spell slot summary for spellcasters
+    const initChar = UNIQUE_CHARS.find(c => c.name === e.name);
+    const initSlotMax = initChar ? getMaxSlotsForChar(initChar) : null;
+    const initSlotStr = (() => {
+      if (!initSlotMax) return '';
+      const used = getUsedSlots(e.name);
+      const parts = Object.keys(initSlotMax).map(Number).sort((a,b)=>a-b).map(lvl => {
+        const rem = initSlotMax[lvl] - (used[lvl]||0);
+        const col = rem === 0 ? '#3a3a50' : rem <= initSlotMax[lvl]/2 ? '#c9a227' : '#5588dd';
+        return `<span style="color:${col};font-size:9px" title="Level ${lvl}: ${rem}/${initSlotMax[lvl]}">${lvl}:${rem}</span>`;
+      });
+      return parts.length ? `<div style="display:flex;gap:4px;margin-top:1px">${parts.join('')}</div>` : '';
+    })();
     const actionBtn = (type, label, color) => {
       const used = ts[type];
       return `<button class="init-action-pip ${used?'used':''}" onclick="toggleTurnAction(${JSON.stringify(e.name)},'${type}',event)" title="${type} — click to toggle" style="border-color:${used?'#2a2a50':color};color:${used?'#2a2a50':color};background:${used?'transparent':'rgba(0,0,0,0)'};">${used?'○':label}</button>`;
@@ -9122,10 +9154,11 @@ function renderInitiative() {
       const col = dur > 0 ? '#c9a227' : '#4a5272';
       return `<span onclick="openCondDurationPicker(${JSON.stringify(e.name)},${JSON.stringify(cn)},event)" title="Set duration for ${cn}" style="cursor:pointer;font-size:9px;padding:1px 5px;border-radius:8px;border:1px solid ${col}55;color:${col};background:${col}11">${cn}${dur > 0 ? ' ⏱'+dur : ''}</span>`;
     }).join('') : '';
-    return `<div class="init-entry ${isActive ? 'active-turn' : ''} ${isDefeated ? 'defeated' : ''}" title="${e.name}">
+    return `<div class="init-entry ${isActive ? 'active-turn' : ''} ${isDefeated ? 'defeated' : ''}" title="${e.name}" draggable="true" ondragstart="initDragStart(event,${JSON.stringify(e.name)})" ondragover="initDragOver(event)" ondrop="initDrop(event,${JSON.stringify(e.name)})">
       <div class="init-score" onclick="editInitScore(${JSON.stringify(e.name)},event)" title="Click to edit" style="cursor:pointer" onmouseover="this.style.color='#c9a227'" onmouseout="this.style.color=''">${e.initiative}</div>
       <div style="flex:1;min-width:0">
         <div class="init-name">${e.name}</div>
+        ${initSlotStr}
         ${note?`<div style="font-size:9px;color:#6677aa;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px" onclick="promptInitNote(${JSON.stringify(e.name)},event)" title="${escHtml(note)}">${escHtml(note)}</div>`:''}
       </div>
       <div style="display:flex;gap:3px;margin-left:auto;margin-right:4px">
