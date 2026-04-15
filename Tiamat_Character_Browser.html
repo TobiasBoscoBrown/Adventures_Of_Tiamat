@@ -26968,6 +26968,173 @@ function openPartyAnalyzer() {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 168: Downtime Activity Tracker — PHB downtime between sessions
+// Craft items, research spells, carousing, training, working, recuperating.
+
+const DOWNTIME_KEY = 'tiamat_downtime';
+const DOWNTIME_ACTIVITIES = [
+  { id:'craft',    label:'Crafting',         icon:'⚒',  cost:'25 gp/day',  days:'Days × item cost ÷ 25',  desc:'Craft mundane or magical items. Must have proficiency with tools. Cost: 25 gp/day in materials.' },
+  { id:'research', label:'Researching',      icon:'📚',  cost:'1 gp/day',   days:'1+ days per topic',       desc:'Seek lore about a topic. 1 gp/day + DC 10 History. Success = info after 1-4 weeks.' },
+  { id:'carousing',label:'Carousing',        icon:'🍺',  cost:'10-100 gp',  days:'1 week',                  desc:'Blend with society, make contacts. Low-life: 10 gp/week. High society: 100 gp/week.' },
+  { id:'training', label:'Training',         icon:'🏋',  cost:'1 gp/day',   days:'250 days',                desc:'Learn a new language or tool proficiency. 250 days + 250 gp total.' },
+  { id:'working',  label:'Practicing a Profession', icon:'🔨', cost:'Free', days:'Per session',             desc:'Skilled: maintain modest lifestyle. Skilled AND proficiency: comfortable lifestyle + 2 gp/day.' },
+  { id:'recup',    label:'Recuperating',     icon:'🛌',  cost:'Free',       days:'3+ days',                  desc:'3 days of rest: 1 exhaustion level removed OR 1 failed death save removed.' },
+  { id:'spellres', label:'Spell Research',   icon:'🔮',  cost:'50 gp/day',  days:'spell level × 2 weeks',   desc:'Scribe spells from a found spellbook. 50 gp/day. Time = spell level × 2 weeks.' },
+  { id:'contact',  label:'Pit Fighting / Crime / Gamble', icon:'🎲', cost:'Varies', days:'1 week',          desc:'Risky downtime. Roll d10+bonuses vs DC. Success = extra gold. Failure = injury/legal trouble.' },
+  { id:'custom',   label:'Custom Activity',  icon:'✦',  cost:'Custom',     days:'Custom',                   desc:'DM-defined downtime activity specific to the campaign.' },
+];
+
+function _loadDowntime() { try { return JSON.parse(localStorage.getItem(DOWNTIME_KEY)||'{}'); } catch { return {}; } }
+function _saveDowntime(d) { localStorage.setItem(DOWNTIME_KEY, JSON.stringify(d)); }
+
+function openDowntimeTracker() {
+  const ex = document.getElementById('downtimeOverlay');
+  if (ex) { ex.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'downtimeOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.90);z-index:9200;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+
+  const chars = (typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : []).slice(0, 30);
+  const charNames = chars.map(c => c.name);
+  const dt = _loadDowntime(); // { charName: { activity, days, notes, started } }
+
+  ov.innerHTML = `
+    <div style="width:700px;max-width:100%;color:#c8d0e8;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;position:sticky;top:0;background:rgba(6,6,26,0.97);padding:12px 0;border-bottom:1px solid rgba(68,170,68,0.2);backdrop-filter:blur(4px);z-index:10">
+        <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:700;color:#44aa44">⛺ Downtime Activities</div>
+        <button onclick="document.getElementById('downtimeOverlay').remove()" style="background:none;border:1px solid #2a2040;color:#6a5aaa;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px">✕</button>
+      </div>
+      <!-- Add new downtime log -->
+      <div style="background:rgba(0,0,0,0.35);border:1px solid rgba(68,170,68,0.2);border-radius:12px;padding:14px;margin-bottom:16px">
+        <div style="font-size:10px;color:#4a5272;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Log Downtime Activity</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
+          <div>
+            <div style="font-size:10px;color:#6a5aaa;margin-bottom:4px">Character</div>
+            <select id="dtChar" style="width:100%;background:#0c0c20;border:1px solid #2a2050;color:#c8d0e8;border-radius:6px;padding:6px;font-size:12px;box-sizing:border-box">
+              <option value="">— Select —</option>
+              ${charNames.map(n=>`<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <div style="font-size:10px;color:#6a5aaa;margin-bottom:4px">Activity</div>
+            <select id="dtActivity" onchange="_dtUpdateDesc()" style="width:100%;background:#0c0c20;border:1px solid #2a2050;color:#c8d0e8;border-radius:6px;padding:6px;font-size:12px;box-sizing:border-box">
+              ${DOWNTIME_ACTIVITIES.map(a=>`<option value="${a.id}">${a.icon} ${a.label}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <div style="font-size:10px;color:#6a5aaa;margin-bottom:4px">Days Spent</div>
+            <input id="dtDays" type="number" value="7" min="1" style="width:100%;background:#0c0c20;border:1px solid #2a2050;color:#c8d0e8;border-radius:6px;padding:6px;font-size:12px;box-sizing:border-box">
+          </div>
+        </div>
+        <div id="dtDesc" style="font-size:10px;color:#6a5272;font-style:italic;margin-bottom:8px;padding:6px 8px;background:rgba(0,0,0,0.2);border-radius:6px"></div>
+        <div style="display:flex;gap:8px">
+          <textarea id="dtNotes" placeholder="Optional notes (outcome, contacts made, item crafted, etc.)" style="flex:1;background:#0c0c20;border:1px solid #2a2050;color:#c8d0e8;border-radius:6px;padding:6px;font-size:11px;font-family:inherit;resize:none;height:44px"></textarea>
+          <button onclick="_dtLog()" style="background:rgba(68,170,68,0.15);border:1px solid rgba(68,170,68,0.5);color:#44aa44;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:13px;font-weight:700;white-space:nowrap">✓ Log</button>
+        </div>
+      </div>
+      <!-- Activity reference -->
+      <div style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:14px;margin-bottom:16px">
+        <div style="font-size:10px;color:#4a5272;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">PHB Downtime Reference</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">
+          ${DOWNTIME_ACTIVITIES.map(a => `
+            <div style="background:rgba(0,0,0,0.3);border:1px solid rgba(68,170,68,0.12);border-radius:8px;padding:10px">
+              <div style="font-size:12px;font-weight:700;color:#44aa44;margin-bottom:3px">${a.icon} ${escHtml(a.label)}</div>
+              <div style="font-size:9px;color:#c9a227;margin-bottom:3px">Cost: ${escHtml(a.cost)} · ${escHtml(a.days)}</div>
+              <div style="font-size:10px;color:#6a7090;line-height:1.4">${escHtml(a.desc)}</div>
+            </div>`).join('')}
+        </div>
+      </div>
+      <!-- Log history -->
+      <div style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div style="font-size:10px;color:#4a5272;text-transform:uppercase;letter-spacing:1px">Activity Log</div>
+          <button onclick="_dtClearLog()" style="background:none;border:1px solid #2a2040;color:#4a5272;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:10px">Clear</button>
+        </div>
+        <div id="dtLog" style="max-height:200px;overflow-y:auto"></div>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _dtUpdateDesc();
+  _dtRenderLog();
+}
+
+function _dtUpdateDesc() {
+  const sel = document.getElementById('dtActivity')?.value;
+  const act = DOWNTIME_ACTIVITIES.find(a => a.id === sel);
+  const el = document.getElementById('dtDesc');
+  if (el && act) el.textContent = act.desc;
+}
+
+function _dtLog() {
+  const charName = document.getElementById('dtChar')?.value;
+  const actId = document.getElementById('dtActivity')?.value;
+  const days = parseInt(document.getElementById('dtDays')?.value || 7);
+  const notes = document.getElementById('dtNotes')?.value || '';
+  if (!charName) { showToast('Select a character', '#cc4444'); return; }
+  const act = DOWNTIME_ACTIVITIES.find(a => a.id === actId);
+  const dt = _loadDowntime();
+  if (!dt.log) dt.log = [];
+  dt.log.unshift({
+    charName, actId, actLabel: act?.label||actId, icon: act?.icon||'✦',
+    days, notes, ts: new Date().toLocaleDateString()
+  });
+  if (dt.log.length > 100) dt.log.pop();
+  _saveDowntime(dt);
+  document.getElementById('dtNotes').value = '';
+  _dtRenderLog();
+  logEntry('note', `⛺ <strong>${escHtml(charName)}</strong>: ${days}d ${escHtml(act?.label||actId)}${notes?' — '+escHtml(notes.substring(0,60)):''}`);
+  showToast(`Logged ${days} days of ${act?.label||actId} for ${charName}`, '#44aa44');
+}
+
+function _dtClearLog() {
+  if (!confirm('Clear all downtime log entries?')) return;
+  const dt = _loadDowntime();
+  dt.log = [];
+  _saveDowntime(dt);
+  _dtRenderLog();
+}
+
+function _dtRenderLog() {
+  const el = document.getElementById('dtLog');
+  if (!el) return;
+  const dt = _loadDowntime();
+  const log = dt.log || [];
+  if (!log.length) { el.innerHTML = '<div style="color:#4a5272;font-size:11px;text-align:center;padding:12px">No downtime logged yet.</div>'; return; }
+  el.innerHTML = log.map((e, i) => `
+    <div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);align-items:flex-start">
+      <span style="font-size:14px">${e.icon||'✦'}</span>
+      <div style="flex:1">
+        <span style="font-size:12px;font-weight:700;color:#e0e0ff">${escHtml(e.charName)}</span>
+        <span style="font-size:11px;color:#44aa44"> — ${escHtml(e.actLabel)}</span>
+        <span style="font-size:10px;color:#4a5272"> · ${e.days}d · ${e.ts}</span>
+        ${e.notes ? `<div style="font-size:10px;color:#6a7090;font-style:italic;margin-top:2px">${escHtml(e.notes)}</div>` : ''}
+      </div>
+      <button onclick="_dtDeleteEntry(${i})" style="background:none;border:none;color:#3a3060;cursor:pointer;font-size:12px;padding:0">×</button>
+    </div>`).join('');
+}
+
+function _dtDeleteEntry(idx) {
+  const dt = _loadDowntime();
+  if (dt.log) { dt.log.splice(idx, 1); _saveDowntime(dt); _dtRenderLog(); }
+}
+
+// Add Downtime button to encounter row
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'Downtime Activity Tracker — log what characters do between sessions';
+    btn.style.cssText = 'border-color:#44aa44;color:#44aa44';
+    btn.textContent = '⛺ Downtime';
+    btn.onclick = openDowntimeTracker;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
