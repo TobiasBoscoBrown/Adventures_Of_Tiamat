@@ -3541,6 +3541,7 @@
   <button class="filter-btn" onclick="showPassiveSkills()" style="border-color:#2299bb;color:#2299bb;" title="Party passive Perception, Investigation & Insight">👁 Passives</button>
   <button class="filter-btn" onclick="openTreasureGenerator()" style="border-color:#c9a227;color:#c9a227;" title="Random treasure generator by CR">💎 Treasure</button>
   <button class="filter-btn" onclick="openCampaignTimeline()" style="border-color:#44cc88;color:#44cc88;" title="Campaign timeline — track key events">📅 Timeline</button>
+  <button class="filter-btn" onclick="openGraveyardPanel()" style="border-color:#555;color:#888;" title="Character graveyard — fallen heroes and villains">💀 Graveyard</button>
   <span style="color: #333; margin: 0 4px;">|</span>
   <span style="font-size:11px;color:#4a5272;margin-right:4px">View:</span>
   <button class="filter-btn view-btn active" id="viewGrid" onclick="setView('grid',this)" title="Grid view">⊞ Grid</button>
@@ -5063,7 +5064,8 @@ function renderGrid() {
       });
       return `<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:10px;margin-top:6px">${saves.join('')}</div>`;
     })();
-    return `<div class="card" style="--accent:${t.accent};--glow:${t.glow}" onclick="openModal(${i})" oncontextmenu="event.preventDefault();openStatBlockPopup(${JSON.stringify(c.name)},event)" title="Left-click to open full sheet • Right-click for stat block popup">
+    const deceasedOverlay = isDeceased(c.name) ? `<div style="position:absolute;inset:0;background:rgba(0,0,0,0.7);z-index:20;display:flex;align-items:center;justify-content:center;border-radius:10px;pointer-events:none"><div style="text-align:center"><div style="font-size:32px">💀</div><div style="font-size:10px;color:#666;font-family:'Cinzel',serif">DECEASED</div><div style="font-size:9px;color:#444">${graveyardState[c.name]?.cause||''}</div></div></div>` : '';
+    return `<div class="card" style="--accent:${isDeceased(c.name)?'#333':t.accent};--glow:${t.glow};${isDeceased(c.name)?'filter:grayscale(0.8);opacity:0.7':''}" onclick="openModal(${i})" oncontextmenu="event.preventDefault();openStatBlockPopup(${JSON.stringify(c.name)},event)" title="Left-click to open full sheet • Right-click for stat block popup">${deceasedOverlay}
       <div class="card-tooltip" style="--accent:${t.accent}">
         <div class="tt-name">${c.name}</div>
         <div class="tt-title">${c.title}</div>
@@ -9842,6 +9844,76 @@ function clearTagFilter(dropdown) {
   renderGrid();
 }
 // ────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// ITERATION 57: Character Graveyard — Track fallen characters
+//   with cause of death, session date. View campaign losses
+//   in a dedicated graveyard panel. Adds skull overlay on card.
+// ══════════════════════════════════════════════════════════
+let graveyardState = {};
+try { graveyardState = JSON.parse(localStorage.getItem('tiamat_graveyard')) || {}; } catch { graveyardState = {}; }
+function saveGraveyard() { localStorage.setItem('tiamat_graveyard', JSON.stringify(graveyardState)); }
+function isDeceased(name) { return !!graveyardState[name]; }
+function markDeceased(name, cause, date) {
+  graveyardState[name] = { cause: cause || 'Unknown', date: date || getCurrentCampaignDate(), killedAt: Date.now() };
+  saveGraveyard();
+  renderGrid();
+  showToast(`${name} has fallen.`, '#888');
+}
+function resurrect(name) {
+  delete graveyardState[name];
+  saveGraveyard();
+  renderGrid();
+  showToast(`${name} has been resurrected!`, '#44cc88');
+}
+function getCurrentCampaignDate() {
+  try {
+    const cal = JSON.parse(localStorage.getItem('tiamat_calendar'));
+    if (cal) return `Day ${cal.day}, ${cal.month}`;
+  } catch {}
+  return new Date().toLocaleDateString();
+}
+function openGraveyardPanel() {
+  const existing = document.getElementById('graveyardModal');
+  if (existing) { existing.remove(); return; }
+  const modal = document.createElement('div');
+  modal.id = 'graveyardModal';
+  modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#06061a;border:1px solid #333;border-radius:14px;padding:20px;z-index:9500;box-shadow:0 8px 48px rgba(0,0,0,.95);min-width:360px;max-width:600px;width:90vw;max-height:80vh;overflow-y:auto';
+  const dead = Object.entries(graveyardState).sort((a,b) => (b[1].killedAt||0) - (a[1].killedAt||0));
+  modal.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <span style="font-size:16px;font-weight:700;color:#888;font-family:'Cinzel',serif">💀 The Graveyard</span>
+      <button onclick="document.getElementById('graveyardModal').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+    </div>
+    ${!dead.length ? '<div style="text-align:center;color:#4a5272;padding:30px;font-size:12px">No characters have fallen... yet.</div>' :
+      dead.map(([name, info]) => {
+        const c = UNIQUE_CHARS.find(x => x.name === name);
+        const t = c ? getTheme(c.theme) : {accent:'#555'};
+        return `<div style="display:flex;gap:12px;margin-bottom:10px;padding:10px 12px;background:#0a0a1e;border:1px solid #1a1a2e;border-left:3px solid #444;border-radius:8px;opacity:0.85">
+          <div style="font-size:28px;opacity:0.5">💀</div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:600;color:#9098b8;text-decoration:line-through">${name}</div>
+            <div style="font-size:10px;color:#4a5272">${c?.title || ''} • ${info.date}</div>
+            <div style="font-size:11px;color:#666;margin-top:2px">Cause: <em>${info.cause}</em></div>
+          </div>
+          <button onclick="resurrect(${JSON.stringify(name)});document.getElementById('graveyardModal').innerHTML=document.getElementById('graveyardModal').innerHTML" style="background:rgba(68,204,136,.1);border:1px solid rgba(68,204,136,.3);color:#44cc88;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:10px">Resurrect</button>
+        </div>`;
+      }).join('')}
+    <div style="margin-top:12px;padding-top:10px;border-top:1px solid #1e2040">
+      <div style="font-size:11px;color:#4a5272;margin-bottom:8px">Mark a character as deceased:</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <select id="graveyardCharSel" style="flex:1;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">
+          <option value="">— Select Character —</option>
+          ${UNIQUE_CHARS.filter(c => !isDeceased(c.name)).map(c => `<option value="${c.name}">${c.name}</option>`).join('')}
+        </select>
+        <input id="graveyardCause" placeholder="Cause of death..." style="flex:2;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:4px 8px;font-size:11px">
+        <button onclick="const n=document.getElementById('graveyardCharSel').value,ca=document.getElementById('graveyardCause').value;if(n){markDeceased(n,ca);document.getElementById('graveyardModal').remove();openGraveyardPanel()}" style="background:rgba(100,100,100,.2);border:1px solid #444;color:#888;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px">💀 Mark Dead</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => e.stopPropagation());
+  document.addEventListener('click', function rem(e) { if (!modal.contains(e.target)) { modal.remove(); document.removeEventListener('click', rem); } });
+}
+
 // ══════════════════════════════════════════════════════════
 // ITERATION 56: Initiative Round Log — per-round combat log
 //   with auto-entries when rounds change. DMs can annotate
