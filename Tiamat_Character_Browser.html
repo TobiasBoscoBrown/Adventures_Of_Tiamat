@@ -8682,6 +8682,131 @@ function clearInitiative() {
 }
 
 // ══════════════════════════════════════════════════════════
+// ITERATION 74: Loot Distribution Tracker — assign gold and items
+//   from treasure generation to specific party members.
+//   Tracks cumulative received loot per character.
+// ══════════════════════════════════════════════════════════
+const LOOT_DIST_KEY = 'tiamat_loot_dist';
+
+function loadLootDist() {
+  try { return JSON.parse(localStorage.getItem(LOOT_DIST_KEY)) || {}; }
+  catch(e) { return {}; }
+}
+function saveLootDist(d) { localStorage.setItem(LOOT_DIST_KEY, JSON.stringify(d)); }
+
+function openLootDistributor(lootBundle) {
+  // lootBundle: { gp, items:[] } from treasure generator, or manual
+  const existing = document.getElementById('lootDistOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'lootDistOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:9600;display:flex;align-items:flex-start;justify-content:center;padding-top:6vh;overflow-y:auto';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  const dist = loadLootDist();
+  const partyChars = UNIQUE_CHARS.slice(0, 12); // First 12 chars or all
+  const bundle = lootBundle || { gp: 0, items: [] };
+
+  const charRows = partyChars.map(c => {
+    const totalGp = (dist[c.name]?.gp || 0);
+    const itemCount = (dist[c.name]?.items || []).length;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #1e2040">
+      <span style="flex:1;font-size:12px;color:#c8d0e8">${c.name}</span>
+      <span style="font-size:10px;color:#c9a227">${totalGp.toLocaleString()} gp</span>
+      <span style="font-size:10px;color:#4a5272">${itemCount} items</span>
+      <button onclick="assignLootGp(${JSON.stringify(c.name)},${bundle.gp},${partyChars.length})" style="background:rgba(201,162,39,0.1);border:1px solid rgba(201,162,39,0.3);color:#c9a227;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:10px" title="Give equal share">+${Math.floor(bundle.gp/partyChars.length)} gp</button>
+      <button onclick="openCharLootLog(${JSON.stringify(c.name)})" style="background:none;border:1px solid #2a2a50;color:#4a5272;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:10px">Log</button>
+    </div>`;
+  }).join('');
+
+  overlay.innerHTML = `
+    <div style="background:#0d0d1a;border:1px solid rgba(201,162,39,0.4);border-radius:14px;padding:24px;width:560px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.7)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div style="font-size:16px;font-weight:700;color:#c9a227">💰 Loot Distribution</div>
+        <button onclick="document.getElementById('lootDistOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <!-- Bundle summary -->
+      <div style="background:#06061a;border:1px solid #1e2040;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px">
+        <div style="color:#c9a227;font-weight:600;margin-bottom:4px">This Haul</div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap">
+          <span style="color:#c8d0e8">💰 ${bundle.gp.toLocaleString()} gp</span>
+          ${bundle.items?.length ? bundle.items.map(it => `<span style="color:#9b6dff">✦ ${it}</span>`).join('') : '<span style="color:#4a5272">No magic items</span>'}
+        </div>
+      </div>
+      <!-- Manual gold distribution -->
+      <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center">
+        <input type="number" id="lootManualGp" placeholder="GP amount" style="width:100px;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:6px 8px;font-size:12px">
+        <select id="lootManualChar" style="flex:1;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:6px 8px;font-size:11px;cursor:pointer">
+          ${partyChars.map(c => `<option value="${c.name}">${c.name}</option>`).join('')}
+        </select>
+        <button onclick="assignLootManual()" style="background:rgba(201,162,39,0.15);border:1px solid rgba(201,162,39,0.4);color:#c9a227;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:11px">Assign GP</button>
+        <button onclick="splitLootEvenly(${bundle.gp},${partyChars.length})" style="background:rgba(68,170,68,0.1);border:1px solid #44aa44;color:#44aa44;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:11px">÷ Split All</button>
+      </div>
+      <!-- Character rows -->
+      <div style="max-height:300px;overflow-y:auto">${charRows}</div>
+      <div style="margin-top:10px;text-align:right">
+        <button onclick="clearLootDist()" style="background:none;border:1px solid #cc3333;color:#cc3333;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:11px">🗑 Clear All Loot History</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function assignLootGp(charName, totalGp, count) {
+  const share = Math.floor(totalGp / count);
+  const dist = loadLootDist();
+  if (!dist[charName]) dist[charName] = { gp: 0, items: [] };
+  dist[charName].gp += share;
+  saveLootDist(dist);
+  showToast(`${charName} received ${share.toLocaleString()} gp`, '#c9a227');
+  openLootDistributor({ gp: totalGp, items: [] });
+}
+
+function assignLootManual() {
+  const gp   = parseInt(document.getElementById('lootManualGp')?.value) || 0;
+  const name = document.getElementById('lootManualChar')?.value;
+  if (!gp || !name) return;
+  const dist = loadLootDist();
+  if (!dist[name]) dist[name] = { gp: 0, items: [] };
+  dist[name].gp += gp;
+  saveLootDist(dist);
+  // Also add to currency tracker
+  if (typeof getCoins === 'function') {
+    const coins = getCoins(name);
+    coins.gp = (coins.gp || 0) + gp;
+    if (typeof currencyState !== 'undefined') {
+      currencyState[name] = coins;
+      if (typeof saveCurrency === 'function') saveCurrency();
+    }
+  }
+  showToast(`${name} +${gp.toLocaleString()} gp`, '#c9a227');
+  document.getElementById('lootManualGp').value = '';
+}
+
+function splitLootEvenly(totalGp, count) {
+  const share = Math.floor(totalGp / count);
+  const dist = loadLootDist();
+  UNIQUE_CHARS.slice(0, count).forEach(c => {
+    if (!dist[c.name]) dist[c.name] = { gp: 0, items: [] };
+    dist[c.name].gp += share;
+  });
+  saveLootDist(dist);
+  showToast(`Split ${totalGp.toLocaleString()} gp evenly — ${share.toLocaleString()} gp each`, '#c9a227');
+  document.getElementById('lootDistOverlay')?.remove();
+}
+
+function clearLootDist() {
+  saveLootDist({});
+  showToast('Loot history cleared', '#4a5272');
+  document.getElementById('lootDistOverlay')?.remove();
+}
+
+function openCharLootLog(charName) {
+  const dist = loadLootDist();
+  const rec  = dist[charName] || { gp: 0, items: [] };
+  showToast(`${charName}: ${rec.gp.toLocaleString()} gp total · ${rec.items.length} items`, '#c9a227');
+}
+
+// ══════════════════════════════════════════════════════════
 // ITERATION 73: Backstory Generator — random NPC backstory hooks
 //   by theme. Shown in character modal as collapsible section.
 // ══════════════════════════════════════════════════════════
@@ -11621,7 +11746,10 @@ function rollTreasure() {
     </div>
     ${t.gems.length ? `<div style="margin-bottom:8px"><div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:4px">💎 GEMS</div>${t.gems.map(([n,v]) => `<span style="background:#0a0a1e;border:1px solid rgba(68,136,255,0.3);color:#88bbff;border-radius:6px;padding:2px 8px;font-size:11px;margin:2px;display:inline-block">${n} (${v} gp)</span>`).join('')}</div>` : ''}
     ${t.magicItems.length ? `<div><div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:4px">✨ MAGIC ITEMS</div>${t.magicItems.map(m => `<div style="background:rgba(201,162,39,0.08);border:1px solid rgba(201,162,39,0.3);border-radius:6px;padding:4px 10px;font-size:12px;color:#c9a227;margin:3px 0">${m}</div>`).join('')}</div>` : '<div style="font-size:11px;color:#4a5272">No magic items this time</div>'}
-    <button onclick="rollTreasure()" style="margin-top:10px;background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.3);color:#c9a227;border-radius:6px;padding:5px 20px;cursor:pointer;font-size:11px">Roll Again</button>`;
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:10px">
+      <button onclick="rollTreasure()" style="background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.3);color:#c9a227;border-radius:6px;padding:5px 16px;cursor:pointer;font-size:11px">Roll Again</button>
+      <button onclick="openLootDistributor({gp:${t.gp},items:${JSON.stringify(t.magicItems)}})" style="background:rgba(68,170,68,.1);border:1px solid #44aa44;color:#44aa44;border-radius:6px;padding:5px 16px;cursor:pointer;font-size:11px">💰 Distribute</button>
+    </div>`;
 }
 
 // ══════════════════════════════════════════════════════════
