@@ -1718,6 +1718,58 @@
     box-shadow: 0 0 10px rgba(255,215,0,0.4);
   }
   .inspiration-modal-btn:hover { border-color: #ffd700; color: #ffd700; }
+  /* Iteration 32: Exhaustion Tracker */
+  .exhaustion-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    background: rgba(180,60,60,0.18);
+    border: 1px solid rgba(180,60,60,0.5);
+    color: #e07070;
+    cursor: pointer;
+    user-select: none;
+    transition: all .15s;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+  .exhaustion-badge:hover { opacity: 0.8; border-color: #cc4444; }
+  .exhaustion-badge.ex5, .exhaustion-badge.ex6 {
+    background: rgba(200,30,30,0.25);
+    border-color: rgba(200,30,30,0.7);
+    color: #ff6060;
+    animation: exhaustGlow 1.5s ease-in-out infinite;
+  }
+  @keyframes exhaustGlow {
+    0%,100% { box-shadow: 0 0 4px rgba(200,30,30,0.3); }
+    50% { box-shadow: 0 0 12px rgba(200,30,30,0.7); }
+  }
+  .exhaustion-widget {
+    background: #0e0e24;
+    border: 1px solid rgba(180,60,60,0.4);
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin: 8px 0;
+  }
+  .exhaustion-pips { display: flex; gap: 6px; margin: 8px 0; }
+  .ex-pip {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 2px solid #333;
+    background: #0a0a1e;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: #4a5272;
+    transition: all .15s;
+  }
+  .ex-pip.filled { border-color: #cc4444; background: rgba(180,50,50,0.3); color: #ff7070; }
+  .ex-pip.filled:nth-child(5), .ex-pip.filled:nth-child(6) {
+    border-color: #ff2020; background: rgba(220,20,20,0.35); color: #ff4040;
+    box-shadow: 0 0 8px rgba(220,20,20,0.5);
+  }
+  .ex-pip:hover { border-color: #aa3333; }
   /* Concentration modal button */
   .conc-set-btn {
     background: rgba(201,162,39,0.1);
@@ -4497,7 +4549,7 @@ function renderGrid() {
             </div>
           </div>
           ${c.quote ? `<div class="card-quote">"${c.quote}"</div>` : ''}
-          <div class="conditions-row" onclick="event.stopPropagation()">${getInspirationBadgeHtml(c.name)}${getConditionBadgesHtml(c.name)}${getConcBadgeHtml(c.name)}${getTagBadgesHtml(c.name)}</div>
+          <div class="conditions-row" onclick="event.stopPropagation()">${getInspirationBadgeHtml(c.name)}${getExhaustionBadgeHtml(c.name)}${getConditionBadgesHtml(c.name)}${getConcBadgeHtml(c.name)}${getTagBadgesHtml(c.name)}</div>
           <div style="display:flex;gap:8px;align-items:center;margin-top:3px" onclick="event.stopPropagation()">
             <button class="card-cond-btn ${hasConditions(c.name)?'has-conds':''}" onclick="openCondPopup(${JSON.stringify(c.name)},event)">⚡ ${hasConditions(c.name)?'Conds':'Condition'}</button>
             <button class="card-enc-btn ${isInActiveEncounter(c.name)?'in-enc':''}" onclick="addCharToActiveEncounter(${JSON.stringify(c.name)},${maxHp})">☩ ${isInActiveEncounter(c.name)?'In Enc':'Encounter'}</button>
@@ -4813,8 +4865,9 @@ function buildStatsPanel(c) {
   const noteBox = notes && notes.text ?
     `<div style="margin-bottom:10px;padding:10px;background:#06061a;border:1px solid rgba(155,109,255,0.3);border-radius:8px;font-size:12px;color:#9098b8;line-height:1.6"><span style="color:#9b6dff;font-weight:600">DM Notes: </span>${notes.text}</div>` : '';
 
+  const exWidget = buildExhaustionWidget(c.name);
   return `
-    ${condBadges}${noteBox}
+    ${condBadges}${noteBox}${exWidget}
     <div class="stats-section">
       <div class="stats-section-title">Combat Stats</div>
       <div style="margin-bottom:12px">
@@ -8624,6 +8677,77 @@ function clearTagFilter(dropdown) {
   renderGrid();
 }
 // ────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// ITERATION 32: Exhaustion Tracker — 1-6 level system with
+//   D&D 5e effect descriptions per level. Shows as badge on
+//   card, widget in stats panel. Very dangerous at level 5-6.
+// ══════════════════════════════════════════════════════════
+const EXHAUSTION_EFFECTS = [
+  null,
+  'Disadvantage on ability checks',
+  'Speed halved',
+  'Disadvantage on attack rolls and saving throws',
+  'Hit point maximum halved',
+  'Speed reduced to 0',
+  'Death'
+];
+let exhaustionState = {};
+try { exhaustionState = JSON.parse(localStorage.getItem('tiamat_exhaustion')) || {}; } catch { exhaustionState = {}; }
+function saveExhaustion() { localStorage.setItem('tiamat_exhaustion', JSON.stringify(exhaustionState)); }
+function getExhaustion(name) { return exhaustionState[name] || 0; }
+function setExhaustion(name, level) {
+  const lv = Math.max(0, Math.min(6, level));
+  if (lv === 0) delete exhaustionState[name]; else exhaustionState[name] = lv;
+  saveExhaustion();
+  renderGrid();
+  if (currentModalIdx >= 0 && filteredChars[currentModalIdx]?.name === name) {
+    const c = filteredChars[currentModalIdx];
+    document.getElementById('statsPanel').innerHTML = buildStatsPanel(c);
+  }
+}
+function getExhaustionBadgeHtml(name) {
+  const lv = getExhaustion(name);
+  if (lv === 0) return '';
+  const cls = (lv >= 5) ? 'ex5' : '';
+  return `<span class="exhaustion-badge ${cls}" onclick="event.stopPropagation();openExhaustionPopup(${JSON.stringify(name)},event)" title="Exhaustion Lv ${lv}: ${EXHAUSTION_EFFECTS[lv]}">☠ Exhausted ${lv}</span>`;
+}
+function buildExhaustionWidget(name) {
+  const lv = getExhaustion(name);
+  if (lv === 0) {
+    return `<div style="text-align:right;margin-bottom:4px"><button onclick="setExhaustion(${JSON.stringify(name)},1)" style="background:none;border:1px dashed #333;color:#4a5272;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:11px" onmouseover="this.style.borderColor='#cc4444';this.style.color='#e07070'" onmouseout="this.style.borderColor='#333';this.style.color='#4a5272'">+ Add Exhaustion</button></div>`;
+  }
+  const pips = [1,2,3,4,5,6].map(i =>
+    `<div class="ex-pip${i<=lv?' filled':''}" onclick="setExhaustion(${JSON.stringify(name)},${i===lv&&lv>0?i-1:i})" title="${i===lv?'Click to reduce':'Set level '+i}">${i}</div>`
+  ).join('');
+  return `<div class="exhaustion-widget">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:12px;color:#e07070;font-weight:600">☠ Exhaustion Level ${lv}</span>
+      <button onclick="setExhaustion(${JSON.stringify(name)},0)" style="background:none;border:1px solid #333;color:#4a5272;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:10px">✕ Clear</button>
+    </div>
+    <div class="exhaustion-pips">${pips}</div>
+    <div style="font-size:11px;color:#e07070;opacity:0.85;margin-top:4px">${EXHAUSTION_EFFECTS[lv]}</div>
+    ${lv > 1 ? `<div style="font-size:10px;color:#4a5272;margin-top:2px">All lower effects also apply</div>` : ''}
+  </div>`;
+}
+function openExhaustionPopup(name, evt) {
+  evt.stopPropagation();
+  const existing = document.querySelector('.ex-popup');
+  if (existing) { existing.remove(); return; }
+  const lv = getExhaustion(name);
+  const popup = document.createElement('div');
+  popup.className = 'ex-popup';
+  popup.style.cssText = 'position:fixed;background:#0e0e24;border:1px solid rgba(180,60,60,.5);border-radius:10px;padding:12px;z-index:9000;box-shadow:0 8px 32px rgba(0,0,0,.8);min-width:210px';
+  popup.innerHTML = `<div style="font-size:11px;color:#e07070;font-weight:700;margin-bottom:8px">☠ EXHAUSTION: ${name}</div>
+    ${[0,1,2,3,4,5,6].map(i => `<div onclick="setExhaustion(${JSON.stringify(name)},${i});this.closest('.ex-popup').remove()" style="padding:5px 8px;cursor:pointer;font-size:12px;border-radius:4px;color:${i===lv?'#ff6060':i===0?'#44aa44':'#9098b8'};${i===lv?'font-weight:700':''}" onmouseover="this.style.background='#1e2040'" onmouseout="this.style.background=''">
+      ${i===0?'✓ None':`Lv ${i}: ${EXHAUSTION_EFFECTS[i]}`}
+    </div>`).join('')}`;
+  document.body.appendChild(popup);
+  const rect = evt.target.getBoundingClientRect();
+  popup.style.left = Math.min(rect.left, window.innerWidth - 220) + 'px';
+  popup.style.top = (rect.bottom + 4) + 'px';
+  setTimeout(() => document.addEventListener('click', function rem(e) { if (!popup.contains(e.target)) { popup.remove(); document.removeEventListener('click', rem); } }), 50);
+}
+
 // ══════════════════════════════════════════════════════════
 // ITERATION 31: Inspiration Token — DnD Beyond's most used
 //   feature. Each character can hold Inspiration (granted by
