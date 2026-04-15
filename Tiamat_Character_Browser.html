@@ -3538,6 +3538,17 @@
   .loot-log-entry { padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
   .loot-log-entry.add { color: #44aa44; }
   .loot-log-entry.rem { color: #cc3333; }
+  /* ITERATION 88: Legendary Actions */
+  .leg-action-row { display:flex; gap:4px; align-items:center; padding:2px 8px 4px; flex-wrap:wrap; }
+  .leg-action-pip {
+    width:16px; height:16px; border-radius:50%; border:2px solid #c9a227;
+    background:rgba(201,162,39,0.15); cursor:pointer; transition:all 0.1s;
+    display:inline-block;
+  }
+  .leg-action-pip.used { background:#c9a227; border-color:#c9a227; }
+  .leg-action-pip:hover { transform:scale(1.2); }
+  .leg-label { font-size:9px; color:#c9a227; letter-spacing:0.5px; font-weight:700; margin-right:2px; }
+  .leg-set-btn { font-size:9px; color:#6a7299; background:none; border:1px solid #2a2a50; border-radius:4px; padding:1px 4px; cursor:pointer; }
   /* ITERATION 87: Dice Roller Panel */
   #dicePanel {
     position: fixed; bottom: 60px; right: 18px; width: 280px;
@@ -9651,6 +9662,59 @@ function removeAward(idx) {
 }
 
 // ══════════════════════════════════════════════════════════
+// ITERATION 88: Legendary Actions Tracker — per-combatant legendary
+//   action pips (1–5 configurable), reset each new round. Shows in
+//   initiative list for any entry configured as having legendary actions.
+// ══════════════════════════════════════════════════════════
+const LEG_KEY = 'tiamat_legendary';
+function loadLegendary() { try { return JSON.parse(localStorage.getItem(LEG_KEY)||'{}'); } catch { return {}; } }
+function saveLegendary(d) { localStorage.setItem(LEG_KEY, JSON.stringify(d)); }
+function getLegEntry(name) { return loadLegendary()[name] || null; }
+function setLegActions(name, count) {
+  const d = loadLegendary();
+  if (count <= 0) { delete d[name]; } else { d[name] = { max: count, used: 0 }; }
+  saveLegendary(d); renderInitiative();
+}
+function toggleLegPip(name, idx) {
+  const d = loadLegendary();
+  if (!d[name]) return;
+  // Toggle: if pip idx < used → set used to idx, else set used to idx+1
+  d[name].used = (d[name].used > idx) ? idx : idx + 1;
+  saveLegendary(d);
+  logEntry('combat', `⚡ <strong>${escHtml(name)}</strong> used legendary action (${d[name].used}/${d[name].max} used)`);
+  renderInitiative();
+}
+function resetLegActionsForRound() {
+  const d = loadLegendary();
+  Object.keys(d).forEach(k => { d[k].used = 0; });
+  saveLegendary(d);
+}
+function buildLegPips(name) {
+  const leg = getLegEntry(name);
+  if (!leg) return '';
+  const pips = Array.from({length: leg.max}, (_, i) =>
+    `<div class="leg-action-pip ${i < leg.used ? 'used':''}" onclick="toggleLegPip(${JSON.stringify(name)},${i})" title="Legendary action ${i+1}"></div>`
+  ).join('');
+  return `<div class="leg-action-row">
+    <span class="leg-label">⚡ LEG</span>${pips}
+    <button class="leg-set-btn" onclick="promptSetLeg(${JSON.stringify(name)},event)" title="Configure legendary actions">⚙</button>
+  </div>`;
+}
+function promptSetLeg(name, event) {
+  if (event) event.stopPropagation();
+  const current = getLegEntry(name);
+  const v = prompt(`Legendary actions for ${name} (0 to remove, 1-5):`, current ? current.max : 3);
+  const n = parseInt(v);
+  if (isNaN(n) || n < 0 || n > 5) return;
+  setLegActions(name, n);
+  logEntry('combat', n > 0 ? `⚡ <strong>${escHtml(name)}</strong> has ${n} legendary actions per round` : `Removed legendary actions from ${name}`);
+}
+function promptAddLeg(name, event) { promptSetLeg(name, event); }
+
+// Patch nextTurn to reset legendary actions at start of new round
+const _origNextTurn = typeof nextTurn !== 'undefined' ? nextTurn : null;
+
+// ══════════════════════════════════════════════════════════
 // ITERATION 87: Dice Roller Panel — floating panel with d4–d100,
 //   count, modifier, advantage/disadvantage, roll history.
 // ══════════════════════════════════════════════════════════
@@ -10456,6 +10520,8 @@ function nextTurn() {
     clearTurnActions();
     // Tick down condition durations
     if (typeof tickCondDurations === 'function') tickCondDurations();
+    // Reset legendary actions for all bosses
+    if (typeof resetLegActionsForRound === 'function') resetLegActionsForRound();
   }
   const active = initiativeList[currentTurnIdx];
   if (active) logEntry('combat', `<strong>${active.name}</strong>'s turn (Init: ${active.initiative})`);
@@ -10899,10 +10965,12 @@ function renderInitiative() {
         ${actionBtn('bonus','B','#88aa22')}
         ${actionBtn('reaction','R','#dd6622')}
         <button onclick="promptInitNote(${JSON.stringify(e.name)},event)" style="background:none;border:1px solid ${note?'#4455aa':'#2a2a50'};color:${note?'#6677aa':'#2a2a50'};border-radius:3px;padding:1px 3px;cursor:pointer;font-size:9px" title="${note?'Edit: '+note:'Add note'}">✎</button>
+        <button onclick="promptAddLeg(${JSON.stringify(e.name)},event)" style="background:none;border:1px solid ${getLegEntry&&getLegEntry(e.name)?'#c9a227':'#2a2a50'};color:${getLegEntry&&getLegEntry(e.name)?'#c9a227':'#2a2a50'};border-radius:3px;padding:1px 3px;cursor:pointer;font-size:9px" title="Set legendary actions">⚡</button>
       </div>
       ${hpText ? `<div class="init-hp-mini">${hpText}</div>` : ''}
       <button class="init-remove-btn" onclick="removeFromInitiative(${JSON.stringify(e.name)})">✕</button>
       ${durBadges ? `<div style="width:100%;padding:0 8px 4px;display:flex;gap:3px;flex-wrap:wrap">${durBadges}</div>` : ''}
+      ${typeof buildLegPips==='function' ? buildLegPips(e.name) : ''}
     </div>`;
   };
 
