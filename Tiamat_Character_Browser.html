@@ -3772,6 +3772,7 @@
   <button class="filter-btn" onclick="openEncounterDifficulty()" style="border-color:#cc3333;color:#cc3333;" title="Encounter Difficulty Calculator — XP thresholds (Easy/Medium/Hard/Deadly) · hotkey E">⚔ Difficulty</button>
   <button class="filter-btn" onclick="openQuickDamageCalc()" style="border-color:#dd6622;color:#dd6622;" title="Quick Attack — roll attack + damage with target AC check · hotkey Q">🎲 Quick Atk</button>
   <button class="filter-btn" onclick="openMassHpPanel()" style="border-color:#cc3333;color:#cc3333;" id="massHpBtn" title="Mass Damage/Heal — apply HP changes to multiple characters at once (AoE, area effects)">⚡ Mass HP</button>
+  <button class="filter-btn" onclick="openTravelCalc()" style="border-color:#44cc88;color:#44cc88;" title="Overland Travel Calculator — distance, pace, terrain, rations, random encounters">🗺 Travel</button>
   <button class="filter-btn" onclick="printPartySheet()" style="border-color:#4488ff;color:#4488ff;" title="Print Party Sheet — all party members on one printable page">🖨 Party Sheet</button>
   <button class="filter-btn" onclick="openWorldMap()" style="border-color:#44cc88;color:#44cc88;" title="World Map — pin characters to the Tiamat campaign map (hotkey: M)">🗺 World Map</button>
   <span style="color: #333; margin: 0 4px;">|</span>
@@ -22954,6 +22955,234 @@ function _applyMassHp(sign) { // sign: -1=damage, +1=heal
   // Refresh HP labels in the panel
   document.getElementById('massHpOverlay')?.remove();
   openMassHpPanel();
+}
+// Iter 139: Overland Travel Calculator — DM tool for calculating travel time,
+// terrain effects, random encounter frequency, and pace mechanics per D&D 5e.
+// Toolbar button added near existing tool buttons.
+const TRAVEL_KEY = 'tiamat_travel';
+const TRAVEL_PACES = [
+  { id:'slow',   label:'Slow',   mph:2, mipd:18, effect:'Advantage on Stealth. Allows foraging, navigating, and tracking.', color:'#44aa44', icon:'🐌' },
+  { id:'normal', label:'Normal', mph:3, mipd:24, effect:'No special effects.', color:'#c9a227', icon:'🚶' },
+  { id:'fast',   label:'Fast',   mph:4, mipd:30, effect:'-5 penalty to Perception. Cannot use Stealth.', color:'#cc3333', icon:'🏃' },
+];
+const TRAVEL_TERRAINS = [
+  { id:'road',     label:'Road / Highway',     mult:1.0, encFreq:'1-in-8' },
+  { id:'open',     label:'Open Fields / Plains',mult:1.0, encFreq:'1-in-6' },
+  { id:'forest',   label:'Forest / Woodland',   mult:0.75,encFreq:'1-in-4' },
+  { id:'hills',    label:'Hills / Moorland',    mult:0.75,encFreq:'1-in-4' },
+  { id:'mountains',label:'Mountains / Peaks',   mult:0.5, encFreq:'1-in-4' },
+  { id:'swamp',    label:'Swamp / Marsh',       mult:0.5, encFreq:'1-in-4' },
+  { id:'desert',   label:'Desert / Wastes',     mult:0.75,encFreq:'1-in-6' },
+  { id:'arctic',   label:'Arctic / Tundra',     mult:0.5, encFreq:'1-in-6' },
+  { id:'dungeon',  label:'Underground / Caves',  mult:0.5, encFreq:'1-in-4' },
+  { id:'sea',      label:'Sea / River',          mult:1.5, encFreq:'1-in-8' },
+];
+const TRAVEL_MOUNTS = [
+  { id:'foot',    label:'On Foot',       bonus:0 },
+  { id:'horse',   label:'Riding Horse',  bonus:20 },
+  { id:'warhorse',label:'Warhorse',      bonus:20 },
+  { id:'cart',    label:'Wagon / Cart',  bonus:10 },
+  { id:'ship',    label:'Sailing Ship',  bonus:60 },
+  { id:'boat',    label:'Rowboat',       bonus:10 },
+];
+
+function loadTravelState() {
+  try { return JSON.parse(localStorage.getItem(TRAVEL_KEY)) || {}; } catch { return {}; }
+}
+function saveTravelState(s) { localStorage.setItem(TRAVEL_KEY, JSON.stringify(s)); }
+
+function openTravelCalc() {
+  const existing = document.getElementById('travelCalcOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'travelCalcOverlay';
+  ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.72);z-index:9500;display:flex;align-items:flex-start;justify-content:center;padding-top:4vh;overflow-y:auto';
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  const st = loadTravelState();
+  const selPace = TRAVEL_PACES.find(p => p.id === st.pace) || TRAVEL_PACES[1];
+  _travelActivePace = selPace.id;
+  const selTerrain = TRAVEL_TERRAINS.find(t => t.id === st.terrain) || TRAVEL_TERRAINS[0];
+  const selMount = TRAVEL_MOUNTS.find(m => m.id === st.mount) || TRAVEL_MOUNTS[0];
+
+  ov.innerHTML = `
+    <div style="background:linear-gradient(160deg,#080810,#0d0d1a);border:1px solid rgba(68,170,68,0.4);border-radius:14px;padding:24px;width:540px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.9)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+        <div style="font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:#44cc88">🗺 Overland Travel Calculator</div>
+        <button onclick="document.getElementById('travelCalcOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:20px">✕</button>
+      </div>
+
+      <!-- Distance Input -->
+      <div style="margin-bottom:14px">
+        <div style="font-size:11px;color:#4a5272;letter-spacing:1px;margin-bottom:6px">DISTANCE (miles)</div>
+        <input id="travelDist" type="number" min="1" value="${st.dist||50}" placeholder="Enter distance in miles"
+          style="width:100%;background:#06061a;border:1px solid #1e3028;color:#44cc88;border-radius:8px;padding:10px 14px;font-size:20px;font-weight:700;outline:none;box-sizing:border-box;font-family:'Cinzel',serif"
+          onfocus="this.style.borderColor='#44cc88'" onblur="this.style.borderColor='#1e3028'"
+          oninput="_travelCalc()">
+      </div>
+
+      <!-- Pace -->
+      <div style="margin-bottom:14px">
+        <div style="font-size:11px;color:#4a5272;letter-spacing:1px;margin-bottom:6px">TRAVEL PACE</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px" id="travelPaceBtns">
+          ${TRAVEL_PACES.map(p => `
+            <button onclick="_travelSetPace('${p.id}')" id="tpace_${p.id}"
+              style="background:${p.id===selPace.id?'rgba('+hexToRgb(p.color)+',.18)':'none'};border:1px solid ${p.id===selPace.id?p.color:'#1e3028'};color:${p.id===selPace.id?p.color:'#4a5272'};border-radius:8px;padding:10px 6px;cursor:pointer;font-size:12px;font-weight:700;transition:all 0.15s">
+              <div style="font-size:18px;margin-bottom:3px">${p.icon}</div>
+              <div>${p.label}</div>
+              <div style="font-size:10px;font-weight:400;margin-top:2px">${p.mipd} mi/day</div>
+            </button>`).join('')}
+        </div>
+        <div id="travelPaceEffect" style="margin-top:8px;font-size:11px;color:#44aa66;padding:6px 10px;background:rgba(68,170,68,0.06);border:1px solid rgba(68,170,68,0.15);border-radius:6px">${selPace.effect}</div>
+      </div>
+
+      <!-- Terrain -->
+      <div style="margin-bottom:14px">
+        <div style="font-size:11px;color:#4a5272;letter-spacing:1px;margin-bottom:6px">TERRAIN TYPE</div>
+        <select id="travelTerrain" oninput="_travelCalc()"
+          style="width:100%;background:#06061a;border:1px solid #1e3028;color:#c8d0e8;border-radius:8px;padding:9px 12px;font-size:13px;cursor:pointer;outline:none">
+          ${TRAVEL_TERRAINS.map(t => `<option value="${t.id}" ${t.id===selTerrain.id?'selected':''}>${t.label} (×${t.mult} speed, encounter ${t.encFreq})</option>`).join('')}
+        </select>
+      </div>
+
+      <!-- Mount -->
+      <div style="margin-bottom:18px">
+        <div style="font-size:11px;color:#4a5272;letter-spacing:1px;margin-bottom:6px">TRANSPORT</div>
+        <select id="travelMount" oninput="_travelCalc()"
+          style="width:100%;background:#06061a;border:1px solid #1e3028;color:#c8d0e8;border-radius:8px;padding:9px 12px;font-size:13px;cursor:pointer;outline:none">
+          ${TRAVEL_MOUNTS.map(m => `<option value="${m.id}" ${m.id===selMount.id?'selected':''}>${m.label}${m.bonus?` (+${m.bonus} mi/day)`:''}</option>`).join('')}
+        </select>
+      </div>
+
+      <!-- Results -->
+      <div id="travelResults" style="background:rgba(68,170,68,0.05);border:1px solid rgba(68,170,68,0.2);border-radius:10px;padding:16px"></div>
+
+      <!-- Navigation & Foraging -->
+      <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button onclick="_travelNavCheck()" style="background:rgba(68,136,255,0.1);border:1px solid #4488ff44;color:#88aaff;border-radius:8px;padding:9px;cursor:pointer;font-size:12px;font-weight:700">🧭 Navigation Check</button>
+        <button onclick="_travelForageCheck()" style="background:rgba(68,170,68,0.1);border:1px solid #44aa4444;color:#44cc88;border-radius:8px;padding:9px;cursor:pointer;font-size:12px;font-weight:700">🌿 Foraging Check</button>
+      </div>
+      <div id="travelCheckResult" style="margin-top:8px;font-size:12px;min-height:20px;text-align:center"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  _travelCalc();
+}
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return `${r},${g},${b}`;
+}
+
+function _travelSetPace(id) {
+  _travelActivePace = id;
+  TRAVEL_PACES.forEach(p => {
+    const btn = document.getElementById('tpace_' + p.id);
+    if (!btn) return;
+    const active = p.id === id;
+    btn.style.background = active ? `rgba(${hexToRgb(p.color)},.18)` : 'none';
+    btn.style.borderColor = active ? p.color : '#1e3028';
+    btn.style.color = active ? p.color : '#4a5272';
+  });
+  const paceData = TRAVEL_PACES.find(p => p.id === id);
+  const el = document.getElementById('travelPaceEffect');
+  if (el && paceData) el.textContent = paceData.effect;
+  _travelCalc();
+}
+
+let _travelActivePace = 'normal';
+
+function _travelCalc() {
+  const distEl = document.getElementById('travelDist');
+  const terrainEl = document.getElementById('travelTerrain');
+  const mountEl = document.getElementById('travelMount');
+  const resEl = document.getElementById('travelResults');
+  if (!resEl) return;
+
+  const dist = parseFloat(distEl?.value) || 0;
+  const terrainId = terrainEl?.value || 'road';
+  const mountId = mountEl?.value || 'foot';
+
+  const pace = TRAVEL_PACES.find(p => p.id === _travelActivePace) || TRAVEL_PACES[1];
+  const terrain = TRAVEL_TERRAINS.find(t => t.id === terrainId) || TRAVEL_TERRAINS[0];
+  const mount = TRAVEL_MOUNTS.find(m => m.id === mountId) || TRAVEL_MOUNTS[0];
+
+  const baseMiPd = (pace.mipd + mount.bonus) * terrain.mult;
+  const days = dist > 0 ? dist / baseMiPd : 0;
+  const daysWhole = Math.ceil(days);
+  const hours = dist > 0 ? dist / (pace.mph * terrain.mult) : 0;
+  const hoursPerDay = 8; // standard travel hours per day
+  const encChecks = daysWhole;
+
+  // Rations needed (1 per person per day)
+  const partySize = (typeof getPartySettings === 'function' ? getPartySettings().size : null) || 4;
+  const rationTotal = daysWhole * partySize;
+  const waterTotal = daysWhole * partySize * 0.5; // 0.5 gallon per person per day (minimum)
+
+  // Save state
+  saveTravelState({ dist, pace: paceId, terrain: terrainId, mount: mountId });
+
+  if (dist <= 0) { resEl.innerHTML = '<div style="color:#4a5272;font-size:12px;text-align:center;font-style:italic">Enter a distance above to calculate travel time.</div>'; return; }
+
+  resEl.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+      <div style="text-align:center">
+        <div style="font-size:28px;font-weight:700;font-family:'Cinzel',serif;color:#44cc88">${daysWhole}</div>
+        <div style="font-size:10px;color:#4a5272;letter-spacing:.5px">DAY${daysWhole!==1?'S':''}</div>
+      </div>
+      <div style="text-align:center;border-left:1px solid #1e3028;border-right:1px solid #1e3028">
+        <div style="font-size:28px;font-weight:700;font-family:'Cinzel',serif;color:#c9a227">${hours.toFixed(1)}</div>
+        <div style="font-size:10px;color:#4a5272;letter-spacing:.5px">HOURS TOTAL</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:28px;font-weight:700;font-family:'Cinzel',serif;color:#88aaff">${baseMiPd.toFixed(1)}</div>
+        <div style="font-size:10px;color:#4a5272;letter-spacing:.5px">MI / DAY</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px">
+      <div style="background:#06061a;border:1px solid #1e2040;border-radius:6px;padding:8px">
+        <div style="color:#4a5272;margin-bottom:4px">🎲 Random Encounters</div>
+        <div style="color:#c8d0e8;font-weight:700">${encChecks} check${encChecks!==1?'s':''}</div>
+        <div style="color:#4a5272;font-size:10px">${terrain.encFreq} chance per day</div>
+      </div>
+      <div style="background:#06061a;border:1px solid #1e2040;border-radius:6px;padding:8px">
+        <div style="color:#4a5272;margin-bottom:4px">🍖 Rations (${partySize} party)</div>
+        <div style="color:#c8d0e8;font-weight:700">${rationTotal} rations</div>
+        <div style="color:#4a5272;font-size:10px">${(waterTotal).toFixed(1)} gal water</div>
+      </div>
+    </div>
+    <div style="margin-top:8px;font-size:10px;color:#2a3a30;text-align:center">
+      ${dist} miles · ${pace.label} pace · ${terrain.label} · ${mount.label}${mount.bonus?` +${mount.bonus}mi/day`:''}
+    </div>`;
+}
+
+function _travelNavCheck() {
+  const terrainEl = document.getElementById('travelTerrain');
+  const terrain = TRAVEL_TERRAINS.find(t => t.id === terrainEl?.value) || TRAVEL_TERRAINS[0];
+  const dc = terrain.mult < 0.6 ? 15 : terrain.mult < 0.9 ? 12 : 10;
+  const roll = Math.floor(Math.random()*20)+1;
+  const res = document.getElementById('travelCheckResult');
+  if (!res) return;
+  const success = roll >= dc;
+  res.innerHTML = `<span style="color:${success?'#44cc88':'#cc3333'}">🧭 Navigation: d20(${roll}) vs DC ${dc} — ${success?'✓ On course':'✗ LOST! d6 extra hours, may encounter hazards'}</span>`;
+  logEntry('roll', `🧭 Navigation check d20(${roll}) vs DC ${dc} — ${success?'on course':'party is lost!'}`);
+}
+
+function _travelForageCheck() {
+  const terrainEl = document.getElementById('travelTerrain');
+  const terrain = TRAVEL_TERRAINS.find(t => t.id === terrainEl?.value) || TRAVEL_TERRAINS[0];
+  // Foraging DC varies by terrain (DMG rules)
+  const forageDC = terrain.id === 'swamp' ? 20 : terrain.id === 'arctic' ? 20 : terrain.id === 'desert' ? 20 : terrain.id === 'dungeon' ? 20 : terrain.id === 'road' ? 15 : 15;
+  const wisBonus = 2; // assume average +2 WIS
+  const roll = Math.floor(Math.random()*20)+1;
+  const total = roll + wisBonus;
+  const success = total >= forageDC;
+  const foodFound = success ? Math.floor(Math.random()*3)+1 : 0;
+  const waterFound = success && !['desert','arctic'].includes(terrain.id);
+  const res = document.getElementById('travelCheckResult');
+  if (!res) return;
+  res.innerHTML = success
+    ? `<span style="color:#44cc88">🌿 Foraging: d20(${roll})+2=${total} vs DC ${forageDC} — Found ${foodFound} rations${waterFound?', water':''}</span>`
+    : `<span style="color:#cc3333">🌿 Foraging: d20(${roll})+2=${total} vs DC ${forageDC} — Nothing found today</span>`;
+  logEntry('roll', `🌿 Foraging check d20(${roll})+2=${total} vs DC ${forageDC} — ${success?`found ${foodFound} rations`:'nothing found'}`);
 }
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
