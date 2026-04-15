@@ -27653,6 +27653,150 @@ function _profUpdate() {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 173: Encounter Morale System — track group morale, roll morale checks
+// When enemies drop below thresholds, roll WIS saves to see if they flee/surrender.
+
+const MORALE_KEY = 'tiamat_morale';
+const MORALE_TRIGGERS = [
+  { id:'leader_down',   label:'Leader Killed/Downed',      dc:12, icon:'💀', desc:'The group\'s leader falls. DC 12 WIS save or rout.' },
+  { id:'half_fallen',   label:'Half of Group Fallen',       dc:10, icon:'⚠',  desc:'Half the group is downed. DC 10 WIS save or flee.' },
+  { id:'outclassed',   label:'Clearly Outmatched',          dc:15, icon:'😱', desc:'Far outclassed. DC 15 WIS save or surrender.' },
+  { id:'no_escape',    label:'Escape Route Blocked',        dc:8,  icon:'🚫', desc:'Trapped with no escape. DC 8 WIS save or surrender.' },
+  { id:'ally_fear',    label:'Ally Frightened or Fled',     dc:8,  icon:'😰', desc:'Watching an ally flee. DC 8 WIS save or join them.' },
+  { id:'massive_dmg',  label:'Massive Single Hit',          dc:10, icon:'💥', desc:'Single attack dealt >25% of max HP. DC 10 WIS.' },
+  { id:'custom',       label:'Custom Trigger',              dc:10, icon:'✦',  desc:'Custom DM-defined morale check.' },
+];
+
+const MORALE_MODIFIERS = [
+  { id:'fanatic',      label:'Fanatics / Undead',         mod: -4, desc:'Resistant to fear. -4 to DC.' },
+  { id:'leader_alive', label:'Inspiring Leader Alive',    mod: -2, desc:'Leader is still standing. -2 to DC.' },
+  { id:'cowardly',     label:'Cowardly / Low Morale',     mod: +4, desc:'Already scared. +4 to effective DC.' },
+  { id:'outnumber',    label:'Still Outnumber Party',     mod: -2, desc:'Numbers favor them. -2 to DC.' },
+];
+
+function openMoraleCheck() {
+  const ex = document.getElementById('moraleOverlay');
+  if (ex) { ex.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'moraleOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9200;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML = `
+    <div style="width:520px;max-width:100%;background:linear-gradient(160deg,#0e0820,#1a0a0a);border:2px solid rgba(204,136,34,0.4);border-radius:16px;padding:24px;color:#c8d0e8;font-family:'Inter',sans-serif;box-shadow:0 0 40px rgba(204,136,34,0.15)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+        <div style="font-family:'Cinzel',serif;font-size:17px;font-weight:700;color:#cc8822">⚠ Morale Check</div>
+        <button onclick="document.getElementById('moraleOverlay').remove()" style="background:none;border:1px solid #2a2040;color:#6a5aaa;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px">✕</button>
+      </div>
+      <!-- Trigger -->
+      <div style="margin-bottom:14px">
+        <div style="font-size:10px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Triggering Event</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px" id="moraleTriggers">
+          ${MORALE_TRIGGERS.map(t => `
+            <button id="mtrig_${t.id}" onclick="_moraleSetTrigger('${t.id}',${t.dc},this)" style="text-align:left;background:rgba(0,0,0,0.3);border:1px solid rgba(204,136,34,0.2);color:#9098b8;border-radius:8px;padding:8px 10px;cursor:pointer;font-size:11px;transition:all 0.15s">
+              ${t.icon} ${t.label}<br><span style="font-size:9px;color:#4a5272">DC ${t.dc}</span>
+            </button>`).join('')}
+        </div>
+      </div>
+      <!-- Modifiers -->
+      <div style="margin-bottom:14px">
+        <div style="font-size:10px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Situational Modifiers</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px" id="moraleMods">
+          ${MORALE_MODIFIERS.map(m => `
+            <button id="mmod_${m.id}" onclick="_moraleToggleMod('${m.id}',${m.mod},this)" style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.1);color:#6a5aaa;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:10px;transition:all 0.15s">
+              ${m.label} (${m.mod>0?'+':''}${m.mod})
+            </button>`).join('')}
+        </div>
+      </div>
+      <!-- Effective DC display -->
+      <div style="background:rgba(0,0,0,0.4);border:1px solid rgba(204,136,34,0.25);border-radius:10px;padding:12px;text-align:center;margin-bottom:14px">
+        <div style="font-size:10px;color:#6a5aaa;margin-bottom:4px">Effective DC</div>
+        <div id="moraleDCDisplay" style="font-size:32px;font-weight:700;font-family:'Cinzel',serif;color:#cc8822">—</div>
+        <div id="moraleDCBreakdown" style="font-size:10px;color:#4a5272;margin-top:4px"></div>
+      </div>
+      <!-- Roll button -->
+      <button id="moraleRollBtn" onclick="_moraleRoll()" style="width:100%;background:rgba(204,136,34,0.15);border:2px solid rgba(204,136,34,0.5);color:#cc8822;border-radius:10px;padding:12px;cursor:pointer;font-size:15px;font-weight:700;margin-bottom:10px" disabled>🎲 Roll Morale Check (d20 + WIS mod)</button>
+      <!-- Result -->
+      <div id="moraleResult" style="min-height:50px;text-align:center;font-size:13px;color:#4a5272">Select a triggering event to begin</div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  window._moraleState = { baseDC: null, mods: {} };
+}
+
+function _moraleSetTrigger(id, dc, btn) {
+  window._moraleState.baseDC = dc;
+  MORALE_TRIGGERS.forEach(t => {
+    const b = document.getElementById('mtrig_' + t.id);
+    if (b) { b.style.background = t.id === id ? 'rgba(204,136,34,0.2)' : 'rgba(0,0,0,0.3)'; b.style.borderColor = t.id === id ? 'rgba(204,136,34,0.6)' : 'rgba(204,136,34,0.2)'; b.style.color = t.id === id ? '#cc8822' : '#9098b8'; }
+  });
+  document.getElementById('moraleRollBtn').disabled = false;
+  _moraleUpdateDC();
+}
+
+function _moraleToggleMod(id, mod, btn) {
+  if (!window._moraleState) window._moraleState = { baseDC: null, mods: {} };
+  if (window._moraleState.mods[id]) {
+    delete window._moraleState.mods[id];
+    btn.style.background = 'rgba(0,0,0,0.2)'; btn.style.color = '#6a5aaa'; btn.style.border = '1px solid rgba(255,255,255,0.1)';
+  } else {
+    window._moraleState.mods[id] = mod;
+    btn.style.background = 'rgba(204,136,34,0.15)'; btn.style.color = '#cc8822'; btn.style.border = '1px solid rgba(204,136,34,0.4)';
+  }
+  _moraleUpdateDC();
+}
+
+function _moraleUpdateDC() {
+  const s = window._moraleState;
+  const el = document.getElementById('moraleDCDisplay');
+  const bd = document.getElementById('moraleDCBreakdown');
+  if (!el || s.baseDC === null) return;
+  const totalMod = Object.values(s.mods).reduce((a,b) => a+b, 0);
+  const effDC = Math.max(5, (s.baseDC || 10) + totalMod);
+  el.textContent = effDC;
+  const modParts = Object.entries(s.mods).map(([id, m]) => {
+    const mod = MORALE_MODIFIERS.find(mm => mm.id === id);
+    return `${mod?.label||id}: ${m>0?'+':''}${m}`;
+  });
+  bd.textContent = modParts.length ? `Base DC ${s.baseDC} ${modParts.map(p=>'· '+p).join(' ')}` : `Base DC ${s.baseDC}`;
+}
+
+function _moraleRoll() {
+  const s = window._moraleState;
+  if (s.baseDC === null) return;
+  const totalMod = Object.values(s.mods).reduce((a,b) => a+b, 0);
+  const effDC = Math.max(5, s.baseDC + totalMod);
+  // Roll for the group (single WIS save representing group)
+  const wisMod = Math.floor(Math.random() * 5) - 1; // -1 to +3 typical mob WIS
+  const roll = Math.floor(Math.random() * 20) + 1;
+  const total = roll + wisMod;
+  const success = total >= effDC;
+  const isCrit = roll === 20;
+  const isFumble = roll === 1;
+  const color = success ? '#44aa44' : '#cc4444';
+  const outcome = isCrit ? 'Stands firm — rally cry!' : isFumble ? 'Total rout — all flee immediately!' : success ? 'Holds their ground. Fight continues.' : 'Morale breaks — enemies flee or surrender!';
+  const el = document.getElementById('moraleResult');
+  if (el) el.innerHTML = `
+    <div style="font-size:22px;font-weight:700;color:${color};font-family:'Cinzel',serif">${success?'✓ Holds':'✗ Breaks'}</div>
+    <div style="font-size:11px;color:#6a7090;margin:4px 0">d20(${roll}) ${wisMod>=0?'+':''}${wisMod} = ${total} vs DC ${effDC}</div>
+    <div style="font-size:13px;color:${color};font-weight:600;line-height:1.4">${outcome}</div>
+    <button onclick="logEntry('combat','⚠ Morale Check: d20(${roll})${wisMod>=0?'+':''}${wisMod}=${total} vs DC ${effDC} → ${success?'HOLDS':'BREAKS'}: ${outcome.replace(/'/g,\\'\\'')}');showToast('Logged','${color}')" style="margin-top:8px;background:rgba(0,0,0,0.3);border:1px solid #2a2040;color:#6a5aaa;border-radius:5px;padding:4px 10px;cursor:pointer;font-size:10px">📋 Log</button>`;
+}
+
+// Add Morale Check button
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'Morale Check — enemy morale WIS save when conditions trigger retreat/surrender';
+    btn.style.cssText = 'border-color:#cc8822;color:#cc8822';
+    btn.textContent = '⚠ Morale';
+    btn.onclick = openMoraleCheck;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
