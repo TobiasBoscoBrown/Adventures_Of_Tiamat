@@ -4703,12 +4703,31 @@ function printCharCard() {
       <div class="stat-chip"><strong>Prof</strong> +${prof}</div>
       <div class="stat-chip"><strong>Passive Perc</strong> ${passivePerc}</div>
     </div>
-    ${conditions.length ? `<div class="section-title">Conditions</div><div>${conditions.map(cn => `<span class="cond-badge">${cn}</span>`).join('')}</div>` : ''}
+    ${conditions.length ? `<div class="section-title">Active Conditions</div><div>${conditions.map(cn => `<span class="cond-badge">${cn}</span>`).join('')}</div>` : ''}
+    ${(typeof getConcSpell==='function'&&getConcSpell(c.name)) ? `<div style="margin:4px 0;font-size:12px;color:#b89400">🔮 Concentrating on: <strong>${getConcSpell(c.name)}</strong></div>` : ''}
+    ${(typeof getCharTags==='function'&&getCharTags(c.name).length) ? `<div style="margin:4px 0;font-size:11px;color:#996600">🏷 Tags: ${getCharTags(c.name).join(', ')}</div>` : ''}
     <div class="section-title">Ability Scores</div>
     <div class="ab-grid">${abHtml}</div>
+    ${(() => {
+      const slotMax = (typeof getMaxSlotsForChar==='function') ? getMaxSlotsForChar(c) : null;
+      const usedSlots = (typeof getUsedSlots==='function') ? getUsedSlots(c.name) : {};
+      if (!slotMax) return '';
+      const ordinals = ['','1st','2nd','3rd','4th','5th','6th','7th','8th','9th'];
+      const rows = Object.keys(slotMax).sort((a,b)=>a-b).map(lvl => {
+        const max = slotMax[lvl]; const used = usedSlots[lvl] || 0;
+        return `<div style="display:inline-block;margin-right:10px;font-size:11px">${ordinals[lvl]}: ${max-used}/${max}</div>`;
+      }).join('');
+      return `<div class="section-title">Spell Slots</div><div>${rows}</div>`;
+    })()}
     ${c.traits && c.traits.length ? `<div class="section-title">Traits & Features</div>${c.traits.map(tr => `<div class="trait">${tr}</div>`).join('')}` : ''}
     ${rels.length ? `<div class="section-title">Relationships</div><div>${rels.map(r => `<span class="rel-badge">${REL_ICONS[r.type]||''} ${r.target} (${r.type})</span>`).join('')}</div>` : ''}
     ${notes && notes.text ? `<div class="section-title">DM Notes</div><div class="note-box">${notes.text}</div>` : ''}
+    ${(()=>{
+      const log = (typeof hpLog!=='undefined') ? (hpLog[c.name]||[]).slice(0,5) : [];
+      if (!log.length) return '';
+      const rows = log.map(e => `<div style="font-size:10px;color:#555;margin-bottom:2px">${e.ts} — ${e.type==='dmg'?'⚔':'✚'} ${e.amount} → ${e.afterHp}/${e.maxHp}</div>`).join('');
+      return `<div class="section-title">Recent HP History</div>${rows}`;
+    })()}
     ${c.lore ? `<div class="section-title">Lore</div><div class="lore">${c.lore}</div>` : ''}
     ${c.quote ? `<div class="quote">"${c.quote}"</div>` : ''}
     <div style="margin-top:20px;font-size:10px;color:#aaa;text-align:right">Adventures of Tiamat · Printed ${new Date().toLocaleDateString()}</div>
