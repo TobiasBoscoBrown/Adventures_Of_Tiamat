@@ -6084,6 +6084,7 @@ function buildCombatBar(c) {
   (c.abilities || []).forEach(([n,s,m]) => ab[n] = { score: s, mod: parseInt(m)||0 });
   const dexMod = ab['DEX'] ? ab['DEX'].mod : 0;
   const wisMod = ab['WIS'] ? ab['WIS'].mod : 0;
+  const intMod = ab['INT'] ? ab['INT'].mod : 0;
   const prof = c.cr === '30' ? 9 : c.cr === '21' || c.cr === '20' ? 7 : c.cr === '17' || c.cr === '16' ? 6 :
                c.cr === '15' || c.cr === '14' ? 5 : c.cr === '13' || c.cr === '9' || c.cr === '10' ? 4 :
                c.cr === '7' || c.cr === '8' ? 3 : c.cr === '5' || c.cr === '6' ? 3 : 2;
@@ -6091,7 +6092,10 @@ function buildCombatBar(c) {
   const currHp = getCharHP(c.name, maxHp);
   const hpPct = currHp / maxHp;
   const initBonus = dexMod >= 0 ? `+${dexMod}` : `${dexMod}`;
-  const passivePerc = 10 + wisMod + prof;
+  // Iteration 34: Passive skill calculations
+  const passivePerc   = 10 + wisMod + prof;
+  const passiveInvest = 10 + intMod + prof;
+  const passiveInsight= 10 + wisMod;
   const speed = c.theme === 'nature' ? 40 : c.theme === 'ocean' ? 35 : c.theme === 'fire' ? 30 : 30;
 
   const box = (label, value, sub, rollable, onClick) =>
@@ -6101,16 +6105,37 @@ function buildCombatBar(c) {
       ${sub ? `<div class="combat-stat-sub">${sub}</div>` : ''}
     </div>`;
 
-  return [
+  const mainBar = [
     box('Armor Class', c.ac, 'AC', false, null),
     box('Initiative', initBonus, 'DEX mod', true, `rollModalInitiative(${dexMod})`),
     box('Speed', speed + ' ft', null, false, null),
     box('HP', `<span style="color:${hpBarColor(hpPct)}">${currHp}</span>`, `of ${maxHp} max`, false, null),
     box('Hit Dice', 'd' + (parseInt(c.hp) > 100 ? '12' : '8'), null, false, null),
     box('Prof Bonus', `+${prof}`, 'CR ' + c.cr, false, null),
-    box('Passive Perc', passivePerc, 'WIS', false, null),
     box('CR', c.cr, 'Challenge', false, null),
   ].join('');
+
+  // Passive skills row (Iteration 34)
+  const passiveRow = `<div style="display:flex;gap:8px;padding:6px 12px;background:#06061a;border-top:1px solid #0e0e24;flex-wrap:wrap">
+    <div title="Passive Perception = 10 + WIS mod + Prof (proficient in Perception by default)" style="display:flex;align-items:center;gap:5px;padding:3px 10px;background:#0a0a1e;border:1px solid rgba(68,136,255,0.2);border-radius:8px;cursor:default">
+      <span style="font-size:10px;color:#4a5272;letter-spacing:0.5px">👁 PASSIVE PERC</span>
+      <span style="font-size:15px;font-weight:700;color:#4488ff;font-family:'Cinzel',serif">${passivePerc}</span>
+    </div>
+    <div title="Passive Investigation = 10 + INT mod + Prof" style="display:flex;align-items:center;gap:5px;padding:3px 10px;background:#0a0a1e;border:1px solid rgba(136,68,255,0.2);border-radius:8px;cursor:default">
+      <span style="font-size:10px;color:#4a5272;letter-spacing:0.5px">🔍 PASSIVE INVEST</span>
+      <span style="font-size:15px;font-weight:700;color:#8844ff;font-family:'Cinzel',serif">${passiveInvest}</span>
+    </div>
+    <div title="Passive Insight = 10 + WIS mod (typically not proficient)" style="display:flex;align-items:center;gap:5px;padding:3px 10px;background:#0a0a1e;border:1px solid rgba(68,200,120,0.2);border-radius:8px;cursor:default">
+      <span style="font-size:10px;color:#4a5272;letter-spacing:0.5px">🧠 PASSIVE INSIGHT</span>
+      <span style="font-size:15px;font-weight:700;color:#44cc88;font-family:'Cinzel',serif">${passiveInsight}</span>
+    </div>
+    <div title="Proficiency Bonus based on CR" style="display:flex;align-items:center;gap:5px;padding:3px 10px;background:#0a0a1e;border:1px solid rgba(201,162,39,0.2);border-radius:8px;cursor:default">
+      <span style="font-size:10px;color:#4a5272;letter-spacing:0.5px">⚔ PROF BONUS</span>
+      <span style="font-size:15px;font-weight:700;color:#c9a227;font-family:'Cinzel',serif">+${prof}</span>
+    </div>
+  </div>`;
+
+  return mainBar + passiveRow;
 }
 
 function rollModalInitiative(dexMod) {
