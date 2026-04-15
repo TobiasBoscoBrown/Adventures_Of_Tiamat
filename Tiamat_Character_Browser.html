@@ -3829,6 +3829,7 @@
       <div style="display:flex">
         <div class="modal-tab active" data-tab="stats" onclick="switchModalTab('stats', this)">Stats</div>
         <div class="modal-tab" data-tab="story" onclick="switchModalTab('story', this)">Story</div>
+        <div class="modal-tab" data-tab="background" onclick="switchModalTab('background', this)">BG</div>
         <div class="modal-tab" data-tab="sheet" onclick="switchModalTab('sheet', this)">Sheet</div>
       </div>
       <button onclick="generateNpcDialog(filteredChars[currentModalIdx]?.name)" style="background:none;border:1px solid #2a2a50;color:#7a7aaa;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:12px;margin-right:4px;transition:all 0.15s" onmouseover="this.style.borderColor='#9b6dff';this.style.color='#9b6dff'" onmouseout="this.style.borderColor='#2a2a50';this.style.color='#7a7aaa'" title="Generate NPC dialog lines from personality">💬 Dialog</button>
@@ -3842,6 +3843,9 @@
     </div>
     <div id="modalTabStory" class="modal-tab-content">
       <div class="stats-panel" id="storyPanel"></div>
+    </div>
+    <div id="modalTabBackground" class="modal-tab-content">
+      <div class="stats-panel" id="bgPanel"></div>
     </div>
     <div id="modalTabSheet" class="modal-tab-content">
       <div id="modalPdf" style="padding: 0;"></div>
@@ -8370,6 +8374,8 @@ function openModal(idx) {
 
   // Build story panel
   document.getElementById('storyPanel').innerHTML = buildStoryPanel(c);
+  // Iter 150: Render background panel
+  if (typeof renderBgPanel === 'function') renderBgPanel(c);
 
   // Build PDF
   const pdfName = 'Character Sheets/' + c.name.replace(/\s+/g, '_') + '_Character_Sheet.pdf';
@@ -24382,6 +24388,95 @@ function _rollContest() {
     <div style="font-size:16px;font-weight:700;color:${winColor}">${winLabel}</div>`;
 
   logEntry('roll', `⚔ Contest: <strong>${escHtml(nameA||'')} ${skillA}</strong> (${totalA}) vs <strong>${escHtml(nameB||'')} ${skillB}</strong> (${totalB}) → <strong>${winner === 'TIE' ? 'TIE' : escHtml(winner)} wins</strong>`);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 150: Character Background Panel — Traits / Ideals / Bonds / Flaws
+//   Core DND Beyond feature. Each character gets a dedicated "BG" tab in the
+//   modal with the 4 classic background pillars (editable, saved to localStorage).
+//   Pre-populated from existing NPC data where possible. Includes a background
+//   name field and optional character notes on their background story.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const BG_KEY = 'tiamat_backgrounds';
+
+function loadBg(name) {
+  try { const all = JSON.parse(localStorage.getItem(BG_KEY) || '{}'); return all[name] || {}; } catch { return {}; }
+}
+
+function saveBg(name, field, val) {
+  const all = (() => { try { return JSON.parse(localStorage.getItem(BG_KEY) || '{}'); } catch { return {}; } })();
+  if (!all[name]) all[name] = {};
+  all[name][field] = val;
+  localStorage.setItem(BG_KEY, JSON.stringify(all));
+}
+
+// Derive sensible defaults from existing character data so the panel
+// isn't blank for existing NPCs.
+function _bgDefaults(c) {
+  const traitList = (c.traits || []).slice(0, 2).join('\n');
+  const alignLine = (c.subtitle || '').match(/(?:Lawful|Neutral|Chaotic)\s+(?:Good|Neutral|Evil)/i)?.[0] || '';
+  const quoteLine = c.quote ? `"${c.quote}"` : '';
+  return {
+    bgName: '',
+    traits: traitList,
+    ideals: alignLine ? `${alignLine}. ${quoteLine}` : quoteLine,
+    bonds: c.lore ? c.lore.substring(0, 120) + (c.lore.length > 120 ? '…' : '') : '',
+    flaws: ''
+  };
+}
+
+function renderBgPanel(c) {
+  const saved = loadBg(c.name);
+  const def = _bgDefaults(c);
+  const get = (f) => (saved[f] !== undefined ? saved[f] : def[f] || '');
+
+  const field = (label, key, placeholder, icon, color) => `
+    <div style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+        <span style="font-size:14px">${icon}</span>
+        <span style="font-size:11px;font-weight:700;letter-spacing:1px;color:${color};text-transform:uppercase">${label}</span>
+      </div>
+      <textarea
+        rows="3"
+        placeholder="${placeholder}"
+        style="width:100%;background:rgba(0,0,0,0.3);border:1px solid ${color}44;color:#c8d0e8;border-radius:8px;padding:9px 11px;font-size:12px;font-family:inherit;resize:vertical;outline:none;box-sizing:border-box;line-height:1.5;transition:border-color 0.15s"
+        onfocus="this.style.borderColor='${color}99'"
+        onblur="this.style.borderColor='${color}44';saveBg(${JSON.stringify(c.name)},${JSON.stringify(key)},this.value)"
+        onchange="saveBg(${JSON.stringify(c.name)},${JSON.stringify(key)},this.value)"
+      >${escHtml(get(key))}</textarea>
+    </div>`;
+
+  const bgNameVal = get('bgName');
+  const html = `
+    <div style="padding:4px 0 10px">
+      <!-- Background name row -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:10px 14px;background:rgba(201,162,39,0.05);border:1px solid rgba(201,162,39,0.2);border-radius:10px">
+        <span style="font-size:16px">📜</span>
+        <div style="flex:1">
+          <div style="font-size:10px;color:#c9a22788;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px">Background</div>
+          <input
+            type="text"
+            value="${escHtml(bgNameVal)}"
+            placeholder="e.g. Noble, Soldier, Sage, Criminal…"
+            style="width:100%;background:none;border:none;border-bottom:1px solid rgba(201,162,39,0.3);color:#c9a227;font-size:13px;font-family:'Cinzel',serif;font-weight:700;outline:none;padding:2px 0;box-sizing:border-box"
+            onblur="saveBg(${JSON.stringify(c.name)},'bgName',this.value)"
+            onchange="saveBg(${JSON.stringify(c.name)},'bgName',this.value)"
+          >
+        </div>
+      </div>
+      <!-- The 4 pillars -->
+      ${field('Personality Traits', 'traits', 'How does this character act? What quirks or mannerisms define them?', '🎭', '#4488ff')}
+      ${field('Ideals', 'ideals', 'What principles and beliefs drive them? What do they stand for?', '⭐', '#c9a227')}
+      ${field('Bonds', 'bonds', 'What people, places, or events tie them to the world?', '🔗', '#44cc88')}
+      ${field('Flaws', 'flaws', 'What are their vices, fears, or weaknesses?', '💀', '#cc4444')}
+      <!-- Existing traits hint -->
+      ${(c.traits||[]).length > 0 ? `
+        <div style="margin-top:6px;padding:8px 12px;background:rgba(0,0,0,0.2);border:1px solid #1e2040;border-radius:8px">
+          <div style="font-size:10px;color:#4a5272;letter-spacing:1px;text-transform:uppercase;margin-bottom:5px">Ability Traits (from stat block)</div>
+          ${(c.traits||[]).map(t=>`<div style="font-size:11px;color:#7a8aaa;padding:2px 0;border-bottom:1px solid #1a1a30">• ${escHtml(t)}</div>`).join('')}
+        </div>` : ''}
+    </div>`;
+  document.getElementById('bgPanel').innerHTML = html;
 }
 // ─────────────────────────────────────────────────────────────────────────────
 </script>

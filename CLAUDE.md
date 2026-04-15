@@ -2,7 +2,7 @@
 
 ## Project Overview
 A single-file D&D campaign management web app for the "Tiamat" world.
-**File:** `Tiamat_Character_Browser.html` (22,000+ lines, self-contained)
+**File:** `Tiamat_Character_Browser.html` (24,000+ lines, self-contained)
 **Goal:** Make this the ultimate DM tool — better than DND Beyond, with full user control.
 
 ## Architecture
@@ -64,15 +64,28 @@ Core character browser, search/filter, dark theme, tooltips, view modes.
 - Iter 129: Damage Type Vulnerability/Resistance quick reference
 - Iter 130: Keyboard shortcuts (Q=quick attack, E=encounter diff, ?=help, i/h/n/t/r)
 
-### Iter 131: Interactive World Map ← CURRENT
-- "🗺 World Map" toolbar button
-- Full-screen overlay showing Tiamat Map.jpg
-- DM can pin characters to map locations (click to place in edit mode)
-- Pins stored in localStorage (`tiamat_map_pins`)
-- Color-coded pins matching character themes
-- Click pin to open character modal
-- Right-click pin to remove it
-- Search bar to filter visible pins
+### Iterations 131–140
+- Iter 131: Interactive World Map — pin characters to Tiamat map (full-screen overlay)
+- Iter 132: Relationship Sentiment Tracker — how Character A feels about Character B
+- Iter 133: Per-Character XP & Level Tracker — award XP, track level progress
+- Iter 134: Command Palette (Ctrl+K) — VS Code-style search over every feature
+- Iter 135: Wounds & Injuries Tracker — optional gritty injury system
+- Iter 136: Combat UX improvements
+- Iter 137: Sort by ability score + current HP% in character grid
+- Iter 138: Mass Damage/Heal — apply HP changes to multiple characters at once
+- Iter 139: Overland Travel Calculator — DM tool for travel time/distance
+- Iter 140: Ability Score Roller — 4d6 drop lowest for character creation
+
+### Iterations 141–150
+- Iter 141: Import Character from JSON — toolbar button + function
+- Iter 142: Party Summary Panel — at-a-glance HP/conditions for all party members
+- Iter 143: Improv NPC Card Generator — instant personality card for improvised NPCs
+- Iter 144: Class Ability Resource Tracker — track limited-use class features
+- Iter 145: Bulk Condition Apply — select multiple characters, apply/remove conditions
+- Iter 147: Spell Upcast Calculator — calculate scaled spell damage at higher slots
+- Iter 148: Session Timer — live duration counter in HUD (pause/resume/reset)
+- Iter 149: Skill Contest Roller — opposed skill check between two characters
+- Iter 150: Character Background Panel — Traits/Ideals/Bonds/Flaws tab in modal ← CURRENT
 
 ## Features Currently Implemented (What We Have)
 - Character browser: search, filter by category/theme, view modes (grid/compact/list)
@@ -114,12 +127,12 @@ Core character browser, search/filter, dark theme, tooltips, view modes.
 - [x] Concentration tracker
 - [x] Action economy tracker
 - [x] Attunement tracking (3 max)
-- [ ] **World map with character locations** ← Iter 131
-- [ ] Character progression (level up, XP tracking)
+- [x] World map with character locations (Iter 131)
+- [x] Character XP & level tracking (Iter 133)
+- [x] Backgrounds (Traits/Ideals/Bonds/Flaws) — Iter 150
+- [ ] Character progression (level up workflow)
 - [ ] Spell compendium with full descriptions
-- [ ] Backgrounds (Traits/Ideals/Bonds/Flaws format)
 - [ ] Monster stat block generator
-- [ ] Weather/environment tracker
 - [ ] NPC relationship strength (like/dislike/trust meter)
 
 ## Things Better Than DND Beyond
