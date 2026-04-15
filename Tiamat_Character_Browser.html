@@ -3705,6 +3705,7 @@
   <button class="filter-btn" onclick="showPassiveSkills()" style="border-color:#2299bb;color:#2299bb;" title="Party passive Perception, Investigation & Insight">👁 Passives</button>
   <button class="filter-btn" onclick="openPartyCheckRoller()" style="border-color:#aa44ff;color:#aa44ff;" title="Party Check Roller — roll any skill for the whole party at once">🎯 Party Roll</button>
   <button class="filter-btn" onclick="openGroupHpDashboard()" style="border-color:#44aa44;color:#44aa44;" title="Group HP Dashboard — all characters at a glance">❤ Group HP</button>
+  <button class="filter-btn" onclick="openRestPanel()" style="border-color:#88bbff;color:#88bbff;" title="Rest Panel — short or long rest for party or individual characters">💤 Rest</button>
   <button class="filter-btn" onclick="openTreasureGenerator()" style="border-color:#c9a227;color:#c9a227;" title="Random treasure generator by CR">💎 Treasure</button>
   <button class="filter-btn" onclick="openRandomEncTable()" style="border-color:#cc8844;color:#cc8844;" title="Random Encounter Table — roll by terrain">🎲 Enc Table</button>
   <button class="filter-btn" onclick="openCampaignTimeline()" style="border-color:#44cc88;color:#44cc88;" title="Campaign timeline — track key events">📅 Timeline</button>
@@ -11954,6 +11955,118 @@ function rollPartyCheck() {
     const summary = rollResults.map(r => `${r.name}:${r.total}`).join(', ');
     logEntry(`🎯 Party ${skillName} check${dcLabel}: ${summary}`);
   }
+}
+
+// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════
+// ITERATION 101: Rest Panel — short/long rest for party or
+//   individual characters. Long rest: full HP, all slots,
+//   reset concentration. Short rest: spend hit dice.
+//   Toolbar: 💤 Rest
+// ══════════════════════════════════════════════════════════
+function openRestPanel() {
+  const existing = document.getElementById('restPanelOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'restPanelOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto;';
+  const allChars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+  ov.innerHTML = `
+    <div style="background:#151c2e;border:1px solid #88bbff;border-radius:12px;width:600px;max-width:100%;padding:24px;color:#c8d0e8;font-family:'Inter',sans-serif;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-size:18px;font-weight:700;color:#88bbff;">💤 Rest Panel</div>
+        <button onclick="document.getElementById('restPanelOverlay').remove()" style="background:#2a3358;border:none;color:#c8d0e8;border-radius:6px;padding:6px 14px;cursor:pointer;">✕ Close</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+        <div style="background:#0e1422;border:1px solid #88bbff33;border-radius:8px;padding:14px;text-align:center;">
+          <div style="font-size:16px;font-weight:700;color:#88bbff;margin-bottom:6px;">🌙 Long Rest</div>
+          <div style="font-size:12px;color:#9098b8;margin-bottom:10px;">Full HP · All spell slots · Reset conc · Hit dice ½ recovery</div>
+          <button onclick="doPartyRest('long')" style="background:#88bbff;border:none;color:#151c2e;border-radius:6px;padding:8px 20px;cursor:pointer;font-weight:700;width:100%;">Party Long Rest</button>
+        </div>
+        <div style="background:#0e1422;border:1px solid #aabb8833;border-radius:8px;padding:14px;text-align:center;">
+          <div style="font-size:16px;font-weight:700;color:#aabb88;margin-bottom:6px;">⏱ Short Rest</div>
+          <div style="font-size:12px;color:#9098b8;margin-bottom:10px;">Spend hit dice · Warlock slots recover · No HP auto-recovery</div>
+          <button onclick="doPartyRest('short')" style="background:#aabb88;border:none;color:#151c2e;border-radius:6px;padding:8px 20px;cursor:pointer;font-weight:700;width:100%;">Party Short Rest</button>
+        </div>
+      </div>
+      <div style="font-size:12px;color:#9098b8;font-weight:600;margin-bottom:8px;">Individual Character Rests:</div>
+      <div style="display:flex;flex-direction:column;gap:6px;max-height:40vh;overflow-y:auto;">
+        ${allChars.map(c => {
+          const maxHp = parseInt(c.hp) || 1;
+          const currHp = (typeof getCharHP === 'function') ? getCharHP(c.name, maxHp) : maxHp;
+          const pct = Math.round(currHp / maxHp * 100);
+          const col = pct > 66 ? '#44cc88' : pct > 33 ? '#c9a227' : '#cc3333';
+          const t = getTheme(c.theme);
+          return `<div style="display:flex;align-items:center;gap:8px;padding:8px;background:#0e1422;border-radius:6px;">
+            <div style="font-size:13px;font-weight:600;color:${t.accent};min-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.name}</div>
+            <div style="flex:1;">
+              <div style="background:#1e2744;border-radius:3px;height:6px;overflow:hidden;">
+                <div style="background:${col};width:${pct}%;height:100%;border-radius:3px;"></div>
+              </div>
+              <div style="font-size:10px;color:#4a5272;margin-top:1px;">${currHp}/${maxHp} HP</div>
+            </div>
+            <button onclick="doCharRest('${c.name.replace(/'/g,"\\'")}','short')" style="background:#aabb8822;border:1px solid #aabb88;color:#aabb88;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;">⏱</button>
+            <button onclick="doCharRest('${c.name.replace(/'/g,"\\'")}','long')" style="background:#88bbff22;border:1px solid #88bbff;color:#88bbff;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;">🌙</button>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+function doCharRest(charName, type) {
+  const c = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS.find(x => x.name === charName) : null;
+  if (!c) return;
+  const maxHp = parseInt(c.hp) || 1;
+
+  if (type === 'long') {
+    // Restore full HP
+    if (typeof setCharHP === 'function') setCharHP(charName, maxHp);
+    // Restore all spell slots
+    if (typeof getMaxSlotsForChar === 'function' && typeof saveUsedSlots === 'function') {
+      saveUsedSlots(charName, {});
+    }
+    // Clear concentration
+    setConcentration(charName, null);
+    // Restore hit dice (half rounded up)
+    const hdKey = `tiamat_hitdice_${charName}`;
+    try {
+      const hd = JSON.parse(localStorage.getItem(hdKey) || '{}');
+      const maxDice = hd.max || 0;
+      const restore = Math.max(1, Math.floor(maxDice / 2));
+      hd.remaining = Math.min(maxDice, (hd.remaining || 0) + restore);
+      localStorage.setItem(hdKey, JSON.stringify(hd));
+    } catch {}
+    // Restore legendary actions
+    if (typeof legendaryState !== 'undefined') delete legendaryState[charName];
+    if (typeof logEntry === 'function') logEntry(`💤 ${charName} took a <b>Long Rest</b> — fully recovered`);
+    if (typeof showToast === 'function') showToast(`${charName}: Long Rest complete`, '#88bbff');
+  } else {
+    // Short rest: Warlock recovers pact magic
+    if (typeof getMaxSlotsForChar === 'function' && typeof saveUsedSlots === 'function') {
+      const cls = typeof getCharClasses === 'function' ? getCharClasses(charName) : [];
+      const isWarlock = cls.some(x => x.cls === 'Warlock') || (c.title || '').toLowerCase().includes('warlock') || (c.group || '').toLowerCase().includes('warlock');
+      if (isWarlock) {
+        saveUsedSlots(charName, {});
+        if (typeof showToast === 'function') showToast(`${charName}: Warlock slots recovered`, '#88bbff');
+      }
+    }
+    if (typeof logEntry === 'function') logEntry(`⏱ ${charName} took a <b>Short Rest</b>`);
+    if (typeof showToast === 'function') showToast(`${charName}: Short Rest taken`, '#aabb88');
+  }
+  if (typeof renderGrid === 'function') renderGrid();
+  if (typeof renderInitiative === 'function') renderInitiative();
+}
+
+function doPartyRest(type) {
+  const allChars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+  allChars.forEach(c => doCharRest(c.name, type));
+  const label = type === 'long' ? 'Long Rest' : 'Short Rest';
+  if (typeof logEntry === 'function') logEntry(`💤 <b>Party ${label}</b> — all characters rested`);
+  if (typeof showToast === 'function') showToast(`Party ${label} complete!`, type === 'long' ? '#88bbff' : '#aabb88');
+  document.getElementById('restPanelOverlay')?.remove();
 }
 
 // ══════════════════════════════════════════════════════════
