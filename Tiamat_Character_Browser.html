@@ -3773,6 +3773,7 @@
   <button class="filter-btn" onclick="openQuickDamageCalc()" style="border-color:#dd6622;color:#dd6622;" title="Quick Attack — roll attack + damage with target AC check · hotkey Q">🎲 Quick Atk</button>
   <button class="filter-btn" onclick="openMassHpPanel()" style="border-color:#cc3333;color:#cc3333;" id="massHpBtn" title="Mass Damage/Heal — apply HP changes to multiple characters at once (AoE, area effects)">⚡ Mass HP</button>
   <button class="filter-btn" onclick="openTravelCalc()" style="border-color:#44cc88;color:#44cc88;" title="Overland Travel Calculator — distance, pace, terrain, rations, random encounters">🗺 Travel</button>
+  <button class="filter-btn" onclick="openImprovNpc()" style="border-color:#c9a227;color:#c9a227;" title="Improv NPC Card — instant personality, appearance, motivation &amp; secret for unplanned NPCs">🎭 Improv NPC</button>
   <button class="filter-btn" onclick="printPartySheet()" style="border-color:#4488ff;color:#4488ff;" title="Print Party Sheet — all party members on one printable page">🖨 Party Sheet</button>
   <button class="filter-btn" onclick="openWorldMap()" style="border-color:#44cc88;color:#44cc88;" title="World Map — pin characters to the Tiamat campaign map (hotkey: M)">🗺 World Map</button>
   <span style="color: #333; margin: 0 4px;">|</span>
@@ -23533,6 +23534,113 @@ function _renderPartySummary() {
 }
 
 function _refreshPartySummary() { _renderPartySummary(); }
+// Iter 143: Improv NPC Card Generator — instant personality card for improvised NPCs.
+// Combines name, race, appearance, occupation, quirk, motivation, and secret into
+// one compact card the DM can read aloud. Better than DND Beyond for unplanned scenes.
+
+const IMPROV_RACES = ['Human','Elf','Dwarf','Halfling','Gnome','Half-Orc','Tiefling','Dragonborn','Aasimar','Tabaxi','Tortle'];
+const IMPROV_OCCUPATIONS = ['Merchant','Guard','Farmer','Blacksmith','Innkeeper','Scholar','Sailor','Healer','Thief','Soldier',
+  'Priest','Cook','Herbalist','Scribe','Cartwright','Beggar','Bard','Hunter','Fisherman','Woodcutter','Alchemist','Courier'];
+const IMPROV_TRAITS = ['Speaks in a raspy whisper','Always fidgeting with a coin','Uses excessive formal titles',
+  'Laughs at inappropriate moments','Never looks anyone in the eye','Repeats things for emphasis — really repeats them',
+  'Obsessively cleans their hands','Has a nervous tic when lying','Hums quietly while thinking',
+  'Refers to self in the third person','Uses overly complex words for simple things','Has a distinctive regional accent',
+  'Chews a toothpick constantly','Keeps touching a specific trinket','Speaks incredibly fast when excited'];
+const IMPROV_MOTIVATIONS = ['Desperate for money to pay a debt','Protecting a sick family member','Trying to prove themselves',
+  'Hiding from someone dangerous','Hoping to leave this town forever','Loyally serving a cause or master',
+  'Seeking revenge for an old slight','Just wants a quiet life, really','Chasing a rumor of treasure',
+  'Making amends for a past mistake','Climbing the social ladder','Following orders they resent'];
+const IMPROV_SECRETS = ['Owes money to the thieves guild','Is actually a spy for another faction',
+  'Witnessed a murder and stayed silent','Has a hidden magical ability they fear','Is wanted in another city under a false name',
+  'Has been cursed and is looking for a cure','Their identity is a lie — a different person entirely',
+  'Is secretly in love with someone forbidden','Knows where something valuable is hidden',
+  'Is being blackmailed by someone powerful','Has a connection to the party they haven\'t revealed',
+  'Secretly worships a prohibited deity'];
+const IMPROV_APPEARANCES = ['Weathered hands, kind eyes','Sharp cheekbones, perpetual frown','Round face, nervous smile',
+  'Impressive mustache, military posture','Scar across the chin','Missing a finger on the left hand',
+  'Mismatched eyes — one brown, one green','Permanently ink-stained fingers','Walks with a slight limp',
+  'Unusually tall and thin','Short and stocky with a loud laugh','Wears too many rings'];
+
+function _pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function openImprovNpc() {
+  const existing = document.getElementById('improvNpcOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'improvNpcOverlay';
+  ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.72);z-index:9500;display:flex;align-items:flex-start;justify-content:center;padding-top:7vh';
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
+  _genImprovNpc();
+}
+
+function _genImprovNpc() {
+  const ov = document.getElementById('improvNpcOverlay');
+  if (!ov) return;
+  const race = _pick(IMPROV_RACES);
+  const occ = _pick(IMPROV_OCCUPATIONS);
+  const gender = Math.random() > 0.5 ? 'male' : 'female';
+  const name = (typeof generateName === 'function') ? generateName(race, gender) : race + ' NPC';
+  const trait = _pick(IMPROV_TRAITS);
+  const motive = _pick(IMPROV_MOTIVATIONS);
+  const secret = _pick(IMPROV_SECRETS);
+  const appear = _pick(IMPROV_APPEARANCES);
+  const theme = ['royal','warrior','arcane','nature','shadow','fire','ocean','stone','orc','pink'][Math.floor(Math.random()*10)];
+  const themeData = (typeof getTheme === 'function') ? getTheme(theme) : {bg:'#06061a',accent:'#c9a227'};
+
+  const card = `
+    <div style="background:linear-gradient(160deg,${themeData.bg||'#06061a'},#0d0d1a);border:1px solid ${themeData.accent||'#c9a227'}66;border-radius:16px;padding:24px;width:440px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.9)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:700;color:${themeData.accent||'#c9a227'}">${name}</div>
+        <button onclick="document.getElementById('improvNpcOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:20px">✕</button>
+      </div>
+      <div style="font-size:12px;color:#9098b8;margin-bottom:16px">${race} ${occ} · ${gender === 'male' ? 'He/Him' : 'She/Her'}</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+        <div style="background:rgba(0,0,0,0.3);border:1px solid #1e2040;border-radius:8px;padding:10px">
+          <div style="font-size:9px;color:#4a5272;letter-spacing:1px;margin-bottom:5px">👁 APPEARANCE</div>
+          <div style="font-size:12px;color:#c8d0e8;line-height:1.5">${appear}</div>
+        </div>
+        <div style="background:rgba(0,0,0,0.3);border:1px solid #1e2040;border-radius:8px;padding:10px">
+          <div style="font-size:9px;color:#4a5272;letter-spacing:1px;margin-bottom:5px">🗣 SPEECH QUIRK</div>
+          <div style="font-size:12px;color:#c8d0e8;line-height:1.5">${trait}</div>
+        </div>
+      </div>
+
+      <div style="background:rgba(0,0,0,0.3);border:1px solid rgba(201,162,39,0.2);border-radius:8px;padding:10px;margin-bottom:10px">
+        <div style="font-size:9px;color:#4a5272;letter-spacing:1px;margin-bottom:5px">💫 MOTIVATION</div>
+        <div style="font-size:13px;color:#dce0f0;line-height:1.5;font-style:italic">"${motive}"</div>
+      </div>
+
+      <div style="background:rgba(120,0,120,0.08);border:1px solid rgba(155,109,255,0.3);border-radius:8px;padding:10px;margin-bottom:16px">
+        <div style="font-size:9px;color:#9b6dff;letter-spacing:1px;margin-bottom:5px">🔒 SECRET (DM only)</div>
+        <div style="font-size:12px;color:#c8d0e8;line-height:1.5">${secret}</div>
+      </div>
+
+      <div style="display:flex;gap:8px">
+        <button onclick="_genImprovNpc()" style="flex:1;background:rgba(201,162,39,0.12);border:1px solid rgba(201,162,39,0.4);color:#c9a227;border-radius:8px;padding:10px;cursor:pointer;font-size:13px;font-weight:700">↻ Regenerate</button>
+        <button onclick="_saveImprovNpcAsCustom(${JSON.stringify(name)},${JSON.stringify(race)},${JSON.stringify(occ)},${JSON.stringify(motive)},${JSON.stringify(secret)})" style="background:rgba(68,170,68,0.1);border:1px solid rgba(68,170,68,0.4);color:#44cc88;border-radius:8px;padding:10px 14px;cursor:pointer;font-size:12px" title="Add to character grid as custom NPC">+ Add NPC</button>
+      </div>
+    </div>`;
+  ov.innerHTML = card;
+}
+
+function _saveImprovNpcAsCustom(name, race, occ, motive, secret) {
+  const char = {
+    name, title: `${occ} · ${race}`, subtitle: 'True Neutral',
+    theme: 'shadow', group: 'misc', cr: '1', hp: '12', ac: '10',
+    quote: motive, abilities: [['STR',10,'+0',0],['DEX',10,'+0',0],['CON',10,'+0',0],['INT',10,'+0',0],['WIS',10,'+0',0],['CHA',10,'+0',0]],
+    traits: [motive, 'Secret: ' + secret], lore: `${race} ${occ}. ${secret}`, _custom: true, _imported: true,
+  };
+  if (UNIQUE_CHARS.find(c => c.name === name)) { showToast(`${name} already exists`, '#cc3333'); return; }
+  const customs = (typeof loadCustomNPCs === 'function') ? loadCustomNPCs() : [];
+  customs.push(char);
+  if (typeof saveCustomNPCs === 'function') saveCustomNPCs(customs);
+  UNIQUE_CHARS.push(char);
+  if (typeof renderGrid === 'function') renderGrid();
+  showToast(`${name} added to character grid`, '#44cc88');
+  document.getElementById('improvNpcOverlay')?.remove();
+}
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
 
