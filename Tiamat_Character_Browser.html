@@ -10550,8 +10550,41 @@ function renderActiveTurnBar() {
     ${moveBtn(5)}${moveBtn(10)}${moveBtn(15)}${moveBtn(30)}
     <button onclick="restoreMove(${JSON.stringify(char.name)},event)" style="background:none;border:1px solid rgba(68,204,170,.2);color:#3a8070;border-radius:4px;padding:1px 4px;cursor:pointer;font-size:9px;line-height:1" title="Restore full movement">↺</button>
   </div>`;
+  // Attack roll buttons row
+  const strMod = (char.abilities||[]).find(a=>a[0]==='STR'); const sM = strMod ? (parseInt(strMod[2])||0) : 0;
+  const dexEntry = (char.abilities||[]).find(a=>a[0]==='DEX'); const dM = dexEntry ? (parseInt(dexEntry[2])||0) : 0;
+  const meleeBonus = maxSpd > 0 ? prof + Math.max(sM, dM) : prof + sM; // use finesse if DEX >= STR
+  const rangedBonus = prof + dM;
+  const mStr = meleeBonus >= 0 ? `+${meleeBonus}` : `${meleeBonus}`;
+  const rStr = rangedBonus >= 0 ? `+${rangedBonus}` : `${rangedBonus}`;
+  const isSpellcaster = typeof inferSpells === 'function' && (inferSpells(char)||[]).length > 0;
+  const spellAbs = ['INT','WIS','CHA'];
+  const spellAbName = isSpellcaster ? spellAbs.reduce((best,n)=>{const m=(char.abilities||[]).find(a=>a[0]===n);const mod=m?parseInt(m[2])||0:0;const bm=(char.abilities||[]).find(a=>a[0]===best);return mod>(bm?parseInt(bm[2])||0:0)?n:best;},spellAbs[0]) : '';
+  const spellAb = spellAbName ? (char.abilities||[]).find(a=>a[0]===spellAbName) : null;
+  const spellBonus = spellAb ? prof + (parseInt(spellAb[2])||0) : 0;
+  const satkStr = spellBonus >= 0 ? `+${spellBonus}` : `${spellBonus}`;
+
+  const atkBtn = (label, title, bonus, type) => `<button onclick="rollInitAttack(${JSON.stringify(char.name)},${JSON.stringify(title)},${bonus},event)" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:#9098b8;border-radius:4px;padding:2px 7px;cursor:pointer;font-size:10px;line-height:1.4" title="${title} attack">${label} (${type})</button>`;
+
+  html += `<div style="display:flex;gap:4px;align-items:center;margin-top:3px;flex-wrap:wrap">
+    <span style="font-size:9px;color:#4a5272;letter-spacing:.5px">ATK</span>
+    ${atkBtn('⚔ Melee', 'Melee', meleeBonus, mStr)}
+    ${atkBtn('🏹 Ranged', 'Ranged', rangedBonus, rStr)}
+    ${isSpellcaster ? atkBtn('🔮 Spell', 'Spell', spellBonus, satkStr) : ''}
+  </div>`;
+
   bar.style.display = 'block';
   bar.innerHTML = html;
+}
+
+function rollInitAttack(charName, type, bonus, event) {
+  if (event) event.stopPropagation();
+  const roll = Math.floor(Math.random() * 20) + 1;
+  const total = roll + bonus;
+  const isCrit = roll === 20, isFumble = roll === 1;
+  const bStr = bonus >= 0 ? `+${bonus}` : `${bonus}`;
+  logEntry('roll', `<strong>${escHtml(charName)}</strong> ${type} Attack: d20(${roll})${bStr} = <strong>${total}</strong>${isCrit?' ★ CRIT!':isFumble?' ☠ MISS':''}`);
+  playSound?.(isCrit ? 'crit' : 'roll');
 }
 
 function renderInitiative() {
