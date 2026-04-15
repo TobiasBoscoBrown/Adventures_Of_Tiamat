@@ -30748,6 +30748,455 @@ function _craUpdate() {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 197: Faction Reputation Tracker
+const FREP_KEY = 'tiamat_faction_rep';
+function _frepLoad() { try { return JSON.parse(localStorage.getItem(FREP_KEY)||'null') || _frepDefaults(); } catch(e){return _frepDefaults();} }
+function _frepSave(d) { localStorage.setItem(FREP_KEY, JSON.stringify(d)); }
+function _frepDefaults() {
+  return [
+    { name:'Royal Court of Tiamat', icon:'👑', color:'#c9a227', rep:0, desc:'The ruling dynasty', log:[] },
+    { name:'The Dragon Cult', icon:'🐉', color:'#cc4444', rep:-20, desc:'Servants of chromatic dragons', log:[] },
+    { name:'Merchant Guild', icon:'💰', color:'#44bb88', rep:10, desc:'Trade network across the realm', log:[] },
+    { name:'Temple of the Dawn', icon:'✨', color:'#ffdd88', rep:0, desc:'Radiant clergy and healers', log:[] },
+    { name:'Thieves\' Shadow', icon:'🗡', color:'#666688', rep:0, desc:'Underground criminal network', log:[] },
+    { name:'Gondor\'s Watch', icon:'🛡', color:'#4488ff', rep:15, desc:'Military defenders of the realm', log:[] },
+  ];
+}
+const FREP_LEVELS = [
+  { min:-100, max:-60, label:'Hostile', col:'#cc4444', emoji:'⚔', tip:'Attack on sight; bounty on party' },
+  { min:-59, max:-30, label:'Unfriendly', col:'#ff7733', emoji:'😠', tip:'Refuse service; spread rumors' },
+  { min:-29, max:-10, label:'Wary', col:'#ff8844', emoji:'😒', tip:'Guarded; won\'t help voluntarily' },
+  { min:-9, max:9, label:'Neutral', col:'#888', emoji:'😐', tip:'Indifferent; transactional only' },
+  { min:10, max:29, label:'Friendly', col:'#c9a227', emoji:'🤝', tip:'Willing to assist; minor discounts' },
+  { min:30, max:59, label:'Allied', col:'#44bb88', emoji:'😊', tip:'Share intel; significant benefits' },
+  { min:60, max:100, label:'Exalted', col:'#9b6dff', emoji:'⭐', tip:'Full trust; call for major favors' },
+];
+
+function openFactionRep() {
+  document.getElementById('frepOverlay')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'frepOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9300;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `
+    <div style="background:#10102a;border:1px solid #c9a227;border-radius:12px;padding:24px;max-width:680px;width:95%;max-height:90vh;overflow-y:auto;font-family:inherit">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <h2 style="margin:0;color:#c9a227;font-size:1.3rem">🏰 Faction Reputation</h2>
+        <div style="display:flex;gap:8px">
+          <button onclick="_frepAddFaction()" style="padding:5px 10px;background:rgba(201,162,39,0.1);border:1px solid #c9a22733;border-radius:6px;color:#c9a227;cursor:pointer;font-size:0.78rem">+ Add Faction</button>
+          <button onclick="document.getElementById('frepOverlay').remove()" style="background:none;border:none;color:#aaa;font-size:1.4rem;cursor:pointer">✕</button>
+        </div>
+      </div>
+      <div id="frepBody"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _frepRender();
+}
+
+function _frepGetLevel(rep) {
+  return FREP_LEVELS.find(l=>rep>=l.min&&rep<=l.max) || FREP_LEVELS[3];
+}
+
+function _frepAdjust(i, delta) {
+  const d = _frepLoad();
+  if (!d[i]) return;
+  const old = d[i].rep;
+  d[i].rep = Math.max(-100, Math.min(100, d[i].rep + delta));
+  const reason = prompt(`Reason for ${delta>0?'+':''}${delta} rep with ${d[i].name}?`, '') || '';
+  d[i].log = d[i].log || [];
+  d[i].log.unshift({ delta, old, newV:d[i].rep, reason, ts:new Date().toLocaleDateString() });
+  if (d[i].log.length > 20) d[i].log.pop();
+  _frepSave(d);
+  logEntry('faction', `${d[i].name}: ${delta>0?'+':''}${delta} rep (${d[i].rep}) — ${reason}`);
+  _frepRender();
+}
+
+function _frepAddFaction() {
+  const name = prompt('New faction name:');
+  if (!name) return;
+  const d = _frepLoad();
+  d.push({ name, icon:'🏳', color:'#888', rep:0, desc:'', log:[] });
+  _frepSave(d);
+  _frepRender();
+}
+
+function _frepDeleteFaction(i) {
+  const d = _frepLoad();
+  if (!confirm('Delete faction '+d[i]?.name+'?')) return;
+  d.splice(i,1);
+  _frepSave(d);
+  _frepRender();
+}
+
+function _frepRender() {
+  const body = document.getElementById('frepBody');
+  if (!body) return;
+  const d = _frepLoad();
+  body.innerHTML = d.map((f,i) => {
+    const lv = _frepGetLevel(f.rep);
+    const pct = ((f.rep+100)/200)*100;
+    const recentLog = (f.log||[]).slice(0,3);
+    return `<div style="background:rgba(0,0,0,0.3);border:1px solid ${f.color}22;border-radius:8px;padding:12px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:1.3rem">${f.icon}</span>
+          <div>
+            <div style="color:${f.color};font-weight:700;font-size:0.95rem">${escHtml(f.name)}</div>
+            <div style="color:#666;font-size:0.75rem">${escHtml(f.desc||'')}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="color:${lv.col};font-size:0.8rem">${lv.emoji} ${lv.label}</span>
+          <span style="color:${lv.col};font-weight:700;min-width:28px;text-align:right">${f.rep>0?'+':''}${f.rep}</span>
+          <button onclick="_frepDeleteFaction(${i})" style="padding:1px 5px;background:none;border:1px solid #ff5050;border-radius:4px;color:#ff5050;cursor:pointer;font-size:0.7rem">✕</button>
+        </div>
+      </div>
+      <div style="position:relative;background:#1a1a3a;border-radius:4px;height:8px;margin-bottom:8px">
+        <div style="position:absolute;left:50%;top:0;width:1px;height:8px;background:#333"></div>
+        <div style="position:absolute;background:${lv.col};height:8px;border-radius:4px;${f.rep>=0?'left:50%;width:'+((f.rep/100)*50)+'%':'right:'+(50-pct)+'%;width:'+(((-f.rep)/100)*50)+'%'}"></div>
+      </div>
+      <div style="display:flex;gap:6px;justify-content:center;margin-bottom:6px">
+        ${[-10,-5,-1,1,5,10].map(d=>`<button onclick="_frepAdjust(${i},${d})" style="padding:3px 8px;background:rgba(${d<0?'255,80,80':'68,187,136'},0.12);border:1px solid ${d<0?'#ff5050':'#44bb88'};border-radius:4px;color:${d<0?'#ff7777':'#44bb88'};cursor:pointer;font-size:0.78rem">${d>0?'+':''}${d}</button>`).join('')}
+      </div>
+      <div style="font-size:0.75rem;color:#666;text-align:center;margin-bottom:${recentLog.length?'6px':'0'}">${lv.tip}</div>
+      ${recentLog.length?`<div style="border-top:1px solid #1a1a3a;padding-top:6px">${recentLog.map(e=>`<div style="font-size:0.72rem;color:#666">${e.ts} <span style="color:${e.delta>0?'#44bb88':'#ff7777'}">${e.delta>0?'+':''}${e.delta}</span>${e.reason?' — '+escHtml(e.reason):''}</div>`).join('')}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// Add Faction Rep button
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'Faction Reputation Tracker — track party standing with major factions';
+    btn.style.cssText = 'border-color:#c9a227;color:#c9a227';
+    btn.textContent = '🏰 Factions';
+    btn.onclick = openFactionRep;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 198: Party Prepared Spells Overview
+const PPREP_KEY = 'tiamat_party_prepared';
+function _pprepLoad() { try { return JSON.parse(localStorage.getItem(PPREP_KEY)||'{}'); } catch(e){return{};} }
+function _pprepSave(d) { localStorage.setItem(PPREP_KEY, JSON.stringify(d)); }
+
+function openPartyPrepOverview() {
+  document.getElementById('pprepOverlay')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'pprepOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9300;display:flex;align-items:center;justify-content:center';
+
+  // Collect casters with spells
+  const casters = (window.CHARS||window.UNIQUE_CHARS||[]).filter(c=>c.spells?.length);
+  const charTabs = casters.map((c,i)=>`<button id="pprepTab${i}" onclick="_pprepShowChar(${i})" style="padding:5px 10px;border:1px solid ${i===0?'#9b6dff':'#333'};background:${i===0?'rgba(155,109,255,0.15)':'transparent'};border-radius:6px;color:${i===0?'#9b6dff':'#888'};cursor:pointer;font-size:0.82rem">${escHtml(c.name)}</button>`).join('');
+
+  ov.innerHTML = `
+    <div style="background:#10102a;border:1px solid #9b6dff;border-radius:12px;padding:24px;max-width:720px;width:95%;max-height:90vh;overflow-y:auto;font-family:inherit">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h2 style="margin:0;color:#9b6dff;font-size:1.3rem">📿 Party Prepared Spells</h2>
+        <button onclick="document.getElementById('pprepOverlay').remove()" style="background:none;border:none;color:#aaa;font-size:1.4rem;cursor:pointer">✕</button>
+      </div>
+      ${casters.length===0?'<p style="color:#666">No characters with spell lists found.</p>':`
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">${charTabs}</div>
+        <div id="pprepContent"></div>
+      `}
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  if (casters.length) _pprepShowChar(0, casters);
+}
+
+function _pprepShowChar(idx, castersIn) {
+  const casters = castersIn || (window.CHARS||window.UNIQUE_CHARS||[]).filter(c=>c.spells?.length);
+  const c = casters[idx];
+  if (!c) return;
+  // Update tab highlight
+  casters.forEach((_,i) => {
+    const t = document.getElementById('pprepTab'+i);
+    if (!t) return;
+    t.style.borderColor = i===idx?'#9b6dff':'#333';
+    t.style.background = i===idx?'rgba(155,109,255,0.15)':'transparent';
+    t.style.color = i===idx?'#9b6dff':'#888';
+  });
+  const content = document.getElementById('pprepContent');
+  if (!content) return;
+  const pkey = c.name;
+  const d = _pprepLoad();
+  if (!d[pkey]) d[pkey] = {};
+
+  // Group spells by level
+  const byLevel = {};
+  (c.spells||[]).forEach(sp => {
+    const spData = typeof FULL_SPELLS !== 'undefined' ? FULL_SPELLS.find(s=>s.name.toLowerCase()===sp.toLowerCase()) : null;
+    const level = spData ? spData.level : '?';
+    const key = level === 0 ? 'Cantrips' : `Level ${level}`;
+    if (!byLevel[key]) byLevel[key] = [];
+    byLevel[key].push({ name:sp, conc:spData?.conc, ritual:spData?.ritual, school:spData?.school });
+  });
+
+  const levelOrder = ['Cantrips','Level 1','Level 2','Level 3','Level 4','Level 5','Level 6','Level 7','Level 8','Level 9','Level ?'];
+  const sections = levelOrder.filter(k=>byLevel[k]).map(lvl => {
+    const spells = byLevel[lvl];
+    const rows = spells.map(sp => {
+      const key = sp.name.replace(/\s+/g,'_');
+      const prepped = !!d[pkey][key];
+      return `<div onclick="_pprepToggle('${pkey.replace(/'/g,"\\'")}','${key}')" style="display:flex;align-items:center;gap:8px;padding:5px 6px;cursor:pointer;border-radius:4px;opacity:${prepped?1:0.45}" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background='transparent'">
+        <span style="font-size:0.9rem">${prepped?'🟣':'⚫'}</span>
+        <span style="flex:1;color:${prepped?'#ccc':'#666'};font-size:0.85rem">${escHtml(sp.name)}</span>
+        ${sp.conc?'<span style="font-size:0.7rem;color:#9b6dff" title="Concentration">C</span>':''}
+        ${sp.ritual?'<span style="font-size:0.7rem;color:#c9a227" title="Ritual">R</span>':''}
+      </div>`;
+    }).join('');
+    const prepped = spells.filter(sp=>d[pkey][sp.name.replace(/\s+/g,'_')]).length;
+    return `<div style="margin-bottom:10px">
+      <div style="color:#9b6dff;font-size:0.8rem;font-weight:700;margin-bottom:4px">${lvl} <span style="color:#666">(${prepped}/${spells.length})</span></div>
+      ${rows}
+    </div>`;
+  }).join('');
+
+  const totalPrepped = Object.values(d[pkey]).filter(Boolean).length;
+  const totalSpells = c.spells?.length || 0;
+  content.innerHTML = `
+    <div style="color:#9b6dff;font-size:0.9rem;margin-bottom:12px">${escHtml(c.name)} — ${totalPrepped}/${totalSpells} spells prepared</div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button onclick="_pprepPrepAll('${pkey.replace(/'/g,"\\'")}',${idx})" style="padding:5px 12px;background:rgba(155,109,255,0.12);border:1px solid #9b6dff;border-radius:6px;color:#9b6dff;cursor:pointer;font-size:0.78rem">Prepare All</button>
+      <button onclick="_pprepClearAll('${pkey.replace(/'/g,"\\'")}',${idx})" style="padding:5px 12px;background:rgba(255,80,80,0.08);border:1px solid #ff5050;border-radius:6px;color:#ff5050;cursor:pointer;font-size:0.78rem">Clear All</button>
+    </div>
+    <div style="columns:2;column-gap:16px">${sections}</div>`;
+}
+
+function _pprepToggle(pkey, spKey) {
+  const d = _pprepLoad();
+  if (!d[pkey]) d[pkey] = {};
+  d[pkey][spKey] = !d[pkey][spKey];
+  _pprepSave(d);
+  const casters = (window.CHARS||window.UNIQUE_CHARS||[]).filter(c=>c.spells?.length);
+  const idx = casters.findIndex(c=>c.name===pkey);
+  _pprepShowChar(idx, casters);
+}
+
+function _pprepPrepAll(pkey, idx) {
+  const d = _pprepLoad();
+  const casters = (window.CHARS||window.UNIQUE_CHARS||[]).filter(c=>c.spells?.length);
+  const c = casters.find(ch=>ch.name===pkey);
+  if (!c) return;
+  if (!d[pkey]) d[pkey] = {};
+  c.spells?.forEach(sp => { d[pkey][sp.replace(/\s+/g,'_')] = true; });
+  _pprepSave(d);
+  _pprepShowChar(idx, casters);
+}
+
+function _pprepClearAll(pkey, idx) {
+  const d = _pprepLoad();
+  d[pkey] = {};
+  _pprepSave(d);
+  const casters = (window.CHARS||window.UNIQUE_CHARS||[]).filter(c=>c.spells?.length);
+  _pprepShowChar(idx, casters);
+}
+
+// Add Party Prepared button
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'Party Prepared Spells Overview — see all prepared spells per caster';
+    btn.style.cssText = 'border-color:#9b6dff;color:#9b6dff';
+    btn.textContent = '📿 Prepared';
+    btn.onclick = openPartyPrepOverview;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 199: Visual Initiative Board (floating HUD for combat display)
+const VIBOARD_KEY = 'tiamat_viboard';
+let _vibCurrentIdx = 0;
+let _vibRound = 1;
+function _vibLoad() { try { return JSON.parse(localStorage.getItem(VIBOARD_KEY)||'[]'); } catch(e){return[];} }
+function _vibSave(d) { localStorage.setItem(VIBOARD_KEY, JSON.stringify(d)); }
+
+function openInitBoard() {
+  document.getElementById('vibOverlay')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'vibOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9300;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `
+    <div style="background:#10102a;border:1px solid #cc4444;border-radius:12px;padding:24px;max-width:660px;width:95%;max-height:90vh;overflow-y:auto;font-family:inherit">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <h2 style="margin:0;color:#cc4444;font-size:1.3rem">🎯 Initiative Board</h2>
+        <div style="display:flex;gap:8px">
+          <button onclick="_vibLaunchHud()" style="padding:5px 10px;background:rgba(204,68,68,0.12);border:1px solid #cc4444;border-radius:6px;color:#cc4444;cursor:pointer;font-size:0.8rem">📌 HUD Mode</button>
+          <button onclick="document.getElementById('vibOverlay').remove()" style="background:none;border:none;color:#aaa;font-size:1.4rem;cursor:pointer">✕</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <input id="vibName" placeholder="Name..." style="flex:2;padding:6px 8px;background:#1a1a3a;border:1px solid #333;border-radius:6px;color:#fff">
+        <input id="vibInit" type="number" placeholder="Init" style="width:70px;padding:6px 8px;background:#1a1a3a;border:1px solid #333;border-radius:6px;color:#fff">
+        <input id="vibHp" type="number" placeholder="HP" style="width:70px;padding:6px 8px;background:#1a1a3a;border:1px solid #333;border-radius:6px;color:#fff">
+        <select id="vibType" style="padding:6px 8px;background:#1a1a3a;border:1px solid #333;border-radius:6px;color:#aaa">
+          <option value="pc">PC</option>
+          <option value="ally">Ally</option>
+          <option value="enemy">Enemy</option>
+        </select>
+        <button onclick="_vibAdd()" style="padding:6px 12px;background:rgba(204,68,68,0.15);border:1px solid #cc4444;border-radius:6px;color:#cc4444;cursor:pointer;font-weight:700">+ Add</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button onclick="_vibSort()" style="flex:1;padding:6px;background:rgba(201,162,39,0.1);border:1px solid #c9a22744;border-radius:6px;color:#c9a227;cursor:pointer;font-size:0.82rem">⬇ Sort by Init</button>
+        <button onclick="_vibNextTurn()" style="flex:1;padding:6px;background:rgba(68,187,136,0.12);border:1px solid #44bb88;border-radius:6px;color:#44bb88;cursor:pointer;font-weight:700;font-size:0.88rem">▶ Next Turn</button>
+        <button onclick="_vibClear()" style="padding:6px 12px;background:rgba(255,80,80,0.08);border:1px solid #ff5050;border-radius:6px;color:#ff5050;cursor:pointer;font-size:0.82rem">Clear</button>
+      </div>
+      <div id="vibRoundDisp" style="color:#c9a227;font-size:0.85rem;margin-bottom:8px">Round: ${_vibRound}</div>
+      <div id="vibBody"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _vibRender();
+}
+
+function _vibAdd() {
+  const name = document.getElementById('vibName')?.value?.trim();
+  if (!name) return;
+  const init = parseInt(document.getElementById('vibInit')?.value||'0');
+  const hp = parseInt(document.getElementById('vibHp')?.value||'-1');
+  const type = document.getElementById('vibType')?.value||'pc';
+  const d = _vibLoad();
+  d.push({ name, init, hp, maxHp:hp, type });
+  _vibSave(d);
+  if (document.getElementById('vibName')) document.getElementById('vibName').value='';
+  if (document.getElementById('vibInit')) document.getElementById('vibInit').value='';
+  if (document.getElementById('vibHp')) document.getElementById('vibHp').value='';
+  _vibRender();
+}
+
+function _vibSort() {
+  const d = _vibLoad();
+  d.sort((a,b)=>b.init-a.init);
+  _vibCurrentIdx = 0;
+  _vibSave(d);
+  _vibRender();
+}
+
+function _vibNextTurn() {
+  const d = _vibLoad();
+  if (!d.length) return;
+  _vibCurrentIdx = (_vibCurrentIdx+1) % d.length;
+  if (_vibCurrentIdx === 0) _vibRound++;
+  _vibRender();
+  // Update HUD if open
+  _vibUpdateHud(d);
+}
+
+function _vibDelete(i) {
+  const d=_vibLoad();
+  d.splice(i,1);
+  if (_vibCurrentIdx >= d.length && d.length) _vibCurrentIdx = d.length-1;
+  _vibSave(d);
+  _vibRender();
+}
+
+function _vibHpAdj(i, delta) {
+  const d=_vibLoad();
+  if(d[i]){
+    d[i].hp = d[i].hp<0 ? delta : Math.max(0, d[i].hp+delta);
+  }
+  _vibSave(d);
+  _vibRender();
+}
+
+function _vibClear() {
+  if (confirm('Clear initiative board?')) { _vibSave([]); _vibCurrentIdx=0; _vibRound=1; _vibRender(); }
+}
+
+function _vibRender() {
+  const body = document.getElementById('vibBody');
+  const rd = document.getElementById('vibRoundDisp');
+  if (rd) rd.textContent = 'Round: '+_vibRound;
+  if (!body) return;
+  const d = _vibLoad();
+  if (!d.length) { body.innerHTML='<p style="color:#666;text-align:center;font-size:0.85rem">No combatants. Add above.</p>'; return; }
+  const typeColors = {pc:'#44bb88',ally:'#4488ff',enemy:'#cc4444'};
+  body.innerHTML = d.map((e,i) => {
+    const isCurrent = i===_vibCurrentIdx;
+    const col = typeColors[e.type]||'#aaa';
+    const hpPct = e.maxHp>0?Math.max(0,(e.hp/e.maxHp)*100):100;
+    const hpCol = hpPct>50?'#44bb88':hpPct>25?'#ff8844':'#cc4444';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:${isCurrent?'rgba(201,162,39,0.15)':'rgba(0,0,0,0.2)'};border:1px solid ${isCurrent?'#c9a227':'#333'};border-radius:6px;margin-bottom:5px">
+      <span style="color:#c9a227;font-weight:700;min-width:28px;text-align:center;font-size:${isCurrent?'1.3rem':'1rem'}">${e.init}</span>
+      <span style="color:${col};min-width:6px;font-size:0.7rem">●</span>
+      <span style="flex:1;color:${isCurrent?'#fff':'#ccc'};font-weight:${isCurrent?700:400};font-size:${isCurrent?'1rem':'0.9rem'}">${isCurrent?'▶ ':''} ${escHtml(e.name)}</span>
+      ${e.hp>=0?`<div style="min-width:80px">
+        <div style="background:#1a1a3a;border-radius:3px;height:5px;margin-bottom:3px"><div style="background:${hpCol};height:5px;border-radius:3px;width:${hpPct}%"></div></div>
+        <div style="display:flex;gap:4px;justify-content:center">
+          <button onclick="_vibHpAdj(${i},-5)" style="padding:1px 4px;background:rgba(255,80,80,0.1);border:1px solid #ff5050;border-radius:3px;color:#ff7777;cursor:pointer;font-size:0.68rem">-5</button>
+          <span style="color:${hpCol};font-size:0.75rem">${e.hp}</span>
+          <button onclick="_vibHpAdj(${i},5)" style="padding:1px 4px;background:rgba(68,187,136,0.1);border:1px solid #44bb88;border-radius:3px;color:#44bb88;cursor:pointer;font-size:0.68rem">+5</button>
+        </div>
+      </div>`:''}
+      <button onclick="_vibDelete(${i})" style="padding:2px 6px;background:none;border:1px solid #444;border-radius:4px;color:#666;cursor:pointer;font-size:0.72rem">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function _vibLaunchHud() {
+  document.getElementById('vibHud')?.remove();
+  const hud = document.createElement('div');
+  hud.id = 'vibHud';
+  hud.style.cssText = 'position:fixed;bottom:20px;left:20px;background:rgba(10,10,26,0.95);border:1px solid #cc4444;border-radius:8px;padding:10px 14px;z-index:9500;min-width:200px;max-width:260px;cursor:move;user-select:none';
+  _vibUpdateHud(_vibLoad(), hud);
+  document.body.appendChild(hud);
+  // Make draggable
+  let ox=0,oy=0;
+  hud.addEventListener('mousedown', e => {
+    ox=e.clientX-hud.offsetLeft; oy=e.clientY-hud.offsetTop;
+    const mm=ev=>{hud.style.left=(ev.clientX-ox)+'px';hud.style.bottom='auto';hud.style.top=(ev.clientY-oy)+'px';};
+    const mu=()=>{document.removeEventListener('mousemove',mm);document.removeEventListener('mouseup',mu);};
+    document.addEventListener('mousemove',mm);document.addEventListener('mouseup',mu);
+  });
+  hud.title='Right-click to close';
+  hud.addEventListener('contextmenu',e=>{e.preventDefault();hud.remove();});
+  showToast('Initiative HUD launched — right-click to close','#cc4444');
+}
+
+function _vibUpdateHud(d, hudEl) {
+  const hud = hudEl || document.getElementById('vibHud');
+  if (!hud) return;
+  const current = d[_vibCurrentIdx];
+  const typeColors = {pc:'#44bb88',ally:'#4488ff',enemy:'#cc4444'};
+  const items = d.slice(0,8).map((e,i)=>{
+    const isCur = i===_vibCurrentIdx;
+    const col = typeColors[e.type]||'#aaa';
+    return `<div style="display:flex;gap:6px;align-items:center;padding:2px 0;opacity:${isCur?1:0.6}">
+      <span style="color:#c9a227;min-width:22px;font-size:0.8rem;text-align:right">${e.init}</span>
+      <span style="color:${col};font-size:0.65rem">●</span>
+      <span style="color:${isCur?'#fff':'#aaa'};font-size:0.82rem;font-weight:${isCur?700:400}">${isCur?'▶ ':' '}${escHtml(e.name.substring(0,16))}</span>
+    </div>`;
+  }).join('');
+  hud.innerHTML = `<div style="color:#cc4444;font-size:0.75rem;font-weight:700;margin-bottom:6px">⚔ Round ${_vibRound}</div>${items}<div style="display:flex;gap:6px;margin-top:8px"><button onclick="_vibNextTurn();_vibUpdateHud(_vibLoad())" style="flex:1;padding:3px;background:rgba(68,187,136,0.15);border:1px solid #44bb88;border-radius:4px;color:#44bb88;cursor:pointer;font-size:0.75rem">▶ Next</button><button onclick="openInitBoard()" style="padding:3px 6px;background:rgba(201,162,39,0.1);border:1px solid #c9a227;border-radius:4px;color:#c9a227;cursor:pointer;font-size:0.75rem">⚙</button></div>`;
+}
+
+// Add Initiative Board button
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'Visual Initiative Board — turn-order display with HP tracking and draggable HUD';
+    btn.style.cssText = 'border-color:#cc4444;color:#cc4444';
+    btn.textContent = '🎯 Init Board';
+    btn.onclick = openInitBoard;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
