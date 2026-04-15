@@ -10573,6 +10573,21 @@ function renderActiveTurnBar() {
     ${isSpellcaster ? atkBtn('🔮 Spell', 'Spell', spellBonus, satkStr) : ''}
   </div>`;
 
+  // Saving throws row
+  const saveAbils = ['STR','DEX','CON','INT','WIS','CHA'];
+  const saveBtns = saveAbils.map(ab2 => {
+    const abilEntry = (char.abilities||[]).find(a=>a[0]===ab2);
+    const mod2 = abilEntry ? (parseInt(abilEntry[2])||0) : 0;
+    const isProf = abilEntry ? !!abilEntry[3] : false; // highlighted = proficient
+    const saveBonus = isProf ? mod2 + prof : mod2;
+    const sStr2 = saveBonus >= 0 ? `+${saveBonus}` : `${saveBonus}`;
+    return `<button onclick="rollInitSave(${JSON.stringify(char.name)},${JSON.stringify(ab2)},${saveBonus},event)" style="background:rgba(255,255,255,.04);border:1px solid rgba(${isProf?'201,162,39':'255,255,255'},.${isProf?'3':'08'});color:${isProf?'#c9a227':'#9098b8'};border-radius:4px;padding:2px 5px;cursor:pointer;font-size:9px;line-height:1.4" title="${ab2} saving throw (${sStr2})">${ab2}<br><span style="font-size:10px;font-weight:700">${sStr2}</span></button>`;
+  }).join('');
+  html += `<div style="display:flex;gap:3px;align-items:center;margin-top:3px">
+    <span style="font-size:9px;color:#4a5272;letter-spacing:.5px;min-width:24px">SAVE</span>
+    ${saveBtns}
+  </div>`;
+
   bar.style.display = 'block';
   bar.innerHTML = html;
 }
@@ -10585,6 +10600,16 @@ function rollInitAttack(charName, type, bonus, event) {
   const bStr = bonus >= 0 ? `+${bonus}` : `${bonus}`;
   logEntry('roll', `<strong>${escHtml(charName)}</strong> ${type} Attack: d20(${roll})${bStr} = <strong>${total}</strong>${isCrit?' ★ CRIT!':isFumble?' ☠ MISS':''}`);
   playSound?.(isCrit ? 'crit' : 'roll');
+}
+
+function rollInitSave(charName, ab, bonus, event) {
+  if (event) event.stopPropagation();
+  const roll = Math.floor(Math.random() * 20) + 1;
+  const total = roll + bonus;
+  const isCrit = roll === 20, isFumble = roll === 1;
+  const bStr = bonus >= 0 ? `+${bonus}` : `${bonus}`;
+  logEntry('roll', `<strong>${escHtml(charName)}</strong> ${ab} Save: d20(${roll})${bStr} = <strong>${total}</strong>${isCrit?' ★':isFumble?' ☠ auto-fail':''}`);
+  playSound?.('roll');
 }
 
 function renderInitiative() {
