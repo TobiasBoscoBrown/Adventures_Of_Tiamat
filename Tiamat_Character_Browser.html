@@ -11010,11 +11010,15 @@ function renderActiveTurnBar() {
 
   const atkBtn = (label, title, bonus, type) => `<button onclick="rollInitAttack(${JSON.stringify(char.name)},${JSON.stringify(title)},${bonus},event)" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:#9098b8;border-radius:4px;padding:2px 7px;cursor:pointer;font-size:10px;line-height:1.4" title="${title} attack">${label} (${type})</button>`;
 
+  const multiAtkCount = document.getElementById('multiAtkCount')?.value || '1';
   html += `<div style="display:flex;gap:4px;align-items:center;margin-top:3px;flex-wrap:wrap">
     <span style="font-size:9px;color:#4a5272;letter-spacing:.5px">ATK</span>
     ${atkBtn('⚔ Melee', 'Melee', meleeBonus, mStr)}
     ${atkBtn('🏹 Ranged', 'Ranged', rangedBonus, rStr)}
     ${isSpellcaster ? atkBtn('🔮 Spell', 'Spell', spellBonus, satkStr) : ''}
+    <select id="multiAtkCount" onchange="renderActiveTurnBar()" style="background:#0a0a1e;border:1px solid #2a2a50;color:#6a7098;border-radius:4px;padding:1px 3px;font-size:9px;cursor:pointer" title="Number of attacks to roll at once">
+      <option value="1">1×</option><option value="2">2×</option><option value="3">3×</option><option value="4">4×</option><option value="5">5×</option>
+    </select>
   </div>`;
 
   // Saving throws row
@@ -11038,14 +11042,20 @@ function renderActiveTurnBar() {
 
 function rollInitAttack(charName, type, bonus, event) {
   if (event) event.stopPropagation();
-  const { die, detail } = rollWithAdv(charName, bonus);
-  const total = die + bonus;
-  const isCrit = die === 20, isFumble = die === 1;
+  const count = parseInt(document.getElementById('multiAtkCount')?.value || '1');
   const bStr = bonus >= 0 ? `+${bonus}` : `${bonus}`;
   const advLabel = advState[charName] ? ` (${advState[charName]})` : '';
-  const dieStr = detail ? detail : `(${die})`;
-  logEntry('roll', `<strong>${escHtml(charName)}</strong> ${type} Attack${advLabel}: d20${dieStr}${bStr} = <strong>${total}</strong>${isCrit?' ★ CRIT!':isFumble?' ☠ MISS':''}`);
-  playSound?.(isCrit ? 'crit' : 'roll');
+  let anyCrit = false;
+  const results = Array.from({length:count}, () => {
+    const { die, detail } = rollWithAdv(charName, bonus);
+    const total = die + bonus;
+    const isCrit = die === 20, isFumble = die === 1;
+    if (isCrit) anyCrit = true;
+    return `d20${detail?detail:`(${die})`}${bStr}=<strong>${total}</strong>${isCrit?'★':isFumble?'☠':''}`;
+  });
+  const multiLabel = count > 1 ? ` ×${count}` : '';
+  logEntry('roll', `<strong>${escHtml(charName)}</strong> ${type} Attack${multiLabel}${advLabel}: ${results.join(' | ')}`);
+  playSound?.(anyCrit ? 'crit' : 'roll');
 }
 
 function rollInitSave(charName, ab, bonus, event) {
