@@ -26833,6 +26833,141 @@ function _villainAdjProg(id, delta) {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 167: Party Role & Balance Analyzer
+// Analyze party members' roles, coverage, and weaknesses. DM can craft smarter encounters.
+
+const ROLE_KEYWORDS = {
+  tank:     { terms: ['paladin','fighter','barbarian','guardian','defender','warrior','champion','shieldbearer','heavy armor','protection'], color:'#cc4444', icon:'🛡', label:'Tank / Frontline' },
+  healer:   { terms: ['cleric','druid','paladin','bard','healbot','healer','life cleric','divine','acolyte','priest','holy'], color:'#44aa44', icon:'💚', label:'Healer / Support' },
+  damage:   { terms: ['rogue','ranger','wizard','sorcerer','warlock','assassin','bladesinger','evocation','destruction','archer','sneak attack','damage'], color:'#cc8822', icon:'⚔', label:'Damage Dealer' },
+  control:  { terms: ['wizard','sorcerer','warlock','bard','druid','illusionist','enchanter','controller','hold','stun','charm','fear','debuff'], color:'#9b6dff', icon:'🔮', label:'Control / Debuffer' },
+  support:  { terms: ['bard','cleric','paladin','artificer','ranger','support','buff','inspire','aura','song','command'], color:'#4488ff', icon:'✨', label:'Buffer / Enabler' },
+  scout:    { terms: ['rogue','ranger','monk','scout','spy','infiltrator','thief','shadow','assassin','stealth','tracker'], color:'#44aacc', icon:'👁', label:'Scout / Infiltrator' },
+};
+
+function openPartyAnalyzer() {
+  const ex = document.getElementById('partyAnalyzerOverlay');
+  if (ex) { ex.remove(); return; }
+
+  // Get all unique party chars (pinned/favorited or all if none)
+  const favs = (() => { try { return JSON.parse(localStorage.getItem('tiamat_favorites')||'[]'); } catch { return []; } })();
+  let partyChars = favs.length
+    ? (typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : []).filter(c => favs.includes(c.name))
+    : (typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS.slice(0, 8) : []);
+
+  const ov = document.createElement('div');
+  ov.id = 'partyAnalyzerOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.90);z-index:9200;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+
+  // Build role assignments
+  const roleMatrix = {};
+  const chars = partyChars.slice(0, 12);
+  chars.forEach(c => {
+    const text = `${c.title||''} ${c.subtitle||''} ${(c.traits||[]).join(' ')} ${(c.lore||'')}`.toLowerCase();
+    roleMatrix[c.name] = {};
+    Object.entries(ROLE_KEYWORDS).forEach(([role, data]) => {
+      const score = data.terms.filter(t => text.includes(t)).length;
+      if (score > 0) roleMatrix[c.name][role] = score;
+    });
+  });
+
+  // Coverage summary
+  const coverage = {};
+  Object.keys(ROLE_KEYWORDS).forEach(role => {
+    coverage[role] = chars.filter(c => roleMatrix[c.name]?.[role]).length;
+  });
+
+  const coverageHtml = Object.entries(ROLE_KEYWORDS).map(([role, data]) => {
+    const count = coverage[role] || 0;
+    const width = count > 0 ? Math.min(100, count * 25) : 0;
+    const color = count >= 3 ? '#44aa44' : count >= 2 ? '#c9a227' : count === 1 ? '#cc8822' : '#cc4444';
+    const label = count === 0 ? '⚠ Gap!' : count === 1 ? 'Thin' : count >= 3 ? 'Strong' : 'OK';
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+        <span style="font-size:12px;color:${data.color}">${data.icon} ${data.label}</span>
+        <span style="font-size:11px;color:${color};font-weight:700">${count} char${count!==1?'s':''} — ${label}</span>
+      </div>
+      <div style="background:#1a1a30;border-radius:6px;height:8px;overflow:hidden">
+        <div style="width:${width}%;height:100%;background:${color};border-radius:6px;transition:width 0.3s"></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Per-character role tags
+  const charRows = chars.map(c => {
+    const roles = roleMatrix[c.name] || {};
+    const sortedRoles = Object.entries(roles).sort((a,b) => b[1]-a[1]).slice(0,3);
+    const roleTags = sortedRoles.length
+      ? sortedRoles.map(([r]) => `<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:${ROLE_KEYWORDS[r].color}18;border:1px solid ${ROLE_KEYWORDS[r].color}44;color:${ROLE_KEYWORDS[r].color}">${ROLE_KEYWORDS[r].icon} ${r}</span>`).join('')
+      : '<span style="font-size:9px;color:#4a5272">Unclassified</span>';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+      <span style="font-size:12px;color:#e0e0ff;font-weight:600">${escHtml(c.name)}</span>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">${roleTags}</div>
+    </div>`;
+  }).join('');
+
+  // Encounter recommendations
+  const gaps = Object.entries(coverage).filter(([r, c]) => c === 0).map(([r]) => ROLE_KEYWORDS[r].label);
+  const recHtml = gaps.length
+    ? `<div style="background:rgba(204,68,68,0.1);border:1px solid rgba(204,68,68,0.3);border-radius:8px;padding:12px;margin-bottom:14px">
+        <div style="font-size:10px;color:#cc4444;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">⚠ Coverage Gaps</div>
+        ${gaps.map(g => `<div style="font-size:11px;color:#cc8888;padding:2px 0">• Missing: ${escHtml(g)}</div>`).join('')}
+        <div style="font-size:10px;color:#6a5272;margin-top:8px">Consider adding support NPCs or planning encounters that don't require these roles.</div>
+      </div>`
+    : `<div style="background:rgba(68,170,68,0.1);border:1px solid rgba(68,170,68,0.3);border-radius:8px;padding:10px;margin-bottom:14px;font-size:11px;color:#44aa44">✅ Good coverage across all roles!</div>`;
+
+  ov.innerHTML = `
+    <div style="width:660px;max-width:100%;color:#c8d0e8;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;position:sticky;top:0;background:rgba(6,6,26,0.97);padding:12px 0;border-bottom:1px solid rgba(155,109,255,0.2);backdrop-filter:blur(4px)">
+        <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:700;color:#9b6dff">⚖ Party Balance Analyzer</div>
+        <button onclick="document.getElementById('partyAnalyzerOverlay').remove()" style="background:none;border:1px solid #2a2040;color:#6a5aaa;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px">✕</button>
+      </div>
+      <div style="font-size:11px;color:#4a5272;margin-bottom:14px">Analyzing ${chars.length} characters (${favs.length?'favorites':'first 8 NPCs'}). Star ⭐ characters to use your party composition.</div>
+      ${recHtml}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+        <div style="background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px">
+          <div style="font-size:11px;color:#6a5aaa;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:14px">Role Coverage</div>
+          ${coverageHtml}
+        </div>
+        <div style="background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px">
+          <div style="font-size:11px;color:#6a5aaa;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Character Roles</div>
+          ${charRows || '<div style="color:#4a5272;font-size:12px">No characters to analyze.</div>'}
+        </div>
+      </div>
+      <!-- Encounter recommendations -->
+      <div style="background:rgba(0,0,0,0.35);border:1px solid rgba(155,109,255,0.15);border-radius:12px;padding:16px">
+        <div style="font-size:11px;color:#6a5aaa;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">💡 Encounter Design Tips</div>
+        ${[
+          ['Strong damage dealers', coverage.damage >= 2, 'Use high-HP tanks or swarm encounters to make them work for kills.'],
+          ['Multiple tanks', coverage.tank >= 2, 'Front-line fighters excel — use ranged/flying enemies to bypass them.'],
+          ['Healers present', coverage.healer >= 1, 'Attrition fights are less lethal — use burst damage or save-or-suck spells.'],
+          ['Control specialists', coverage.control >= 1, 'Immune enemies (undead, constructs) or legendary resistance reduce their power.'],
+          ['Good scouts', coverage.scout >= 1, 'Random ambushes and hidden doors are less effective — use social traps instead.'],
+        ].map(([role, hasIt, tip]) =>
+          `<div style="font-size:11px;color:${hasIt?'#9098b8':'#4a5272'};padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.03)"><span style="color:${hasIt?'#c9a227':'#333'}">${hasIt?'▶':'○'}</span> <strong style="color:${hasIt?'#c8d0e8':'#4a5272'}">${escHtml(role)}</strong>: ${escHtml(tip)}</div>`
+        ).join('')}
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+// Add Party Analyzer button
+(function() {
+  const allBtns = document.querySelectorAll('.filter-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.title = 'Party Balance Analyzer — check role coverage and encounter design tips';
+    btn.style.cssText = 'border-color:#9b6dff;color:#9b6dff';
+    btn.textContent = '⚖ Party Roles';
+    btn.onclick = openPartyAnalyzer;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
