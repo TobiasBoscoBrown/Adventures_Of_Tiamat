@@ -1128,6 +1128,25 @@
     border-bottom: 1px solid rgba(201,162,39,0.15);
     flex-wrap: wrap;
   }
+  .resource-bar {
+    padding: 8px 20px;
+    background: rgba(68,204,136,.04);
+    border-bottom: 1px solid rgba(68,204,136,.15);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+  .resource-slot { display: flex; align-items: center; gap: 5px; }
+  .resource-label { font-size: 10px; color: #44cc88; font-family: 'Cinzel', serif; letter-spacing: .5px; white-space: nowrap; }
+  .res-pip {
+    width: 14px; height: 14px; border-radius: 3px;
+    border: 2px solid #44cc88;
+    background: rgba(68,204,136,.2);
+    cursor: pointer; transition: all .12s; display: inline-block;
+  }
+  .res-pip.used { background: transparent; border-color: #2a4040; }
+  .res-pip:hover { transform: scale(1.2); }
   .legendary-tracker {
     display: flex;
     align-items: center;
@@ -3618,6 +3637,7 @@
     </div>
     <div class="modal-combat-bar" id="modalCombatBar"></div>
     <div id="modalLegendaryBar" style="display:none"></div>
+    <div id="modalResourceBar"></div>
     <div class="modal-tabs" id="modalTabs" style="display:flex;justify-content:space-between;align-items:center">
       <div style="display:flex">
         <div class="modal-tab active" data-tab="stats" onclick="switchModalTab('stats', this)">Stats</div>
@@ -7011,6 +7031,8 @@ function openModal(idx) {
   document.getElementById('modal').classList.add('open');
   // Refresh inspiration button state
   if (typeof refreshInspirationBtn === 'function') refreshInspirationBtn(c.name);
+  // Render resource tracker
+  if (typeof renderResourceBar === 'function') renderResourceBar(c.name);
 }
 
 function closeModal() {
@@ -7989,6 +8011,71 @@ function renderLegendaryBar(charName) {
 }
 
 initLegend();
+// ────────────────────────────────────────────────────────
+
+// ── CHARACTER RESOURCE TRACKER ──────────────────────────
+const CHAR_RES_KEY = 'tiamat_char_resources';
+function loadAllResources() { try { return JSON.parse(localStorage.getItem(CHAR_RES_KEY))||{}; } catch { return {}; } }
+function saveAllResources(d) { localStorage.setItem(CHAR_RES_KEY, JSON.stringify(d)); }
+function getCharResources(name) { return (loadAllResources()[name]) || []; }
+
+function saveCharResources(name, list) {
+  const all = loadAllResources();
+  if (!list || !list.length) delete all[name]; else all[name] = list;
+  saveAllResources(all);
+}
+
+function useResource(name, id, delta) {
+  const list = getCharResources(name);
+  const res = list.find(r => r.id === id);
+  if (!res) return;
+  res.used = Math.max(0, Math.min(res.max, (res.used||0) + delta));
+  saveCharResources(name, list);
+  renderResourceBar(name);
+  logEntry('roll', `<strong>${escHtml(name)}</strong> ${delta > 0 ? 'used' : 'recovered'} <em>${escHtml(res.name)}</em> (${res.max-(res.used||0)}/${res.max} remaining)`);
+}
+
+function addResource(charName) {
+  const name = prompt('Resource name (e.g. Channel Divinity, Rage, Bardic Inspiration):');
+  if (!name || !name.trim()) return;
+  const maxStr = prompt(`Max uses of "${name.trim()}":`, '1');
+  const max = parseInt(maxStr);
+  if (!max || max < 1 || max > 20) return;
+  const recharge = prompt('Recharges on: (long rest / short rest / dawn)', 'long rest') || 'long rest';
+  const list = getCharResources(charName);
+  list.push({ id: Date.now().toString(36), name: name.trim(), max, used: 0, recharge: recharge.trim() });
+  saveCharResources(charName, list);
+  renderResourceBar(charName);
+}
+
+function removeResource(charName, id) {
+  const list = getCharResources(charName).filter(r => r.id !== id);
+  saveCharResources(charName, list);
+  renderResourceBar(charName);
+}
+
+function restoreAllResources(charName) {
+  const list = getCharResources(charName).map(r => ({...r, used: 0}));
+  saveCharResources(charName, list);
+  renderResourceBar(charName);
+  logEntry('rest', `<strong>${escHtml(charName)}</strong>'s resources restored`);
+}
+
+function renderResourceBar(charName) {
+  const el = document.getElementById('modalResourceBar');
+  if (!el) return;
+  const list = getCharResources(charName);
+  if (!list.length) {
+    el.innerHTML = `<div style="padding:6px 20px;border-bottom:1px solid #1a2030;display:flex;align-items:center;gap:8px"><span style="font-size:10px;color:#2a4050">No resources tracked</span><button onclick="addResource(${JSON.stringify(charName)})" style="background:none;border:1px solid #1a3020;color:#2a5040;border-radius:6px;padding:2px 8px;cursor:pointer;font-size:10px">+ Add Resource</button></div>`;
+    return;
+  }
+  const slots = list.map(r => {
+    const rem = r.max - (r.used||0);
+    const pips = Array.from({length:r.max}, (_,i)=>`<span class="res-pip${i>=rem?' used':''}" onclick="useResource(${JSON.stringify(charName)},${JSON.stringify(r.id)},${i>=rem?-1:1})" title="${i>=rem?'Click to recover':'Click to use'}"></span>`).join('');
+    return `<div class="resource-slot"><span class="resource-label">${escHtml(r.name)}</span>${pips}<span style="font-size:9px;color:#2a5040;margin-left:2px">${rem}/${r.max}</span><button onclick="removeResource(${JSON.stringify(charName)},${JSON.stringify(r.id)})" style="background:none;border:none;color:#2a3040;cursor:pointer;font-size:10px;padding:0 2px;line-height:1" title="Remove resource">✕</button></div>`;
+  }).join('');
+  el.innerHTML = `<div class="resource-bar">${slots}<button onclick="addResource(${JSON.stringify(charName)})" style="background:none;border:1px solid rgba(68,204,136,.25);color:#2a8060;border-radius:6px;padding:2px 8px;cursor:pointer;font-size:10px;margin-left:auto">+ Add</button><button onclick="restoreAllResources(${JSON.stringify(charName)})" style="background:none;border:1px solid rgba(68,204,136,.25);color:#2a8060;border-radius:6px;padding:2px 8px;cursor:pointer;font-size:10px" title="Restore all resources">↺ Restore All</button></div>`;
+}
 // ────────────────────────────────────────────────────────
 
 // ── CONCENTRATION TRACKER ───────────────────────────────
