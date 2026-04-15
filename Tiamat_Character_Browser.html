@@ -28588,6 +28588,116 @@ function _achDelete(charName, idx) {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 180: Campaign Stats Dashboard — visual overview of campaign totals
+// Sessions, XP, deaths, encounters, quests, achievements, conditions, and more.
+
+function openCampaignStats() {
+  const ex = document.getElementById('campaignStatsOverlay');
+  if (ex) { ex.remove(); return; }
+
+  // Gather stats from localStorage
+  const getCount = (key, defaultVal) => {
+    try {
+      const data = JSON.parse(localStorage.getItem(key)||'null');
+      if (!data) return defaultVal;
+      if (Array.isArray(data)) return data.length;
+      if (typeof data === 'object') return Object.keys(data).length;
+      return defaultVal;
+    } catch { return defaultVal; }
+  };
+
+  const sessionLog = (() => { try { return JSON.parse(localStorage.getItem('tiamat_session_log')||'[]'); } catch { return []; } })();
+  const quests = (() => { try { return JSON.parse(localStorage.getItem('tiamat_quests')||'[]'); } catch { return []; } })();
+  const notes = (() => { try { return JSON.parse(localStorage.getItem('tiamat_char_notes')||'{}'); } catch { return {}; } })();
+  const relations = (() => { try { return JSON.parse(localStorage.getItem('tiamat_relationships')||'{}'); } catch { return {}; } })();
+  const arcs = (() => { try { return JSON.parse(localStorage.getItem('tiamat_arcs')||'{}'); } catch { return {}; } })();
+  const achievements = (() => { try { return JSON.parse(localStorage.getItem('tiamat_achievements')||'{}'); } catch { return {}; } })();
+  const villains = (() => { try { return JSON.parse(localStorage.getItem('tiamat_villains')||'[]'); } catch { return []; } })();
+  const hbItems = (() => { try { return JSON.parse(localStorage.getItem('tiamat_homebrew_items')||'[]'); } catch { return []; } })();
+  const mapPins = (() => { try { return JSON.parse(localStorage.getItem('tiamat_map_pins')||'[]'); } catch { return []; } })();
+  const downtime = (() => { try { const d=JSON.parse(localStorage.getItem('tiamat_downtime')||'{}'); return (d.log||[]).length; } catch { return 0; } })();
+  const totalAchievements = Object.values(achievements).reduce((s,a) => s+(a?.length||0), 0);
+  const totalRelations = Object.values(relations).reduce((s,r) => s+(r?.length||0), 0);
+  const completedQuests = quests.filter(q=>q.status==='done'||q.completed).length;
+  const activeArcs = Object.keys(arcs).length;
+  const defeatedVillains = villains.filter(v=>v.status==='defeated').length;
+  const chars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+  const totalNpcs = chars.length;
+  const xpData = (() => { try { return JSON.parse(localStorage.getItem('tiamat_xp_data')||'{}'); } catch { return {}; } })();
+  const totalXpAwarded = Object.values(xpData).reduce((s,v) => s+(v?.xp||0), 0);
+
+  // Log entries count
+  const logCount = sessionLog.length;
+  const combatLogs = sessionLog.filter(e=>e.type==='combat'||e.type==='roll').length;
+
+  const statCards = [
+    { icon:'📜', label:'Session Log Entries',     value:logCount,                 color:'#9b6dff' },
+    { icon:'⚔',  label:'Combat Log Entries',       value:combatLogs,               color:'#cc4444' },
+    { icon:'📋',  label:'Quests Tracked',           value:quests.length,            color:'#ffaa44' },
+    { icon:'✅',  label:'Quests Completed',         value:completedQuests,          color:'#44aa44' },
+    { icon:'🤝',  label:'NPC Relationships',        value:totalRelations,           color:'#44aacc' },
+    { icon:'📖',  label:'Story Arcs Active',        value:activeArcs,               color:'#9b6dff' },
+    { icon:'🏆',  label:'Badges Awarded',           value:totalAchievements,        color:'#c9a227' },
+    { icon:'🦹',  label:'Villains Tracked',         value:villains.length,          color:'#cc4444' },
+    { icon:'💀',  label:'Villains Defeated',        value:defeatedVillains,         color:'#888' },
+    { icon:'⭐',  label:'Total XP Awarded',         value:totalXpAwarded.toLocaleString(), color:'#c9a227' },
+    { icon:'🗺',  label:'Map Pins Placed',          value:mapPins.length,           color:'#44aacc' },
+    { icon:'📌',  label:'Quick Facts',              value:getCount('tiamat_quick_facts',0), color:'#c9a227' },
+    { icon:'⚗',   label:'Homebrew Items',          value:hbItems.length,           color:'#c9a227' },
+    { icon:'⛺',  label:'Downtime Activities',      value:downtime,                 color:'#44aa44' },
+    { icon:'🔒',  label:'NPC Secrets Recorded',    value:getCount('tiamat_char_secrets',0), color:'#cc4444' },
+    { icon:'👥',  label:'Characters in Database',  value:totalNpcs,                color:'#9b6dff' },
+  ];
+
+  const ov = document.createElement('div');
+  ov.id = 'campaignStatsOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9200;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+  ov.innerHTML = `
+    <div style="width:740px;max-width:100%;color:#c8d0e8;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;position:sticky;top:0;background:rgba(6,6,26,0.97);padding:12px 0;border-bottom:1px solid rgba(155,109,255,0.2);backdrop-filter:blur(4px)">
+        <div>
+          <div style="font-family:'Cinzel',serif;font-size:20px;font-weight:700;color:#9b6dff">📊 Campaign Stats</div>
+          <div style="font-size:11px;color:#4a5272;margin-top:3px">Tiamat Character Browser — ${new Date().toLocaleDateString()}</div>
+        </div>
+        <button onclick="document.getElementById('campaignStatsOverlay').remove()" style="background:none;border:1px solid #2a2040;color:#6a5aaa;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px">✕</button>
+      </div>
+      <!-- Hero stat -->
+      <div style="background:linear-gradient(135deg,rgba(155,109,255,0.15),rgba(201,162,39,0.1));border:1px solid rgba(155,109,255,0.3);border-radius:14px;padding:20px;margin-bottom:20px;text-align:center">
+        <div style="font-size:11px;color:#6a5aaa;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">The Tiamat Campaign</div>
+        <div style="font-size:36px;font-weight:700;font-family:'Cinzel',serif;color:#9b6dff;line-height:1">${totalNpcs}</div>
+        <div style="font-size:13px;color:#c9a227;margin-top:4px">Characters & NPCs in the World</div>
+        <div style="font-size:11px;color:#4a5272;margin-top:8px">${logCount} session moments logged · ${quests.length} quests · ${totalRelations} relationships · ${totalAchievements} badges</div>
+      </div>
+      <!-- Stats grid -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;padding-bottom:40px">
+        ${statCards.map(s => `
+          <div style="background:rgba(0,0,0,0.4);border:1px solid ${s.color}22;border-radius:10px;padding:14px;text-align:center">
+            <div style="font-size:20px;margin-bottom:4px">${s.icon}</div>
+            <div style="font-size:22px;font-weight:700;font-family:'Cinzel',serif;color:${s.color}">${s.value}</div>
+            <div style="font-size:10px;color:#6a7090;margin-top:4px;line-height:1.3">${s.label}</div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+// Add Campaign Stats button
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'Campaign Stats Dashboard — overview of all campaign totals and activity';
+    btn.style.cssText = 'border-color:#9b6dff;color:#9b6dff';
+    btn.textContent = '📊 Stats';
+    btn.onclick = openCampaignStats;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
