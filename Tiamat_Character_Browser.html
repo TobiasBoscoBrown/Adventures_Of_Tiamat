@@ -736,6 +736,17 @@
   }
   .action-roll-btn:hover { background: rgba(201,162,39,0.2); border-color: var(--accent,#c9a227); }
 
+  /* ── Equipment Slots (Iteration 74) ── */
+  .equip-slots-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px; }
+  .equip-slot { background: #06061a; border: 1px solid #1e2040; border-radius: 8px; padding: 7px 9px; cursor: pointer; transition: all .15s; min-height: 52px; }
+  .equip-slot:hover { border-color: #c9a227; }
+  .equip-slot.filled { border-color: rgba(201,162,39,0.5); background: rgba(201,162,39,0.04); }
+  .equip-slot.filled:hover { border-color: #c9a227; }
+  .equip-slot-label { font-size: 9px; color: #4a5272; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 3px; }
+  .equip-slot-item { font-size: 11px; color: #dce0f0; line-height: 1.3; }
+  .equip-slot-empty { font-size: 10px; color: #2a2a50; font-style: italic; }
+  .equip-slot-icon { font-size: 13px; display: block; margin-bottom: 2px; }
+
   /* ── Equipment / Inventory Panel ── */
   .inventory-grid {
     display: grid;
@@ -1029,6 +1040,23 @@
     line-height: 1.5;
     font-style: italic;
   }
+
+  /* ── Bio Editor (Iteration 71) ── */
+  .bio-section { margin-bottom: 14px; }
+  .bio-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+  .bio-field-row.tri { grid-template-columns: 1fr 1fr 1fr; }
+  .bio-field-wrap { display: flex; flex-direction: column; gap: 3px; }
+  .bio-field-label { font-size: 9px; color: #4a5272; text-transform: uppercase; letter-spacing: 1px; }
+  .bio-input { background: #06061a; border: 1px solid #1e2040; border-radius: 6px; color: #c8d0e8; font-size: 12px; padding: 6px 10px; font-family: 'Inter', sans-serif; outline: none; transition: border-color .2s; width: 100%; box-sizing: border-box; }
+  .bio-input:focus { border-color: #9b6dff; }
+  .bio-input::placeholder { color: #2a2a50; font-style: italic; }
+  .bio-textarea { min-height: 56px; resize: vertical; line-height: 1.5; }
+  .bio-pf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .bio-pf-tile { background: #06061a; border: 1px solid #1e2040; border-radius: 8px; padding: 10px 12px; }
+  .bio-pf-title { font-size: 9px; color: var(--accent,#c9a227); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; display: flex; align-items: center; gap: 4px; }
+  .bio-pf-tile textarea.bio-input { background: transparent; border: none; border-bottom: 1px solid #1e2040; border-radius: 0; padding: 0 0 4px; font-style: italic; color: #b8c0d8; }
+  .bio-pf-tile textarea.bio-input:focus { border-bottom-color: var(--accent,#c9a227); }
+
   .alignment-badge {
     display: inline-block;
     padding: 4px 12px;
@@ -3081,6 +3109,33 @@
     margin-top: 3px;
   }
 
+  /* ── Character Advancement Log (Iteration 75) ── */
+  .adv-entry { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid #0e0e24; align-items: flex-start; }
+  .adv-entry:last-child { border-bottom: none; }
+  .adv-level-badge { background: linear-gradient(135deg,#1a1a30,#12103a); border: 1px solid #9b6dff; border-radius: 6px; color: #9b6dff; font-size: 11px; font-weight: 700; padding: 2px 8px; white-space: nowrap; font-family: 'Cinzel', serif; }
+  .adv-entry-body { flex: 1; }
+  .adv-entry-type { font-size: 10px; color: var(--accent,#c9a227); text-transform: uppercase; letter-spacing: .5px; }
+  .adv-entry-desc { font-size: 12px; color: #c8d0e8; margin-top: 2px; }
+  .adv-entry-ts { font-size: 9px; color: #3a3a5a; margin-top: 2px; }
+  .adv-type-asi { color: #4488ff !important; }
+  .adv-type-feat { color: #23b478 !important; }
+  .adv-type-feature { color: #c9a227 !important; }
+  .adv-type-levelup { color: #9b6dff !important; }
+
+  /* ── Class Feature Usage Tracker (Iteration 72) ── */
+  .feat-use-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #0e0e24; }
+  .feat-use-row:last-child { border-bottom: none; }
+  .feat-use-name { flex: 1; font-size: 12px; color: #dce0f0; }
+  .feat-use-meta { font-size: 10px; color: #4a5272; }
+  .feat-use-pips { display: flex; gap: 4px; align-items: center; }
+  .feat-pip { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid #4488ff; cursor: pointer; transition: all .15s; display: flex; align-items: center; justify-content: center; font-size: 9px; }
+  .feat-pip.used { background: #2a2a50; border-color: #2a2a50; color: #1a1a3a; }
+  .feat-pip.avail { background: rgba(68,136,255,.15); color: #4488ff; }
+  .feat-pip.avail:hover { background: #4488ff; color: #fff; }
+  .feat-pip.used:hover { background: rgba(68,136,255,.1); border-color: #4488ff; color: #4488ff; }
+  .feat-add-btn { font-size: 11px; background: none; border: 1px dashed #2a2a50; color: #4a5272; border-radius: 6px; padding: 4px 10px; cursor: pointer; width: 100%; margin-top: 6px; transition: all .2s; }
+  .feat-add-btn:hover { border-color: #9b6dff; color: #9b6dff; }
+
   /* ── Spell Slots ── */
   .spell-level-row {
     display: flex;
@@ -3514,6 +3569,53 @@
   .loot-log-entry { padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
   .loot-log-entry.add { color: #44aa44; }
   .loot-log-entry.rem { color: #cc3333; }
+  /* ITERATION 88: Legendary Actions */
+  .leg-action-row { display:flex; gap:4px; align-items:center; padding:2px 8px 4px; flex-wrap:wrap; }
+  .leg-action-pip {
+    width:16px; height:16px; border-radius:50%; border:2px solid #c9a227;
+    background:rgba(201,162,39,0.15); cursor:pointer; transition:all 0.1s;
+    display:inline-block;
+  }
+  .leg-action-pip.used { background:#c9a227; border-color:#c9a227; }
+  .leg-action-pip:hover { transform:scale(1.2); }
+  .leg-label { font-size:9px; color:#c9a227; letter-spacing:0.5px; font-weight:700; margin-right:2px; }
+  .leg-set-btn { font-size:9px; color:#6a7299; background:none; border:1px solid #2a2a50; border-radius:4px; padding:1px 4px; cursor:pointer; }
+  /* ITERATION 87: Dice Roller Panel */
+  #dicePanel {
+    position: fixed; bottom: 60px; right: 18px; width: 280px;
+    background: #13162a; border: 1px solid rgba(221,102,34,0.4);
+    border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    z-index: 900; padding: 14px; display: none; flex-direction: column; gap: 10px;
+  }
+  #dicePanel.open { display: flex; }
+  .dice-header { display:flex; justify-content:space-between; align-items:center; }
+  .dice-title { font-family:'Cinzel',serif; font-size:13px; font-weight:700; color:#dd6622; letter-spacing:1px; }
+  .dice-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+  .die-btn {
+    background: rgba(221,102,34,0.1); border: 1px solid rgba(221,102,34,0.4);
+    color: #dd6622; border-radius: 8px; padding: 8px 4px; font-size: 13px;
+    font-family:'Cinzel',serif; font-weight:700; cursor:pointer; text-align:center;
+    transition: all 0.15s;
+  }
+  .die-btn:hover { background: rgba(221,102,34,0.3); }
+  .die-btn.adv { background: rgba(68,170,68,0.1); border-color: rgba(68,170,68,0.5); color:#44aa44; }
+  .die-btn.dis { background: rgba(204,51,51,0.1); border-color: rgba(204,51,51,0.5); color:#cc3333; }
+  .dice-controls { display:flex; gap:6px; align-items:center; }
+  .dice-count-label { color:#6a7299; font-size:11px; }
+  .dice-mod-input, .dice-count-input {
+    background: #0d0f1e; border: 1px solid rgba(221,102,34,0.3); color:#e8e0d0;
+    border-radius:6px; padding:4px 6px; font-size:12px; width:50px; text-align:center;
+  }
+  .dice-result-box {
+    background: rgba(221,102,34,0.07); border: 1px solid rgba(221,102,34,0.2);
+    border-radius:8px; padding:10px; text-align:center; min-height:60px;
+  }
+  .dice-result-total { font-size:36px; font-weight:900; font-family:'Cinzel',serif; color:#dd6622; line-height:1; }
+  .dice-result-detail { font-size:11px; color:#6a7299; margin-top:4px; }
+  .dice-history { max-height:120px; overflow-y:auto; display:flex; flex-direction:column; gap:3px; }
+  .dice-history-entry { font-size:11px; color:#6a7299; display:flex; justify-content:space-between; padding:2px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+  .dice-history-entry .dh-total { color:#dd6622; font-weight:700; }
+  .dice-adv-row { display:flex; gap:6px; }
 </style>
 </head>
 <body>
@@ -3533,12 +3635,22 @@
     <button class="encounter-open-btn" onclick="openTheaterMode()" style="border-color:#44aacc;color:#44aacc" title="Theater mode — fullscreen battle board for second screen">🎭 Theater</button>
     <button class="encounter-open-btn" onclick="toggleXpPanel()" style="border-color:#c9a227;color:#c9a227" id="xpTrackerBtn" title="Party XP & Level Tracker — award XP, track level progress">⭐ XP</button>
     <button class="encounter-open-btn" onclick="toggleSkillChallenge()" style="border-color:#dd8822;color:#dd8822" id="skillChallengeBtn" title="Skill Challenge Tracker — track successes & failures">⚡ Challenge</button>
+    <button class="encounter-open-btn" onclick="togglePartySlots()" style="border-color:#bb88ff;color:#bb88ff" id="partySlotsBtn" title="Party spell slot overview — all casters at a glance">✨ Slots</button>
     <button class="encounter-open-btn" onclick="toggleSpellSearch()" style="border-color:#44aacc;color:#44aacc" id="spellSearchBtn" title="Search spells by name, school, or level">📖 Spells</button>
     <button class="encounter-open-btn" onclick="togglePassivesPanel()" style="border-color:#9b6dff;color:#9b6dff" id="passivesBtn" title="Passive Perception, Investigation & Insight for all characters">👁 Passives</button>
     <button class="encounter-open-btn" onclick="toggleGroupRoll()" style="border-color:#5588dd;color:#5588dd" id="groupRollBtn" title="Roll any skill/ability for all visible characters at once">🎲 Group Roll</button>
     <button class="encounter-open-btn" onclick="toggleRestPanel()" style="border-color:#23b478;color:#23b478" id="restBtn" title="Short Rest / Long Rest — spend hit dice or restore all resources">🌙 Rest</button>
     <button class="encounter-open-btn" onclick="toggleLootPanel()" style="border-color:#c9a227;color:#c9a227" id="lootBtn" title="Party Loot & Treasury">💰 Loot</button>
     <button class="encounter-open-btn" onclick="toggleDmNotes()" style="border-color:#9b6dff;color:#9b6dff" id="dmNotesBtn" title="DM Session Notes">📝 DM Notes</button>
+    <button class="encounter-open-btn" onclick="togglePassivePanel()" style="border-color:#23b478;color:#23b478" id="passiveBtn" title="Party Passive Skills — perception, investigation, insight at a glance">👁 Passives</button>
+    <button class="encounter-open-btn" onclick="toggleAwardsPanel()" style="border-color:#c9a227;color:#c9a227" id="awardsBtn" title="Inspiration & Awards — grant inspiration, log heroic moments">⭐ Awards</button>
+    <button class="encounter-open-btn" onclick="openGroupCheckPanel()" style="border-color:#aa66ff;color:#aa66ff" title="Group Check Roller — roll Stealth, Perception, etc. for all party members at once">🎲 Group Roll</button>
+    <button class="encounter-open-btn" onclick="openConcDashboard()" style="border-color:#c9a227;color:#c9a227" title="Concentration Dashboard — who is concentrating, quick break concentration saves">🔮 Conc</button>
+    <button class="encounter-open-btn" onclick="toggleSlotDashboard()" style="border-color:#4488ff;color:#4488ff" id="slotDashBtn" title="Party Spell Slot Dashboard — all casters' slots at a glance">✦ Slots</button>
+    <button class="encounter-open-btn" onclick="openCondPicker()" style="border-color:#aa66dd;color:#aa66dd" title="Quick Condition Picker — search & apply conditions to any character">⚡ Cond</button>
+    <button class="encounter-open-btn" onclick="openCampaignDashboard()" style="border-color:#9b6dff;color:#9b6dff" title="Campaign Dashboard — full campaign state at a glance">📊 Dashboard</button>
+    <button class="encounter-open-btn" onclick="toggleDicePanel()" id="dicePanelBtn" style="border-color:#dd6622;color:#dd6622" title="Dice Roller — roll any die with modifier, advantage/disadvantage, history">🎲 Dice</button>
+    <button class="encounter-open-btn" onclick="openRandomTables()" style="border-color:#c9a227;color:#c9a227" title="Random Tables — weather, NPC quirks, tavern names, encounter hooks, etc.">🃏 Tables</button>
     <div class="stat-badge"><strong id="totalCount">0</strong> Characters</div>
     <div class="stat-badge"><strong id="visibleCount">0</strong> Showing</div>
     <div class="stat-badge stat-live" id="statDown" onclick="filterToDown()" title="Click to show downed characters" style="display:none"><strong id="downCount">0</strong> ⚠ Down</div>
@@ -3658,7 +3770,8 @@
       </div>
       <button onclick="exportCharacter()" style="background:none;border:1px solid #2a2a50;color:#7a7aaa;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:12px;margin-right:4px;transition:all 0.15s" onmouseover="this.style.borderColor='#44cc88';this.style.color='#44cc88'" onmouseout="this.style.borderColor='#2a2a50';this.style.color='#7a7aaa'" title="Export character state as JSON">⬇ Export</button>
       <button onclick="copyStatBlockMarkdown()" style="background:none;border:1px solid #2a2a50;color:#7a7aaa;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:12px;margin-right:4px;transition:all 0.15s" id="copyStatBtn" onmouseover="this.style.borderColor='#9b6dff';this.style.color='#9b6dff'" onmouseout="this.style.borderColor='#2a2a50';this.style.color='#7a7aaa'" title="Copy markdown stat block to clipboard">📋 Copy MD</button>
-      <button onclick="printCharCard()" style="background:none;border:1px solid #2a2a50;color:#7a7aaa;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:12px;margin-right:10px;transition:all 0.15s" onmouseover="this.style.borderColor='#4488ff';this.style.color='#4488ff'" onmouseout="this.style.borderColor='#2a2a50';this.style.color='#7a7aaa'">🖨 Print Card</button>
+      <button onclick="printCharCard()" style="background:none;border:1px solid #2a2a50;color:#7a7aaa;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:12px;margin-right:4px;transition:all 0.15s" onmouseover="this.style.borderColor='#4488ff';this.style.color='#4488ff'" onmouseout="this.style.borderColor='#2a2a50';this.style.color='#7a7aaa'">🖨 Print Card</button>
+      <button onclick="openPrintSheet(filteredChars[currentModalIdx])" style="background:none;border:1px solid #2a2a50;color:#7a7aaa;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:12px;margin-right:10px;transition:all 0.15s" onmouseover="this.style.borderColor='#dd6622';this.style.color='#dd6622'" onmouseout="this.style.borderColor='#2a2a50';this.style.color='#7a7aaa'" title="Open full printable character sheet (Iteration 90)">📄 Full Sheet</button>
     </div>
     <div id="modalTabStats" class="modal-tab-content active">
       <div class="stats-panel" id="statsPanel"></div>
@@ -3677,7 +3790,10 @@
   <div style="background:#0a0a1e;border:1px solid #44aa44;border-radius:16px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto;padding:24px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
       <h2 style="font-family:'Cinzel',serif;color:#44aa44;font-size:18px">+ Create Custom NPC</h2>
-      <button onclick="closeNpcBuilder()" style="background:none;border:1px solid #333;color:#9098b8;border-radius:8px;padding:6px 12px;cursor:pointer">✕</button>
+      <div style="display:flex;gap:8px">
+        <button onclick="openQuickStatBlock()" style="background:rgba(68,170,68,.15);border:1px solid #44aa44;color:#44aa44;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12px">⚡ Quick Generate</button>
+        <button onclick="closeNpcBuilder()" style="background:none;border:1px solid #333;color:#9098b8;border-radius:8px;padding:6px 12px;cursor:pointer">✕</button>
+      </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
       <div style="grid-column:1/-1">
@@ -3775,6 +3891,9 @@
   </div>
   <div class="hp-popup-bar"><div id="hpPopupBarFill" class="hp-popup-bar-fill"></div></div>
   <div id="hpPopupCurrent" class="hp-popup-current"></div>
+  <div style="margin-bottom:5px">
+    <input id="hpSourceNote" placeholder="Source (e.g. Fireball, Healing Word)…" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#9098b8;border-radius:6px;padding:5px 8px;font-size:10px;font-family:inherit;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#9b6dff'" onblur="this.style.borderColor='#2a2a50'">
+  </div>
   <div class="hp-popup-row">
     <input type="number" id="hpDmgInput" class="hp-popup-input dmg-in" placeholder="Damage" min="1"
            onkeydown="if(event.key==='Enter')applyHpAction('dmg')">
@@ -3842,8 +3961,10 @@
       <button class="init-ctrl-btn" onclick="toggleGroupRoll()" title="Group saving throw / ability check" style="border-color:#aa66dd;color:#aa66dd">⚔ Save</button>
       <button class="init-ctrl-btn" onclick="toggleBulkCond(event)" title="Apply condition to all in initiative" style="border-color:#dd8822;color:#dd8822">⚡ Bulk</button>
       <button class="init-ctrl-btn" id="lairActionBtn" onclick="toggleLairAction()" title="Toggle Lair Action at Init 20" style="border-color:#2a2a50;color:#4a5272">🏰 Lair</button>
+      <button class="init-ctrl-btn" onclick="toggleSceneEffects()" title="Scene Effects — track active area spells and environmental effects" style="border-color:#6699ff;color:#6699ff" id="sceneEffectsBtn">🌀 FX</button>
       <button class="init-ctrl-btn" onclick="saveInitiativeSnapshot()" title="Save combat snapshot — restore later" style="border-color:#44ccaa;color:#44ccaa">📸 Snap</button>
       <button class="init-ctrl-btn" onclick="openInitiativeSnapshots()" title="View &amp; restore saved snapshots" style="border-color:#44ccaa;color:#4a5272">📂</button>
+      <button class="init-ctrl-btn" onclick="toggleEncounterNotes(true)" title="Toggle encounter notes" id="encNotesBtn" style="border-color:#c9a227;color:#c9a227">📋</button>
       <button class="init-ctrl-btn" onclick="clearInitiative()" title="Clear initiative">✕</button>
     </div>
   </div>
@@ -3857,6 +3978,31 @@
   </div>
   <!-- Active Turn Stats Bar -->
   <div id="activeTurnBar" style="display:none;padding:6px 12px;border-bottom:1px solid #1e2040;background:rgba(240,192,96,.04)"></div>
+  <!-- DC Tracker -->
+  <div id="dcTrackerArea" style="padding:4px 10px;border-bottom:1px solid rgba(221,68,68,.15);background:rgba(221,68,68,.03);display:flex;align-items:center;gap:8px">
+    <span style="font-size:10px;color:#cc3333;letter-spacing:.5px;font-weight:600">DC</span>
+    <input type="number" id="activeDcInput" value="" placeholder="—" min="1" max="30" style="width:40px;background:#0a0a1e;border:1px solid rgba(204,51,51,.3);color:#e08888;border-radius:5px;padding:2px 6px;font-size:12px;font-weight:700;text-align:center;outline:none" oninput="updateDcDisplay()" onfocus="this.style.borderColor='#cc3333'" onblur="this.style.borderColor='rgba(204,51,51,.3)'" title="Set target DC — saves will auto-show pass/fail">
+    <span id="dcLabel" style="font-size:9px;color:#4a3030">for saves & checks</span>
+    <span style="font-size:9px;color:#4a5272;margin-left:auto">Quick:
+      ${[8,10,12,14,15,17,18,20].map(d=>`<button onclick="document.getElementById('activeDcInput').value=${d};updateDcDisplay()" style="background:none;border:1px solid #2a2a50;color:#6a7098;border-radius:3px;padding:0 4px;cursor:pointer;font-size:9px;margin:0 1px">${d}</button>`).join('')}
+    </span>
+  </div>
+  <!-- Encounter Notes -->
+  <div id="encounterNotesArea" style="display:none;padding:5px 10px;border-bottom:1px solid rgba(201,162,39,.15);background:rgba(201,162,39,.03)">
+    <div style="display:flex;gap:5px;align-items:flex-start">
+      <span style="font-size:10px;color:#c9a227;margin-top:4px;flex-shrink:0">📋</span>
+      <textarea id="encounterNotesText" placeholder="Encounter notes — special mechanics, win conditions, lair features…" oninput="saveEncounterNotes()" style="flex:1;background:transparent;border:none;color:#9098b8;font-size:11px;line-height:1.4;resize:none;outline:none;min-height:28px;max-height:80px;overflow:hidden" rows="2"></textarea>
+      <button onclick="toggleEncounterNotes(false)" style="background:none;border:none;color:#3a3050;cursor:pointer;font-size:11px;flex-shrink:0" title="Hide notes">✕</button>
+    </div>
+  </div>
+  <!-- Scene Effects Panel -->
+  <div id="sceneEffectsArea" style="display:none;padding:6px 10px;border-bottom:1px solid rgba(102,153,255,.2);background:rgba(102,153,255,.04)">
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:5px">
+      <span style="font-size:10px;color:#6699ff;letter-spacing:1px;font-family:'Cinzel',serif">🌀 SCENE EFFECTS</span>
+      <button onclick="addSceneEffect()" style="margin-left:auto;background:rgba(102,153,255,.1);border:1px solid rgba(102,153,255,.3);color:#6699ff;border-radius:5px;padding:1px 8px;cursor:pointer;font-size:10px">+ Add</button>
+    </div>
+    <div id="sceneEffectsList" style="display:flex;flex-wrap:wrap;gap:4px"></div>
+  </div>
   <!-- Group Roll Panel (collapsible) -->
   <div id="groupRollArea" style="display:none;padding:8px 10px;border-bottom:1px solid #1e2040;background:rgba(170,102,221,.05)">
     <div style="font-size:10px;color:#aa66dd;letter-spacing:1px;margin-bottom:6px;font-family:'Cinzel',serif">⚔ GROUP CHECK / SAVE</div>
@@ -3918,6 +4064,58 @@
   <div class="health-panel-body" id="healthPanelBody">
     <div style="text-align:center;color:#4a5272;font-size:12px;padding:20px">Loading...</div>
   </div>
+</div>
+
+<!-- Dice Roller Panel (Iteration 87) -->
+<div id="dicePanel">
+  <div class="dice-header">
+    <span class="dice-title">🎲 DICE ROLLER</span>
+    <button onclick="toggleDicePanel()" style="background:none;border:none;color:#6a7299;font-size:16px;cursor:pointer;line-height:1">✕</button>
+  </div>
+  <div class="dice-controls">
+    <span class="dice-count-label">Count:</span>
+    <input type="number" id="diceCount" class="dice-count-input" value="1" min="1" max="20" />
+    <span class="dice-count-label">Mod:</span>
+    <input type="number" id="diceMod" class="dice-mod-input" value="0" />
+  </div>
+  <div class="dice-adv-row">
+    <button class="die-btn adv" style="flex:1;font-size:11px" onclick="setDiceMode('adv')" id="diceAdvBtn">▲ Advantage</button>
+    <button class="die-btn" style="flex:1;font-size:11px;background:rgba(100,100,120,0.1);border-color:rgba(100,100,120,0.4);color:#6a7299" onclick="setDiceMode('normal')" id="diceNormBtn">● Normal</button>
+    <button class="die-btn dis" style="flex:1;font-size:11px" onclick="setDiceMode('dis')" id="diceDisBtn">▼ Disadv</button>
+  </div>
+  <div class="dice-grid">
+    <button class="die-btn" onclick="rollDice(4)">d4</button>
+    <button class="die-btn" onclick="rollDice(6)">d6</button>
+    <button class="die-btn" onclick="rollDice(8)">d8</button>
+    <button class="die-btn" onclick="rollDice(10)">d10</button>
+    <button class="die-btn" onclick="rollDice(12)">d12</button>
+    <button class="die-btn" onclick="rollDice(20)">d20</button>
+    <button class="die-btn" onclick="rollDice(100)">d100</button>
+    <button class="die-btn" onclick="rollCustomDice()" style="font-size:10px">Custom</button>
+  </div>
+  <div class="dice-result-box" id="diceResultBox">
+    <div class="dice-result-total" id="diceResultTotal">—</div>
+    <div class="dice-result-detail" id="diceResultDetail">Roll a die above</div>
+  </div>
+  <div class="dice-history" id="diceHistory"></div>
+</div>
+
+<!-- Inspiration & Awards Panel (Iteration 77) -->
+<div id="awardsPanel" style="position:fixed;top:60px;left:50%;transform:translateX(-50%);width:min(540px,95vw);max-height:80vh;background:linear-gradient(160deg,#0d0b00,#1a1400);border:1px solid rgba(201,162,39,0.45);border-radius:14px;z-index:347;display:none;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.9);overflow:hidden">
+  <div style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(201,162,39,0.2)">
+    <span style="font-family:'Cinzel',serif;color:#c9a227;font-size:13px;font-weight:700;letter-spacing:1px">⭐ INSPIRATION & AWARDS</span>
+    <button onclick="toggleAwardsPanel()" style="background:none;border:1px solid #3a2a00;color:#6a5020;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px">✕</button>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:14px 16px" id="awardsPanelBody">Loading...</div>
+</div>
+
+<!-- Party Passive Skills Panel (Iteration 76) -->
+<div id="passivePanel" style="position:fixed;top:60px;right:20px;width:320px;max-height:80vh;background:linear-gradient(160deg,#061209,#0c1a10);border:1px solid rgba(35,180,120,0.4);border-radius:14px;z-index:347;display:none;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.9);overflow:hidden">
+  <div style="padding:12px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(35,180,120,0.2)">
+    <span style="font-family:'Cinzel',serif;color:#23b478;font-size:13px;font-weight:700;letter-spacing:1px">👁 PARTY PASSIVES</span>
+    <button onclick="togglePassivePanel()" style="background:none;border:1px solid #1a3a28;color:#4a7a5a;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px">✕</button>
+  </div>
+  <div id="passivePanelBody" style="flex:1;overflow-y:auto;padding:12px 14px"></div>
 </div>
 
 <!-- Quick Reference Panel -->
@@ -4172,6 +4370,7 @@
     <div class="log-title">✦ Session Log</div>
     <div class="log-controls">
       <button class="log-ctrl-btn" onclick="showSessionStats()" title="Session combat statistics">📊 Stats</button>
+      <button class="log-ctrl-btn" onclick="openSessionRecap()" title="Generate session recap summary">📋 Recap</button>
       <button class="log-ctrl-btn" onclick="exportLog()">⬇ Export</button>
       <button class="log-ctrl-btn" onclick="exportSessionLog()" title="Export as Markdown file">📝 MD</button>
       <button class="log-ctrl-btn" onclick="copyLogToClipboard()" title="Copy log to clipboard">📋</button>
@@ -4445,6 +4644,13 @@
     <button onclick="recordSCResult(true)" id="scSuccessBtn" style="flex:1;background:rgba(68,170,68,.15);border:2px solid #44aa44;color:#44aa44;border-radius:8px;padding:8px;cursor:pointer;font-size:13px;font-weight:700">✓ Success</button>
     <button onclick="recordSCResult(false)" id="scFailBtn" style="flex:1;background:rgba(204,51,51,.1);border:2px solid #cc3333;color:#cc3333;border-radius:8px;padding:8px;cursor:pointer;font-size:13px;font-weight:700">✗ Failure</button>
   </div>
+</div>
+<div id="partySlotsPanel" style="position:fixed;top:60px;right:20px;width:360px;max-height:82vh;background:linear-gradient(160deg,#06031a,#0f0828);border:1px solid rgba(187,136,255,0.4);border-radius:14px;z-index:353;display:none;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.9);overflow:hidden">
+  <div style="padding:10px 14px;border-bottom:1px solid rgba(187,136,255,0.25);display:flex;justify-content:space-between;align-items:center;background:rgba(187,136,255,0.04);flex-shrink:0">
+    <span style="font-family:'Cinzel',serif;color:#bb88ff;font-size:13px;font-weight:700;letter-spacing:1px">✨ PARTY SPELL SLOTS</span>
+    <button onclick="togglePartySlots()" style="background:none;border:1px solid #2a1a40;color:#4a2a60;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px">✕</button>
+  </div>
+  <div id="partySlotsBody" style="overflow-y:auto;flex:1;padding:8px 0"></div>
 </div>
 <div id="spellSearchPanel" style="position:fixed;top:60px;right:20px;width:360px;max-height:82vh;background:linear-gradient(160deg,#030d14,#071828);border:1px solid rgba(68,170,204,0.4);border-radius:14px;z-index:351;display:none;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.9);overflow:hidden">
   <div style="padding:10px 14px;border-bottom:1px solid rgba(68,170,204,0.25);display:flex;justify-content:space-between;align-items:center;background:rgba(68,170,204,0.04);flex-shrink:0">
@@ -4832,6 +5038,49 @@ let sortAscending = true;
 
 function getTheme(t) { return THEMES[t] || THEMES.royal; }
 
+// ══════════════════════════════════════════════════════════
+// ITERATION 83: Custom Character Portraits — users can set a
+//   custom emoji or image URL as a character's portrait.
+//   Stored per character in localStorage. Right-click card
+//   portrait or use modal button to set.
+// ══════════════════════════════════════════════════════════
+const PORTRAIT_KEY = 'tiamat_portraits';
+function loadPortraits() { try { return JSON.parse(localStorage.getItem(PORTRAIT_KEY)) || {}; } catch { return {}; } }
+function savePortrait(name, val) {
+  const d = loadPortraits();
+  if (val) d[name] = val; else delete d[name];
+  localStorage.setItem(PORTRAIT_KEY, JSON.stringify(d));
+}
+function getCustomPortrait(name) { return loadPortraits()[name] || null; }
+function openPortraitPicker(charName) {
+  const current = getCustomPortrait(charName);
+  const val = prompt(
+    `Set portrait for ${charName}:\n\nEnter either:\n• An emoji (e.g. 🐉 🧙‍♀️ ⚔ 🧝)\n• An image URL (https://...)\n• Leave empty to reset to default\n\nCurrent: ${current || '(default SVG)'}`,
+    current || ''
+  );
+  if (val === null) return; // cancelled
+  savePortrait(charName, val.trim() || null);
+  renderGrid();
+  showToast(`Portrait updated for ${charName}`, '#c9a227');
+  // Refresh modal if open
+  if (currentModalIdx >= 0 && filteredChars[currentModalIdx]?.name === charName) {
+    const modalPortrait = document.getElementById('modalPortraitArea');
+    if (modalPortrait) modalPortrait.innerHTML = buildPortraitHtml(filteredChars[currentModalIdx]);
+  }
+}
+function buildPortraitHtml(c) {
+  const custom = getCustomPortrait(c.name);
+  const nameJ = JSON.stringify(c.name);
+  if (custom) {
+    const isUrl = custom.startsWith('http');
+    const content = isUrl
+      ? `<img src="${custom}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none'" alt="${c.name}">`
+      : `<div style="font-size:52px;line-height:1;display:flex;align-items:center;justify-content:center;width:100%;height:100%">${custom}</div>`;
+    return `<div style="position:relative;cursor:pointer" onclick="openPortraitPicker(${nameJ})" title="Click to change portrait">${content}</div>`;
+  }
+  return `<div style="cursor:pointer" onclick="openPortraitPicker(${nameJ})" title="Click to set custom portrait">${getPortraitSvg(c)}</div>`;
+}
+
 // ── PORTRAIT SYSTEM ─────────────────────────────────────
 function getPortraitSvg(c, size) {
   const t = getTheme(c.theme);
@@ -5062,18 +5311,20 @@ function applyHpAction(type) {
   }
   hpState[popupCharName] = newHp;
   saveHp();
-  // Log HP changes
+  // Log HP changes (Iteration 84: include source note)
+  const srcNote = (document.getElementById('hpSourceNote')?.value || '').trim();
+  const srcSuffix = srcNote ? ` <em style="color:#7a7aaa">[${srcNote}]</em>` : '';
   if (type === 'dmg' && newHp !== currHp) {
     const dmg = currHp - newHp;
-    logEntry('damage', `<strong>${popupCharName}</strong> took <strong>${dmg} damage</strong> → ${newHp}/${maxHp} HP${newHp===0?' <strong style="color:#cc3333">⚠ DOWN</strong>':''}`);
+    logEntry('damage', `<strong>${popupCharName}</strong> took <strong>${dmg} damage</strong> → ${newHp}/${maxHp} HP${newHp===0?' <strong style="color:#cc3333">⚠ DOWN</strong>':''}${srcSuffix}`);
     logHpEvent(popupCharName, 'dmg', dmg, currHp, newHp, maxHp);
     if (typeof checkConcOnDamage === 'function') checkConcOnDamage(popupCharName, dmg);
   } else if (type === 'heal' && newHp !== currHp) {
     const healed = newHp - currHp;
-    logEntry('heal', `<strong>${popupCharName}</strong> healed <strong>${healed} HP</strong> → ${newHp}/${maxHp} HP`);
+    logEntry('heal', `<strong>${popupCharName}</strong> healed <strong>${healed} HP</strong> → ${newHp}/${maxHp} HP${srcSuffix}`);
     logHpEvent(popupCharName, 'heal', healed, currHp, newHp, maxHp);
   } else if (type === 'full') {
-    logEntry('heal', `<strong>${popupCharName}</strong> restored to full HP (${maxHp})`);
+    logEntry('heal', `<strong>${popupCharName}</strong> restored to full HP (${maxHp})${srcSuffix}`);
     logHpEvent(popupCharName, 'full', maxHp - currHp, currHp, maxHp, maxHp);
   }
   const pct = maxHp > 0 ? newHp / maxHp : 0;
@@ -5240,6 +5491,8 @@ function shortRestAll() {
     total++;
   });
   if (total) { saveHp(); renderGrid(); logEntry('heal', `☽ <strong>Short Rest</strong> — ${total} characters recovered hit dice`); }
+  // Reset short-rest class features for all characters
+  if (typeof resetFeaturesForChar === 'function') UNIQUE_CHARS.forEach(c => resetFeaturesForChar(c.name, 'short'));
 }
 
 function longRestAll() {
@@ -5257,7 +5510,9 @@ function longRestAll() {
   saveDeathSaves();
   saveSlots();
   renderGrid();
-  logEntry('heal', `☀ <strong>Long Rest</strong> — all characters restored to full HP and spell slots`);
+  // Reset ALL class features on long rest
+  if (typeof resetFeaturesForChar === 'function') UNIQUE_CHARS.forEach(c => resetFeaturesForChar(c.name, 'long'));
+  logEntry('heal', `☀ <strong>Long Rest</strong> — all characters restored to full HP, spell slots, and class features`);
 }
 
 initHp();
@@ -5409,7 +5664,7 @@ function renderGrid() {
           <button class="card-init-btn ${isInInitiative(c.name)?'in-init':''}" onclick="event.stopPropagation();toggleInitiative(${JSON.stringify(c.name)},${maxHp})" title="${isInInitiative(c.name)?'Remove from initiative':'Add to initiative'}">⚔</button>
           <button class="card-init-btn ${isInCompare(c.name)?'in-init':''}` + `" onclick="event.stopPropagation();toggleCompare(${JSON.stringify(c.name)})" title="${isInCompare(c.name)?'Remove from comparison':'Add to compare'}" style="right:68px;font-size:11px;${isInCompare(c.name)?'border-color:#4488ff;color:#4488ff':'border-color:#2a2a50;color:#3a3a6a'}">⚖</button>
           <div class="card-portrait-area">
-            <div class="card-portrait" onclick="event.stopPropagation();openModal(${i})" title="Open ${c.name}">${getPortraitSvg(c)}</div>
+            <div class="card-portrait" onclick="event.stopPropagation();openModal(${i})" title="Open ${c.name}">${(() => { const cp = getCustomPortrait(c.name); if (cp) { return cp.startsWith('http') ? `<img src="${cp}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : `<div style="font-size:${cp.length>2?30:48}px;display:flex;align-items:center;justify-content:center;width:100%;height:100%">${cp}</div>`; } return getPortraitSvg(c); })()}</div>
             <div class="card-portrait-info">
               <div class="card-name">${c.name}</div>
               <div class="card-title">${c.title}</div>
@@ -5857,6 +6112,7 @@ function buildStatsPanel(c) {
     ${buildProficienciesSection(c)}
     ${buildPassiveBonusSection(c)}
     ${buildTraitsSection(c)}
+    ${buildFeatureTracker(c)}
     ${isSpellcaster(c) ? `
     <div class="stats-section">
       <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
@@ -5881,7 +6137,8 @@ function buildStatsPanel(c) {
       <div class="stats-section-title">Lore</div>
       <div class="lore-text">${c.lore}</div>
     </div>` : ''}
-    ${buildBackstorySection(c)}
+    ${buildAdvancementLog(c)}
+    ${typeof buildBackstorySection==='function' ? buildBackstorySection(c) : ''}
     ${buildSeeAlso(c)}
     ${c.quote ? `<div class="modal-quote">"${c.quote}"</div>` : ''}
   `;
@@ -6104,6 +6361,170 @@ function createNPC() {
   renderExistingNpcs();
   logEntry('roll', `Created custom NPC: <strong>${name}</strong> (CR ${cr})`);
   alert(`✓ ${name} added to the character grid!`);
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 80: Quick NPC Stat Block Generator — generate a
+//   complete D&D 5e stat block from just a name + CR + role.
+//   Auto-calculates HP, AC, ability scores, attacks, save DCs.
+// ══════════════════════════════════════════════════════════
+const QUICK_ARCHETYPES = {
+  Warrior:   { primary:'STR', secondary:'CON', theme:'warrior', traitTemplate:['Multiattack — two weapon attacks per action','Indomitable (1/day) — reroll failed saving throw'], titleSuffix:'Warrior', acBonus:3 },
+  Rogue:     { primary:'DEX', secondary:'CHA', theme:'shadow', traitTemplate:['Sneak Attack — +Xd6 damage when attacking with advantage','Cunning Action — Dash, Disengage, or Hide as bonus action'], titleSuffix:'Rogue', acBonus:1 },
+  Mage:      { primary:'INT', secondary:'WIS', theme:'arcane', traitTemplate:['Spellcasting — INT based · DC X · Atk +X','Magic Resistance — advantage on saving throws vs spells'], titleSuffix:'Mage', acBonus:-2 },
+  Cleric:    { primary:'WIS', secondary:'CON', theme:'pink', traitTemplate:['Divine Smite — expend spell slot for +2d8 radiant damage','Channel Divinity (1/rest) — turn undead or channel divine power'], titleSuffix:'Cleric', acBonus:2 },
+  Beast:     { primary:'STR', secondary:'CON', theme:'nature', traitTemplate:['Keen Senses — advantage on Perception checks','Pack Tactics — advantage when ally adjacent to target'], titleSuffix:'Beast', acBonus:0 },
+  Brute:     { primary:'STR', secondary:'CON', theme:'stone', traitTemplate:['Brutal Strike — on hit, target makes DC X STR save or knocked prone','Reckless Attack — advantage on melee attacks, attacks vs you have advantage too'], titleSuffix:'Brute', acBonus:1 },
+  Ranger:    { primary:'DEX', secondary:'WIS', theme:'nature', traitTemplate:["Favored Enemy — advantage vs chosen creature type","Volley — ranged attack vs all creatures within 10 ft"], titleSuffix:'Ranger', acBonus:2 },
+  Bard:      { primary:'CHA', secondary:'DEX', theme:'arcane', traitTemplate:['Bardic Inspiration — grant d8 bonus to ally roll (5/day)','Cutting Words — reduce enemy roll by d8 (reaction)'], titleSuffix:'Bard', acBonus:0 },
+  Paladin:   { primary:'STR', secondary:'CHA', theme:'royal', traitTemplate:['Aura of Protection — self + allies in 10 ft add CHA mod to saves','Divine Smite — +2d8 radiant damage on hit (expend spell slot)'], titleSuffix:'Paladin', acBonus:4 },
+  Sorcerer:  { primary:'CHA', secondary:'CON', theme:'fire', traitTemplate:['Sorcery Points (X) — fuel metamagic or create spell slots','Twinned Spell — target same spell at two creatures'], titleSuffix:'Sorcerer', acBonus:-3 },
+};
+
+const CR_TABLE = {
+  '0':{hp:3,ac:13,atk:3,dc:11,prof:2},  '1/8':{hp:9,ac:13,atk:3,dc:11,prof:2},
+  '1/4':{hp:13,ac:13,atk:3,dc:11,prof:2},'1/2':{hp:22,ac:13,atk:3,dc:11,prof:2},
+  '1':{hp:38,ac:13,atk:3,dc:11,prof:2},  '2':{hp:49,ac:13,atk:4,dc:12,prof:2},
+  '3':{hp:70,ac:13,atk:4,dc:12,prof:2},  '4':{hp:85,ac:14,atk:5,dc:12,prof:2},
+  '5':{hp:100,ac:15,atk:6,dc:13,prof:3}, '6':{hp:115,ac:15,atk:6,dc:13,prof:3},
+  '7':{hp:130,ac:15,atk:6,dc:13,prof:3}, '8':{hp:145,ac:16,atk:7,dc:14,prof:3},
+  '9':{hp:160,ac:16,atk:7,dc:14,prof:4}, '10':{hp:178,ac:17,atk:7,dc:14,prof:4},
+  '11':{hp:192,ac:17,atk:8,dc:15,prof:4},'12':{hp:207,ac:17,atk:8,dc:15,prof:4},
+  '13':{hp:220,ac:18,atk:8,dc:15,prof:5},'14':{hp:235,ac:18,atk:8,dc:15,prof:5},
+  '15':{hp:250,ac:18,atk:8,dc:15,prof:5},'16':{hp:265,ac:18,atk:9,dc:16,prof:5},
+  '17':{hp:298,ac:19,atk:10,dc:16,prof:6},'18':{hp:307,ac:19,atk:10,dc:16,prof:6},
+  '19':{hp:316,ac:19,atk:10,dc:16,prof:6},'20':{hp:325,ac:19,atk:10,dc:17,prof:6},
+  '21':{hp:336,ac:19,atk:11,dc:17,prof:7},'22':{hp:346,ac:19,atk:11,dc:17,prof:7},
+  '23':{hp:356,ac:19,atk:11,dc:17,prof:7},'24':{hp:366,ac:19,atk:11,dc:17,prof:7},
+  '25':{hp:376,ac:19,atk:11,dc:17,prof:8},'26':{hp:386,ac:19,atk:12,dc:18,prof:8},
+  '27':{hp:396,ac:19,atk:12,dc:18,prof:8},'28':{hp:406,ac:19,atk:12,dc:18,prof:8},
+  '29':{hp:416,ac:19,atk:12,dc:18,prof:9},'30':{hp:546,ac:19,atk:14,dc:19,prof:9},
+};
+
+function openQuickStatBlock() {
+  const existing = document.getElementById('quickStatOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'quickStatOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.8);z-index:9800;display:flex;align-items:center;justify-content:center;padding:10px';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  const crOpts = ['1/8','1/4','1/2','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25','26','27','28','29','30'].map(v => `<option value="${v}">${v}</option>`).join('');
+  const archOpts = Object.keys(QUICK_ARCHETYPES).map(k => `<option value="${k}">${k}</option>`).join('');
+  overlay.innerHTML = `
+    <div style="background:#0a0e0a;border:1px solid rgba(68,170,68,0.6);border-radius:14px;padding:24px;width:min(560px,95vw);max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.9)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:#44aa44">⚡ Quick NPC Generator</div>
+        <button onclick="document.getElementById('quickStatOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+        <div>
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Name *</div>
+          <input id="qnName" placeholder="Goblin Chief" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;box-sizing:border-box;font-family:inherit;outline:none">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">CR</div>
+          <select id="qnCR" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;cursor:pointer">${crOpts}</select>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Role</div>
+          <select id="qnRole" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;cursor:pointer">${archOpts}</select>
+        </div>
+      </div>
+      <div style="margin-bottom:14px">
+        <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Flavor (optional)</div>
+        <input id="qnFlavor" placeholder="e.g. Undead sorcerer, corrupted knight, sea serpent…" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;box-sizing:border-box;font-family:inherit;outline:none">
+      </div>
+      <button onclick="generateQuickNPC()" style="width:100%;background:rgba(68,170,68,.2);border:1px solid #44aa44;color:#44aa44;border-radius:8px;padding:10px;cursor:pointer;font-size:14px;font-weight:700;margin-bottom:16px">⚡ Generate Stat Block</button>
+      <div id="quickStatPreview" style="display:none"></div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function generateQuickNPC() {
+  const name = (document.getElementById('qnName')?.value||'').trim() || 'Unknown NPC';
+  const cr = document.getElementById('qnCR')?.value || '1';
+  const role = document.getElementById('qnRole')?.value || 'Warrior';
+  const flavor = (document.getElementById('qnFlavor')?.value||'').trim();
+  const arch = QUICK_ARCHETYPES[role] || QUICK_ARCHETYPES.Warrior;
+  const tbl = CR_TABLE[cr] || CR_TABLE['1'];
+  const prof = tbl.prof;
+
+  // Generate ability scores based on role
+  const scores = { STR:10, DEX:10, CON:12, INT:10, WIS:10, CHA:10 };
+  const primaryScore = 14 + Math.min(6, Math.floor(parseFloat(cr)||0) * 0.4);
+  const secondaryScore = primaryScore - 2;
+  scores[arch.primary] = Math.round(primaryScore);
+  scores[arch.secondary] = Math.round(secondaryScore);
+  // Secondary role boosts
+  if (role==='Mage'||role==='Sorcerer') { scores.CON = 12; scores.STR = 8; }
+  if (role==='Warrior'||role==='Brute'||role==='Paladin') { scores.STR = Math.round(primaryScore); scores.CON = Math.round(secondaryScore); }
+  if (role==='Rogue'||role==='Ranger') { scores.DEX = Math.round(primaryScore); }
+
+  const abMod = s => { const m = Math.floor((s-10)/2); return m >= 0 ? `+${m}` : `${m}`; };
+  const abilities = ['STR','DEX','CON','INT','WIS','CHA'].map(ab => [ab, scores[ab], abMod(scores[ab]), scores[ab] >= 14 ? 1 : 0]);
+  const hp = tbl.hp + (Math.floor((scores.CON-10)/2) * (cr==='30'?25:cr==='20'?18:cr==='10'?10:5));
+  const ac = tbl.ac + arch.acBonus;
+
+  // Generate traits with actual values
+  const traits = arch.traitTemplate.map(t => t
+    .replace(/\+X/g, `+${tbl.atk}`)
+    .replace(/DC X/g, `DC ${tbl.dc}`)
+    .replace(/\+Xd6/, `+${Math.max(1,Math.ceil(parseFloat(cr)||1))}d6`)
+    .replace(/\(X\)/g, `(${prof})`)
+  );
+  if (parseFloat(cr) >= 10) traits.push(`Legendary Resistance (${Math.ceil(parseFloat(cr)/10)}/Day) — choose to succeed on a failed save`);
+
+  const npc = {
+    name, title:`${role} · CR ${cr}${flavor?' · '+flavor:''}`,
+    subtitle:`CR ${cr} · ${role}${flavor?' · '+flavor:''} · True Neutral`,
+    theme: arch.theme, group:'misc', cr, hp: String(hp), ac: String(ac),
+    quote: '', abilities, traits,
+    lore: flavor ? `${name} is a formidable ${role.toLowerCase()} — ${flavor}.` : `${name}, a CR ${cr} ${role.toLowerCase()} with standard capabilities.`,
+    _custom: true
+  };
+
+  // Show preview
+  const prev = document.getElementById('quickStatPreview');
+  if (prev) {
+    prev.style.display = 'block';
+    prev.innerHTML = `
+      <div style="background:#06060a;border:1px solid rgba(68,170,68,0.3);border-radius:10px;padding:14px;font-size:11px">
+        <div style="font-family:'Cinzel',serif;font-size:14px;color:#44aa44;font-weight:700;margin-bottom:4px">${name}</div>
+        <div style="color:#9098b8;margin-bottom:10px">${npc.title}</div>
+        <div style="display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap">
+          <span style="color:#c9a227">CR <strong>${cr}</strong></span>
+          <span style="color:#cc6666">HP <strong>${hp}</strong></span>
+          <span style="color:#4488ff">AC <strong>${ac}</strong></span>
+          <span style="color:#23b478">Prof <strong>+${prof}</strong></span>
+          <span style="color:#9b6dff">DC <strong>${tbl.dc}</strong></span>
+          <span style="color:#aa66ff">Atk <strong>+${tbl.atk}</strong></span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+          ${abilities.map(([n,s,m]) => `<div style="text-align:center;background:#0a0a1a;border:1px solid #1e2040;border-radius:6px;padding:4px 8px"><div style="font-size:9px;color:#4a5272">${n}</div><div style="color:#dce0f0;font-weight:700">${s}</div><div style="font-size:10px;color:#9b6dff">${m}</div></div>`).join('')}
+        </div>
+        <div style="margin-bottom:10px">${traits.map(t=>`<div style="padding:3px 0;border-bottom:1px solid #0a0a18;color:#9098b8">◆ ${t}</div>`).join('')}</div>
+        <div style="color:#4a5272;font-style:italic">${npc.lore}</div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button onclick="addQuickNPCToGrid(${JSON.stringify(name)},${JSON.stringify(npc)})" style="flex:1;background:rgba(68,170,68,.2);border:1px solid #44aa44;color:#44aa44;border-radius:8px;padding:8px;cursor:pointer;font-size:12px;font-weight:600">+ Add to Campaign</button>
+          <button onclick="addToInitiativeFromQuick(${JSON.stringify(name)},${JSON.stringify(hp)})" style="flex:1;background:rgba(68,136,255,.1);border:1px solid #4488ff;color:#88aaff;border-radius:8px;padding:8px;cursor:pointer;font-size:12px">⚔ Add to Initiative</button>
+        </div>
+      </div>`;
+    prev.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  }
+}
+function addQuickNPCToGrid(name, npc) {
+  if (UNIQUE_CHARS.find(c => c.name === name)) { showToast(`${name} already exists!`, '#cc3333'); return; }
+  const customs = loadCustomNPCs(); customs.push(npc); saveCustomNPCs(customs);
+  UNIQUE_CHARS.push(npc);
+  renderGrid();
+  logEntry('roll', `⚡ Quick NPC created: <strong>${name}</strong> (CR ${npc.cr} ${npc.title.split(' · ')[0]})`);
+  showToast(`⚡ ${name} added to the campaign!`, '#44aa44');
+  document.getElementById('quickStatOverlay')?.remove();
+}
+function addToInitiativeFromQuick(name, hp) {
+  const roll = Math.floor(Math.random()*20)+1;
+  if (typeof addToInitiative === 'function') addToInitiative(name, roll, parseInt(hp)||10);
+  showToast(`⚔ ${name} added to initiative (${roll})`, '#4488ff');
 }
 
 function deleteCustomNPC(name) {
@@ -6416,7 +6837,139 @@ function buildSpellBook(c) {
         </label>
       </div>
       <div id="spellBookContent_${safeId(c.name)}">${sections}</div>
+      ${buildHomebrewSpells(c, spellDC, spellAtk)}
     </div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 73: Homebrew Spell Manager — add custom spells
+//   per character with level, school, cast time, range,
+//   description, and concentration tracking.
+// ══════════════════════════════════════════════════════════
+const HOMEBREW_SPELLS_KEY = 'tiamat_homebrew_spells';
+function loadHomebrewSpells() {
+  try { return JSON.parse(localStorage.getItem(HOMEBREW_SPELLS_KEY)) || {}; } catch { return {}; }
+}
+function saveHomebrewSpells(d) { localStorage.setItem(HOMEBREW_SPELLS_KEY, JSON.stringify(d)); }
+function getCharHomebrewSpells(charName) { return loadHomebrewSpells()[charName] || []; }
+
+function buildHomebrewSpells(c, spellDC, spellAtk) {
+  const spells = getCharHomebrewSpells(c.name);
+  const nameJ = JSON.stringify(c.name);
+  const SCHOOLS = ['Abjuration','Conjuration','Divination','Enchantment','Evocation','Illusion','Necromancy','Transmutation','Universal'];
+  const rows = spells.map((s, i) => {
+    const isConc = /concentration/i.test(s.desc || '');
+    const castColor = (s.cast||'').includes('Reaction') ? '#aa66ff' : (s.cast||'').includes('Bonus') ? '#88aa22' : '#9098b8';
+    return `<div class="spell-entry" onclick="rollSpellAttack(${JSON.stringify(s.name)},${JSON.stringify(s.school||'Custom')},${JSON.stringify(spellAtk)},${spellDC})" style="border-color:rgba(155,109,255,0.2)">
+      <div class="spell-header">
+        <span class="spell-name">${s.name}</span>
+        <span class="spell-school" style="color:#9b6dff;background:rgba(155,109,255,0.1)">${s.school||'Custom'}</span>
+        <span style="font-size:9px;color:#4a5272;margin-left:auto">${s.level===0?'Cantrip':'Level '+s.level}</span>
+        ${isConc ? `<span style="font-size:9px;color:#c9a227;padding:1px 5px;border:1px solid rgba(201,162,39,.4);border-radius:8px;cursor:pointer" onclick="event.stopPropagation();setConc(${nameJ},${JSON.stringify(s.name)},event)">🔮</span>` : ''}
+        <button onclick="event.stopPropagation();removeHomebrewSpell(${nameJ},${i})" style="background:none;border:none;color:#cc3333;cursor:pointer;font-size:11px;padding:0 2px" title="Remove spell">✕</button>
+      </div>
+      <div class="spell-meta">
+        <span style="color:${castColor}">${s.cast||'1 Action'}</span>
+        <span style="color:#4a5272">·</span>
+        <span>${s.range||'Self'}</span>
+        <span style="color:#4a5272">·</span>
+        <span style="color:#9098b8">${s.duration||'Instantaneous'}</span>
+      </div>
+      <div class="spell-desc">${s.desc||''}</div>
+    </div>`;
+  }).join('');
+
+  return `<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(155,109,255,0.2)">
+    <div style="font-size:10px;color:#9b6dff;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">✦ Homebrew / Custom Spells</div>
+    <div id="homebrewSpells_${safeId(c.name)}">${rows || '<div style="font-size:11px;color:#2a2a50;font-style:italic">No custom spells added yet</div>'}</div>
+    <button class="feat-add-btn" style="border-color:rgba(155,109,255,0.3);color:#9b6dff" onclick="openAddHomebrewSpell(${nameJ})">✦ Add Custom Spell</button>
+  </div>`;
+}
+
+function openAddHomebrewSpell(charName) {
+  const existing = document.getElementById('homebrewSpellOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'homebrewSpellOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.75);z-index:9600;display:flex;align-items:center;justify-content:center';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  const SCHOOLS = ['Abjuration','Conjuration','Divination','Enchantment','Evocation','Illusion','Necromancy','Transmutation','Universal'];
+  overlay.innerHTML = `
+    <div style="background:#0d0d1a;border:1px solid rgba(155,109,255,0.5);border-radius:14px;padding:24px;width:460px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.8)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-size:15px;font-weight:700;color:#9b6dff">✦ Add Custom Spell — ${charName}</div>
+        <button onclick="document.getElementById('homebrewSpellOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div>
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Spell Name *</div>
+          <input id="hbSpellName" placeholder="Mage Hand" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;box-sizing:border-box;font-family:inherit;outline:none">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">School</div>
+          <select id="hbSpellSchool" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;cursor:pointer">
+            ${SCHOOLS.map(s => `<option value="${s}">${s}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Level (0=cantrip)</div>
+          <input id="hbSpellLevel" type="number" min="0" max="9" value="1" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;box-sizing:border-box;font-family:inherit;outline:none">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Casting Time</div>
+          <input id="hbSpellCast" placeholder="1 Action" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;box-sizing:border-box;font-family:inherit;outline:none">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Range</div>
+          <input id="hbSpellRange" placeholder="60 ft" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;box-sizing:border-box;font-family:inherit;outline:none">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Duration</div>
+          <input id="hbSpellDuration" placeholder="Instantaneous" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;box-sizing:border-box;font-family:inherit;outline:none">
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Description</div>
+        <textarea id="hbSpellDesc" rows="3" placeholder="Describe the spell effects, damage, saves required… Add 'concentration' to enable concentration tracking." style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;box-sizing:border-box;font-family:inherit;resize:vertical;outline:none"></textarea>
+      </div>
+      <button onclick="saveHomebrewSpell(${JSON.stringify(charName)})" style="width:100%;background:rgba(155,109,255,.15);border:1px solid #9b6dff;color:#9b6dff;border-radius:8px;padding:10px;cursor:pointer;font-size:13px;font-weight:600">✦ Add Spell to Spellbook</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.getElementById('hbSpellName').focus();
+}
+
+function saveHomebrewSpell(charName) {
+  const name = (document.getElementById('hbSpellName').value || '').trim();
+  if (!name) { showToast('Spell name required', '#cc3333'); return; }
+  const spell = {
+    name,
+    school: document.getElementById('hbSpellSchool').value || 'Universal',
+    level: parseInt(document.getElementById('hbSpellLevel').value) || 0,
+    cast: document.getElementById('hbSpellCast').value || '1 Action',
+    range: document.getElementById('hbSpellRange').value || 'Self',
+    duration: document.getElementById('hbSpellDuration').value || 'Instantaneous',
+    desc: document.getElementById('hbSpellDesc').value || '',
+  };
+  const d = loadHomebrewSpells();
+  if (!d[charName]) d[charName] = [];
+  d[charName].push(spell);
+  saveHomebrewSpells(d);
+  document.getElementById('homebrewSpellOverlay').remove();
+  showToast(`✦ ${name} added to ${charName}'s spellbook`, '#9b6dff');
+  logEntry('combat', `✦ <strong>${charName}</strong> learned <em>${name}</em>`);
+  // Re-render stats panel
+  const c = filteredChars[currentModalIdx];
+  if (c) document.getElementById('statsPanel').innerHTML = buildStatsPanel(c);
+}
+
+function removeHomebrewSpell(charName, idx) {
+  const d = loadHomebrewSpells();
+  if (!d[charName]) return;
+  const removed = d[charName].splice(idx, 1)[0];
+  saveHomebrewSpells(d);
+  if (removed) showToast(`Removed ${removed.name}`, '#cc3333');
+  const c = filteredChars[currentModalIdx];
+  if (c) document.getElementById('statsPanel').innerHTML = buildStatsPanel(c);
 }
 
 function rollSpellAttack(name, school, atkBonus, dc) {
@@ -6559,6 +7112,315 @@ function generateTimeline(c) {
   return events.slice(0, 6);
 }
 
+// ══════════════════════════════════════════════════════════
+// ITERATION 75: Character Advancement Log — track level-ups,
+//   ASI choices, feat selections, and feature gains per
+//   character with timestamps. DnD Beyond-style history.
+// ══════════════════════════════════════════════════════════
+const ADV_LOG_KEY = 'tiamat_adv_log';
+function loadAdvLog() { try { return JSON.parse(localStorage.getItem(ADV_LOG_KEY)) || {}; } catch { return {}; } }
+function saveAdvLog(d) { localStorage.setItem(ADV_LOG_KEY, JSON.stringify(d)); }
+function getCharAdvLog(charName) { return (loadAdvLog()[charName] || []).slice().reverse(); }
+function addAdvEntry(charName, type, level, desc) {
+  const d = loadAdvLog();
+  if (!d[charName]) d[charName] = [];
+  d[charName].push({ type, level, desc, ts: new Date().toLocaleDateString() });
+  saveAdvLog(d);
+}
+function removeAdvEntry(charName, idx) {
+  const d = loadAdvLog();
+  if (!d[charName]) return;
+  // idx is reversed, so un-reverse
+  const realIdx = d[charName].length - 1 - idx;
+  d[charName].splice(realIdx, 1);
+  saveAdvLog(d);
+  const c = filteredChars[currentModalIdx];
+  if (c) document.getElementById('statsPanel').innerHTML = buildStatsPanel(c);
+}
+function openAddAdvEntry(charName) {
+  const typeOpts = { levelup:'Level Up', asi:'Ability Score Improvement', feat:'Feat', feature:'Class Feature', other:'Other' };
+  const overlay = document.createElement('div');
+  overlay.id = 'advOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.75);z-index:9600;display:flex;align-items:center;justify-content:center';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  overlay.innerHTML = `
+    <div style="background:#0d0d1a;border:1px solid rgba(155,109,255,0.5);border-radius:14px;padding:24px;width:400px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.8)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-size:15px;font-weight:700;color:#9b6dff">📈 Log Advancement — ${charName}</div>
+        <button onclick="document.getElementById('advOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div>
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Type</div>
+          <select id="advType" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;cursor:pointer">
+            ${Object.entries(typeOpts).map(([k,v]) => `<option value="${k}">${v}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Character Level</div>
+          <input id="advLevel" type="number" min="1" max="20" value="1" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;box-sizing:border-box;font-family:inherit;outline:none">
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Description</div>
+        <textarea id="advDesc" rows="3" placeholder="e.g. +2 STR, or Took War Caster feat, or Gained Extra Attack feature…" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;box-sizing:border-box;font-family:inherit;resize:vertical;outline:none"></textarea>
+      </div>
+      <button onclick="submitAdvEntry(${JSON.stringify(charName)})" style="width:100%;background:rgba(155,109,255,.15);border:1px solid #9b6dff;color:#9b6dff;border-radius:8px;padding:10px;cursor:pointer;font-size:13px;font-weight:600">📈 Record Advancement</button>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+function submitAdvEntry(charName) {
+  const type = document.getElementById('advType').value;
+  const level = parseInt(document.getElementById('advLevel').value) || 1;
+  const desc = (document.getElementById('advDesc').value || '').trim();
+  if (!desc) { showToast('Description required', '#cc3333'); return; }
+  addAdvEntry(charName, type, level, desc);
+  document.getElementById('advOverlay').remove();
+  showToast(`📈 ${charName} advancement logged`, '#9b6dff');
+  logEntry('heal', `📈 <strong>${charName}</strong> Lv${level} — ${desc}`);
+  const c = filteredChars[currentModalIdx];
+  if (c) document.getElementById('statsPanel').innerHTML = buildStatsPanel(c);
+}
+function buildAdvancementLog(c) {
+  const entries = getCharAdvLog(c.name);
+  const typeColors = { levelup:'#9b6dff', asi:'#4488ff', feat:'#23b478', feature:'#c9a227', other:'#9098b8' };
+  const typeLabels = { levelup:'Level Up', asi:'ASI', feat:'Feat', feature:'Feature', other:'Other' };
+  const nameJ = JSON.stringify(c.name);
+  const rows = entries.map((e, i) => `
+    <div class="adv-entry">
+      <div class="adv-level-badge">Lv ${e.level||'?'}</div>
+      <div class="adv-entry-body">
+        <div class="adv-entry-type" style="color:${typeColors[e.type]||'#9098b8'}">${typeLabels[e.type]||e.type}</div>
+        <div class="adv-entry-desc">${e.desc}</div>
+        <div class="adv-entry-ts">${e.ts||''}</div>
+      </div>
+      <button onclick="removeAdvEntry(${nameJ},${i})" style="background:none;border:none;color:#3a3a5a;cursor:pointer;font-size:11px;padding:0 2px" title="Remove">✕</button>
+    </div>`).join('');
+  return `<div class="stats-section">
+    <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>📈 Advancement History</span>
+      <button onclick="openAddAdvEntry(${nameJ})" style="background:none;border:1px solid rgba(155,109,255,.4);color:#9b6dff;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:10px">+ Record</button>
+    </div>
+    ${rows || '<div style="font-size:11px;color:#2a2a50;font-style:italic">No advancement history yet — click + Record to log a level-up, ASI, or feat.</div>'}
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 72: Class Feature Usage Tracker — track limited-use
+//   class abilities (Action Surge, Ki Points, Bardic Inspiration,
+//   Channel Divinity, etc.) with short/long rest resets.
+// ══════════════════════════════════════════════════════════
+const FEAT_USE_KEY = 'tiamat_feat_use';
+const FEAT_USE_CUSTOM_KEY = 'tiamat_feat_custom';
+
+// Common class features: { name, max, restOn: 'short'|'long', hint }
+const CLASS_FEATURE_PRESETS = [
+  { name:'Action Surge', max:1, restOn:'short', hint:'Fighter: extra action on your turn' },
+  { name:'Bardic Inspiration', max:5, restOn:'long', hint:'Bard: grant d6 bonus to ally' },
+  { name:'Channel Divinity', max:1, restOn:'short', hint:'Cleric/Paladin: channel divine power' },
+  { name:'Ki Points', max:5, restOn:'short', hint:'Monk: fuel ki features' },
+  { name:'Lay on Hands', max:25, restOn:'long', hint:'Paladin: pool of healing (hp)' },
+  { name:'Rage', max:2, restOn:'long', hint:'Barbarian: enter rage' },
+  { name:'Second Wind', max:1, restOn:'short', hint:'Fighter: heal 1d10+level HP' },
+  { name:'Sneak Attack', max:1, restOn:'turn', hint:'Rogue: extra damage once per turn' },
+  { name:'Wild Shape', max:2, restOn:'short', hint:'Druid: transform into beast' },
+  { name:'Sorcery Points', max:4, restOn:'long', hint:'Sorcerer: metamagic fuel' },
+  { name:'Arcane Recovery', max:1, restOn:'long', hint:'Wizard: recover spell slots on short rest' },
+  { name:'Cunning Action', max:1, restOn:'turn', hint:'Rogue: bonus action Dash/Disengage/Hide' },
+  { name:'Uncanny Dodge', max:1, restOn:'turn', hint:'Rogue: halve damage from one attack' },
+  { name:'Evasion', max:1, restOn:'turn', hint:'Rogue/Monk: avoid AoE damage' },
+  { name:'Eldritch Invocations', max:2, restOn:'long', hint:'Warlock: special invocation uses' },
+  { name:'Aura of Protection', max:0, restOn:'long', hint:'Paladin: passive, no charges' },
+  { name:'Superiority Dice', max:4, restOn:'short', hint:'Fighter: combat maneuver dice (d8s)' },
+  { name:'Divine Smite', max:3, restOn:'long', hint:'Paladin: expend spell slot to smite' },
+  { name:'Cutting Words', max:5, restOn:'long', hint:'Bard: reduce creature\'s roll' },
+  { name:'Healing Word', max:3, restOn:'long', hint:'Bard/Cleric: bonus action heal' },
+];
+
+function loadFeatUses() {
+  try { return JSON.parse(localStorage.getItem(FEAT_USE_KEY)) || {}; } catch { return {}; }
+}
+function saveFeatUses(data) { localStorage.setItem(FEAT_USE_KEY, JSON.stringify(data)); }
+function loadCustomFeats() {
+  try { return JSON.parse(localStorage.getItem(FEAT_USE_CUSTOM_KEY)) || {}; } catch { return {}; }
+}
+function saveCustomFeats(data) { localStorage.setItem(FEAT_USE_CUSTOM_KEY, JSON.stringify(data)); }
+
+function getFeatUsed(charName, featName) {
+  return (loadFeatUses()[charName] || {})[featName] || 0;
+}
+function setFeatUsed(charName, featName, val) {
+  const d = loadFeatUses();
+  if (!d[charName]) d[charName] = {};
+  d[charName][featName] = val;
+  saveFeatUses(d);
+}
+function toggleFeatPip(charName, featName, max, pipIdx) {
+  const used = getFeatUsed(charName, featName);
+  // If clicking a used pip → mark it available (reduce used count)
+  // If clicking an available pip → mark it used (increase used count)
+  const newUsed = (pipIdx < used) ? pipIdx : pipIdx + 1;
+  setFeatUsed(charName, featName, Math.min(newUsed, max));
+  // Re-render the pip row
+  const el = document.getElementById('featpips_' + safeId(charName) + '_' + safeId(featName));
+  if (el) el.innerHTML = buildFeatPips(charName, featName, max);
+}
+function buildFeatPips(charName, featName, max) {
+  if (max === 0) return '<span style="font-size:10px;color:#4a5272;font-style:italic">passive</span>';
+  const used = getFeatUsed(charName, featName);
+  const nameJ = JSON.stringify(charName); const featJ = JSON.stringify(featName);
+  return Array.from({length: Math.min(max, 10)}, (_, i) =>
+    `<div class="feat-pip ${i < used ? 'used' : 'avail'}" onclick="toggleFeatPip(${nameJ},${featJ},${max},${i})" title="${i < used ? 'Click to restore' : 'Click to use'}">${i < used ? '●' : '○'}</div>`
+  ).join('') + (max > 10 ? `<span style="font-size:10px;color:#4a5272"> +${max-10}</span>` : '');
+}
+function resetFeaturesForChar(charName, restType) {
+  const uses = loadFeatUses();
+  const custom = loadCustomFeats()[charName] || [];
+  const allFeats = [...CLASS_FEATURE_PRESETS, ...custom];
+  if (!uses[charName]) return;
+  allFeats.forEach(f => {
+    if (restType === 'long' || f.restOn === restType || f.restOn === 'turn') {
+      uses[charName][f.name] = 0;
+    }
+  });
+  saveFeatUses(uses);
+}
+function buildFeatureTracker(c) {
+  const custom = (loadCustomFeats()[c.name] || []);
+  const nameJ = JSON.stringify(c.name);
+  // Show preset + custom features. Presets shown always; custom per character.
+  const allFeats = [...CLASS_FEATURE_PRESETS, ...custom];
+  const restColors = { short: '#23b478', long: '#c9a227', turn: '#9b6dff' };
+  const rows = allFeats.map(f => {
+    const pipId = 'featpips_' + safeId(c.name) + '_' + safeId(f.name);
+    return `<div class="feat-use-row">
+      <div>
+        <div class="feat-use-name">${f.name}</div>
+        <div class="feat-use-meta" title="${f.hint||''}">${f.hint ? f.hint.slice(0,40)+'…' : ''} · <span style="color:${restColors[f.restOn]||'#9098b8'}">${f.restOn} rest</span></div>
+      </div>
+      <div class="feat-use-pips" id="${pipId}">${buildFeatPips(c.name, f.name, f.max)}</div>
+    </div>`;
+  }).join('');
+
+  return `<div class="stats-section">
+    <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>Class Features & Limited Uses</span>
+      <div style="display:flex;gap:4px">
+        <button onclick="resetAllFeats(${nameJ},'short')" style="background:rgba(35,180,120,.1);border:1px solid #23b478;color:#23b478;border-radius:4px;padding:2px 7px;cursor:pointer;font-size:10px">↺ Short</button>
+        <button onclick="resetAllFeats(${nameJ},'long')" style="background:rgba(201,162,39,.1);border:1px solid #c9a227;color:#c9a227;border-radius:4px;padding:2px 7px;cursor:pointer;font-size:10px">☀ Long</button>
+      </div>
+    </div>
+    ${rows}
+    <button class="feat-add-btn" onclick="addCustomFeat(${nameJ})">+ Add Custom Feature</button>
+  </div>`;
+}
+function resetAllFeats(charName, restType) {
+  resetFeaturesForChar(charName, restType);
+  // Re-render the feature tracker in the stats panel
+  const section = document.querySelector(`[data-feat-tracker="${CSS.escape(charName)}"]`);
+  if (section) {
+    const c = filteredChars[currentModalIdx];
+    if (c) section.outerHTML = buildFeatureTracker(c);
+  } else {
+    // Full re-render of stats panel
+    const c = filteredChars[currentModalIdx];
+    if (c) document.getElementById('statsPanel').innerHTML = buildStatsPanel(c);
+  }
+  showToast(`↺ ${charName}: ${restType} rest features restored`, '#23b478');
+}
+function addCustomFeat(charName) {
+  const name = prompt('Feature name (e.g. "Hunter\'s Mark", "Divine Intervention"):');
+  if (!name) return;
+  const maxStr = prompt('Max uses per rest (0 = passive):');
+  const max = parseInt(maxStr) || 0;
+  const restOn = prompt('Resets on: short / long / turn') || 'long';
+  const hint = prompt('Description (optional):') || '';
+  const custom = loadCustomFeats();
+  if (!custom[charName]) custom[charName] = [];
+  custom[charName].push({ name, max, restOn: ['short','long','turn'].includes(restOn)?restOn:'long', hint });
+  saveCustomFeats(custom);
+  const c = filteredChars[currentModalIdx];
+  if (c) document.getElementById('statsPanel').innerHTML = buildStatsPanel(c);
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 71: Editable Character Bio Panel — store personality
+//   traits, ideals, bonds, flaws, and physical attributes per
+//   character in localStorage. Displayed & edited in Story tab.
+// ══════════════════════════════════════════════════════════
+const BIO_KEY_PREFIX = 'tiamat_bio_';
+function loadBio(name) {
+  try { return JSON.parse(localStorage.getItem(BIO_KEY_PREFIX + name)) || {}; }
+  catch { return {}; }
+}
+function saveBioField(name, field, value) {
+  const bio = loadBio(name);
+  bio[field] = value;
+  localStorage.setItem(BIO_KEY_PREFIX + name, JSON.stringify(bio));
+}
+function buildBioSection(c) {
+  const bio = loadBio(c.name);
+  const esc = s => String(s || '').replace(/"/g, '&quot;');
+  const nameJ = JSON.stringify(c.name);
+  function field(label, key, placeholder, isArea) {
+    const tag = isArea ? 'textarea' : 'input';
+    const val = esc(bio[key] || '');
+    const extra = isArea ? `rows="2">${val}</textarea>` : `value="${val}" />`;
+    return `<div class="bio-field-wrap">
+      <div class="bio-field-label">${label}</div>
+      <${tag} class="bio-input${isArea?' bio-textarea':''}" placeholder="${placeholder}"
+        onblur="saveBioField(${nameJ},'${key}',this.value)"
+        ${isArea ? '' : `oninput="saveBioField(${nameJ},'${key}',this.value)"`}
+        ${extra}
+    </div>`;
+  }
+  function pfTile(label, icon, key, placeholder) {
+    const val = esc(bio[key] || '');
+    return `<div class="bio-pf-tile">
+      <div class="bio-pf-title">${icon} ${label}</div>
+      <textarea class="bio-input bio-textarea" rows="3" placeholder="${placeholder}"
+        onblur="saveBioField(${nameJ},'${key}',this.value)">${val}</textarea>
+    </div>`;
+  }
+  return `
+    <div class="story-block bio-section">
+      <div class="story-block-title">📋 Character Biography</div>
+      <div class="bio-field-row tri">
+        ${field('Race / Species','race','Human, Elf, Dwarf…',false)}
+        ${field('Class & Level','classLvl','Fighter 5 / Rogue 3…',false)}
+        ${field('Background','background','Soldier, Sage…',false)}
+      </div>
+      <div class="bio-field-row" style="grid-template-columns:1fr 1fr 1fr 1fr">
+        ${field('Age','age','35',false)}
+        ${field('Height','height',"6'2\"",false)}
+        ${field('Weight','weight','190 lbs',false)}
+        ${field('Alignment','bioAlignment','Lawful Good',false)}
+      </div>
+      <div class="bio-field-row" style="grid-template-columns:1fr 1fr 1fr">
+        ${field('Eyes','eyes','Brown',false)}
+        ${field('Hair','hair','Black',false)}
+        ${field('Skin','skin','Tan',false)}
+      </div>
+    </div>
+    <div class="story-block bio-section">
+      <div class="story-block-title">🎭 Personality</div>
+      <div class="bio-pf-grid">
+        ${pfTile('Personality Traits','🗣','traits','Describe how this character acts, speaks, and presents themselves…')}
+        ${pfTile('Ideals','✨','ideal','What does this character believe in above all else?')}
+        ${pfTile('Bonds','💎','bond','Who or what does this character care about most?')}
+        ${pfTile('Flaws','⚠','flaw','What weakness or vice does this character have?')}
+      </div>
+    </div>
+    <div class="story-block bio-section">
+      <div class="story-block-title">📖 Backstory</div>
+      ${field('','backstory','Write the character\'s backstory, history, and notable events…',true)}
+    </div>
+    <div class="story-block bio-section">
+      <div class="story-block-title">🏰 Allies & Organizations</div>
+      ${field('','allies','Guilds, factions, important allies or enemies…',true)}
+    </div>`;
+}
+
 function buildStoryPanel(c) {
   const align = extractAlignment(c);
   const alignStyle = ALIGNMENT_STYLES[align] || ALIGNMENT_STYLES['true neutral'];
@@ -6584,6 +7446,8 @@ function buildStoryPanel(c) {
         <div style="font-size:11px;color:#4a5272;margin-top:8px">— ${c.name}</div>
       </div>` : ''}
 
+      ${buildBioSection(c)}
+
       <div class="story-block">
         <div class="story-block-title">⚖ Alignment & Background</div>
         ${alignBadge}
@@ -6591,12 +7455,12 @@ function buildStoryPanel(c) {
       </div>
 
       <div class="story-block">
-        <div class="story-block-title">📖 Backstory</div>
-        <div class="story-text">${c.lore || 'No backstory recorded.'}</div>
+        <div class="story-block-title">📖 Campaign Lore</div>
+        <div class="story-text">${c.lore || 'No lore recorded.'}</div>
       </div>
 
       <div class="story-block">
-        <div class="story-block-title">🎭 Personality</div>
+        <div class="story-block-title">🎭 Auto-Generated Personality (from traits)</div>
         <div class="personality-grid">
           <div class="personality-tile">
             <div class="personality-tile-title">Personality Traits</div>
@@ -6792,6 +7656,74 @@ function buildSpeedSection(c) {
 }
 // ────────────────────────────────────────────────────────
 
+// ══════════════════════════════════════════════════════════
+// ITERATION 74: Equipment Slots — equip items to specific body
+//   slots (main hand, off hand, armor, ring, neck, cloak, boots,
+//   helm, belt, gloves). Click slot to equip, click again to clear.
+// ══════════════════════════════════════════════════════════
+const EQUIP_SLOTS_KEY = 'tiamat_equip_slots';
+const EQUIP_SLOT_DEFS = [
+  { id:'helm',      label:'Helm',       icon:'⛑', hint:'Helmets, hats, headbands' },
+  { id:'neck',      label:'Neck/Amulet',icon:'📿', hint:'Amulets, necklaces, medallions' },
+  { id:'cloak',     label:'Cloak',      icon:'🧣', hint:'Cloaks, capes, mantles' },
+  { id:'armor',     label:'Armor',      icon:'🛡', hint:'Body armor, robes, padded armor' },
+  { id:'gloves',    label:'Gloves',     icon:'🧤', hint:'Gauntlets, gloves, bracers' },
+  { id:'belt',      label:'Belt',       icon:'⚙', hint:'Belts, girdles, sashes' },
+  { id:'boots',     label:'Boots',      icon:'👢', hint:'Boots, shoes, slippers' },
+  { id:'main_hand', label:'Main Hand',  icon:'⚔', hint:'Primary weapon' },
+  { id:'off_hand',  label:'Off Hand',   icon:'🗡', hint:'Shield, second weapon, focus' },
+  { id:'ring1',     label:'Ring L',     icon:'💍', hint:'Left hand ring' },
+  { id:'ring2',     label:'Ring R',     icon:'💎', hint:'Right hand ring' },
+  { id:'misc',      label:'Misc',       icon:'🎒', hint:'Other worn or held items' },
+];
+
+function loadEquipSlots() { try { return JSON.parse(localStorage.getItem(EQUIP_SLOTS_KEY)) || {}; } catch { return {}; } }
+function saveEquipSlots(d) { localStorage.setItem(EQUIP_SLOTS_KEY, JSON.stringify(d)); }
+function getCharEquip(charName) { return loadEquipSlots()[charName] || {}; }
+
+function equipSlotClick(charName, slotId) {
+  const d = loadEquipSlots();
+  const charEquip = d[charName] || {};
+  const current = charEquip[slotId];
+  if (current) {
+    // Already filled: click to remove
+    if (!confirm(`Remove "${current}" from ${EQUIP_SLOT_DEFS.find(s=>s.id===slotId)?.label}?`)) return;
+    delete charEquip[slotId];
+    d[charName] = charEquip;
+    saveEquipSlots(d);
+    logEntry('combat', `🎒 <strong>${charName}</strong> unequipped <em>${current}</em>`);
+  } else {
+    // Empty: click to equip
+    const item = prompt(`Equip to ${EQUIP_SLOT_DEFS.find(s=>s.id===slotId)?.label}:\n(enter item name)`);
+    if (!item || !item.trim()) return;
+    charEquip[slotId] = item.trim();
+    d[charName] = charEquip;
+    saveEquipSlots(d);
+    logEntry('combat', `🎒 <strong>${charName}</strong> equipped <em>${item.trim()}</em> in ${EQUIP_SLOT_DEFS.find(s=>s.id===slotId)?.label}`);
+  }
+  // Re-render stats panel
+  const c = filteredChars[currentModalIdx];
+  if (c) document.getElementById('statsPanel').innerHTML = buildStatsPanel(c);
+  showToast(`🎒 ${charName} gear updated`, '#c9a227');
+}
+
+function buildEquipmentSlots(c) {
+  const equipped = getCharEquip(c.name);
+  const nameJ = JSON.stringify(c.name);
+  const slots = EQUIP_SLOT_DEFS.map(slot => {
+    const item = equipped[slot.id];
+    return `<div class="equip-slot ${item?'filled':''}" onclick="equipSlotClick(${nameJ},${JSON.stringify(slot.id)})" title="${item ? 'Click to remove: '+item : slot.hint}">
+      <div class="equip-slot-label"><span class="equip-slot-icon">${slot.icon}</span>${slot.label}</div>
+      ${item ? `<div class="equip-slot-item">${item}</div>` : `<div class="equip-slot-empty">— empty —</div>`}
+    </div>`;
+  }).join('');
+  const filledCount = Object.keys(equipped).length;
+  return `<div style="margin-bottom:10px">
+    <div style="font-size:10px;color:#c9a227;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">⚔ Equipped Gear <span style="color:#4a5272;font-size:9px">(click slot to equip/remove)</span></div>
+    <div class="equip-slots-grid">${slots}</div>
+  </div>`;
+}
+
 // ── EQUIPMENT / INVENTORY BUILDER ───────────────────────
 function inferEquipment(c) {
   const theme = c.theme;
@@ -6889,6 +7821,8 @@ function buildInventorySection(c) {
         <span>Equipment & Inventory${attunedStr}</span>
         <button onclick="openAddAttunement(${JSON.stringify(c.name)},event)" style="background:none;border:1px solid rgba(201,162,39,.4);color:#c9a227;border-radius:6px;padding:2px 8px;cursor:pointer;font-size:10px${totalAttuned>=3?';opacity:.5;cursor:not-allowed':''}" title="${totalAttuned>=3?'Max 3 attuned items':'Add custom attuned item'}">⬡ + Attune</button>
       </div>
+      ${buildEquipmentSlots(c)}
+      <div style="font-size:10px;color:#c9a227;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">📦 Item Cards</div>
       <div class="inventory-grid">${cards}${extraCards}</div>
     </div>`;
 }
@@ -7164,7 +8098,21 @@ function openModal(idx) {
   document.getElementById('modalName').textContent = c.name;
   document.getElementById('modalSubtitle').textContent = c.title;
   if (typeof renderModalTags === 'function') renderModalTags(c.name);
-  document.getElementById('modalPortrait').innerHTML = getPortraitSvg(c);
+  // Use custom portrait if set
+  const modalPortEl = document.getElementById('modalPortrait');
+  const customP = getCustomPortrait(c.name);
+  if (customP) {
+    if (customP.startsWith('http')) {
+      modalPortEl.innerHTML = `<img src="${customP}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.parentElement.innerHTML=getPortraitSvg(filteredChars[currentModalIdx])">`;
+    } else {
+      modalPortEl.innerHTML = `<div style="font-size:52px;display:flex;align-items:center;justify-content:center;width:100%;height:100%">${customP}</div>`;
+    }
+  } else {
+    modalPortEl.innerHTML = getPortraitSvg(c);
+  }
+  modalPortEl.title = 'Click to set custom portrait';
+  modalPortEl.style.cursor = 'pointer';
+  modalPortEl.onclick = () => openPortraitPicker(c.name);
   document.getElementById('modalPortrait').style.setProperty('--accent', t.accent);
   document.getElementById('modalPortrait').style.border = `3px solid ${t.accent}`;
   document.getElementById('modalPortrait').style.boxShadow = `0 0 20px ${t.glow}`;
@@ -8923,6 +9871,141 @@ function exportLog() {
   a.click();
 }
 
+// ══════════════════════════════════════════════════════════
+// ITERATION 79: Session Recap Generator — auto-generate a
+//   formatted session summary from the session log: combat
+//   events, HP changes, rolls, notable moments, conditions.
+// ══════════════════════════════════════════════════════════
+function openSessionRecap() {
+  const existing = document.getElementById('recapOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'recapOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.75);z-index:9700;display:flex;align-items:flex-start;justify-content:center;padding:4vh 10px;overflow-y:auto';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  const recap = generateSessionRecap();
+  overlay.innerHTML = `
+    <div style="background:#0a0808;border:1px solid rgba(201,162,39,0.5);border-radius:14px;padding:24px;width:min(640px,95vw);box-shadow:0 8px 40px rgba(0,0,0,.9)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:#c9a227">📋 Session Recap</div>
+        <div style="display:flex;gap:8px">
+          <button onclick="copyRecapToClipboard()" style="background:rgba(201,162,39,.1);border:1px solid rgba(201,162,39,.4);color:#c9a227;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:11px">📋 Copy</button>
+          <button onclick="document.getElementById('recapOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+        </div>
+      </div>
+      <div id="recapContent" style="font-size:12px;line-height:1.8;color:#c8d0e8">${recap.html}</div>
+      <div style="margin-top:16px;padding-top:12px;border-top:1px solid #1a1200">
+        <div style="font-size:10px;color:#4a5272;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Add DM Summary Note</div>
+        <textarea id="recapDmNote" rows="3" placeholder="What do you want to remember about this session?" style="width:100%;background:#06060a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;box-sizing:border-box;font-family:inherit;resize:vertical;outline:none"></textarea>
+        <button onclick="saveRecapNote()" style="margin-top:8px;background:rgba(201,162,39,.1);border:1px solid rgba(201,162,39,.4);color:#c9a227;border-radius:6px;padding:6px 16px;cursor:pointer;font-size:12px">💾 Save Recap Note</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function generateSessionRecap() {
+  const now = new Date().toLocaleDateString();
+  const log = sessionLog || [];
+  if (!log.length) return { html: '<div style="color:#4a5272;font-style:italic">No session log entries yet. Play some D&D first!</div>', text: 'Empty session' };
+
+  // Categorize entries
+  const combatEntries = log.filter(e => e.type === 'combat');
+  const dmgEntries = log.filter(e => e.type === 'dmg');
+  const healEntries = log.filter(e => e.type === 'heal');
+  const rollEntries = log.filter(e => e.type === 'roll');
+  const noteEntries = log.filter(e => e.type === 'note');
+
+  // Extract character names that appeared in combat
+  const charMentions = {};
+  log.forEach(e => {
+    const m = (e.msg || '').match(/<strong>([^<]+)<\/strong>/g);
+    if (m) m.forEach(match => {
+      const name = match.replace(/<\/?strong>/g, '').trim();
+      if (name && name.length < 40 && !/^Round|^Group|^Long|^Short/i.test(name)) {
+        charMentions[name] = (charMentions[name] || 0) + 1;
+      }
+    });
+  });
+  const topChars = Object.entries(charMentions).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([n])=>n);
+
+  // Count rounds
+  const rounds = (log.filter(e => /Round \d+ begins/.test(e.msg || '')).length) || 0;
+
+  // Find notable events
+  const deathEvents = log.filter(e => /dead|died|0 HP|death save|DEAD/i.test(e.msg||''));
+  const critEvents = log.filter(e => /CRIT|nat 20|Natural 20/i.test(e.msg||''));
+  const spellEvents = log.filter(e => /concentrat|learned|spell/i.test(e.msg||''));
+
+  // Find healing events
+  const longRestEvents = log.filter(e => /long rest/i.test(e.msg||''));
+
+  const sections = [];
+
+  sections.push(`<div style="margin-bottom:14px;padding:12px;background:#0d0800;border:1px solid rgba(201,162,39,0.2);border-radius:8px">
+    <div style="font-family:'Cinzel',serif;font-size:11px;color:#c9a227;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">📅 Session Overview — ${now}</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center">
+      <div><div style="font-size:20px;color:#9b6dff;font-weight:700;font-family:'Cinzel',serif">${log.length}</div><div style="font-size:9px;color:#4a5272;text-transform:uppercase">Events</div></div>
+      <div><div style="font-size:20px;color:#cc6666;font-weight:700;font-family:'Cinzel',serif">${dmgEntries.length}</div><div style="font-size:9px;color:#4a5272;text-transform:uppercase">Hits</div></div>
+      <div><div style="font-size:20px;color:#4cdf88;font-weight:700;font-family:'Cinzel',serif">${healEntries.length}</div><div style="font-size:9px;color:#4a5272;text-transform:uppercase">Heals</div></div>
+      <div><div style="font-size:20px;color:#4488ff;font-weight:700;font-family:'Cinzel',serif">${rounds}</div><div style="font-size:9px;color:#4a5272;text-transform:uppercase">Rounds</div></div>
+    </div>
+  </div>`);
+
+  if (topChars.length) {
+    sections.push(`<div style="margin-bottom:12px">
+      <div style="font-size:10px;color:#9b6dff;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">👥 Most Active Characters</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${topChars.map(n => `<span style="background:rgba(155,109,255,.1);border:1px solid rgba(155,109,255,.3);border-radius:20px;padding:3px 10px;font-size:11px;color:#c8b8ff">${n}</span>`).join('')}</div>
+    </div>`);
+  }
+
+  if (combatEntries.length) {
+    const recent = combatEntries.slice(-5).map(e => `<div style="font-size:11px;color:#9098b8;padding:3px 0;border-bottom:1px solid #0a0a18">${e.ts} ${e.msg.replace(/<[^>]*>/g,'')}</div>`).join('');
+    sections.push(`<div style="margin-bottom:12px">
+      <div style="font-size:10px;color:#cc6666;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">⚔ Combat Events (last 5)</div>
+      ${recent}
+    </div>`);
+  }
+
+  if (deathEvents.length) {
+    sections.push(`<div style="margin-bottom:12px;padding:8px 12px;background:rgba(204,51,51,.06);border:1px solid rgba(204,51,51,.25);border-radius:8px">
+      <div style="font-size:10px;color:#cc4444;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">⚠ Near-Death Moments (${deathEvents.length})</div>
+      ${deathEvents.slice(0,3).map(e=>`<div style="font-size:11px;color:#9098b8">${e.ts} ${e.msg.replace(/<[^>]*>/g,'')}</div>`).join('')}
+    </div>`);
+  }
+
+  if (critEvents.length) {
+    sections.push(`<div style="margin-bottom:12px;padding:8px 12px;background:rgba(68,200,100,.05);border:1px solid rgba(68,200,100,.2);border-radius:8px">
+      <div style="font-size:10px;color:#4cdf88;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">★ Critical Hits (${critEvents.length})</div>
+      ${critEvents.slice(0,3).map(e=>`<div style="font-size:11px;color:#9098b8">${e.ts} ${e.msg.replace(/<[^>]*>/g,'')}</div>`).join('')}
+    </div>`);
+  }
+
+  if (noteEntries.length) {
+    sections.push(`<div style="margin-bottom:12px">
+      <div style="font-size:10px;color:#c9a227;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">📝 DM Notes (${noteEntries.length})</div>
+      ${noteEntries.map(e=>`<div style="font-size:11px;color:#c8d0e8;padding:3px 0">${e.ts} — ${e.msg.replace(/<[^>]*>/g,'')}</div>`).join('')}
+    </div>`);
+  }
+
+  return { html: sections.join('') };
+}
+
+function copyRecapToClipboard() {
+  const el = document.getElementById('recapContent');
+  if (!el) return;
+  const text = el.innerText || el.textContent;
+  navigator.clipboard.writeText(text).then(() => showToast('📋 Recap copied!', '#c9a227')).catch(() => showToast('Copy failed', '#cc3333'));
+}
+
+function saveRecapNote() {
+  const note = (document.getElementById('recapDmNote')?.value || '').trim();
+  if (!note) return;
+  logEntry('note', `📋 <strong>Session Recap Note:</strong> ${note}`);
+  showToast('💾 Recap note saved to session log', '#c9a227');
+  document.getElementById('recapOverlay')?.remove();
+}
+
 function showSessionStats() {
   // Build stats from hpLog
   const stats = {};
@@ -9334,6 +10417,990 @@ function openInitiativePanel() {
 // ── Party Health Panel ──────────────────────────────────
 let healthPanelOpen = false;
 
+// ══════════════════════════════════════════════════════════
+// ITERATION 76: Party Passive Skills Panel — show all characters'
+//   passive Perception, Investigation, and Insight at a glance.
+//   Vital for DMs adjudicating stealth, secrets, and deception.
+// ══════════════════════════════════════════════════════════
+let passivePanelOpen = false;
+function togglePassivePanel() {
+  passivePanelOpen = !passivePanelOpen;
+  const panel = document.getElementById('passivePanel');
+  if (!panel) return;
+  panel.style.display = passivePanelOpen ? 'flex' : 'none';
+  const btn = document.getElementById('passiveBtn');
+  if (btn) {
+    btn.style.background = passivePanelOpen ? 'rgba(35,180,120,.15)' : '';
+    btn.style.color = passivePanelOpen ? '#88eebb' : '#23b478';
+  }
+  if (passivePanelOpen) renderPassivePanel();
+}
+function renderPassivePanel() {
+  const el = document.getElementById('passivePanelBody');
+  if (!el) return;
+  // Only show characters that have ability scores (unique chars)
+  const chars = (typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : []).filter(c => c.abilities && c.abilities.length);
+  if (!chars.length) { el.innerHTML = '<div style="color:#3a6a4a;font-size:11px;padding:10px">No characters with ability scores.</div>'; return; }
+
+  // Skill → ability mapping
+  function getAbMod(c, abName) {
+    const a = (c.abilities || []).find(([n]) => n === abName);
+    return a ? (parseInt(a[2]) || 0) : 0;
+  }
+  function passive(c, abName) { return 10 + getAbMod(c, abName); }
+
+  // Sort by passive perception descending
+  const sorted = [...chars].sort((a, b) => passive(b, 'WIS') - passive(a, 'WIS'));
+
+  const header = `<div style="display:grid;grid-template-columns:1fr auto auto auto;gap:6px;font-size:9px;color:#4a7a5a;text-transform:uppercase;letter-spacing:.6px;padding:0 0 6px;border-bottom:1px solid rgba(35,180,120,0.15);margin-bottom:6px">
+    <div>Character</div><div style="text-align:center">Perc</div><div style="text-align:center">Inv</div><div style="text-align:center">Ins</div>
+  </div>`;
+
+  const percColor = v => v >= 18 ? '#4cff99' : v >= 14 ? '#23b478' : v >= 10 ? '#9098b8' : '#cc6666';
+
+  const rows = sorted.map(c => {
+    const perc = passive(c, 'WIS');
+    const inv  = 10 + getAbMod(c, 'INT');
+    const ins  = passive(c, 'WIS');
+    const conds = typeof getCharConditions === 'function' ? getCharConditions(c.name) : [];
+    const isDown = parseInt(getCharHP ? getCharHP(c.name, parseInt(c.hp)||1) : c.hp) === 0;
+    return `<div style="display:grid;grid-template-columns:1fr auto auto auto;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(35,180,120,0.07)">
+      <div style="font-size:11px;color:${isDown?'#cc4444':'#c8d0e8'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.name}">${c.name}</div>
+      <div style="text-align:center;font-size:13px;font-weight:700;color:${percColor(perc)};font-family:'Cinzel',serif">${perc}</div>
+      <div style="text-align:center;font-size:13px;font-weight:700;color:${percColor(inv)};font-family:'Cinzel',serif">${inv}</div>
+      <div style="text-align:center;font-size:13px;font-weight:700;color:${percColor(ins)};font-family:'Cinzel',serif">${ins}</div>
+    </div>`;
+  }).join('');
+
+  const maxPerc = Math.max(...sorted.map(c => passive(c, 'WIS')));
+  const maxInv  = Math.max(...sorted.map(c => 10 + getAbMod(c, 'INT')));
+  el.innerHTML = `
+    <div style="font-size:10px;color:#3a6a4a;margin-bottom:10px">Perc = Passive Perception · Inv = Passive Investigation · Ins = Passive Insight<br>
+    <span style="color:#23b478">Best perception: <strong>${maxPerc}</strong></span> · <span style="color:#4488ff">Best investigation: <strong>${maxInv}</strong></span></div>
+    ${header}${rows}
+    <div style="margin-top:10px;font-size:9px;color:#2a5a3a;border-top:1px solid rgba(35,180,120,0.1);padding-top:8px">
+      📌 Passive checks trigger automatically — players don't roll. Set DC to match or beat these values.
+    </div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 77: Inspiration & Awards Board — central panel to
+//   grant/revoke inspiration, log heroic moments, and give
+//   custom awards or titles to party members and NPCs.
+// ══════════════════════════════════════════════════════════
+const AWARDS_KEY = 'tiamat_awards';
+function loadAwards() { try { return JSON.parse(localStorage.getItem(AWARDS_KEY)) || []; } catch { return []; } }
+function saveAwards(a) { localStorage.setItem(AWARDS_KEY, JSON.stringify(a)); }
+
+let awardsPanelOpen = false;
+function toggleAwardsPanel() {
+  awardsPanelOpen = !awardsPanelOpen;
+  const panel = document.getElementById('awardsPanel');
+  if (!panel) return;
+  panel.style.display = awardsPanelOpen ? 'flex' : 'none';
+  const btn = document.getElementById('awardsBtn');
+  if (btn) {
+    btn.style.background = awardsPanelOpen ? 'rgba(201,162,39,.15)' : '';
+    btn.style.color = awardsPanelOpen ? '#ffd700' : '#c9a227';
+  }
+  if (awardsPanelOpen) renderAwardsPanel();
+}
+function renderAwardsPanel() {
+  const el = document.getElementById('awardsPanelBody');
+  if (!el) return;
+  const chars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+  const inspirationData = loadInspiration();
+  const awards = loadAwards();
+  const inspChars = chars.filter(c => inspirationData[c.name]);
+  const nonInsp = chars.filter(c => !inspirationData[c.name]);
+
+  const awardTypeColors = { heroic:'#c9a227', tactical:'#4488ff', roleplay:'#23b478', sacrifice:'#cc3333', lore:'#9b6dff', custom:'#9098b8' };
+  const awardTypeIcons = { heroic:'⚔', tactical:'🧠', roleplay:'🎭', sacrifice:'❤', lore:'📖', custom:'✦' };
+
+  el.innerHTML = `
+    <div style="margin-bottom:16px">
+      <div style="font-size:10px;color:#c9a227;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">⭐ Has Inspiration (${inspChars.length})</div>
+      ${inspChars.length ? inspChars.map(c => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:rgba(201,162,39,0.08);border:1px solid rgba(201,162,39,0.3);border-radius:8px;margin-bottom:6px">
+          <span style="font-size:13px;color:#ffd700">⭐ ${c.name}</span>
+          <button onclick="toggleInspiration(${JSON.stringify(c.name)});renderAwardsPanel()" style="background:rgba(204,51,51,.1);border:1px solid #cc3333;color:#ff6666;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:11px">Spend</button>
+        </div>`).join('') : '<div style="color:#3a2a00;font-size:11px;font-style:italic">No one has inspiration yet</div>'}
+    </div>
+    <div style="margin-bottom:16px">
+      <div style="font-size:10px;color:#4a5272;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Grant Inspiration</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${nonInsp.slice(0,20).map(c => `
+          <button onclick="toggleInspiration(${JSON.stringify(c.name)});renderAwardsPanel()" style="background:#06061a;border:1px solid #2a2a50;color:#9098b8;border-radius:20px;padding:4px 12px;cursor:pointer;font-size:11px;transition:all .15s" onmouseover="this.style.borderColor='#c9a227';this.style.color='#c9a227'" onmouseout="this.style.borderColor='#2a2a50';this.style.color='#9098b8'">${c.name}</button>`).join('')}
+      </div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:10px;color:#c9a227;text-transform:uppercase;letter-spacing:1px">🏆 Heroic Moments Log</div>
+        <button onclick="openAddAward()" style="background:none;border:1px solid rgba(201,162,39,.4);color:#c9a227;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:10px">+ Record</button>
+      </div>
+      ${awards.length ? awards.slice().reverse().slice(0,15).map((a, i) => `
+        <div style="display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #1a1400">
+          <span style="font-size:18px">${awardTypeIcons[a.type]||'✦'}</span>
+          <div style="flex:1">
+            <div style="font-size:12px;color:#ffd700;font-weight:600">${a.char}</div>
+            <div style="font-size:12px;color:#c8d0e8;margin-top:2px">${a.moment}</div>
+            <div style="font-size:9px;color:#3a2a00;margin-top:2px">${awardTypeIcons[a.type]} ${a.type} · Session ${a.session||'?'} · ${a.ts||''}</div>
+          </div>
+          <button onclick="removeAward(${awards.length - 1 - i});renderAwardsPanel()" style="background:none;border:none;color:#3a2a00;cursor:pointer;font-size:11px">✕</button>
+        </div>`).join('') : '<div style="color:#3a2a00;font-size:11px;font-style:italic">No heroic moments recorded yet</div>'}
+    </div>`;
+}
+function openAddAward() {
+  const overlay = document.createElement('div');
+  overlay.id = 'awardFormOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.8);z-index:9700;display:flex;align-items:center;justify-content:center';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  const chars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+  overlay.innerHTML = `
+    <div style="background:#0d0b00;border:1px solid rgba(201,162,39,0.5);border-radius:14px;padding:24px;width:420px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.9)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-size:15px;font-weight:700;color:#c9a227">🏆 Record Heroic Moment</div>
+        <button onclick="document.getElementById('awardFormOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div>
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Character</div>
+          <select id="awChar" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;cursor:pointer">
+            ${chars.map(c => `<option value="${c.name}">${c.name}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Type</div>
+          <select id="awType" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;cursor:pointer">
+            <option value="heroic">⚔ Heroic (combat)</option>
+            <option value="tactical">🧠 Tactical (clever play)</option>
+            <option value="roleplay">🎭 Roleplay (great RP)</option>
+            <option value="sacrifice">❤ Sacrifice (took one for the team)</option>
+            <option value="lore">📖 Lore (uncovered secret)</option>
+            <option value="custom">✦ Custom</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">What happened?</div>
+        <textarea id="awMoment" rows="3" placeholder="Describe the heroic moment, clever move, or notable achievement…" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;box-sizing:border-box;font-family:inherit;resize:vertical;outline:none"></textarea>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px">
+        <label style="font-size:10px;color:#4a5272;text-transform:uppercase;letter-spacing:.5px">Also grant Inspiration?</label>
+        <input type="checkbox" id="awInsp" style="cursor:pointer;width:16px;height:16px">
+      </div>
+      <button onclick="submitAward()" style="width:100%;background:rgba(201,162,39,.15);border:1px solid #c9a227;color:#c9a227;border-radius:8px;padding:10px;cursor:pointer;font-size:13px;font-weight:600">🏆 Record Moment</button>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+function submitAward() {
+  const char = document.getElementById('awChar').value;
+  const type = document.getElementById('awType').value;
+  const moment = (document.getElementById('awMoment').value || '').trim();
+  const grantInsp = document.getElementById('awInsp').checked;
+  if (!moment) { showToast('Please describe the moment', '#cc3333'); return; }
+  const awards = loadAwards();
+  awards.push({ char, type, moment, session: typeof sessionNum !== 'undefined' ? sessionNum : '?', ts: new Date().toLocaleDateString() });
+  saveAwards(awards);
+  if (grantInsp) toggleInspiration(char);
+  document.getElementById('awardFormOverlay').remove();
+  showToast(`🏆 ${char} — moment recorded!`, '#c9a227');
+  logEntry('heal', `🏆 <strong>${char}</strong> — ${moment}`);
+  renderAwardsPanel();
+}
+function removeAward(idx) {
+  const awards = loadAwards();
+  awards.splice(idx, 1);
+  saveAwards(awards);
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 90: Print-Ready Character Sheet — opens a clean, printable
+//   full character sheet in a new window with all stats, skills, saves,
+//   features, spells, inventory, and bio. Replaces DnD Beyond PDF export.
+// ══════════════════════════════════════════════════════════
+function openPrintSheet(c) {
+  if (!c) { const cc = filteredChars[currentModalIdx]; if (!cc) return; c = cc; }
+  const prof = c.cr === '30' ? 9 : c.cr === '21'||c.cr === '20' ? 7 : c.cr === '17'||c.cr === '16' ? 6 :
+               c.cr === '15'||c.cr === '14' ? 5 : c.cr === '13'||c.cr === '9'||c.cr === '10' ? 4 :
+               c.cr === '7'||c.cr === '8' ? 3 : c.cr === '5'||c.cr === '6' ? 3 : 2;
+  const ab = {};
+  (c.abilities||[]).forEach(([n,s,m,hl]) => ab[n] = {score:parseInt(s)||10, mod:parseInt(m)||0, hl:!!hl});
+  const get = n => ab[n] || {score:10,mod:0,hl:false};
+  const str=get('STR'),dex=get('DEX'),con=get('CON'),int_=get('INT'),wis=get('WIS'),cha=get('CHA');
+  const profStr = n => { const v = get(n); const sv = v.mod + (v.hl?prof:0); return (sv>=0?'+':'')+sv; };
+  const maxHp = parseInt(c.hp)||1;
+  const currHp = getCharHP(c.name, maxHp);
+  const bio = loadBio ? loadBio(c.name) : {};
+  const conditions = getCharConditions ? getCharConditions(c.name) : [];
+  const skills = [
+    ['Athletics','STR'],['Acrobatics','DEX'],['Sleight of Hand','DEX'],['Stealth','DEX'],
+    ['Arcana','INT'],['History','INT'],['Investigation','INT'],['Nature','INT'],['Religion','INT'],
+    ['Animal Handling','WIS'],['Insight','WIS'],['Medicine','WIS'],['Perception','WIS'],['Survival','WIS'],
+    ['Deception','CHA'],['Intimidation','CHA'],['Performance','CHA'],['Persuasion','CHA']
+  ].map(([nm,abn]) => { const a = get(abn); const isProf = a.hl; const v = a.mod + (isProf?prof:0); return {name:nm,ab:abn,val:(v>=0?'+':'')+v,prof:isProf}; });
+  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${c.name} — Character Sheet</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Arial',sans-serif;font-size:11px;color:#111;background:#fff;padding:12px}
+h1{font-size:18px;font-weight:900;text-align:center;letter-spacing:2px;border-bottom:3px solid #7b1e1e;padding-bottom:6px;margin-bottom:10px;color:#7b1e1e}
+h2{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;border-bottom:1.5px solid #7b1e1e;margin:12px 0 6px;color:#7b1e1e}
+.page{max-width:800px;margin:0 auto}
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cols3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.ab-box{border:2px solid #7b1e1e;border-radius:8px;padding:8px 4px;text-align:center}
+.ab-name{font-size:9px;font-weight:700;letter-spacing:1px;color:#7b1e1e;display:block;margin-bottom:2px}
+.ab-score{font-size:22px;font-weight:900;display:block}
+.ab-mod{font-size:13px;color:#555;display:block}
+.skill-row{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #ddd}
+.skill-row.prof .skill-name::before{content:'● ';color:#7b1e1e}
+.skill-row:not(.prof) .skill-name::before{content:'○ ';color:#aaa}
+.save-row{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #ddd}
+.stat-box{border:1.5px solid #7b1e1e;border-radius:6px;padding:6px 10px;text-align:center;margin-bottom:6px}
+.stat-label{font-size:9px;font-weight:700;letter-spacing:1px;color:#7b1e1e;display:block}
+.stat-val{font-size:16px;font-weight:900;display:block}
+.feature-block{margin-bottom:8px}
+.feature-name{font-weight:700;font-size:11px}
+.feature-desc{font-size:10px;color:#333;line-height:1.5;margin-top:2px}
+.hp-bar{height:12px;border-radius:4px;background:#eee;overflow:hidden;margin-top:3px}
+.hp-fill{height:100%;background:#7b1e1e;border-radius:4px}
+.inv-row{padding:2px 0;border-bottom:1px solid #eee;font-size:10px}
+.spell-row{padding:2px 0;border-bottom:1px solid #eee;font-size:10px}
+.spell-level-hdr{font-weight:700;font-size:10px;color:#7b1e1e;margin-top:6px;margin-bottom:2px}
+.bio-field{margin-bottom:6px}
+.bio-label{font-size:9px;font-weight:700;color:#7b1e1e;letter-spacing:0.5px;display:block}
+.bio-val{font-size:11px;color:#222;min-height:16px;border-bottom:1px solid #ccc;padding-bottom:2px}
+@media print{@page{margin:1cm}body{padding:0}}
+.no-print{display:flex;gap:8px;justify-content:center;margin-bottom:12px}
+@media print{.no-print{display:none}}
+</style></head><body>
+<div class="no-print">
+  <button onclick="window.print()" style="background:#7b1e1e;color:#fff;border:none;border-radius:6px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer">🖨 Print / Save PDF</button>
+  <button onclick="window.close()" style="background:#555;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer">✕ Close</button>
+</div>
+<div class="page">
+<h1>${c.name}</h1>
+<div class="cols3" style="margin-bottom:10px;text-align:center">
+  <div><div style="font-size:9px;color:#7b1e1e;font-weight:700">CLASS / CR</div><div style="font-size:13px;font-weight:700">${bio.charClass||c.cr||'—'}</div></div>
+  <div><div style="font-size:9px;color:#7b1e1e;font-weight:700">RACE</div><div style="font-size:13px;font-weight:700">${bio.race||'—'}</div></div>
+  <div><div style="font-size:9px;color:#7b1e1e;font-weight:700">BACKGROUND</div><div style="font-size:13px;font-weight:700">${bio.background||'—'}</div></div>
+</div>
+<div class="cols2">
+  <div>
+    <h2>Ability Scores</h2>
+    <div class="cols3">
+      ${['STR','DEX','CON','INT','WIS','CHA'].map(n => { const a=get(n); return `<div class="ab-box"><span class="ab-name">${n}</span><span class="ab-score">${a.score}</span><span class="ab-mod">${a.mod>=0?'+':''}${a.mod}</span></div>`; }).join('')}
+    </div>
+    <h2>Saving Throws</h2>
+    ${['STR','DEX','CON','INT','WIS','CHA'].map(n => `<div class="save-row ${get(n).hl?'prof':''}"><span>${get(n).hl?'●':'○'} ${n}</span><span>${profStr(n)}</span></div>`).join('')}
+  </div>
+  <div>
+    <h2>Combat</h2>
+    <div class="cols3">
+      <div class="stat-box"><span class="stat-label">HP</span><span class="stat-val" style="color:${currHp<maxHp*0.5?'#cc3333':'#111'}">${currHp}/${maxHp}</span><div class="hp-bar"><div class="hp-fill" style="width:${Math.round(currHp/maxHp*100)}%"></div></div></div>
+      <div class="stat-box"><span class="stat-label">AC</span><span class="stat-val">${c.ac||'—'}</span></div>
+      <div class="stat-box"><span class="stat-label">PROF</span><span class="stat-val">+${prof}</span></div>
+      <div class="stat-box"><span class="stat-label">SPEED</span><span class="stat-val">${(c.speed||'30')}</span></div>
+      <div class="stat-box"><span class="stat-label">INIT</span><span class="stat-val">${dex.mod>=0?'+':''}${dex.mod}</span></div>
+      <div class="stat-box"><span class="stat-label">PASS PERC</span><span class="stat-val">${10+wis.mod}</span></div>
+    </div>
+    ${conditions.length ? `<div style="margin-top:6px"><span style="font-size:9px;font-weight:700;color:#7b1e1e">CONDITIONS: </span>${conditions.join(', ')}</div>` : ''}
+    <h2>Skills</h2>
+    ${skills.map(s => `<div class="skill-row ${s.prof?'prof':''}"><span class="skill-name">${s.name} (${s.ab})</span><span>${s.val}</span></div>`).join('')}
+  </div>
+</div>
+${(c.traits||[]).length ? `<h2>Features & Traits</h2>${(c.traits||[]).map(t => `<div class="feature-block"><div class="feature-desc">${t}</div></div>`).join('')}` : ''}
+${(c.actions||[]).length ? `<h2>Actions</h2>${(c.actions||[]).map(a => typeof a==='object' ? `<div class="feature-block"><span class="feature-name">${a.name||a.label||'Action'}</span>: <span class="feature-desc">${a.desc||a.text||''}</span></div>` : `<div class="feature-block"><div class="feature-desc">${a}</div></div>`).join('')}` : ''}
+${(c.inventory||[]).length ? `<h2>Inventory</h2>${(c.inventory||[]).map(i => `<div class="inv-row">${typeof i==='object'?i.name||JSON.stringify(i):i}</div>`).join('')}` : ''}
+${bio.backstory ? `<h2>Backstory</h2><p style="font-size:10px;line-height:1.6;color:#333">${bio.backstory}</p>` : ''}
+${bio.notes ? `<h2>Notes</h2><p style="font-size:10px;line-height:1.6;color:#333">${bio.notes}</p>` : ''}
+${c.lore ? `<h2>Lore / Description</h2><p style="font-size:10px;line-height:1.6;color:#333">${c.lore}</p>` : ''}
+</div></body></html>`;
+  const w = window.open('', '_blank');
+  if (w) { w.document.write(html); w.document.close(); }
+  else showToast('Allow popups to open print sheet', '#cc3333');
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 89: Random Tables Panel — one-click DM random tables:
+//   weather, NPC traits, encounter hooks, tavern names, loot flavor,
+//   rumors, complications. Results logged to session.
+// ══════════════════════════════════════════════════════════
+const RANDOM_TABLES = {
+  'Weather': ['Clear skies, warm breeze','Light overcast, cool','Heavy fog, visibility 30ft','Drizzle, muddy roads','Thunderstorm — hard rain, lightning','Blizzard, difficult terrain','Scorching heat, CON saves every 2hrs','Eerie supernatural mist','Hail, 1d4 bludgeoning per min outside','Rainbow after storms, birds singing'],
+  'NPC Quirk': ['Constantly whistles off-key','Never makes eye contact','Speaks only in questions','Laughs at completely wrong moments','Obsessed with a mundane hobby','Has an unusual pet nearby','Repeats the last thing you say','Excessively formal even in combat','Refers to self in third person','Sneezes dramatically before speaking'],
+  'NPC Motivation': ['Greed — wants money above all','Love — protecting someone dear','Revenge — a bitter grudge','Ambition — climbing to power','Fear — terrified of something','Duty — bound by oath or order','Curiosity — seeks forbidden knowledge','Survival — just trying to live','Faith — zealously devout','Guilt — atoning for past sins'],
+  'Encounter Hook': ['A wounded traveler collapses at your feet','Smoke rises from a distant village','A mysterious locked chest sits in the road','Screaming heard from a nearby alley','An old map falls from a dead courier','A child tugs at your cloak, eyes wide','Merchant argues with armed bandits','Strange lights in the sky at midnight','A crow keeps following the party','Posted bounty: wanted, dead or alive'],
+  'Tavern Name': ['The Stumbling Goblin','The Gilded Flagon','The Howling Wolf','The Rusty Anchor','The Wanderer\'s Rest','The Broken Shield','The Black Cauldron','The Lucky Dice','The Singing Dragon','The Tarnished Crown'],
+  'Loot Flavor': ['Wrapped in oiled leather','Stuffed in a dirty sock','Hidden inside a false-bottomed flask','Tied with a ribbon and sealed with wax','Smells faintly of sulfur','Covered in dried blood — not the owner\'s','Engraved with a family crest','Warm to the touch for no reason','Makes a faint humming sound','Wrapped in pages torn from a spellbook'],
+  'Complication': ['A party member is spotted by an old enemy','The local law arrives — looking for someone','An unexpected ally offers help… for a price','The goal is guarded by an innocent','A fire breaks out nearby','Someone in the party is pickpocketed','A rival party has the same objective','The weather turns deadly','A deadline moves up dramatically','Someone important recognizes a party member'],
+  'Rumor': ['They say the duke is secretly a vampire','Treasure buried under the old mill','The forest shrine grants wishes — at a cost','A merchant guild is fixing all prices','An assassin\'s guild operates out of the inn','The road north is haunted at night','The temple\'s relics were stolen last moon','A dragon was spotted near the pass','The blacksmith is a retired adventurer','War brewing between two noble houses'],
+  'Dungeon Feature': ['A room with no visible exits','Fountain with liquid that glows faintly','Faded mural depicting a ritual','Pile of gear from a previous party','Pressure plate hidden under rubble','A locked iron door — faint crying inside','Ceiling covered in sleeping bats','Trap disarmed but not removed','Shrine to a forgotten deity','Pit of bones — some still have flesh']
+};
+let randTableHistory = [];
+
+function openRandomTables() {
+  const existing = document.getElementById('randTableOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'randTableOverlay';
+  ov.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:min(540px,95vw);max-height:85vh;background:linear-gradient(160deg,#0d0b00,#1a1200);border:1px solid rgba(201,162,39,0.5);border-radius:14px;z-index:1000;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.9);overflow:hidden';
+  ov.innerHTML = `
+    <div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(201,162,39,0.2)">
+      <span style="font-family:'Cinzel',serif;font-size:15px;font-weight:900;color:#c9a227;letter-spacing:2px">🎲 RANDOM TABLES</span>
+      <button onclick="document.getElementById('randTableOverlay').remove()" style="background:none;border:none;color:#6a7299;font-size:18px;cursor:pointer">✕</button>
+    </div>
+    <div style="padding:10px 14px;display:grid;grid-template-columns:1fr 1fr;gap:8px;overflow-y:auto">
+      ${Object.entries(RANDOM_TABLES).map(([name, entries]) => `
+        <button onclick="rollRandomTable(${JSON.stringify(name)})"
+          style="background:rgba(201,162,39,0.08);border:1px solid rgba(201,162,39,0.3);border-radius:8px;padding:10px 12px;color:#c9a227;font-family:'Cinzel',serif;font-size:12px;cursor:pointer;text-align:left;transition:all 0.15s"
+          onmouseover="this.style.background='rgba(201,162,39,0.18)'" onmouseout="this.style.background='rgba(201,162,39,0.08)'">
+          🎲 ${name}<br><span style="font-size:10px;color:#6a7299;font-family:sans-serif">${entries.length} results</span>
+        </button>`).join('')}
+    </div>
+    <div style="border-top:1px solid rgba(201,162,39,0.15);padding:10px 14px">
+      <div style="font-size:10px;color:#c9a227;margin-bottom:6px;letter-spacing:1px">RECENT ROLLS</div>
+      <div id="randTableRecent" style="font-size:12px;color:#9098b8;line-height:1.7;min-height:40px;max-height:120px;overflow-y:auto">
+        ${randTableHistory.length ? randTableHistory.slice(0,5).map(h=>`<div><span style="color:#c9a227;font-weight:700">${h.table}:</span> ${h.result}</div>`).join('') : '<span style="color:#4a5272;font-style:italic">No rolls yet</span>'}
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+}
+
+function rollRandomTable(tableName) {
+  const entries = RANDOM_TABLES[tableName];
+  if (!entries) return;
+  const result = entries[Math.floor(Math.random() * entries.length)];
+  randTableHistory.unshift({ table: tableName, result });
+  if (randTableHistory.length > 20) randTableHistory.pop();
+  logEntry('dm', `🎲 <strong>${escHtml(tableName)}:</strong> ${escHtml(result)}`);
+  const recentEl = document.getElementById('randTableRecent');
+  if (recentEl) recentEl.innerHTML = randTableHistory.slice(0,5).map(h=>`<div><span style="color:#c9a227;font-weight:700">${escHtml(h.table)}:</span> ${escHtml(h.result)}</div>`).join('');
+  // Flash the result in a toast
+  showToast(`${tableName}: ${result}`, '#c9a227');
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 88: Legendary Actions Tracker — per-combatant legendary
+//   action pips (1–5 configurable), reset each new round. Shows in
+//   initiative list for any entry configured as having legendary actions.
+// ══════════════════════════════════════════════════════════
+const LEG_KEY = 'tiamat_legendary';
+function loadLegendary() { try { return JSON.parse(localStorage.getItem(LEG_KEY)||'{}'); } catch { return {}; } }
+function saveLegendary(d) { localStorage.setItem(LEG_KEY, JSON.stringify(d)); }
+function getLegEntry(name) { return loadLegendary()[name] || null; }
+function setLegActions(name, count) {
+  const d = loadLegendary();
+  if (count <= 0) { delete d[name]; } else { d[name] = { max: count, used: 0 }; }
+  saveLegendary(d); renderInitiative();
+}
+function toggleLegPip(name, idx) {
+  const d = loadLegendary();
+  if (!d[name]) return;
+  // Toggle: if pip idx < used → set used to idx, else set used to idx+1
+  d[name].used = (d[name].used > idx) ? idx : idx + 1;
+  saveLegendary(d);
+  logEntry('combat', `⚡ <strong>${escHtml(name)}</strong> used legendary action (${d[name].used}/${d[name].max} used)`);
+  renderInitiative();
+}
+function resetLegActionsForRound() {
+  const d = loadLegendary();
+  Object.keys(d).forEach(k => { d[k].used = 0; });
+  saveLegendary(d);
+}
+function buildLegPips(name) {
+  const leg = getLegEntry(name);
+  if (!leg) return '';
+  const pips = Array.from({length: leg.max}, (_, i) =>
+    `<div class="leg-action-pip ${i < leg.used ? 'used':''}" onclick="toggleLegPip(${JSON.stringify(name)},${i})" title="Legendary action ${i+1}"></div>`
+  ).join('');
+  return `<div class="leg-action-row">
+    <span class="leg-label">⚡ LEG</span>${pips}
+    <button class="leg-set-btn" onclick="promptSetLeg(${JSON.stringify(name)},event)" title="Configure legendary actions">⚙</button>
+  </div>`;
+}
+function promptSetLeg(name, event) {
+  if (event) event.stopPropagation();
+  const current = getLegEntry(name);
+  const v = prompt(`Legendary actions for ${name} (0 to remove, 1-5):`, current ? current.max : 3);
+  const n = parseInt(v);
+  if (isNaN(n) || n < 0 || n > 5) return;
+  setLegActions(name, n);
+  logEntry('combat', n > 0 ? `⚡ <strong>${escHtml(name)}</strong> has ${n} legendary actions per round` : `Removed legendary actions from ${name}`);
+}
+function promptAddLeg(name, event) { promptSetLeg(name, event); }
+
+// Patch nextTurn to reset legendary actions at start of new round
+const _origNextTurn = typeof nextTurn !== 'undefined' ? nextTurn : null;
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 87: Dice Roller Panel — floating panel with d4–d100,
+//   count, modifier, advantage/disadvantage, roll history.
+// ══════════════════════════════════════════════════════════
+let dicePanelOpen = false;
+let diceMode = 'normal'; // 'adv' | 'normal' | 'dis'
+let diceHistory = [];
+
+function toggleDicePanel() {
+  dicePanelOpen = !dicePanelOpen;
+  const p = document.getElementById('dicePanel');
+  if (dicePanelOpen) { p.classList.add('open'); } else { p.classList.remove('open'); }
+  const btn = document.getElementById('dicePanelBtn');
+  if (btn) btn.style.background = dicePanelOpen ? '#dd6622' : '';
+  if (btn) btn.style.color = dicePanelOpen ? '#fff' : '';
+}
+
+function setDiceMode(mode) {
+  diceMode = mode;
+  const btns = { adv: document.getElementById('diceAdvBtn'), norm: document.getElementById('diceNormBtn'), dis: document.getElementById('diceDisBtn') };
+  if (btns.adv) { btns.adv.style.opacity = mode==='adv' ? '1' : '0.4'; }
+  if (btns.norm) { btns.norm.style.opacity = mode==='normal' ? '1' : '0.4'; }
+  if (btns.dis) { btns.dis.style.opacity = mode==='dis' ? '1' : '0.4'; }
+}
+
+function rollDice(sides) {
+  const count = Math.max(1, parseInt(document.getElementById('diceCount').value)||1);
+  const mod = parseInt(document.getElementById('diceMod').value)||0;
+  let rolls = [];
+  if (sides === 20 && diceMode !== 'normal') {
+    const r1 = Math.ceil(Math.random()*20), r2 = Math.ceil(Math.random()*20);
+    const chosen = diceMode==='adv' ? Math.max(r1,r2) : Math.min(r1,r2);
+    rolls = [chosen];
+    const label = diceMode==='adv' ? '▲adv' : '▼dis';
+    const total = chosen + mod;
+    document.getElementById('diceResultTotal').textContent = total;
+    document.getElementById('diceResultDetail').textContent = `[${r1},${r2}]${label} → ${chosen}${mod>=0?'+':''}${mod}`;
+    addDiceHistory(`${count}d${sides}${label}`, rolls, mod, total);
+    return;
+  }
+  for (let i=0;i<count;i++) rolls.push(Math.ceil(Math.random()*sides));
+  const rawSum = rolls.reduce((a,b)=>a+b,0);
+  const total = rawSum + mod;
+  document.getElementById('diceResultTotal').textContent = total;
+  const rollStr = count > 1 ? `[${rolls.join(',')}]=${rawSum}` : `[${rolls[0]}]`;
+  document.getElementById('diceResultDetail').textContent = `${count}d${sides} ${rollStr}${mod!==0?(mod>=0?'+':'')+mod+' = '+total:''}`;
+  addDiceHistory(`${count}d${sides}`, rolls, mod, total);
+}
+
+function rollCustomDice() {
+  const s = prompt('Enter sides (e.g. 4, 6, 10, 20, 100):','6');
+  const sides = parseInt(s);
+  if (!isNaN(sides) && sides >= 2) rollDice(sides);
+}
+
+function addDiceHistory(label, rolls, mod, total) {
+  diceHistory.unshift({ label, rolls, mod, total, ts: new Date().toLocaleTimeString() });
+  if (diceHistory.length > 15) diceHistory.pop();
+  const el = document.getElementById('diceHistory');
+  if (!el) return;
+  el.innerHTML = diceHistory.map(h =>
+    `<div class="dice-history-entry"><span>${h.ts} — ${h.label}${h.mod!==0?(h.mod>=0?'+':'')+h.mod:''}</span><span class="dh-total">${h.total}</span></div>`
+  ).join('');
+  // Log to session log
+  logEntry('roll', `🎲 Rolled ${label}${mod!==0?(mod>=0?'+':'')+mod:''} = **${total}**`);
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 86: Campaign Status Dashboard — one-page overview
+//   of the entire campaign state: HP, conditions, concentration,
+//   inspiration, XP/level, loot, session stats.
+// ══════════════════════════════════════════════════════════
+function openCampaignDashboard() {
+  const existing = document.getElementById('campaignDashOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'campaignDashOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.8);z-index:9800;display:flex;align-items:flex-start;justify-content:center;padding:4vh 10px;overflow-y:auto';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  const content = buildCampaignDashboard();
+  overlay.innerHTML = `
+    <div style="background:#08060e;border:1px solid rgba(155,109,255,0.5);border-radius:14px;padding:24px;width:min(800px,98vw);box-shadow:0 8px 40px rgba(0,0,0,.9)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:900;color:#9b6dff;letter-spacing:2px">📊 Campaign Dashboard</div>
+        <div style="display:flex;gap:8px">
+          <button onclick="openCampaignDashboard()" style="background:rgba(155,109,255,.1);border:1px solid rgba(155,109,255,.4);color:#9b6dff;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:11px">↺ Refresh</button>
+          <button onclick="document.getElementById('campaignDashOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:20px">✕</button>
+        </div>
+      </div>
+      ${content}
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function buildCampaignDashboard() {
+  const chars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+  if (!chars.length) return '<div style="color:#4a5272;font-style:italic">No characters loaded.</div>';
+
+  // ── Party Health Overview ──
+  const healthRows = chars.map(c => {
+    const max = parseInt(c.hp) || 1;
+    const curr = typeof getCharHP === 'function' ? getCharHP(c.name, max) : max;
+    const pct = curr / max;
+    const barColor = pct >= 0.75 ? '#44aa44' : pct >= 0.5 ? '#c9a227' : pct >= 0.25 ? '#dd6622' : '#cc3333';
+    const conds = typeof getCharConditions === 'function' ? getCharConditions(c.name) : [];
+    const insp = typeof hasInspiration === 'function' ? hasInspiration(c.name) : false;
+    const conc = typeof getConcSpell === 'function' ? getConcSpell(c.name) : null;
+    const custom = typeof getCustomPortrait === 'function' ? getCustomPortrait(c.name) : null;
+    const portIcon = custom && !custom.startsWith('http') ? `<span style="font-size:18px">${custom}</span>` : `<span style="font-size:10px;color:#4a5272">${c.name.slice(0,2)}</span>`;
+    return `<div style="background:#06060a;border:1px solid #1e2040;border-radius:8px;padding:10px 12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="font-size:12px;color:${curr===0?'#cc4444':'#dce0f0'};font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">${curr===0?'💀 ':insp?'⭐ ':''}<span>${c.name}</span></div>
+        <div style="font-size:11px;color:${barColor};font-weight:700;font-family:'Cinzel',serif">${curr}/${max}</div>
+      </div>
+      <div style="background:#0a0a14;border-radius:4px;height:6px;overflow:hidden;margin-bottom:6px">
+        <div style="height:100%;background:${barColor};width:${Math.round(pct*100)}%;border-radius:4px;transition:width .3s"></div>
+      </div>
+      ${conc ? `<div style="font-size:9px;color:#c9a227;margin-bottom:3px">🔮 ${conc}</div>` : ''}
+      ${conds.length ? `<div style="display:flex;flex-wrap:wrap;gap:3px">${conds.map(cn => `<span style="font-size:9px;padding:1px 5px;background:rgba(170,102,221,.1);border:1px solid rgba(170,102,221,.3);border-radius:4px;color:#aa66dd">${cn}</span>`).join('')}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  // ── Loot Summary ──
+  const loot = (() => { try { return JSON.parse(localStorage.getItem('tiamat_loot')) || {}; } catch { return {}; } })();
+  const totalGp = ((loot.pp||0) * 10) + (loot.gp||0) + ((loot.sp||0) / 10) + ((loot.cp||0) / 100);
+  const lootItems = (loot.items || []).length;
+
+  // ── XP/Level ──
+  const xpState = (() => { try { return JSON.parse(localStorage.getItem('tiamat_xp')) || {}; } catch { return {}; } })();
+  const partyXP = xpState.totalXp || 0;
+  const partyLevel = xpState.level || 1;
+
+  // ── Active Inspiration Count ──
+  const inspirData = typeof loadInspiration === 'function' ? loadInspiration() : {};
+  const inspiredChars = Object.keys(inspirData).filter(k => inspirData[k]);
+
+  // ── Active Conditions Count ──
+  const allCondData = (() => { try { return JSON.parse(localStorage.getItem('tiamat_conditions')) || {}; } catch { return {}; } })();
+  const totalConds = Object.values(allCondData).flat().length;
+
+  // ── Session Log Stats ──
+  const logCount = typeof sessionLog !== 'undefined' ? sessionLog.length : 0;
+  const dmgEvents = typeof sessionLog !== 'undefined' ? sessionLog.filter(e => e.type === 'damage').length : 0;
+  const healEvents = typeof sessionLog !== 'undefined' ? sessionLog.filter(e => e.type === 'heal').length : 0;
+
+  // ── Awards ──
+  const awardsData = (() => { try { return JSON.parse(localStorage.getItem('tiamat_awards')) || []; } catch { return []; } })();
+
+  const statCards = [
+    { label:'Characters', val:chars.length, color:'#9b6dff', icon:'👥' },
+    { label:'Inspired', val:inspiredChars.length, color:'#c9a227', icon:'⭐' },
+    { label:'Conditions', val:totalConds, color:'#aa66dd', icon:'⚡' },
+    { label:'In Combat', val:typeof initiativeList!=='undefined'?initiativeList.length:0, color:'#cc6666', icon:'⚔' },
+    { label:'Party GP', val:totalGp.toFixed(0), color:'#c9a227', icon:'💰' },
+    { label:'Party Level', val:partyLevel, color:'#4488ff', icon:'⭐' },
+    { label:'Log Events', val:logCount, color:'#9098b8', icon:'📋' },
+    { label:'Heroic Moments', val:awardsData.length, color:'#23b478', icon:'🏆' },
+  ].map(s => `<div style="background:#06060e;border:1px solid rgba(155,109,255,0.15);border-radius:10px;padding:14px;text-align:center">
+    <div style="font-size:22px;margin-bottom:4px">${s.icon}</div>
+    <div style="font-size:22px;color:${s.color};font-weight:900;font-family:'Cinzel',serif">${s.val}</div>
+    <div style="font-size:9px;color:#4a5272;text-transform:uppercase;letter-spacing:.5px;margin-top:2px">${s.label}</div>
+  </div>`).join('');
+
+  return `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">${statCards}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div>
+        <div style="font-size:10px;color:#9b6dff;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">❤ Party Health</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${healthRows}</div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:#c9a227;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">📊 Campaign State</div>
+        ${inspiredChars.length ? `<div style="margin-bottom:8px;padding:10px;background:#06060e;border:1px solid rgba(201,162,39,.2);border-radius:8px">
+          <div style="font-size:10px;color:#c9a227;margin-bottom:4px">⭐ Has Inspiration</div>
+          ${inspiredChars.map(n => `<span style="font-size:11px;color:#ffd700;margin-right:8px">⭐ ${n}</span>`).join('')}
+        </div>` : ''}
+        ${typeof initiativeList!=='undefined'&&initiativeList.length ? `<div style="margin-bottom:8px;padding:10px;background:#06060e;border:1px solid rgba(204,80,80,.2);border-radius:8px">
+          <div style="font-size:10px;color:#cc4444;margin-bottom:4px">⚔ In Combat (${initiativeList.length})</div>
+          ${initiativeList.map(e => `<span style="font-size:11px;color:#9098b8;margin-right:8px">${e.name}</span>`).join('')}
+        </div>` : ''}
+        <div style="padding:10px;background:#06060e;border:1px solid rgba(201,162,39,.15);border-radius:8px;margin-bottom:8px">
+          <div style="font-size:10px;color:#c9a227;margin-bottom:6px">💰 Party Treasury</div>
+          <div style="display:flex;gap:10px;font-size:12px">
+            <span style="color:#c9a227">${loot.pp||0} PP</span>
+            <span style="color:#c9a227">${loot.gp||0} GP</span>
+            <span style="color:#9098b8">${loot.sp||0} SP</span>
+            <span style="color:#9098b8">${loot.cp||0} CP</span>
+          </div>
+          <div style="font-size:10px;color:#4a5272;margin-top:4px">≈ ${totalGp.toFixed(1)} gp total · ${lootItems} magic items</div>
+        </div>
+        ${awardsData.length ? `<div style="padding:10px;background:#06060e;border:1px solid rgba(35,180,120,.15);border-radius:8px">
+          <div style="font-size:10px;color:#23b478;margin-bottom:6px">🏆 Recent Heroic Moments</div>
+          ${awardsData.slice(-3).reverse().map(a=>`<div style="font-size:11px;color:#c8d0e8;padding:2px 0"><strong>${a.char}</strong>: ${a.moment.slice(0,50)}${a.moment.length>50?'…':''}</div>`).join('')}
+        </div>` : ''}
+      </div>
+    </div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 85: Quick Condition Picker — searchable panel to
+//   apply/remove any condition to any character with one click.
+//   Better than bulk applicator: per-character targeting.
+// ══════════════════════════════════════════════════════════
+function openCondPicker(presetChar) {
+  const existing = document.getElementById('condPickerOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'condPickerOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:9600;display:flex;align-items:flex-start;justify-content:center;padding-top:5vh;overflow-y:auto';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  const chars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+  overlay.innerHTML = `
+    <div style="background:#0a050e;border:1px solid rgba(170,102,221,0.5);border-radius:14px;padding:20px;width:min(580px,96vw);box-shadow:0 8px 40px rgba(0,0,0,.9)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div style="font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:#aa66dd">⚡ Quick Condition Picker</div>
+        <button onclick="document.getElementById('condPickerOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:14px">
+        <div style="flex:1">
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Search Condition</div>
+          <input id="condSearchInput" placeholder="🔍 Blinded, Prone, Frightened…" oninput="filterCondPicker()" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;box-sizing:border-box;font-family:inherit;outline:none">
+        </div>
+        <div style="flex:1">
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Apply To Character</div>
+          <select id="condCharSelect" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;cursor:pointer">
+            <option value="">— all in initiative —</option>
+            ${chars.map(c => `<option value="${c.name}"${c.name===presetChar?' selected':''}>${c.name}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div id="condPickerGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px"></div>
+    </div>`;
+  document.body.appendChild(overlay);
+  filterCondPicker();
+  document.getElementById('condSearchInput').focus();
+}
+function filterCondPicker() {
+  const search = (document.getElementById('condSearchInput')?.value || '').toLowerCase();
+  const charName = document.getElementById('condCharSelect')?.value || '';
+  const chars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+  const allConds = typeof CONDITIONS !== 'undefined' ? CONDITIONS : [];
+  // Also include custom conditions
+  const customConds = (() => {
+    try { return JSON.parse(localStorage.getItem('tiamat_custom_conds')) || []; } catch { return []; }
+  })();
+  const fullList = [...allConds, ...customConds];
+  const filtered = search ? fullList.filter(c => c.name.toLowerCase().includes(search) || (c.effects||[]).join(' ').toLowerCase().includes(search)) : fullList;
+  const grid = document.getElementById('condPickerGrid');
+  if (!grid) return;
+
+  // Determine who has this condition
+  const targetChar = charName ? chars.find(c => c.name === charName) : null;
+  grid.innerHTML = filtered.map(cond => {
+    const hasIt = charName ? (typeof getCharConditions === 'function' ? getCharConditions(charName).includes(cond.name) : false) : false;
+    const condColor = cond.color || '#9098b8';
+    return `<div style="background:${hasIt?'rgba(170,102,221,.12)':'#06060e'};border:1px solid ${hasIt?'rgba(170,102,221,.5)':'#1e2040'};border-radius:8px;padding:10px 12px;cursor:pointer;transition:all .15s" onclick="quickApplyRemoveCond(${JSON.stringify(cond.name)},${JSON.stringify(charName)},this)" title="${(cond.effects||[]).join(' · ')}">
+      <div style="font-size:14px;margin-bottom:3px">${cond.icon||'⚡'}</div>
+      <div style="font-size:11px;font-weight:600;color:${condColor}">${cond.name}</div>
+      <div style="font-size:9px;color:#4a5272;margin-top:2px">${hasIt ? '<span style="color:#23b478">✓ applied</span>' : (cond.effects||[])[0]?.slice(0,30)||''}</div>
+    </div>`;
+  }).join('') || '<div style="color:#3a3a5a;font-style:italic;grid-column:1/-1;text-align:center;padding:20px">No conditions match</div>';
+}
+function quickApplyRemoveCond(condName, charName, card) {
+  const chars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+  if (charName) {
+    const current = typeof getCharConditions === 'function' ? getCharConditions(charName) : [];
+    if (current.includes(condName)) {
+      if (typeof removeCondition === 'function') removeCondition(charName, condName);
+      else if (typeof toggleCondition === 'function') toggleCondition(charName, condName);
+      showToast(`✕ ${charName}: ${condName} removed`, '#cc6666');
+    } else {
+      if (typeof addCondition === 'function') addCondition(charName, condName);
+      else if (typeof toggleCondition === 'function') toggleCondition(charName, condName);
+      showToast(`⚡ ${charName}: ${condName} applied`, '#aa66dd');
+    }
+    logEntry('combat', `⚡ <strong>${charName}</strong>: ${condName}`);
+  } else {
+    // Apply to all in initiative
+    if (typeof initiativeList !== 'undefined') {
+      initiativeList.forEach(e => {
+        if (typeof addCondition === 'function') addCondition(e.name, condName);
+      });
+      showToast(`⚡ ${condName} → all combatants`, '#aa66dd');
+      logEntry('combat', `⚡ <strong>${condName}</strong> applied to all combatants`);
+    }
+  }
+  filterCondPicker(); // Re-render
+  if (typeof renderGrid === 'function') renderGrid();
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 82: Party Spell Slot Dashboard — fixed panel showing
+//   all spellcasters' remaining slots by level, with quick expend
+//   and restore buttons. Essential for tracking resource economy.
+// ══════════════════════════════════════════════════════════
+let slotDashOpen = false;
+function toggleSlotDashboard() {
+  slotDashOpen = !slotDashOpen;
+  let panel = document.getElementById('slotDashPanel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'slotDashPanel';
+    panel.style.cssText = 'position:fixed;top:60px;right:20px;width:340px;max-height:78vh;background:linear-gradient(160deg,#060820,#0a0c28);border:1px solid rgba(68,136,255,0.4);border-radius:14px;z-index:347;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.9);overflow:hidden';
+    document.body.appendChild(panel);
+  }
+  panel.style.display = slotDashOpen ? 'flex' : 'none';
+  const btn = document.getElementById('slotDashBtn');
+  if (btn) { btn.style.background = slotDashOpen ? 'rgba(68,136,255,.15)' : ''; btn.style.color = slotDashOpen ? '#88aaff' : '#4488ff'; }
+  if (slotDashOpen) renderSlotDashboard();
+}
+function renderSlotDashboard() {
+  const panel = document.getElementById('slotDashPanel');
+  if (!panel) return;
+  const chars = (typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : []).filter(c => typeof isSpellcaster === 'function' && isSpellcaster(c));
+  const ordinals = ['','1st','2nd','3rd','4th','5th','6th','7th','8th','9th'];
+  const casterRows = chars.map(c => {
+    const slotMax = typeof getMaxSlotsForChar === 'function' ? getMaxSlotsForChar(c) : null;
+    if (!slotMax) return '';
+    const usedSlots = typeof getUsedSlots === 'function' ? getUsedSlots(c.name) : {};
+    const nameJ = JSON.stringify(c.name);
+    const slots = Object.keys(slotMax).sort((a,b)=>a-b).map(lvl => {
+      const max = slotMax[lvl]; const used = usedSlots[lvl] || 0; const rem = max - used;
+      const color = rem === 0 ? '#2a2a50' : rem <= max/2 ? '#c9a227' : '#4488ff';
+      const pips = Array.from({length:max}, (_, i) =>
+        `<span onclick="quickToggleSlot(${nameJ},${lvl},${i < rem ? 1 : -1})" title="${i < rem ? 'Expend slot' : 'Restore slot'}" style="cursor:pointer;font-size:14px;color:${i < rem ? color : '#1e2040'}">${i < rem ? '◈' : '◇'}</span>`
+      ).join('');
+      return `<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">
+        <span style="font-size:9px;color:#4a5272;min-width:24px">${ordinals[lvl]||lvl}</span>
+        <div style="display:flex;gap:2px">${pips}</div>
+        <span style="font-size:9px;color:${color};margin-left:4px">${rem}/${max}</span>
+      </div>`;
+    }).join('');
+    const concSpell = typeof getConcSpell === 'function' ? getConcSpell(c.name) : null;
+    return `<div style="background:#06060e;border:1px solid rgba(68,136,255,0.2);border-radius:8px;padding:10px 12px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:12px;color:#dce0f0;font-weight:600">${c.name}</span>
+        <button onclick="if(typeof resetSlots==='function')resetSlots(${nameJ},null);renderSlotDashboard()" style="background:none;border:1px solid rgba(68,136,255,0.3);color:#4488ff;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:9px">↺ Reset</button>
+      </div>
+      ${slots}
+      ${concSpell ? `<div style="margin-top:6px;font-size:10px;color:#c9a227">🔮 ${concSpell}</div>` : ''}
+    </div>`;
+  }).join('');
+  panel.innerHTML = `
+    <div style="padding:12px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(68,136,255,0.2)">
+      <span style="font-family:'Cinzel',serif;color:#4488ff;font-size:13px;font-weight:700;letter-spacing:1px">✦ PARTY SPELL SLOTS</span>
+      <button onclick="toggleSlotDashboard()" style="background:none;border:1px solid #1e2040;color:#4a5272;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px">✕</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:12px 14px">
+      ${chars.length ? casterRows : '<div style="color:#3a3a6a;font-size:11px;font-style:italic">No spellcasters in roster</div>'}
+      <div style="font-size:9px;color:#2a2a50;margin-top:8px;text-align:center">◈ = available · ◇ = used · click pip to toggle</div>
+    </div>`;
+}
+function quickToggleSlot(charName, level, direction) {
+  // direction: 1 = expend, -1 = restore
+  const c = (typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : []).find(ch => ch.name === charName);
+  if (!c) return;
+  const slotMax = typeof getMaxSlotsForChar === 'function' ? getMaxSlotsForChar(c) : null;
+  if (!slotMax || !slotMax[level]) return;
+  const used = typeof getUsedSlots === 'function' ? getUsedSlots(charName) : {};
+  const curr = used[level] || 0;
+  const max = slotMax[level];
+  const newUsed = Math.max(0, Math.min(max, curr + direction));
+  if (typeof slotState !== 'undefined') {
+    if (!slotState[charName]) slotState[charName] = {};
+    slotState[charName][level] = newUsed;
+    if (typeof saveSlots === 'function') saveSlots();
+  }
+  renderSlotDashboard();
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 81: Concentration Dashboard — shows all concentrating
+//   casters in one panel with quick break/save functions.
+//   Roll CON saves directly against incoming damage DCs.
+// ══════════════════════════════════════════════════════════
+function openConcDashboard() {
+  const existing = document.getElementById('concDashOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'concDashOverlay';
+  overlay.style.cssText = 'position:fixed;top:60px;left:50%;transform:translateX(-50%);width:min(520px,96vw);max-height:80vh;background:linear-gradient(160deg,#0d0b00,#100e00);border:1px solid rgba(201,162,39,0.5);border-radius:14px;z-index:9500;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.9)';
+  document.body.appendChild(overlay);
+  renderConcDashboard();
+}
+function renderConcDashboard() {
+  const overlay = document.getElementById('concDashOverlay');
+  if (!overlay) return;
+  const allConc = loadAllConc();
+  const concEntries = Object.entries(allConc);
+  const chars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+
+  const rows = concEntries.length ? concEntries.map(([charName, spell]) => {
+    const c = chars.find(ch => ch.name === charName);
+    const conMod = c ? (() => { const a = (c.abilities||[]).find(([n])=>n==='CON'); return a ? parseInt(a[2])||0 : 0; })() : 0;
+    const conModStr = conMod >= 0 ? `+${conMod}` : `${conMod}`;
+    return `<div style="background:#06060a;border:1px solid rgba(201,162,39,0.25);border-radius:10px;padding:12px 14px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div>
+          <div style="font-family:'Cinzel',serif;font-size:13px;color:#dce0f0;font-weight:700">${charName}</div>
+          <div style="font-size:12px;color:#c9a227;margin-top:2px">🔮 ${spell}</div>
+        </div>
+        <button onclick="clearConc(${JSON.stringify(charName)},null);renderConcDashboard()" style="background:rgba(204,51,51,.1);border:1px solid #cc3333;color:#ff6666;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px">Break</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div style="font-size:10px;color:#4a5272;text-transform:uppercase;letter-spacing:.5px">CON save ${conModStr} vs DC:</div>
+        <input id="concDC_${safeId(charName)}" type="number" value="10" min="1" max="30" style="width:50px;background:#0a0a14;border:1px solid #2a2a50;color:#e0e0ff;border-radius:4px;padding:3px 6px;font-size:12px;text-align:center;outline:none">
+        <button onclick="rollConcSave(${JSON.stringify(charName)},${JSON.stringify(spell)},${conMod})" style="background:rgba(68,136,255,.1);border:1px solid #4488ff;color:#88aaff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px">🎲 Roll Save</button>
+      </div>
+      <div id="concSaveResult_${safeId(charName)}" style="margin-top:6px;font-size:11px;height:18px"></div>
+    </div>`;
+  }).join('') : `<div style="text-align:center;padding:20px;color:#4a5272;font-style:italic">No active concentration spells</div>`;
+
+  overlay.innerHTML = `
+    <div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(201,162,39,0.2)">
+      <span style="font-family:'Cinzel',serif;color:#c9a227;font-size:13px;font-weight:700;letter-spacing:1px">🔮 CONCENTRATION TRACKER</span>
+      <div style="display:flex;gap:8px">
+        <button onclick="clearAllConc()" style="background:rgba(204,51,51,.1);border:1px solid #cc4444;color:#ff6666;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px">Break All</button>
+        <button onclick="document.getElementById('concDashOverlay').remove()" style="background:none;border:1px solid #3a2a00;color:#6a5020;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px">✕</button>
+      </div>
+    </div>
+    <div style="padding:14px 16px">
+      <div style="font-size:10px;color:#4a5272;margin-bottom:10px">${concEntries.length} active concentration spell${concEntries.length===1?'':'s'} · DC = 10 or half damage taken (whichever is higher)</div>
+      ${rows}
+    </div>`;
+}
+function rollConcSave(charName, spell, conMod) {
+  const dcEl = document.getElementById('concDC_' + safeId(charName));
+  const dc = parseInt(dcEl?.value || 10);
+  const roll = Math.floor(Math.random()*20)+1;
+  const total = roll + conMod;
+  const success = total >= dc;
+  const isCrit = roll === 20, isFumble = roll === 1;
+  const modStr = conMod >= 0 ? `+${conMod}` : `${conMod}`;
+  const resEl = document.getElementById('concSaveResult_' + safeId(charName));
+  if (resEl) {
+    const color = success ? (isCrit?'#44ff88':'#4cdf88') : (isFumble?'#ff4444':'#cc6666');
+    resEl.innerHTML = `<span style="color:${color}">${isCrit?'★ CRIT ':isFumble?'☠ FUMBLE ':''}d20(${roll})${modStr}=${total} vs DC ${dc} → <strong>${success?'MAINTAINS':'BREAKS'}</strong></span>`;
+    if (!success) { clearConc(charName, null); setTimeout(renderConcDashboard, 500); }
+    logEntry('roll', `🔮 <strong>${charName}</strong> CON save d20(${roll})${modStr}=${total} vs DC ${dc} — ${success?'maintains':'BREAKS'} concentration on ${spell}`);
+  }
+}
+function clearAllConc() {
+  if (!confirm('Break ALL concentration spells?')) return;
+  const all = loadAllConc();
+  Object.keys(all).forEach(name => { logEntry('roll', `🔮 <strong>${name}</strong> broke concentration on ${all[name]}`); });
+  saveAllConc({});
+  updateHeaderStats();
+  renderConcDashboard();
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 78: Party-Wide Group Check Roller — roll any
+//   skill/ability check for all visible characters at once.
+//   Shows individual results, group success/failure outcome.
+// ══════════════════════════════════════════════════════════
+const GROUP_CHECKS = [
+  { label:'Stealth', ab:'DEX', skill:'Stealth' },
+  { label:'Perception', ab:'WIS', skill:'Perception' },
+  { label:'Insight', ab:'WIS', skill:'Insight' },
+  { label:'Investigation', ab:'INT', skill:'Investigation' },
+  { label:'Persuasion', ab:'CHA', skill:'Persuasion' },
+  { label:'Deception', ab:'CHA', skill:'Deception' },
+  { label:'Intimidation', ab:'CHA', skill:'Intimidation' },
+  { label:'Athletics', ab:'STR', skill:'Athletics' },
+  { label:'Acrobatics', ab:'DEX', skill:'Acrobatics' },
+  { label:'Arcana', ab:'INT', skill:'Arcana' },
+  { label:'History', ab:'INT', skill:'History' },
+  { label:'Nature', ab:'INT', skill:'Nature' },
+  { label:'Religion', ab:'INT', skill:'Religion' },
+  { label:'Medicine', ab:'WIS', skill:'Medicine' },
+  { label:'Survival', ab:'WIS', skill:'Survival' },
+  { label:'Animal Handling', ab:'WIS', skill:'Animal Handling' },
+  { label:'STR Save', ab:'STR', skill:null },
+  { label:'DEX Save', ab:'DEX', skill:null },
+  { label:'CON Save', ab:'CON', skill:null },
+  { label:'INT Save', ab:'INT', skill:null },
+  { label:'WIS Save', ab:'WIS', skill:null },
+  { label:'CHA Save', ab:'CHA', skill:null },
+];
+function openGroupCheckPanel() {
+  const existing = document.getElementById('groupCheckOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'groupCheckOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:9600;display:flex;align-items:flex-start;justify-content:center;padding-top:6vh;overflow-y:auto';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  const btnGrid = GROUP_CHECKS.map(c =>
+    `<button onclick="runGroupCheck('${c.label}','${c.ab}')" style="background:#06061a;border:1px solid #2a2a50;color:#9098b8;border-radius:8px;padding:7px 12px;cursor:pointer;font-size:11px;transition:all .15s" onmouseover="this.style.borderColor='#aa66ff';this.style.color='#aa66ff'" onmouseout="this.style.borderColor='#2a2a50';this.style.color='#9098b8'">${c.label}</button>`
+  ).join('');
+  overlay.innerHTML = `
+    <div style="background:#0d0a1a;border:1px solid rgba(170,102,255,0.5);border-radius:14px;padding:24px;width:min(600px,95vw);box-shadow:0 8px 40px rgba(0,0,0,.9)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:700;color:#aa66ff">🎲 Party Group Check</div>
+        <button onclick="document.getElementById('groupCheckOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <div style="flex:1">
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">DC to Beat</div>
+          <input id="groupCheckDC" type="number" min="1" max="30" value="12" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:14px;box-sizing:border-box;font-family:'Cinzel',serif;outline:none">
+        </div>
+        <div style="flex:1">
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Roll For</div>
+          <select id="groupCheckTarget" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;cursor:pointer">
+            <option value="party">Party Members (non-evil)</option>
+            <option value="all">All Characters</option>
+            <option value="visible">Visible Cards</option>
+          </select>
+        </div>
+      </div>
+      <div style="font-size:10px;color:#4a5272;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Choose Check</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">${btnGrid}</div>
+      <div id="groupCheckResults" style="display:none;margin-top:12px;border-top:1px solid #1e2040;padding-top:12px"></div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+function runGroupCheck(skillName, abName) {
+  const dc = parseInt(document.getElementById('groupCheckDC')?.value) || 12;
+  const target = document.getElementById('groupCheckTarget')?.value || 'party';
+  const chars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+  let pool = chars;
+  if (target === 'party') {
+    // Heuristic: non-evil characters (no 'evil' in subtitle)
+    pool = chars.filter(c => !((c.subtitle||'').toLowerCase().includes('evil') || (c.title||'').toLowerCase().includes('villain')));
+  } else if (target === 'visible') {
+    pool = typeof filteredChars !== 'undefined' ? filteredChars : chars;
+  }
+  if (!pool.length) { showToast('No characters in pool', '#cc3333'); return; }
+
+  function getAbMod(c, ab) {
+    const a = (c.abilities||[]).find(([n]) => n === ab);
+    return a ? (parseInt(a[2])||0) : 0;
+  }
+  const prof = 3; // Average proficiency
+  const results = pool.map(c => {
+    const mod = getAbMod(c, abName);
+    const roll = Math.floor(Math.random()*20)+1;
+    const total = roll + mod;
+    const success = total >= dc;
+    const isCrit = roll === 20, isFumble = roll === 1;
+    return { name: c.name, roll, mod, total, success, isCrit, isFumble };
+  });
+  const successes = results.filter(r => r.success).length;
+  const groupSuccess = successes >= Math.ceil(pool.length / 2);
+
+  const resultHtml = results.map(r => {
+    const color = r.isCrit ? '#44ff88' : r.isFumble ? '#ff4444' : r.success ? '#4cdf88' : '#cc6666';
+    const icon = r.isCrit ? '★' : r.isFumble ? '☠' : r.success ? '✓' : '✗';
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 6px;border-radius:6px;background:${r.success?'rgba(68,200,100,.06)':'rgba(204,80,80,.05)'}">
+      <span style="font-size:12px;color:${color}">${icon}</span>
+      <span style="flex:1;font-size:11px;color:#dce0f0;padding:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name}</span>
+      <span style="font-size:11px;color:#4a5272">d20(${r.roll})${r.mod>=0?'+':''}${r.mod}</span>
+      <span style="font-size:13px;color:${color};font-weight:700;font-family:'Cinzel',serif;min-width:30px;text-align:right">${r.total}</span>
+    </div>`;
+  }).join('');
+
+  const resultEl = document.getElementById('groupCheckResults');
+  if (resultEl) {
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = `
+      <div style="text-align:center;padding:12px;margin-bottom:12px;border-radius:10px;background:${groupSuccess?'rgba(68,200,100,.1)':'rgba(204,80,80,.1)'};border:1px solid ${groupSuccess?'#4cdf88':'#cc4444'}">
+        <div style="font-size:20px;font-family:'Cinzel',serif;color:${groupSuccess?'#4cdf88':'#ff6666'};font-weight:700">${groupSuccess?'GROUP SUCCESS':'GROUP FAILURE'}</div>
+        <div style="font-size:12px;color:#9098b8;margin-top:4px">${skillName} (DC ${dc}) — ${successes}/${pool.length} succeeded</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px">${resultHtml}</div>`;
+    logEntry('roll', `🎲 <strong>Group ${skillName}</strong> DC ${dc} — ${successes}/${pool.length} succeeded → ${groupSuccess?'✓ SUCCESS':'✗ FAILURE'}`);
+  }
+}
+
 function toggleHealthPanel() {
   healthPanelOpen = !healthPanelOpen;
   const panel = document.getElementById('healthPanel');
@@ -9604,6 +11671,36 @@ function removeFromInitiative(name) {
   updateHeaderStats();
 }
 
+// ── TEMPORARY AC MODIFIER ────────────────────────────────
+let tempAcState = {}; // charName -> modifier number
+
+function setTempAc(charName, val) {
+  const n = parseInt(val);
+  if (isNaN(n) || n === 0) delete tempAcState[charName];
+  else tempAcState[charName] = n;
+  renderActiveTurnBar();
+}
+// ─────────────────────────────────────────────────────────
+
+// ── ADVANTAGE/DISADVANTAGE STATE ─────────────────────────
+let advState = {}; // charName -> 'adv' | 'dis' | null
+
+function setAdvState(charName, val) {
+  advState[charName] = advState[charName] === val ? null : val; // toggle off if same
+  renderActiveTurnBar();
+}
+
+function rollWithAdv(charName, bonus) {
+  const adv = advState[charName] || null;
+  function d20() { return Math.floor(Math.random()*20)+1; }
+  let die, detail;
+  if (adv === 'adv') { const r1=d20(),r2=d20(); die=Math.max(r1,r2); detail=`(${r1},${r2})↑`; }
+  else if (adv === 'dis') { const r1=d20(),r2=d20(); die=Math.min(r1,r2); detail=`(${r1},${r2})↓`; }
+  else { die=d20(); detail=null; }
+  return { die, detail };
+}
+// ─────────────────────────────────────────────────────────
+
 // ── MOVEMENT TRACKER ─────────────────────────────────────
 let moveState = {}; // charName -> remaining movement ft
 
@@ -9636,7 +11733,7 @@ function nextTurn() {
   if (!initiativeList.length) return;
   // Clear action state for the character whose turn is ending
   const endingChar = initiativeList[currentTurnIdx];
-  if (endingChar) { delete turnActionState[endingChar.name]; if (typeof tickCondDurations === 'function') tickCondDurations(endingChar.name); }
+  if (endingChar) { delete turnActionState[endingChar.name]; if (typeof tickCondDurations === 'function') tickCondDurations(endingChar.name); delete tempAcState[endingChar.name]; }
   currentTurnIdx = (currentTurnIdx + 1) % initiativeList.length;
   if (currentTurnIdx === 0) {
     currentRound++;
@@ -9647,7 +11744,10 @@ function nextTurn() {
     // Tick down condition durations
     if (typeof tickCondDurations === 'function') tickCondDurations();
     // Reset legendary actions for all legendary creatures
+    if (typeof resetLegActionsForRound === 'function') resetLegActionsForRound();
     if (typeof resetLegendaryActions === 'function') resetLegendaryActions();
+    // Tick scene effects at round start
+    if (typeof tickSceneEffects === 'function') tickSceneEffects();
   }
   const active = initiativeList[currentTurnIdx];
   if (active) {
@@ -9662,15 +11762,52 @@ function nextTurn() {
 }
 
 function clearInitiative() {
+  // Combat summary if real combat happened
+  if (currentRound > 1 && initiativeList.length > 0) {
+    showCombatSummary(initiativeList.slice(), currentRound);
+  }
+  // Clear scene effects from combat
+  if (sceneEffects && sceneEffects.length) {
+    sceneEffects = [];
+    renderSceneEffects();
+  }
   initiativeList = [];
   currentTurnIdx = 0;
   currentRound = 1;
   clearTurnActions();
+  moveState = {};
+  advState = {};
   document.getElementById('initRoundBadge').textContent = 'Round 1';
   document.getElementById('initiativePanel').classList.remove('open');
   renderInitiative();
   renderGrid();
   updateHud();
+}
+
+function showCombatSummary(combatants, rounds) {
+  const existing = document.getElementById('combatSummaryPopup');
+  if (existing) existing.remove();
+
+  const downed = combatants.filter(e => e.maxHp > 0 && getCharHP(e.name, e.maxHp) === 0);
+  const monsters = combatants.filter(e => { const c = UNIQUE_CHARS.find(x=>x.name===e.name); return c && parseFloat(c.cr)>=1; });
+  const xpEarned = monsters.reduce((s, e) => { const c = UNIQUE_CHARS.find(x=>x.name===e.name); return s + (c ? (XP_BY_CR[c.cr]||0) : 0); }, 0);
+
+  const popup = document.createElement('div');
+  popup.id = 'combatSummaryPopup';
+  popup.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:linear-gradient(160deg,#07041a,#100820);border:1px solid rgba(201,162,39,.5);border-radius:16px;padding:20px 24px;z-index:9999;min-width:280px;max-width:400px;box-shadow:0 12px 48px rgba(0,0,0,.95);font-size:12px';
+  popup.innerHTML = `
+    <div style="font-family:'Cinzel',serif;font-size:15px;color:#c9a227;font-weight:700;margin-bottom:12px;text-align:center">⚔ COMBAT SUMMARY</div>
+    <div style="display:flex;gap:16px;justify-content:center;margin-bottom:12px">
+      <div style="text-align:center"><div style="font-size:24px;font-weight:700;color:#f0c060;font-family:'Cinzel',serif">${rounds}</div><div style="font-size:10px;color:#4a5272">ROUNDS</div></div>
+      <div style="text-align:center"><div style="font-size:24px;font-weight:700;color:#9098b8;font-family:'Cinzel',serif">${combatants.length}</div><div style="font-size:10px;color:#4a5272">COMBATANTS</div></div>
+      ${downed.length ? `<div style="text-align:center"><div style="font-size:24px;font-weight:700;color:#cc3333;font-family:'Cinzel',serif">${downed.length}</div><div style="font-size:10px;color:#4a5272">DOWNED</div></div>` : ''}
+      ${xpEarned ? `<div style="text-align:center"><div style="font-size:24px;font-weight:700;color:#44aa44;font-family:'Cinzel',serif">${xpEarned.toLocaleString()}</div><div style="font-size:10px;color:#4a5272">XP</div></div>` : ''}
+    </div>
+    ${downed.length ? `<div style="margin-bottom:8px;font-size:11px;color:#cc5555">⚠ Down: ${downed.map(e=>escHtml(e.name)).join(', ')}</div>` : ''}
+    ${xpEarned ? `<div style="font-size:10px;color:#3a5030;margin-bottom:8px">Award XP: click ⭐ XP button → Award Encounter XP</div>` : ''}
+    <button onclick="this.closest('#combatSummaryPopup').remove()" style="width:100%;background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.4);color:#c9a227;border-radius:8px;padding:8px;cursor:pointer;font-size:12px;font-family:'Cinzel',serif">Dismiss</button>`;
+  document.body.appendChild(popup);
+  logEntry('combat', `⚔ <strong>Combat ended</strong>: ${rounds} rounds, ${combatants.length} combatants${downed.length?`, ${downed.length} downed`:''}${xpEarned?`, ${xpEarned.toLocaleString()} XP available`:''}`);
 }
 
 // ══════════════════════════════════════════════════════════
@@ -11907,6 +14044,95 @@ function initDrop(event, targetName) {
   _initDragName = null;
 }
 
+// ── DC TRACKER ──────────────────────────────────────────
+function getActiveDC() { return parseInt(document.getElementById('activeDcInput')?.value) || null; }
+function updateDcDisplay() {
+  const dc = getActiveDC();
+  const lbl = document.getElementById('dcLabel');
+  if (lbl) lbl.textContent = dc ? `target DC — saves auto-compare` : 'for saves & checks';
+}
+// ─────────────────────────────────────────────────────────
+
+// ── ENCOUNTER NOTES ──────────────────────────────────────
+let _encounterNotesVisible = false;
+function toggleEncounterNotes(show) {
+  _encounterNotesVisible = show !== undefined ? show : !_encounterNotesVisible;
+  const area = document.getElementById('encounterNotesArea');
+  const btn = document.getElementById('encNotesBtn');
+  if (area) area.style.display = _encounterNotesVisible ? 'block' : 'none';
+  if (btn) { btn.style.background = _encounterNotesVisible ? 'rgba(201,162,39,.15)' : ''; btn.style.color = _encounterNotesVisible ? '#ffcc44' : '#c9a227'; }
+  if (_encounterNotesVisible) {
+    const ta = document.getElementById('encounterNotesText');
+    if (ta) { ta.value = sessionStorage.getItem('tiamat_enc_notes') || ''; ta.focus(); }
+  }
+}
+function saveEncounterNotes() {
+  const ta = document.getElementById('encounterNotesText');
+  if (ta) { sessionStorage.setItem('tiamat_enc_notes', ta.value); ta.style.height='auto'; ta.style.height=ta.scrollHeight+'px'; }
+}
+// ─────────────────────────────────────────────────────────
+
+// ── SCENE EFFECTS TRACKER ────────────────────────────────
+let sceneEffects = []; // [{id, name, rounds, desc, source}]
+let sceneEffectsVisible = false;
+
+function toggleSceneEffects() {
+  sceneEffectsVisible = !sceneEffectsVisible;
+  const area = document.getElementById('sceneEffectsArea');
+  const btn = document.getElementById('sceneEffectsBtn');
+  if (area) area.style.display = sceneEffectsVisible ? 'block' : 'none';
+  if (btn) { btn.style.background = sceneEffectsVisible ? 'rgba(102,153,255,.15)' : ''; btn.style.color = sceneEffectsVisible ? '#88aaff' : '#6699ff'; }
+  renderSceneEffects();
+}
+
+function addSceneEffect() {
+  const name = prompt('Effect name (e.g. Darkness, Wall of Force, Fog Cloud):');
+  if (!name || !name.trim()) return;
+  const roundsStr = prompt('Duration in rounds (blank = permanent):', '10');
+  const rounds = parseInt(roundsStr);
+  const desc = prompt('Description (optional):') || '';
+  sceneEffects.push({ id: Date.now().toString(36), name: name.trim(), rounds: isNaN(rounds) ? null : rounds, desc });
+  renderSceneEffects();
+  logEntry('roll', `🌀 Scene effect: <strong>${escHtml(name.trim())}</strong>${!isNaN(rounds)?` (${rounds} rounds)`:'(permanent)'}`);
+}
+
+function removeSceneEffect(id) {
+  const e = sceneEffects.find(x=>x.id===id);
+  if (e) logEntry('roll', `🌀 Scene effect ended: <em>${escHtml(e.name)}</em>`);
+  sceneEffects = sceneEffects.filter(x=>x.id!==id);
+  renderSceneEffects();
+}
+
+function tickSceneEffects() {
+  // Called at start of each new round
+  sceneEffects = sceneEffects.map(e => {
+    if (e.rounds === null) return e; // permanent
+    return { ...e, rounds: e.rounds - 1 };
+  });
+  const expired = sceneEffects.filter(e => e.rounds !== null && e.rounds <= 0);
+  expired.forEach(e => logEntry('roll', `🌀 Scene effect expired: <strong>${escHtml(e.name)}</strong>`));
+  sceneEffects = sceneEffects.filter(e => e.rounds === null || e.rounds > 0);
+  renderSceneEffects();
+}
+
+function renderSceneEffects() {
+  const el = document.getElementById('sceneEffectsList');
+  if (!el) return;
+  if (!sceneEffects.length) {
+    el.innerHTML = '<span style="font-size:10px;color:#2a3060;font-style:italic">No active effects</span>';
+    return;
+  }
+  el.innerHTML = sceneEffects.map(e => {
+    const durStr = e.rounds === null ? '∞' : `${e.rounds}r`;
+    const col = e.rounds !== null && e.rounds <= 2 ? '#dd8822' : '#6699ff';
+    return `<span style="background:rgba(102,153,255,.08);border:1px solid rgba(102,153,255,.25);border-radius:6px;padding:2px 6px;font-size:10px;color:${col};display:inline-flex;align-items:center;gap:4px" title="${escHtml(e.desc||e.name)}">
+      🌀 ${escHtml(e.name)} <span style="color:#4a5272">${durStr}</span>
+      <button onclick="removeSceneEffect(${JSON.stringify(e.id)})" style="background:none;border:none;color:#2a3050;cursor:pointer;font-size:9px;padding:0;line-height:1">✕</button>
+    </span>`;
+  }).join('');
+}
+// ─────────────────────────────────────────────────────────
+
 function renderActiveTurnBar() {
   const bar = document.getElementById('activeTurnBar');
   if (!bar) return;
@@ -11935,13 +14161,18 @@ function renderActiveTurnBar() {
   const moveCol = movePct > 0.5 ? '#44ccaa' : movePct > 0 ? '#c9a227' : '#cc3333';
   const moveBtn = (ft) => `<button onclick="useMove(${JSON.stringify(char.name)},${ft},event)" style="background:none;border:1px solid rgba(68,204,170,.3);color:#44ccaa;border-radius:4px;padding:1px 4px;cursor:pointer;font-size:9px;line-height:1">-${ft}</button>`;
 
+  const curAdv = advState[char.name] || null;
   let html = `<div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
     <span style="font-size:11px;color:#f0c060;font-weight:700;font-family:'Cinzel',serif;margin-right:4px">${escHtml(char.name.length>20?char.name.slice(0,19)+'…':char.name)}</span>
-    ${chip('AC', ac, '#88aaff')}
+    ${(()=>{const tAc=tempAcState[char.name];const totalAc=parseInt(ac)||0+(tAc||0);const acStr=tAc?`${ac}${tAc>=0?'+':'}${tAc}=${totalAc}`:ac;return chip('AC',acStr,tAc?'#44ccff':'#88aaff');})()}
     ${chip('HP', `${currHp}/${maxHp}`, currHp/maxHp < 0.25 ? '#ff6666' : currHp/maxHp < 0.5 ? '#dd8822' : '#44aa44')}
     ${chip('PP', pp, '#aa88ff')}
     ${conc ? chip('⊙', escHtml(conc.length>10?conc.slice(0,9)+'…':conc), '#c9a227') : ''}
     ${conds.slice(0,3).map(c=>chip('', escHtml(c.slice(0,2)+c.slice(2,12)), '#dd8822')).join('')}
+    <button onclick="setAdvState(${JSON.stringify(char.name)},'adv')" style="background:${curAdv==='adv'?'rgba(68,170,68,.3)':'rgba(68,170,68,.07)'};border:1px solid ${curAdv==='adv'?'#44aa44':'rgba(68,170,68,.3)'};color:${curAdv==='adv'?'#44ff44':'#44aa44'};border-radius:4px;padding:1px 6px;cursor:pointer;font-size:10px;font-weight:700" title="Toggle Advantage on all rolls">↑ Adv</button>
+    <button onclick="setAdvState(${JSON.stringify(char.name)},'dis')" style="background:${curAdv==='dis'?'rgba(204,51,51,.3)':'rgba(204,51,51,.07)'};border:1px solid ${curAdv==='dis'?'#cc3333':'rgba(204,51,51,.3)'};color:${curAdv==='dis'?'#ff4444':'#cc3333'};border-radius:4px;padding:1px 6px;cursor:pointer;font-size:10px;font-weight:700" title="Toggle Disadvantage on all rolls">↓ Dis</button>
+    <span style="font-size:9px;color:#4a5272;margin-left:2px">+AC:</span>
+    ${[2,5,-2].map(v=>{const cur=tempAcState[char.name]||0;return `<button onclick="setTempAc(${JSON.stringify(char.name)},${cur===v?0:v})" style="background:${cur===v?'rgba(68,204,255,.2)':'rgba(68,204,255,.05)'};border:1px solid rgba(68,204,255,${cur===v?'.5':'.2'});color:${cur===v?'#44ccff':'#4a6080'};border-radius:4px;padding:1px 5px;cursor:pointer;font-size:9px" title="${v>0?`+${v} (${v===2?'Half':'3/4 cover'})`:'-2 penalty'}">${v>=0?'+':''}${v}</button>`;}).join('')}
   </div>
   <div style="display:flex;gap:4px;align-items:center;margin-top:4px">
     <span style="font-size:9px;color:#4a5272;letter-spacing:.5px">MOVE</span>
@@ -11966,11 +14197,15 @@ function renderActiveTurnBar() {
 
   const atkBtn = (label, title, bonus, type) => `<button onclick="rollInitAttack(${JSON.stringify(char.name)},${JSON.stringify(title)},${bonus},event)" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:#9098b8;border-radius:4px;padding:2px 7px;cursor:pointer;font-size:10px;line-height:1.4" title="${title} attack">${label} (${type})</button>`;
 
+  const multiAtkCount = document.getElementById('multiAtkCount')?.value || '1';
   html += `<div style="display:flex;gap:4px;align-items:center;margin-top:3px;flex-wrap:wrap">
     <span style="font-size:9px;color:#4a5272;letter-spacing:.5px">ATK</span>
     ${atkBtn('⚔ Melee', 'Melee', meleeBonus, mStr)}
     ${atkBtn('🏹 Ranged', 'Ranged', rangedBonus, rStr)}
     ${isSpellcaster ? atkBtn('🔮 Spell', 'Spell', spellBonus, satkStr) : ''}
+    <select id="multiAtkCount" onchange="renderActiveTurnBar()" style="background:#0a0a1e;border:1px solid #2a2a50;color:#6a7098;border-radius:4px;padding:1px 3px;font-size:9px;cursor:pointer" title="Number of attacks to roll at once">
+      <option value="1">1×</option><option value="2">2×</option><option value="3">3×</option><option value="4">4×</option><option value="5">5×</option>
+    </select>
   </div>`;
 
   // Saving throws row
@@ -11988,27 +14223,174 @@ function renderActiveTurnBar() {
     ${saveBtns}
   </div>`;
 
+  // Smart Combat Hints
+  const hints = buildCombatHints(char);
+  if (hints.length) {
+    html += `<div style="margin-top:4px;border-top:1px solid rgba(255,255,255,.04);padding-top:3px">
+      <div style="display:flex;flex-wrap:wrap;gap:3px">
+        ${hints.map(h=>`<span style="font-size:9px;background:rgba(${h.col||'155,109,255'},.08);border:1px solid rgba(${h.col||'155,109,255'},.2);color:#${h.textcol||'9b6dff'};border-radius:6px;padding:1px 6px;cursor:help" title="${escHtml(h.detail||h.text)}">${h.icon} ${escHtml(h.text)}</span>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  // "Up Next" preview — next 2 combatants
+  if (initiativeList.length > 1) {
+    const next1idx = (currentTurnIdx + 1) % initiativeList.length;
+    const next2idx = (currentTurnIdx + 2) % initiativeList.length;
+    const nextEntries = [initiativeList[next1idx]];
+    if (initiativeList.length > 2) nextEntries.push(initiativeList[next2idx]);
+    const nextChips = nextEntries.map((ne, idx) => {
+      const nc = getCharHP(ne.name, ne.maxHp||1);
+      const nm = ne.maxHp || 0;
+      const nPct = nm > 0 ? nc/nm : 1;
+      const nCol = nPct < 0.25 ? '#cc3333' : nPct < 0.5 ? '#dd8822' : '#5a6280';
+      const nDowned = nm > 0 && nc === 0;
+      return `<span style="font-size:9px;color:${nDowned?'#cc3333':'#5a6280'};${nDowned?'text-decoration:line-through':''}">${idx===0?'→':' →'} ${escHtml(ne.name.length>12?ne.name.slice(0,11)+'…':ne.name)} <span style="color:${nCol}">${nm>0?`(${nc}/${nm})`:''}</span></span>`;
+    });
+    html += `<div style="margin-top:3px;border-top:1px solid rgba(255,255,255,.04);padding-top:3px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:9px;color:#3a3a60;letter-spacing:.5px">NEXT</span>
+      ${nextChips.join('')}
+    </div>`;
+  }
+
   bar.style.display = 'block';
   bar.innerHTML = html;
 }
 
 function rollInitAttack(charName, type, bonus, event) {
   if (event) event.stopPropagation();
-  const roll = Math.floor(Math.random() * 20) + 1;
-  const total = roll + bonus;
-  const isCrit = roll === 20, isFumble = roll === 1;
+  const count = parseInt(document.getElementById('multiAtkCount')?.value || '1');
   const bStr = bonus >= 0 ? `+${bonus}` : `${bonus}`;
-  logEntry('roll', `<strong>${escHtml(charName)}</strong> ${type} Attack: d20(${roll})${bStr} = <strong>${total}</strong>${isCrit?' ★ CRIT!':isFumble?' ☠ MISS':''}`);
-  playSound?.(isCrit ? 'crit' : 'roll');
+  const advLabel = advState[charName] ? ` (${advState[charName]})` : '';
+  let anyCrit = false;
+  const results = Array.from({length:count}, () => {
+    const { die, detail } = rollWithAdv(charName, bonus);
+    const total = die + bonus;
+    const isCrit = die === 20, isFumble = die === 1;
+    if (isCrit) anyCrit = true;
+    return `d20${detail?detail:`(${die})`}${bStr}=<strong>${total}</strong>${isCrit?'★':isFumble?'☠':''}`;
+  });
+  const multiLabel = count > 1 ? ` ×${count}` : '';
+  logEntry('roll', `<strong>${escHtml(charName)}</strong> ${type} Attack${multiLabel}${advLabel}: ${results.join(' | ')}`);
+  playSound?.(anyCrit ? 'crit' : 'roll');
+}
+
+function buildCombatHints(char) {
+  const hints = [];
+  const text = ((char.traits||'') + ' ' + (char.lore||'')).toLowerCase();
+  if (!text.trim()) return hints;
+
+  // Multiattack
+  const maMatch = text.match(/multiattack[^.]*?(\d+)\s*(?:times|attacks|strikes|weapon|melee|ranged)/);
+  if (maMatch) {
+    hints.push({ icon:'⚔', text:`${maMatch[1]}× Multiattack`, detail:`Makes ${maMatch[1]} attacks per action`, col:'255,165,0', textcol:'ffaa00' });
+  } else if (/multiattack/.test(text)) {
+    hints.push({ icon:'⚔', text:'Multiattack', detail:'Can make multiple attacks per action', col:'255,165,0', textcol:'ffaa00' });
+  }
+
+  // Legendary Resistance
+  const lrMatch = text.match(/legendary resistance[^.]*?(\d+)\/day/);
+  if (lrMatch) {
+    hints.push({ icon:'🛡', text:`Legendary Resist ×${lrMatch[1]}`, detail:`Can succeed on ${lrMatch[1]} failed saves per day`, col:'255,215,0', textcol:'ffd700' });
+  } else if (/legendary resistance/.test(text)) {
+    hints.push({ icon:'🛡', text:'Legendary Resistance', detail:'Can turn failed saves into successes', col:'255,215,0', textcol:'ffd700' });
+  }
+
+  // Frightful Presence
+  if (/frightful presence/.test(text)) {
+    hints.push({ icon:'😱', text:'Frightful Presence', detail:'Can frighten creatures within range (WIS save)', col:'148,0,211', textcol:'cc66ff' });
+  }
+
+  // Breath Weapon
+  const bwMatch = text.match(/breath weapon|fire breath|cold breath|lightning breath|acid breath|poison breath/);
+  if (bwMatch) {
+    hints.push({ icon:'💨', text:'Breath Weapon', detail:'Area damage breath — check recharge', col:'255,80,0', textcol:'ff5500' });
+  }
+
+  // Recharge abilities
+  const rechargeMatch = text.match(/recharge\s*(\d+)/);
+  if (rechargeMatch) {
+    hints.push({ icon:'🎲', text:`Recharge ${rechargeMatch[1]}–6`, detail:`Special ability recharges on roll of ${rechargeMatch[1]}+ at start of turn`, col:'0,200,200', textcol:'00cccc' });
+  }
+
+  // Spellcasting
+  if (/spellcasting|innate spellcasting/.test(text)) {
+    hints.push({ icon:'📖', text:'Spellcasting', detail:'Has innate or prepared spells — check abilities', col:'100,149,237', textcol:'6495ed' });
+  }
+
+  // Parry
+  if (/\bparry\b/.test(text)) {
+    hints.push({ icon:'🤺', text:'Parry (Reaction)', detail:'Can add AC bonus as a reaction when hit', col:'64,224,208', textcol:'40e0d0' });
+  }
+
+  // Shield / Blur / Mirror Image
+  if (/\bshield\b.*\bspell|\bblur\b|\bmirror image\b/.test(text)) {
+    hints.push({ icon:'🌀', text:'Defensive Magic', detail:'Has defensive spell abilities (Shield/Blur/Mirror Image)', col:'100,149,237', textcol:'6495ed' });
+  }
+
+  // Undead Fortitude
+  if (/undead fortitude/.test(text)) {
+    hints.push({ icon:'💀', text:'Undead Fortitude', detail:'CON save when dropped to 0 HP to stay at 1 HP instead', col:'100,100,100', textcol:'aaaaaa' });
+  }
+
+  // Pack Tactics
+  if (/pack tactics/.test(text)) {
+    hints.push({ icon:'🐺', text:'Pack Tactics', detail:'Advantage on attacks when ally is adjacent to target', col:'139,90,43', textcol:'c87941' });
+  }
+
+  // Magic Resistance
+  if (/magic resistance/.test(text)) {
+    hints.push({ icon:'✨', text:'Magic Resistance', detail:'Advantage on saves vs spells and magical effects', col:'155,109,255', textcol:'9b6dff' });
+  }
+
+  // Reckless Attack
+  if (/reckless attack/.test(text)) {
+    hints.push({ icon:'🔴', text:'Reckless Atk', detail:'Can attack with advantage, but grants advantage to attackers', col:'255,50,50', textcol:'ff3333' });
+  }
+
+  // Evasion
+  if (/\bevasion\b/.test(text)) {
+    hints.push({ icon:'💨', text:'Evasion', detail:'Takes no damage on successful DEX saves (half on fail)', col:'100,200,100', textcol:'64c864' });
+  }
+
+  // Sneak Attack
+  if (/sneak attack/.test(text)) {
+    hints.push({ icon:'🗡', text:'Sneak Attack', detail:'Extra damage when attacking with advantage or flanking', col:'60,60,120', textcol:'8080cc' });
+  }
+
+  // Regeneration
+  if (/\bregeneration\b/.test(text)) {
+    hints.push({ icon:'💚', text:'Regeneration', detail:'Regains HP at start of each turn unless condition prevents it', col:'0,180,0', textcol:'00bb00' });
+  }
+
+  // Swarm
+  if (/\bswarm\b/.test(text)) {
+    hints.push({ icon:'🐜', text:'Swarm', detail:'Occupies another creature\'s space; halved damage at half HP', col:'139,69,19', textcol:'aa7733' });
+  }
+
+  // Lair Actions reminder (only if has legendary actions, likely has lair)
+  if (/lair action/.test(text)) {
+    hints.push({ icon:'🏰', text:'Lair Actions', detail:'Acts on initiative 20 with lair actions', col:'180,120,0', textcol:'cc8800' });
+  }
+
+  return hints;
 }
 
 function rollInitSave(charName, ab, bonus, event) {
   if (event) event.stopPropagation();
-  const roll = Math.floor(Math.random() * 20) + 1;
-  const total = roll + bonus;
-  const isCrit = roll === 20, isFumble = roll === 1;
+  const { die, detail } = rollWithAdv(charName, bonus);
+  const total = die + bonus;
+  const isCrit = die === 20, isFumble = die === 1;
   const bStr = bonus >= 0 ? `+${bonus}` : `${bonus}`;
-  logEntry('roll', `<strong>${escHtml(charName)}</strong> ${ab} Save: d20(${roll})${bStr} = <strong>${total}</strong>${isCrit?' ★':isFumble?' ☠ auto-fail':''}`);
+  const advLabel = advState[charName] ? ` (${advState[charName]})` : '';
+  const dieStr2 = detail ? detail : `(${die})`;
+  const dc = getActiveDC ? getActiveDC() : null;
+  let dcResult = '';
+  if (dc) {
+    const passed = total >= dc;
+    dcResult = ` vs DC${dc}: <strong style="color:${passed?'#44aa44':'#cc3333'}">${passed?'✓ PASS':'✗ FAIL'}</strong>`;
+  }
+  logEntry('roll', `<strong>${escHtml(charName)}</strong> ${ab} Save${advLabel}: d20${dieStr2}${bStr} = <strong>${total}</strong>${isCrit?' ★':isFumble?' ☠ auto-fail':''}${dcResult}`);
   playSound?.('roll');
 }
 
@@ -12066,13 +14448,14 @@ function renderInitiative() {
         ${actionBtn('bonus','B','#88aa22')}
         ${actionBtn('reaction','R','#dd6622')}
         <button onclick="promptInitNote(${JSON.stringify(e.name)},event)" style="background:none;border:1px solid ${note?'#4455aa':'#2a2a50'};color:${note?'#6677aa':'#2a2a50'};border-radius:3px;padding:1px 3px;cursor:pointer;font-size:9px" title="${note?'Edit: '+note:'Add note'}">✎</button>
+        <button onclick="promptAddLeg(${JSON.stringify(e.name)},event)" style="background:none;border:1px solid ${getLegEntry&&getLegEntry(e.name)?'#c9a227':'#2a2a50'};color:${getLegEntry&&getLegEntry(e.name)?'#c9a227':'#2a2a50'};border-radius:3px;padding:1px 3px;cursor:pointer;font-size:9px" title="Set legendary actions">⚡</button>
       </div>
       ${hpText ? `<div class="init-hp-mini">${hpText}</div>` : ''}
       <button class="init-remove-btn" onclick="removeFromInitiative(${JSON.stringify(e.name)})">✕</button>
       ${durBadges ? `<div style="width:100%;padding:0 8px 4px;display:flex;gap:3px;flex-wrap:wrap">${durBadges}</div>` : ''}
-      ${(()=>{const legMax=getLegendaryMax(e.name);if(!legMax)return '';const legCur=getLegendaryCharges(e.name);const pips=Array.from({length:legMax},(_,i)=>`<span onclick="spendLegendaryAction(${JSON.stringify(e.name)})" title="Legendary Action — click to spend" style="cursor:pointer;display:inline-block;width:10px;height:10px;border-radius:50%;border:1px solid #c9a227;background:${i<legCur?'#c9a227':'transparent'};margin-right:2px"></span>`).join('');return `<div style="width:100%;padding:0 8px 4px;display:flex;align-items:center;gap:4px"><span style="font-size:9px;color:#c9a227;letter-spacing:.3px">LEG</span>${pips}</div>`;})()}
-      ${(()=>{const conc=getConcentration(e.name);if(!conc)return '';return `<div style="width:100%;padding:0 8px 4px;display:flex;align-items:center;gap:4px"><span style="font-size:9px;color:#44aaff;border:1px solid #44aaff55;border-radius:4px;padding:1px 5px;cursor:pointer;" onclick="breakConcentration(${JSON.stringify(e.name)})" title="Concentrating on ${conc} — click to break">🔵 ${conc}</span></div>`;})()}
-      ${(()=>{ if(!isDefeated) return ''; const ds=getDeathSaves(e.name); const suc=Array.from({length:3},(_,i)=>`<span onclick="rollDeathSave(${JSON.stringify(e.name)},'success')" title="Success — click to add" style="cursor:pointer;display:inline-block;width:9px;height:9px;border-radius:50%;border:1px solid #44cc88;background:${i<ds.successes?'#44cc88':'transparent'};margin-right:1px"></span>`).join(''); const fail=Array.from({length:3},(_,i)=>`<span onclick="rollDeathSave(${JSON.stringify(e.name)},'failure')" title="Failure — click to add" style="cursor:pointer;display:inline-block;width:9px;height:9px;border-radius:50%;border:1px solid #cc3333;background:${i<ds.failures?'#cc3333':'transparent'};margin-right:1px"></span>`).join(''); return `<div style="width:100%;padding:0 8px 5px;display:flex;align-items:center;gap:6px"><span style="font-size:9px;color:#cc3333;">💀</span>${suc}<span style="font-size:8px;color:#4a5272;">/</span>${fail}<button onclick="clearDeathSaves(${JSON.stringify(e.name)})" style="margin-left:4px;background:none;border:none;color:#4a5272;cursor:pointer;font-size:9px;padding:0" title="Stabilize / clear">↺</button></div>`; })()}
+      ${typeof buildLegPips==='function' ? buildLegPips(e.name) : (()=>{const legMax=typeof getLegendaryMax==='function'?getLegendaryMax(e.name):0;if(!legMax)return '';const legCur=typeof getLegendaryCharges==='function'?getLegendaryCharges(e.name):0;const pips=Array.from({length:legMax},(_,i)=>`<span onclick="typeof spendLegendaryAction==='function'&&spendLegendaryAction(${JSON.stringify(e.name)})" title="Legendary Action" style="cursor:pointer;display:inline-block;width:10px;height:10px;border-radius:50%;border:1px solid #c9a227;background:${i<legCur?'#c9a227':'transparent'};margin-right:2px"></span>`).join('');return `<div style="width:100%;padding:0 8px 4px;display:flex;align-items:center;gap:4px"><span style="font-size:9px;color:#c9a227;letter-spacing:.3px">LEG</span>${pips}</div>`;})()}
+      ${(()=>{const conc=typeof getConcentration==='function'?getConcentration(e.name):null;if(!conc)return '';return `<div style="width:100%;padding:0 8px 4px;display:flex;align-items:center;gap:4px"><span style="font-size:9px;color:#44aaff;border:1px solid #44aaff55;border-radius:4px;padding:1px 5px;cursor:pointer;" onclick="typeof breakConcentration==='function'&&breakConcentration(${JSON.stringify(e.name)})" title="Concentrating on ${conc} — click to break">🔵 ${conc}</span></div>`;})()}
+      ${(()=>{ if(!isDefeated) return ''; const ds=typeof getDeathSaves==='function'?getDeathSaves(e.name):{successes:0,failures:0}; const suc=Array.from({length:3},(_,i)=>`<span onclick="typeof rollDeathSave==='function'&&rollDeathSave(${JSON.stringify(e.name)},'success')" title="Success" style="cursor:pointer;display:inline-block;width:9px;height:9px;border-radius:50%;border:1px solid #44cc88;background:${i<ds.successes?'#44cc88':'transparent'};margin-right:1px"></span>`).join(''); const fail=Array.from({length:3},(_,i)=>`<span onclick="typeof rollDeathSave==='function'&&rollDeathSave(${JSON.stringify(e.name)},'failure')" title="Failure" style="cursor:pointer;display:inline-block;width:9px;height:9px;border-radius:50%;border:1px solid #cc3333;background:${i<ds.failures?'#cc3333':'transparent'};margin-right:1px"></span>`).join(''); return `<div style="width:100%;padding:0 8px 5px;display:flex;align-items:center;gap:6px"><span style="font-size:9px;color:#cc3333;">💀</span>${suc}<span style="font-size:8px;color:#4a5272;">/</span>${fail}<button onclick="typeof clearDeathSaves==='function'&&clearDeathSaves(${JSON.stringify(e.name)})" style="margin-left:4px;background:none;border:none;color:#4a5272;cursor:pointer;font-size:9px;padding:0" title="Stabilize / clear">↺</button></div>`; })()}
     </div>`;
   };
 
@@ -16177,6 +18560,80 @@ function renderSkillChallenge() {
   const sBtn = document.getElementById('scSuccessBtn'), fBtn = document.getElementById('scFailBtn');
   if (sBtn) sBtn.style.opacity = resolved ? '.3' : '1';
   if (fBtn) fBtn.style.opacity = resolved ? '.3' : '1';
+}
+
+// ── PARTY SPELL SLOTS OVERVIEW ────────────────────────────
+let partySlotsOpen = false;
+function togglePartySlots() {
+  partySlotsOpen = !partySlotsOpen;
+  const panel = document.getElementById('partySlotsPanel');
+  panel.style.display = partySlotsOpen ? 'flex' : 'none';
+  const btn = document.getElementById('partySlotsBtn');
+  if (btn) { btn.style.background = partySlotsOpen ? 'rgba(187,136,255,.15)' : ''; btn.style.color = partySlotsOpen ? '#ddaaff' : '#bb88ff'; }
+  if (partySlotsOpen) renderPartySlots();
+}
+
+function renderPartySlots() {
+  const el = document.getElementById('partySlotsBody');
+  if (!el) return;
+
+  // Find all characters with spell slots
+  const casters = UNIQUE_CHARS.filter(c => {
+    const sm = getMaxSlotsForChar(c);
+    return sm && Object.keys(sm).length > 0;
+  });
+
+  if (!casters.length) {
+    el.innerHTML = '<div style="text-align:center;color:#3a2a60;font-size:12px;padding:24px">No spellcasters found</div>';
+    return;
+  }
+
+  // Get all slot levels used
+  const allLevels = new Set();
+  casters.forEach(c => { const sm = getMaxSlotsForChar(c); Object.keys(sm).forEach(l => allLevels.add(parseInt(l))); });
+  const levels = [...allLevels].sort((a,b)=>a-b);
+
+  let html = `<table style="width:100%;border-collapse:collapse;font-size:11px">
+    <tr style="font-size:9px;color:#4a2a80;font-weight:600;letter-spacing:.5px">
+      <th style="padding:5px 12px;text-align:left;border-bottom:1px solid rgba(187,136,255,.2)">CASTER</th>
+      ${levels.map(l=>`<th style="padding:5px 5px;text-align:center;border-bottom:1px solid rgba(187,136,255,.2)" title="Level ${l} slots">Lv${l}</th>`).join('')}
+      <th style="padding:5px 10px;text-align:center;border-bottom:1px solid rgba(187,136,255,.2)" title="Click to restore all slots">↺</th>
+    </tr>`;
+
+  casters.forEach(c => {
+    const sm = getMaxSlotsForChar(c);
+    const used = getUsedSlots(c.name);
+    const cells = levels.map(l => {
+      if (!sm[l]) return `<td style="padding:4px 5px;text-align:center;color:#2a2a50;font-size:10px">—</td>`;
+      const rem = sm[l] - (used[l]||0);
+      const col = rem === 0 ? '#3a3a60' : rem <= sm[l]/2 ? '#c9a227' : '#9b6dff';
+      const pips = Array.from({length:sm[l]},(_,i)=>`<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${i<rem?col:'rgba(100,100,150,.2)'};border:1px solid ${i<rem?col:'rgba(100,100,150,.3)'};margin:1px" title="${rem}/${sm[l]} remaining"></span>`).join('');
+      return `<td style="padding:4px 5px;text-align:center" onclick="useSlot(${JSON.stringify(c.name)},${l},event);renderPartySlots()" title="${rem}/${sm[l]} Level ${l} slots">${pips}<div style="font-size:8px;color:${col};line-height:1">${rem}/${sm[l]}</div></td>`;
+    }).join('');
+
+    const conc = getConcSpell(c.name);
+    html += `<tr style="border-top:1px solid rgba(187,136,255,.06)" onclick="openModal(UNIQUE_CHARS.findIndex(x=>x.name===${JSON.stringify(c.name)}))" style="cursor:pointer">
+      <td style="padding:4px 12px;color:#9098b8;font-size:11px;white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis">
+        ${escHtml(c.name.length>14?c.name.slice(0,13)+'…':c.name)}
+        ${conc ? `<span style="font-size:8px;color:#c9a227" title="Concentrating: ${escHtml(conc)}">🔮</span>` : ''}
+      </td>
+      ${cells}
+      <td style="padding:4px 10px;text-align:center"><button onclick="event.stopPropagation();restoreAllSlots(${JSON.stringify(c.name)});renderPartySlots()" style="background:none;border:none;color:#3a2a60;cursor:pointer;font-size:11px;padding:0" title="Restore all slots">↺</button></td>
+    </tr>`;
+  });
+
+  html += `</table>`;
+  html += `<div style="padding:6px 12px;display:flex;gap:8px;border-top:1px solid rgba(187,136,255,.1)">
+    <button onclick="UNIQUE_CHARS.filter(c=>{const s=getMaxSlotsForChar(c);return s&&Object.keys(s).length}).forEach(c=>restoreAllSlots(c.name));renderPartySlots()" style="background:rgba(187,136,255,.1);border:1px solid rgba(187,136,255,.3);color:#bb88ff;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:11px">↺ Restore ALL Casters</button>
+  </div>`;
+  el.innerHTML = html;
+}
+
+function restoreAllSlots(charName) {
+  if (slotState[charName]) delete slotState[charName];
+  if (typeof saveSlots === 'function') saveSlots();
+  logEntry('rest', `<strong>${escHtml(charName)}</strong>'s spell slots restored`);
+  updateHeaderStats();
 }
 
 // ── SPELL SEARCH PANEL ────────────────────────────────────
