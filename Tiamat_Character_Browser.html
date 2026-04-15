@@ -3782,6 +3782,7 @@
   <button class="filter-btn" onclick="openRandEncounter()" style="border-color:#cc6644;color:#cc6644;" title="Random Encounter Generator — pick terrain &amp; CR, roll a thematic encounter">🎲 Encounter</button>
   <button class="filter-btn" onclick="openClassFeatures()" style="border-color:#dd8822;color:#dd8822;" title="Class Features Reference — key features for all 12 classes by level">📖 Classes</button>
   <button class="filter-btn" onclick="openRaceRef()" style="border-color:#44aacc;color:#44aacc;" title="Race Features Reference — traits for all PHB races">🧝 Races</button>
+  <button class="filter-btn" onclick="openRoomGen()" style="border-color:#aa7744;color:#aa7744;" title="Dungeon Room Generator — instant room descriptions for improvised dungeon crawling">🏰 Room</button>
   <button class="filter-btn" onclick="printPartySheet()" style="border-color:#4488ff;color:#4488ff;" title="Print Party Sheet — all party members on one printable page">🖨 Party Sheet</button>
   <button class="filter-btn" onclick="openWorldMap()" style="border-color:#44cc88;color:#44cc88;" title="World Map — pin characters to the Tiamat campaign map (hotkey: M)">🗺 World Map</button>
   <span style="color: #333; margin: 0 4px;">|</span>
@@ -25361,6 +25362,91 @@ function _showRace(raceName) {
         <div style="font-size:12px;font-weight:700;color:#c8d0e8;margin-bottom:2px">${escHtml(t.name)}</div>
         <div style="font-size:11px;color:#8898b8;line-height:1.5">${escHtml(t.desc)}</div>
       </div>`).join('')}`;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 157: Dungeon Room Generator — instant room description for improv
+//   dungeon crawling. Picks random size, purpose, lighting, features, smells,
+//   hazards, and exits. Generates readable boxed text + DM notes.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const ROOM_DATA = {
+  size:    ['10×10 ft cramped chamber','20×20 ft modest room','30×30 ft spacious hall','30×60 ft long corridor','40×40 ft grand hall','20×40 ft rectangular vault','60×60 ft vast chamber'],
+  purpose: ['guard post','storage room','shrine to a forgotten god','torture chamber','armoury','alchemist\'s lab','library of decaying scrolls','treasury vault','sleeping quarters','throne room','kitchen and larder','temple antechamber','fungus garden','prison cells','audience chamber'],
+  lighting:['pitch dark (magical darkness)','dim candlelight from sconces','faint bioluminescent fungus','scattered torches, guttering low','bright arcane orbs in the ceiling','single cracked skylight far above','pulsing runes on the walls provide eerie light'],
+  floor:   ['flagstones cracked with age','smooth worn stone','scattered bones and debris','rusted iron grating over a dark pit','soft moss and lichen','flooded with 2 inches of black water','mosaic tiles mostly intact'],
+  features:['broken columns line the walls','a large stone table dominates the center','iron cages hang from chains overhead','collapsed section reveals a tunnel beyond','a cold fireplace filled with old ash','shelves of rotting goods line one wall','a well or cistern in the center','crude graffiti covers the walls','a statue of a stern-faced figure watches from the corner','a magic circle etched into the floor','a tapestry depicting a battle scene (half-rotted)','three wooden doors, two sealed shut'],
+  smell:   ['musty and damp','charred wood and old ash','sweet rot of decay','iron and old blood','salt and mold','faintly sulfurous','stale air — this room has been sealed for years','fresh — something alive was here recently'],
+  sound:   ['dripping water echoes in the dark','distant wind moaning through cracks','absolute silence — uncanny','faint scratching from within the walls','the creak of settling stone','distant, rhythmic metallic clanging','muffled voices, very faint'],
+  exit:    [['one door (north)'],['two doors (north and east)'],['three doors plus a trapdoor in the floor'],['iron portcullis to the south, mechanism visible on the wall'],['collapsed archway to the west — passable but risky'],['secret door (DC 15 Perception to notice)'],['staircase descending deeper']],
+  hazard:  [null,null,null,'tripwire near the entrance (DC 12 Perception; 2d6 piercing if triggered)','patch of yellow mold on the ceiling (5-ft radius; spores DC 13 CON or 2d6 poison, blinded 1 hr)','loose flagstones (first who steps here: DC 10 DEX or fall prone)','pressure plate triggers darts from the wall (DC 15 Thieves\' Tools to disarm; 2d4 piercing)','pit trap (10 ft, DC 14 DEX to avoid; 1d6 bludgeoning)'],
+  hidden:  [null,null,null,'A loose stone hides a small cache (roll random loot)','A message is scratched under the table: "Don\'t drink the water"','One of the "statues" is a petrified adventurer','Faint magical aura: this is an old spell focus anchor'],
+};
+
+function _pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function openRoomGen() {
+  const ex = document.getElementById('roomGenOverlay');
+  if (ex) { ex.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'roomGenOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9100;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML = `
+    <div style="background:linear-gradient(160deg,#0e0a06,#1c1408);border:1px solid rgba(170,119,68,0.5);border-radius:14px;width:560px;max-width:100%;padding:22px;color:#c8d0e8;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div style="font-size:17px;font-weight:700;font-family:'Cinzel',serif;color:#aa7744">🏰 Room Generator</div>
+        <div style="display:flex;gap:6px">
+          <button onclick="_rollRoom()" style="background:rgba(170,119,68,0.2);border:1px solid rgba(170,119,68,0.5);color:#cc9955;border-radius:6px;padding:5px 14px;cursor:pointer;font-size:12px;font-weight:700">🎲 New Room</button>
+          <button onclick="document.getElementById('roomGenOverlay').remove()" style="background:none;border:1px solid #2a1a08;color:#aa7744;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px">✕</button>
+        </div>
+      </div>
+      <div id="roomResult" style="min-height:120px;background:rgba(0,0,0,0.3);border:1px solid rgba(170,119,68,0.2);border-radius:10px;padding:14px;font-size:12px;color:#4a5272;font-style:italic;text-align:center">
+        Click "New Room" to generate a room description.
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _rollRoom();
+}
+
+function _rollRoom() {
+  const el = document.getElementById('roomResult');
+  if (!el) return;
+  const size = _pick(ROOM_DATA.size);
+  const purpose = _pick(ROOM_DATA.purpose);
+  const lighting = _pick(ROOM_DATA.lighting);
+  const floor = _pick(ROOM_DATA.floor);
+  const feat1 = _pick(ROOM_DATA.features);
+  const feat2 = (() => { let f; do { f = _pick(ROOM_DATA.features); } while (f === feat1); return f; })();
+  const smell = _pick(ROOM_DATA.smell);
+  const sound = _pick(ROOM_DATA.sound);
+  const exits = _pick(ROOM_DATA.exit);
+  const hazard = _pick(ROOM_DATA.hazard);
+  const hidden = _pick(ROOM_DATA.hidden);
+
+  const boxedText = `You enter a ${size} that appears to have once been a ${purpose}. ${lighting}. The floor is ${floor}. ${feat1}. ${feat2}. The air smells of ${smell}. You hear ${sound}. Exits: ${exits}.`;
+  const dmNotes = [
+    hazard ? `⚠ Hazard: ${hazard}` : null,
+    hidden ? `🔍 Hidden: ${hidden}` : null,
+  ].filter(Boolean);
+
+  el.style.color = '#c8d0e8';
+  el.style.fontStyle = 'normal';
+  el.style.textAlign = 'left';
+  el.innerHTML = `
+    <!-- Boxed text -->
+    <div style="background:rgba(170,119,68,0.06);border-left:3px solid rgba(170,119,68,0.5);padding:10px 14px;border-radius:0 8px 8px 0;margin-bottom:12px;font-style:italic;color:#c9a88a;line-height:1.7;font-size:12px">
+      ${escHtml(boxedText)}
+    </div>
+    ${dmNotes.length ? `
+      <div style="margin-bottom:12px">
+        <div style="font-size:10px;color:#4a5272;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">DM Notes</div>
+        ${dmNotes.map(n => `<div style="font-size:11px;color:#9098b8;padding:4px 0;border-bottom:1px solid #1a1200">${escHtml(n)}</div>`).join('')}
+      </div>` : ''}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+      <button onclick="_rollRoom()" style="background:rgba(170,119,68,0.1);border:1px solid rgba(170,119,68,0.3);color:#aa7744;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:11px">🎲 Reroll</button>
+      <button onclick="logEntry('note','🏰 Room: ${escHtml(boxedText.substring(0,80))}…')" style="background:rgba(68,136,255,0.08);border:1px solid rgba(68,136,255,0.25);color:#4488ff88;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:11px">📋 Log</button>
+      <button onclick="navigator.clipboard?.writeText(${JSON.stringify(boxedText)}).then(()=>showToast('Copied!','#aa7744'))" style="background:rgba(68,204,136,0.08);border:1px solid rgba(68,204,136,0.25);color:#44cc8888;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:11px">📋 Copy</button>
+    </div>`;
 }
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
