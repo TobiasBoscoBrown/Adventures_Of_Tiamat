@@ -3780,6 +3780,7 @@
   <button class="filter-btn" onclick="openItemCompendium()" style="border-color:#bb88ff;color:#bb88ff;" title="Magic Item Compendium — searchable 5e magic items with full descriptions, rarity filter, assign to character">🔮 Magic Items</button>
   <button class="filter-btn" onclick="openFeatCompendium()" style="border-color:#44ccaa;color:#44ccaa;" title="Feat Compendium — searchable 5e feats with full descriptions, assign to character">⚡ Feats</button>
   <button class="filter-btn" onclick="openRandEncounter()" style="border-color:#cc6644;color:#cc6644;" title="Random Encounter Generator — pick terrain &amp; CR, roll a thematic encounter">🎲 Encounter</button>
+  <button class="filter-btn" onclick="openClassFeatures()" style="border-color:#dd8822;color:#dd8822;" title="Class Features Reference — key features for all 12 classes by level">📖 Classes</button>
   <button class="filter-btn" onclick="printPartySheet()" style="border-color:#4488ff;color:#4488ff;" title="Print Party Sheet — all party members on one printable page">🖨 Party Sheet</button>
   <button class="filter-btn" onclick="openWorldMap()" style="border-color:#44cc88;color:#44cc88;" title="World Map — pin characters to the Tiamat campaign map (hotkey: M)">🗺 World Map</button>
   <span style="color: #333; margin: 0 4px;">|</span>
@@ -24949,6 +24950,200 @@ function _addEncToInit(name, count) {
   if (typeof saveInitiativeState === 'function') saveInitiativeState();
   showToast(`${count}× ${name} added to initiative`, '#cc6644');
   document.getElementById('initiativePanel')?.classList.add('open');
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 155: Class Features Quick Reference — key abilities for all 12 PHB classes
+//   Toolbar button 📖 Classes opens a filterable panel showing each class's top
+//   features by level. DM reference during NPC combat. No localStorage needed.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CLASS_FEATURES = {
+  Barbarian: { color:'#cc4422', icon:'🪓', features:[
+    {lv:1,  name:'Rage',              desc:'2× per long rest (scales up). +2 damage, resistance to B/P/S damage, advantage on STR checks/saves. Can\'t cast spells.'},
+    {lv:1,  name:'Unarmored Defense', desc:'AC = 10 + DEX mod + CON mod (no armor).'},
+    {lv:2,  name:'Reckless Attack',   desc:'Advantage on first melee attack each turn, but enemies have advantage on attacks vs you until next turn.'},
+    {lv:2,  name:'Danger Sense',      desc:'Advantage on DEX saves vs visible threats.'},
+    {lv:5,  name:'Extra Attack',      desc:'Attack twice per Attack action.'},
+    {lv:5,  name:'Fast Movement',     desc:'+10 ft speed while not wearing heavy armor.'},
+    {lv:7,  name:'Feral Instinct',    desc:'Advantage on initiative. Can enter rage to act normally even if surprised.'},
+    {lv:9,  name:'Brutal Critical',   desc:'Roll 1 extra weapon damage die on a crit (2 extra at 13, 3 at 17).'},
+    {lv:11, name:'Relentless Rage',   desc:'When Raging and dropped to 0 HP, DC 10 CON save (DC +5 per use) to drop to 1 HP instead.'},
+    {lv:20, name:'Primal Champion',   desc:'+4 STR, +4 CON.'},
+  ]},
+  Bard: { color:'#cc44cc', icon:'🎵', features:[
+    {lv:1,  name:'Bardic Inspiration', desc:'Bonus action: grant a d6 to another creature. They can add it to an attack/check/save within 10 min. Scales to d12 at 15. Uses = CHA mod.'},
+    {lv:2,  name:'Jack of All Trades', desc:'Add half proficiency to any check you\'re not proficient in.'},
+    {lv:2,  name:'Song of Rest',       desc:'During short rest, allies regain extra 1d6 HP (scales: d8@9, d10@13, d12@17).'},
+    {lv:3,  name:'Expertise',          desc:'Double proficiency on 2 skills (choose 2 more at 10).'},
+    {lv:5,  name:'Font of Inspiration',desc:'Regain Bardic Inspiration uses on short OR long rest.'},
+    {lv:6,  name:'Countercharm',       desc:'Action: perform to grant allies advantage on saves vs frightened/charmed.'},
+    {lv:10, name:'Magical Secrets',    desc:'Learn 2 spells from ANY class list. Repeat at 14 and 18.'},
+    {lv:20, name:'Superior Inspiration',desc:'If you have no Bardic Inspiration dice at initiative, regain 1.'},
+  ]},
+  Cleric: { color:'#aaaa44', icon:'⚜', features:[
+    {lv:1,  name:'Spellcasting',       desc:'WIS-based. Full caster. Prepare WIS mod + level spells from cleric list.'},
+    {lv:1,  name:'Divine Domain',      desc:'Choose subclass at 1. Many grant bonus spells + Channel Divinity options.'},
+    {lv:2,  name:'Channel Divinity',   desc:'1/rest (2 at 6, 3 at 18). Subclass options + Turn Undead (WIS save or flee for 1 min).'},
+    {lv:5,  name:'Destroy Undead',     desc:'Turn Undead destroys undead of CR 1/2 or lower (scales by level).'},
+    {lv:10, name:'Divine Intervention', desc:'Call on deity (% chance = cleric level). Auto-succeeds at 20.'},
+    {lv:20, name:'Divine Intervention', desc:'No longer needs to roll — deity always answers.'},
+  ]},
+  Druid: { color:'#44aa44', icon:'🌿', features:[
+    {lv:1,  name:'Spellcasting',       desc:'WIS-based. Full caster. Prepare WIS mod + level spells. No metal armor.'},
+    {lv:2,  name:'Wild Shape',         desc:'2 uses/short rest. CR ≤1/4 at level 2 (swim at 4, fly at 8). Retains mental stats, gains beast stats.'},
+    {lv:4,  name:'Wild Shape CR',      desc:'Max CR 1/2 at level 4 (no fly), CR 1 at level 8 (swim only).'},
+    {lv:18, name:'Timeless Body',      desc:'Age 10× slower. No longer need food or water.'},
+    {lv:18, name:'Beast Spells',       desc:'Can cast spells while in Wild Shape form.'},
+    {lv:20, name:'Archdruid',          desc:'Unlimited Wild Shape uses.'},
+  ]},
+  Fighter: { color:'#cc3333', icon:'⚔', features:[
+    {lv:1,  name:'Fighting Style',     desc:'Choose: Archery, Defense, Dueling, Great Weapon Fighting, Protection, or Two-Weapon.'},
+    {lv:1,  name:'Second Wind',        desc:'Bonus action: regain 1d10+level HP. 1 use/short rest.'},
+    {lv:2,  name:'Action Surge',       desc:'Take 1 extra action on your turn. 1 use/short rest (2 uses at level 17).'},
+    {lv:3,  name:'Martial Archetype',  desc:'Choose subclass. Battlemaster: superiority dice. Champion: improved crits. Eldritch Knight: spells.'},
+    {lv:5,  name:'Extra Attack',       desc:'Attack twice per Attack action (3 at 11, 4 at 20).'},
+    {lv:9,  name:'Indomitable',        desc:'Reroll a saving throw (must use new result). 1 use/long rest (2 at 13, 3 at 17).'},
+    {lv:20, name:'4 Attacks',          desc:'Attack 4 times per Attack action.'},
+  ]},
+  Monk: { color:'#88aacc', icon:'👊', features:[
+    {lv:1,  name:'Unarmored Defense',  desc:'AC = 10 + DEX mod + WIS mod (no armor or shield).'},
+    {lv:1,  name:'Martial Arts',       desc:'Unarmed/monk weapon = 1d4 (scales to 1d10 at 17). Use DEX for attacks. Bonus unarmed after attack.'},
+    {lv:2,  name:'Ki Points',          desc:'WIS mod spells equivalent. Flurry of Blows (2 extra punches). Patient Defense (Dodge as bonus). Step of Wind (Dash/Disengage).'},
+    {lv:2,  name:'Unarmored Movement', desc:'+10 ft speed (scales to +30 ft at 18).'},
+    {lv:3,  name:'Deflect Missiles',   desc:'Reduce ranged attack damage. Catch if reduced to 0, throw back as unarmed attack.'},
+    {lv:4,  name:'Slow Fall',          desc:'Reaction: reduce fall damage by 5×level.'},
+    {lv:5,  name:'Extra Attack',       desc:'Attack twice per Attack action.'},
+    {lv:5,  name:'Stunning Strike',    desc:'1 ki: after melee hit, target CON save or stunned until end of your next turn.'},
+    {lv:6,  name:'Ki-Empowered Strikes',desc:'Unarmed strikes count as magical.'},
+    {lv:18, name:'Empty Body',         desc:'4 ki: Invisible + resistance to all but force. 8 ki: Astral Projection.'},
+  ]},
+  Paladin: { color:'#ccaa22', icon:'🛡', features:[
+    {lv:1,  name:'Divine Sense',       desc:'Detect celestials/fiends/undead within 60 ft. Uses = 1 + CHA mod/day.'},
+    {lv:1,  name:'Lay on Hands',       desc:'HP pool = 5×level. Cure poison/disease = 5 HP. Expend to heal.'},
+    {lv:2,  name:'Fighting Style',     desc:'Choose from: Defense, Dueling, Great Weapon, Protection.'},
+    {lv:2,  name:'Spellcasting',       desc:'CHA-based. Half caster. Prepare CHA mod + half level spells.'},
+    {lv:2,  name:'Divine Smite',       desc:'Expend spell slot after hitting: +2d8 radiant per slot level. +1d8 vs undead/fiends. Crit doubles dice.'},
+    {lv:3,  name:'Sacred Oath',        desc:'Choose subclass. Gain Oath spells (always prepared) + Channel Divinity (2 options, 1 use/rest).'},
+    {lv:5,  name:'Extra Attack',       desc:'Attack twice per Attack action.'},
+    {lv:6,  name:'Aura of Protection', desc:'Allies within 10 ft (30 ft at 18) add CHA modifier to all saving throws.'},
+    {lv:20, name:'Sacred Oath feature',desc:'Powerful capstone ability based on your subclass (e.g. Avenging Angel, Holy Nimbus).'},
+  ]},
+  Ranger: { color:'#44aa66', icon:'🏹', features:[
+    {lv:1,  name:'Favored Enemy',      desc:'Advantage on Survival to track, and on INT checks about that creature type.'},
+    {lv:1,  name:'Natural Explorer',   desc:'Advantage on INT/WIS in a favored terrain, can\'t get lost, and extra benefits.'},
+    {lv:2,  name:'Fighting Style',     desc:'Archery, Defense, Dueling, or Two-Weapon.'},
+    {lv:2,  name:'Spellcasting',       desc:'WIS-based. Half caster. Known spells.'},
+    {lv:3,  name:'Ranger Archetype',   desc:'Hunter: Horde Breaker/Colossus Slayer/Giant Killer. Beastmaster: companion.'},
+    {lv:5,  name:'Extra Attack',       desc:'Attack twice per Attack action.'},
+    {lv:8,  name:'Land\'s Stride',     desc:'Difficult terrain from nonmagical plants costs no extra movement. Ignore plant-based saves.'},
+    {lv:20, name:'Foe Slayer',         desc:'Once per turn, add WIS mod to attack or damage roll against favored enemy.'},
+  ]},
+  Rogue: { color:'#8844bb', icon:'🗡', features:[
+    {lv:1,  name:'Expertise',          desc:'Double proficiency on 2 skills. Gain 2 more at level 6.'},
+    {lv:1,  name:'Sneak Attack',       desc:'1d6 extra damage (scales to 10d6 at 20) to one target per TURN when you have advantage or an ally adjacent to target.'},
+    {lv:1,  name:'Thieves\' Cant',     desc:'Secret language and signals shared among rogues.'},
+    {lv:2,  name:'Cunning Action',     desc:'Bonus action: Dash, Disengage, or Hide.'},
+    {lv:3,  name:'Roguish Archetype',  desc:'Arcane Trickster (spells), Assassin (auto-crit surprised), Thief (bonus action fast hands).'},
+    {lv:5,  name:'Uncanny Dodge',      desc:'Reaction: halve damage from an attack you can see.'},
+    {lv:7,  name:'Evasion',            desc:'DEX save for half: take no damage instead. Fail: take half.'},
+    {lv:11, name:'Reliable Talent',    desc:'Treat any proficient ability check roll of 9 or lower as a 10.'},
+    {lv:20, name:'Stroke of Luck',     desc:'If you miss an attack or fail an ability check, treat d20 as 20. 1 use/short rest.'},
+  ]},
+  Sorcerer: { color:'#dd4422', icon:'✨', features:[
+    {lv:1,  name:'Spellcasting',       desc:'CHA-based. Full caster. Known spells (fewer than wizard but always available).'},
+    {lv:1,  name:'Sorcerous Origin',   desc:'Choose subclass. Draconic: +1 HP/level, natural armor. Wild Magic: surge table on rolls of 1.'},
+    {lv:2,  name:'Font of Magic',      desc:'Sorcery points = level. Convert to spell slots (or vice versa). Powers Metamagic.'},
+    {lv:3,  name:'Metamagic',          desc:'2 options (4 at 10, 6 at 17): Careful, Distant, Empowered, Extended, Heightened, Quickened, Subtle, Twinned.'},
+    {lv:5,  name:'Quickened Spell',    desc:'3 SP: cast as bonus action. Cast cantrip as main action after.'},
+    {lv:5,  name:'Twinned Spell',      desc:'Spend SP = spell level: target a second creature with a single-target spell.'},
+    {lv:20, name:'Sorcerous Restoration',desc:'Regain 4 sorcery points on a short rest.'},
+  ]},
+  Warlock: { color:'#6644bb', icon:'🔮', features:[
+    {lv:1,  name:'Otherworldly Patron',desc:'Choose subclass. Archfey: fear/charm. Fiend: temp HP on kill. Great Old One: telepathy.'},
+    {lv:1,  name:'Pact Magic',         desc:'CHA-based. 1-2 spell slots (always highest level). Regain ALL on short rest.'},
+    {lv:2,  name:'Eldritch Invocations',desc:'Learn 2 invocations (Agonizing Blast, Devil\'s Sight, Mask of Many Faces, etc.). Gain more as you level.'},
+    {lv:3,  name:'Pact Boon',          desc:'Pact of Blade (summon weapon), Chain (familiar), Tome (3 cantrips + ritual casting).'},
+    {lv:5,  name:'Extra Attack',       desc:'Attack twice per Attack action (Pact of Blade only, via some subclasses/invocations).'},
+    {lv:11, name:'Mystic Arcanum',     desc:'Cast one 6th-level spell once per long rest (7th at 13, 8th at 15, 9th at 17).'},
+    {lv:20, name:'Eldritch Master',    desc:'Spend 1 min: regain all Pact Magic spell slots. 1 use/long rest.'},
+  ]},
+  Wizard: { color:'#4488ff', icon:'🧙', features:[
+    {lv:1,  name:'Spellcasting',       desc:'INT-based. Full caster. Spellbook: copy any wizard spell found. Prepare INT mod + level spells.'},
+    {lv:1,  name:'Arcane Recovery',    desc:'During short rest: regain spell slots up to ½ wizard level (rounded up). 1 use/long rest.'},
+    {lv:2,  name:'Arcane Tradition',   desc:'School subclass. Abjurer: ward HP. Evocation: sculpt spells. Conjurer: focus summons. Diviner: portent dice.'},
+    {lv:18, name:'Spell Mastery',      desc:'Choose 1st and 2nd level spells: cast them at their lowest level at will (no slot).'},
+    {lv:20, name:'Signature Spells',   desc:'Choose 2 3rd-level spells: always prepared, cast once each per short rest without a slot.'},
+  ]},
+};
+
+function openClassFeatures() {
+  const ex = document.getElementById('classFeatOverlay');
+  if (ex) { ex.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'classFeatOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9100;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto';
+  const classNames = Object.keys(CLASS_FEATURES);
+  ov.innerHTML = `
+    <div style="background:linear-gradient(160deg,#0a0e1a,#111828);border:1px solid rgba(221,136,34,0.4);border-radius:14px;width:740px;max-width:100%;padding:20px;color:#c8d0e8;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div style="font-size:17px;font-weight:700;font-family:'Cinzel',serif;color:#dd8822">📖 Class Features</div>
+        <button onclick="document.getElementById('classFeatOverlay').remove()" style="background:none;border:1px solid #2a2010;color:#dd8822;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px">✕</button>
+      </div>
+      <!-- Class selector -->
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px" id="classBtns">
+        ${classNames.map((cls,i) => {
+          const cf = CLASS_FEATURES[cls];
+          return `<button onclick="_showClass('${cls}')" id="cfBtn_${cls}"
+            style="background:${i===0?`rgba(221,136,34,0.2)`:'none'};border:1px solid ${cf.color}${i===0?'88':'33'};color:${i===0?cf.color:cf.color+'99'};border-radius:8px;padding:5px 12px;cursor:pointer;font-size:11px;font-weight:700;transition:all 0.15s"
+            onmouseover="this.style.background='rgba(221,136,34,0.1)'" onmouseout="if(this.id!==window._activeClassBtn)this.style.background='none'"
+          >${cf.icon} ${cls}</button>`;
+        }).join('')}
+      </div>
+      <div id="classFeatContent" style="max-height:58vh;overflow-y:auto"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  window._activeClassBtn = 'cfBtn_' + classNames[0];
+  _showClass(classNames[0]);
+}
+
+function _showClass(cls) {
+  const cf = CLASS_FEATURES[cls];
+  if (!cf) return;
+  // Update button styles
+  Object.keys(CLASS_FEATURES).forEach(c => {
+    const btn = document.getElementById('cfBtn_' + c);
+    if (!btn) return;
+    if (c === cls) {
+      btn.style.background = `rgba(221,136,34,0.2)`;
+      btn.style.borderColor = CLASS_FEATURES[c].color + '88';
+      btn.style.color = CLASS_FEATURES[c].color;
+    } else {
+      btn.style.background = 'none';
+      btn.style.borderColor = CLASS_FEATURES[c].color + '33';
+      btn.style.color = CLASS_FEATURES[c].color + '99';
+    }
+  });
+  window._activeClassBtn = 'cfBtn_' + cls;
+  const el = document.getElementById('classFeatContent');
+  if (!el) return;
+  const profBonus = lv => lv >= 17 ? 6 : lv >= 13 ? 5 : lv >= 9 ? 4 : lv >= 5 ? 3 : 2;
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 14px;background:rgba(0,0,0,0.3);border-radius:10px;border:1px solid ${cf.color}22">
+      <span style="font-size:24px">${cf.icon}</span>
+      <div>
+        <div style="font-size:16px;font-weight:700;font-family:'Cinzel',serif;color:${cf.color}">${cls}</div>
+        <div style="font-size:10px;color:#4a5272;margin-top:2px">Proficiency Bonus: +2 (Lv 1–4) · +3 (5–8) · +4 (9–12) · +5 (13–16) · +6 (17–20)</div>
+      </div>
+    </div>
+    ${cf.features.map(f => `
+      <div style="display:flex;gap:10px;padding:9px 12px;border-bottom:1px solid rgba(255,255,255,0.04);border-left:3px solid ${cf.color}${f.lv >= 17 ? 'ff' : f.lv >= 11 ? 'bb' : f.lv >= 5 ? '77' : '44'}">
+        <div style="width:28px;flex-shrink:0;font-size:10px;color:${cf.color};font-weight:700;padding-top:2px;text-align:right">Lv${f.lv}</div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#c8d0e8;margin-bottom:2px">${escHtml(f.name)}</div>
+          <div style="font-size:11px;color:#8898b8;line-height:1.5">${escHtml(f.desc)}</div>
+        </div>
+      </div>`).join('')}`;
 }
 // ─────────────────────────────────────────────────────────────────────────────
 // Iter 154: Character Appearance & Mannerisms Editor — structured physical
