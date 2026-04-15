@@ -27976,6 +27976,119 @@ function _hbGiveToChar(itemId) {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 175: NPC Initial Reaction Table — d20 + CHA mod to determine first impression
+// Full reaction spectrum with contextual modifiers and roleplay guidance.
+
+const REACTION_RESULTS = [
+  { min:1, max:2,   label:'Hostile',     color:'#cc3333', icon:'🗡', desc:'Immediately aggressive or antagonistic. May attack, threaten, or demand the party leave.', rp:'Raise hand to weapon. "I know your kind." Harsh stare, no warmth.' },
+  { min:3, max:5,   label:'Unfriendly',  color:'#cc6633', icon:'😠', desc:'Defensive and suspicious. Won\'t help freely; needs significant persuasion.', rp:'"What do you want?" Arms crossed. Brief answers only.' },
+  { min:6, max:8,   label:'Wary',        color:'#cc8822', icon:'🤨', desc:'On guard. Will engage but needs reassurance. Neutral tone.', rp:'Looks the party over slowly. "Fair enough... What brings you here?"' },
+  { min:9, max:12,  label:'Neutral',     color:'#9098b8', icon:'😐', desc:'No strong feelings either way. Businesslike, transactional.', rp:'Matter-of-fact. Polite but not warm. "What can I do for you?"' },
+  { min:13, max:15, label:'Polite',      color:'#44aacc', icon:'🙂', desc:'Cordial and willing to engage. Will help with minor things.', rp:'Nods in greeting. "Welcome, travelers. Good to see friendly faces."' },
+  { min:16, max:18, label:'Friendly',    color:'#44aa44', icon:'😊', desc:'Genuinely warm. Will help and may offer information freely.', rp:'Smiles broadly. "Come in, come in! Can I get you anything?"' },
+  { min:19, max:20, label:'Helpful',     color:'#c9a227', icon:'⭐', desc:'Immediately willing to help however they can. May have special info or gifts.', rp:'"You couldn\'t have come at a better time! I\'ve been hoping to meet someone like you."' },
+];
+
+const REACTION_MODIFIERS = [
+  { id:'cha_high',    label:'CHA 16+',         mod:+3, icon:'💬' },
+  { id:'cha_low',     label:'CHA 8 or less',   mod:-2, icon:'😶' },
+  { id:'common_lang', label:'Shared Language',  mod:+1, icon:'🗣' },
+  { id:'faction_rep', label:'Good Reputation with this faction', mod:+3, icon:'🏅' },
+  { id:'bad_rep',     label:'Bad Reputation',   mod:-3, icon:'💀' },
+  { id:'gift',        label:'Offering a Gift',  mod:+2, icon:'🎁' },
+  { id:'threatening', label:'Appeared Threatening', mod:-4, icon:'⚔' },
+  { id:'introduce',   label:'Formal Introduction', mod:+1, icon:'🤝' },
+];
+
+function openReactionTable() {
+  const ex = document.getElementById('reactionOverlay');
+  if (ex) { ex.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'reactionOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9200;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML = `
+    <div style="width:540px;max-width:100%;background:linear-gradient(160deg,#0a0e1a,#0e1522);border:2px solid rgba(68,170,204,0.4);border-radius:16px;padding:24px;color:#c8d0e8;font-family:'Inter',sans-serif;box-shadow:0 0 40px rgba(68,170,204,0.12)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+        <div style="font-family:'Cinzel',serif;font-size:17px;font-weight:700;color:#44aacc">🤝 NPC First Reaction</div>
+        <button onclick="document.getElementById('reactionOverlay').remove()" style="background:none;border:1px solid #2a2040;color:#6a5aaa;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px">✕</button>
+      </div>
+      <!-- Modifiers -->
+      <div style="margin-bottom:14px">
+        <div style="font-size:10px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Situation Modifiers</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px" id="rxMods">
+          ${REACTION_MODIFIERS.map(m => `
+            <button id="rxmod_${m.id}" onclick="_rxToggleMod('${m.id}',${m.mod},this)" style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.1);color:#6a5aaa;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:10px;transition:all 0.15s">${m.icon} ${m.label} (${m.mod>0?'+':''}${m.mod})</button>`).join('')}
+        </div>
+      </div>
+      <!-- Roll area -->
+      <div style="text-align:center;margin-bottom:14px">
+        <div id="rxBonusDisplay" style="font-size:11px;color:#4a5272;margin-bottom:8px">Total bonus: +0 (no modifiers)</div>
+        <button onclick="_rxRoll()" style="background:rgba(68,170,204,0.15);border:2px solid rgba(68,170,204,0.5);color:#44aacc;border-radius:10px;padding:12px 28px;cursor:pointer;font-size:15px;font-weight:700" onmouseover="this.style.background='rgba(68,170,204,0.25)'" onmouseout="this.style.background='rgba(68,170,204,0.15)'">🎲 Roll Reaction</button>
+      </div>
+      <!-- Result -->
+      <div id="rxResult" style="background:rgba(0,0,0,0.35);border:1px solid rgba(68,170,204,0.15);border-radius:12px;padding:14px;min-height:80px">
+        <div style="color:#4a5272;font-size:12px;text-align:center">Click Roll to determine first impression</div>
+      </div>
+      <!-- Full table -->
+      <div style="margin-top:12px">
+        <div style="font-size:10px;color:#4a5272;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Roll Table</div>
+        <div style="display:flex;gap:2px;flex-wrap:wrap">
+          ${REACTION_RESULTS.map(r => `<span style="font-size:9px;background:${r.color}18;border:1px solid ${r.color}33;color:${r.color};border-radius:4px;padding:2px 5px">${r.icon} ${r.min}-${r.max}: ${r.label}</span>`).join('')}
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  window._rxMods = {};
+}
+
+function _rxToggleMod(id, mod, btn) {
+  if (!window._rxMods) window._rxMods = {};
+  if (window._rxMods[id] !== undefined) {
+    delete window._rxMods[id];
+    btn.style.background = 'rgba(0,0,0,0.2)'; btn.style.color = '#6a5aaa'; btn.style.border = '1px solid rgba(255,255,255,0.1)';
+  } else {
+    window._rxMods[id] = mod;
+    btn.style.background = 'rgba(68,170,204,0.15)'; btn.style.color = '#44aacc'; btn.style.border = '1px solid rgba(68,170,204,0.4)';
+  }
+  const total = Object.values(window._rxMods).reduce((a,b)=>a+b,0);
+  const el = document.getElementById('rxBonusDisplay');
+  if (el) el.textContent = `Total bonus: ${total>=0?'+':''}${total} (${Object.keys(window._rxMods).length} modifier${Object.keys(window._rxMods).length!==1?'s':''})`;
+}
+
+function _rxRoll() {
+  const total = Object.values(window._rxMods||{}).reduce((a,b)=>a+b,0);
+  const roll = Math.floor(Math.random() * 20) + 1;
+  const adjusted = Math.max(1, Math.min(20, roll + total));
+  const result = REACTION_RESULTS.find(r => adjusted >= r.min && adjusted <= r.max) || REACTION_RESULTS[3];
+  const el = document.getElementById('rxResult');
+  if (el) el.innerHTML = `
+    <div style="text-align:center;margin-bottom:10px">
+      <div style="font-size:11px;color:#4a5272">d20(${roll}) ${total>=0?'+':''}${total} = ${adjusted}</div>
+      <div style="font-size:26px;margin:4px 0">${result.icon}</div>
+      <div style="font-size:18px;font-weight:700;color:${result.color};font-family:'Cinzel',serif">${result.label}</div>
+    </div>
+    <div style="font-size:11px;color:#9098b8;line-height:1.5;margin-bottom:8px">${escHtml(result.desc)}</div>
+    <div style="font-size:11px;color:${result.color};font-style:italic;background:${result.color}10;border-left:3px solid ${result.color};padding:6px 10px;border-radius:0 6px 6px 0">"${escHtml(result.rp)}"</div>
+    <button onclick="logEntry('note','🤝 NPC Reaction: ${result.label} (${adjusted}) — ${escHtml(result.desc.replace(/'/g,\\'\\'')).substring(0,60)}');showToast('Logged','${result.color}')" style="margin-top:8px;background:rgba(0,0,0,0.3);border:1px solid #2a2040;color:#6a5aaa;border-radius:5px;padding:4px 10px;cursor:pointer;font-size:10px">📋 Log</button>`;
+}
+
+// Add Reaction Table button
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'NPC Reaction Table — roll for first impressions with situational modifiers';
+    btn.style.cssText = 'border-color:#44aacc;color:#44aacc';
+    btn.textContent = '🤝 Reaction';
+    btn.onclick = openReactionTable;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
