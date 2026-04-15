@@ -13596,22 +13596,46 @@ function inferDamageDefenses(c) {
   const crNum = parseFloat(c.cr || '1');
   if (crNum >= 20 && !immunities.includes('poison')) immunities.push('poison');
 
-  return { resistances, immunities, vulnerabilities };
+  // Condition immunities — parse from text
+  const COND_IMMUNE_LIST = ['charmed','exhaustion','frightened','grappled','incapacitated','invisible',
+    'paralyzed','petrified','poisoned','prone','restrained','stunned','unconscious','blinded','deafened'];
+  const condImmunities = COND_IMMUNE_LIST.filter(cond =>
+    text.includes(`immune to ${cond}`) || text.includes(`immunity to ${cond}`) ||
+    text.includes(`cannot be ${cond}`) || text.includes(`can't be ${cond}`) ||
+    text.includes(`condition immunity: ${cond}`)
+  );
+  // Undead and constructs are typically immune to several conditions
+  if (/\bundead\b|\bskeleton\b|\bzombie\b|\blich\b|\bwight\b/.test(text)) {
+    ['charmed','exhaustion','frightened','poisoned'].forEach(cd => { if (!condImmunities.includes(cd)) condImmunities.push(cd); });
+  }
+  if (/\bconstruct\b|\bgolem\b|\bautomaton\b/.test(text)) {
+    ['charmed','exhaustion','frightened','paralyzed','petrified','poisoned'].forEach(cd => { if (!condImmunities.includes(cd)) condImmunities.push(cd); });
+  }
+
+  return { resistances, immunities, vulnerabilities, condImmunities };
 }
 function buildDamageDefenseSection(c) {
-  const { resistances, immunities, vulnerabilities } = inferDamageDefenses(c);
-  if (!resistances.length && !immunities.length && !vulnerabilities.length) return '';
+  const { resistances, immunities, vulnerabilities, condImmunities } = inferDamageDefenses(c);
+  if (!resistances.length && !immunities.length && !vulnerabilities.length && !condImmunities.length) return '';
+  const COND_ICONS = { charmed:'💕', exhaustion:'😴', frightened:'😱', grappled:'🤝', incapacitated:'💫',
+    invisible:'👻', paralyzed:'⚡', petrified:'🗿', poisoned:'☠', prone:'↓', restrained:'⛓',
+    stunned:'⭐', unconscious:'💤', blinded:'🙈', deafened:'🙉' };
   const chip = (dmg, type) => {
     const col = type === 'immune' ? '#888' : type === 'resist' ? DMG_COLORS[dmg]||'#9098b8' : '#cc4444';
     const bg = type === 'immune' ? 'rgba(100,100,100,0.15)' : type === 'resist' ? `${DMG_COLORS[dmg]||'#666'}22` : 'rgba(200,50,50,0.15)';
     const icon = DMG_ICONS[dmg] || '•';
     return `<span title="${type.toUpperCase()}: ${dmg}" style="display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;border:1px solid ${col}44;background:${bg};color:${col};font-size:10px;margin:2px">${icon} ${dmg}</span>`;
   };
+  const condChip = (cond) => {
+    const icon = COND_ICONS[cond] || '🚫';
+    return `<span title="CONDITION IMMUNE: ${cond}" style="display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;border:1px solid rgba(100,200,100,.25);background:rgba(100,200,100,.07);color:#64c864;font-size:10px;margin:2px">${icon} ${cond}</span>`;
+  };
   return `<div class="stats-section">
     <div class="stats-section-title">🛡 Damage Defenses</div>
-    ${immunities.length ? `<div style="margin-bottom:6px"><span style="font-size:9px;color:#888;letter-spacing:1px">IMMUNE </span>${immunities.map(d => chip(d,'immune')).join('')}</div>` : ''}
+    ${immunities.length ? `<div style="margin-bottom:6px"><span style="font-size:9px;color:#888;letter-spacing:1px">DMG IMMUNE </span>${immunities.map(d => chip(d,'immune')).join('')}</div>` : ''}
     ${resistances.length ? `<div style="margin-bottom:6px"><span style="font-size:9px;color:#4488ff;letter-spacing:1px">RESIST </span>${resistances.map(d => chip(d,'resist')).join('')}</div>` : ''}
-    ${vulnerabilities.length ? `<div><span style="font-size:9px;color:#cc4444;letter-spacing:1px">VULNER </span>${vulnerabilities.map(d => chip(d,'vuln')).join('')}</div>` : ''}
+    ${vulnerabilities.length ? `<div style="margin-bottom:6px"><span style="font-size:9px;color:#cc4444;letter-spacing:1px">VULNER </span>${vulnerabilities.map(d => chip(d,'vuln')).join('')}</div>` : ''}
+    ${condImmunities.length ? `<div><span style="font-size:9px;color:#64c864;letter-spacing:1px">COND IMMUNE </span>${condImmunities.map(condChip).join('')}</div>` : ''}
   </div>`;
 }
 
