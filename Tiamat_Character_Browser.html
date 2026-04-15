@@ -3783,6 +3783,7 @@
   <button class="filter-btn" onclick="openClassFeatures()" style="border-color:#dd8822;color:#dd8822;" title="Class Features Reference — key features for all 12 classes by level">📖 Classes</button>
   <button class="filter-btn" onclick="openRaceRef()" style="border-color:#44aacc;color:#44aacc;" title="Race Features Reference — traits for all PHB races">🧝 Races</button>
   <button class="filter-btn" onclick="openRoomGen()" style="border-color:#aa7744;color:#aa7744;" title="Dungeon Room Generator — instant room descriptions for improvised dungeon crawling">🏰 Room</button>
+  <button class="filter-btn" onclick="openSpellSlotRef()" style="border-color:#9b6dff;color:#9b6dff;" title="Spell Slot Reference — spell slots per level for all caster types">✨ Slots Ref</button>
   <button class="filter-btn" onclick="printPartySheet()" style="border-color:#4488ff;color:#4488ff;" title="Print Party Sheet — all party members on one printable page">🖨 Party Sheet</button>
   <button class="filter-btn" onclick="openWorldMap()" style="border-color:#44cc88;color:#44cc88;" title="World Map — pin characters to the Tiamat campaign map (hotkey: M)">🗺 World Map</button>
   <span style="color: #333; margin: 0 4px;">|</span>
@@ -25447,6 +25448,132 @@ function _rollRoom() {
       <button onclick="logEntry('note','🏰 Room: ${escHtml(boxedText.substring(0,80))}…')" style="background:rgba(68,136,255,0.08);border:1px solid rgba(68,136,255,0.25);color:#4488ff88;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:11px">📋 Log</button>
       <button onclick="navigator.clipboard?.writeText(${JSON.stringify(boxedText)}).then(()=>showToast('Copied!','#aa7744'))" style="background:rgba(68,204,136,0.08);border:1px solid rgba(68,204,136,0.25);color:#44cc8888;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:11px">📋 Copy</button>
     </div>`;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 158: Spell Slot Reference Table — shows spell slots for full casters,
+//   half casters, and Warlock pact magic for every level 1–20. The single
+//   most-referenced table for DMing spellcaster NPCs.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// [1st,2nd,3rd,4th,5th,6th,7th,8th,9th]
+const FULL_CASTER_SLOTS = [
+  [2,0,0,0,0,0,0,0,0],  // 1
+  [3,0,0,0,0,0,0,0,0],  // 2
+  [4,2,0,0,0,0,0,0,0],  // 3
+  [4,3,0,0,0,0,0,0,0],  // 4
+  [4,3,2,0,0,0,0,0,0],  // 5
+  [4,3,3,0,0,0,0,0,0],  // 6
+  [4,3,3,1,0,0,0,0,0],  // 7
+  [4,3,3,2,0,0,0,0,0],  // 8
+  [4,3,3,3,1,0,0,0,0],  // 9
+  [4,3,3,3,2,0,0,0,0],  // 10
+  [4,3,3,3,2,1,0,0,0],  // 11
+  [4,3,3,3,2,1,0,0,0],  // 12
+  [4,3,3,3,2,1,1,0,0],  // 13
+  [4,3,3,3,2,1,1,0,0],  // 14
+  [4,3,3,3,2,1,1,1,0],  // 15
+  [4,3,3,3,2,1,1,1,0],  // 16
+  [4,3,3,3,2,1,1,1,1],  // 17
+  [4,3,3,3,3,1,1,1,1],  // 18
+  [4,3,3,3,3,2,1,1,1],  // 19
+  [4,3,3,3,3,2,2,1,1],  // 20
+];
+const HALF_CASTER_SLOTS = [
+  [0,0,0,0,0,0,0,0,0],  // 1
+  [2,0,0,0,0,0,0,0,0],  // 2
+  [3,0,0,0,0,0,0,0,0],  // 3
+  [3,0,0,0,0,0,0,0,0],  // 4
+  [4,2,0,0,0,0,0,0,0],  // 5
+  [4,2,0,0,0,0,0,0,0],  // 6
+  [4,3,0,0,0,0,0,0,0],  // 7
+  [4,3,0,0,0,0,0,0,0],  // 8
+  [4,3,2,0,0,0,0,0,0],  // 9
+  [4,3,2,0,0,0,0,0,0],  // 10
+  [4,3,3,0,0,0,0,0,0],  // 11
+  [4,3,3,0,0,0,0,0,0],  // 12
+  [4,3,3,1,0,0,0,0,0],  // 13
+  [4,3,3,1,0,0,0,0,0],  // 14
+  [4,3,3,2,0,0,0,0,0],  // 15
+  [4,3,3,2,0,0,0,0,0],  // 16
+  [4,3,3,3,1,0,0,0,0],  // 17
+  [4,3,3,3,1,0,0,0,0],  // 18
+  [4,3,3,3,2,0,0,0,0],  // 19
+  [4,3,3,3,2,0,0,0,0],  // 20
+];
+// Warlock: [slots, slot level]
+const WARLOCK_SLOTS = [
+  [1,1],[2,1],[2,2],[2,2],[2,3],[2,3],[2,4],[2,4],[2,5],[2,5],
+  [3,5],[3,5],[3,5],[3,5],[3,5],[3,5],[4,5],[4,5],[4,5],[4,5],
+];
+
+function openSpellSlotRef() {
+  const ex = document.getElementById('spellSlotRefOv');
+  if (ex) { ex.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'spellSlotRefOv';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9100;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto';
+  const thStyle = 'padding:5px 8px;font-size:10px;color:#9b6dff;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid rgba(155,109,255,0.3);white-space:nowrap';
+  const tdBase = 'padding:4px 8px;font-size:11px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.04)';
+
+  const slotRow = (slots, lv) => slots.map((n,i) => {
+    const highest = slots.findIndex(x=>x>0);
+    const isNew = lv>=2 && FULL_CASTER_SLOTS[lv-2][i] !== n;
+    return `<td style="${tdBase};color:${n===0?'#2a2040':isNew?'#c9a227':'#8898b8'};font-weight:${n>0?'600':'400'}">${n||'—'}</td>`;
+  }).join('');
+  const wlRow = (w) => `<td colspan="5" style="${tdBase};color:#6644bb;text-align:left;padding-left:16px">${w[0]} slot${w[0]>1?'s':''} of level ${w[1]} (short rest)</td><td colspan="4" style="${tdBase}"></td>`;
+
+  const lvColor = lv => lv>=17?'#c9a227':lv>=11?'#cc3333':lv>=5?'#4488ff':'#4a5272';
+
+  ov.innerHTML = `
+    <div style="background:linear-gradient(160deg,#0a0516,#11082a);border:1px solid rgba(155,109,255,0.4);border-radius:14px;width:820px;max-width:100%;padding:20px;color:#c8d0e8;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="font-size:17px;font-weight:700;font-family:'Cinzel',serif;color:#9b6dff">✨ Spell Slot Reference</div>
+        <button onclick="document.getElementById('spellSlotRefOv').remove()" style="background:none;border:1px solid #2a1040;color:#9b6dff;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <!-- Full Casters -->
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#9b6dff;margin-bottom:8px;font-family:'Cinzel',serif">Full Casters</div>
+          <div style="font-size:10px;color:#4a5272;margin-bottom:8px">Wizard · Cleric · Druid · Bard · Sorcerer</div>
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr>
+              <th style="${thStyle};text-align:left">Lv</th>
+              ${['1','2','3','4','5','6','7','8','9'].map(n=>`<th style="${thStyle}">${n}${['st','nd','rd','th','th','th','th','th','th'][+n-1]}</th>`).join('')}
+            </tr></thead>
+            <tbody>${FULL_CASTER_SLOTS.map((slots,i) => `<tr style="background:${(i+1)%5===0?'rgba(155,109,255,0.03)':''}">
+              <td style="${tdBase};color:${lvColor(i+1)};font-weight:700;text-align:left">${i+1}</td>
+              ${slotRow(slots,i+1)}
+            </tr>`).join('')}</tbody>
+          </table>
+        </div>
+        <!-- Half Casters + Warlock -->
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#cc3333;margin-bottom:8px;font-family:'Cinzel',serif">Half Casters</div>
+          <div style="font-size:10px;color:#4a5272;margin-bottom:8px">Paladin · Ranger (start at level 2/3)</div>
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr>
+              <th style="${thStyle};text-align:left">Lv</th>
+              ${['1','2','3','4','5','6','7','8','9'].map(n=>`<th style="${thStyle}">${n}${['st','nd','rd','th','th','th','th','th','th'][+n-1]}</th>`).join('')}
+            </tr></thead>
+            <tbody>${HALF_CASTER_SLOTS.map((slots,i) => `<tr>
+              <td style="${tdBase};color:${lvColor(i+1)};font-weight:700;text-align:left">${i+1}</td>
+              ${slotRow(slots,i+1)}
+            </tr>`).join('')}</tbody>
+          </table>
+          <div style="margin-top:14px">
+            <div style="font-size:12px;font-weight:700;color:#6644bb;margin-bottom:6px;font-family:'Cinzel',serif">Warlock — Pact Magic</div>
+            <div style="font-size:10px;color:#4a5272;margin-bottom:8px">All slots regain on short rest. Always highest slot level.</div>
+            <table style="width:100%;border-collapse:collapse">
+              <thead><tr><th style="${thStyle};text-align:left">Lv</th><th style="${thStyle}" colspan="9">Slots</th></tr></thead>
+              <tbody>${WARLOCK_SLOTS.map((w,i) => `<tr><td style="${tdBase};color:${lvColor(i+1)};font-weight:700;text-align:left">${i+1}</td>${wlRow(w)}</tr>`).join('')}</tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:10px;font-size:10px;color:#4a5272;text-align:center">Gold = new slot unlocked this level. PHB tables.</div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
 }
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
