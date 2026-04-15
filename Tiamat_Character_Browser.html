@@ -5202,7 +5202,7 @@ function renderGrid() {
             </div>
           </div>
           ${c.quote ? `<div class="card-quote">"${c.quote}"</div>` : ''}
-          <div class="conditions-row" onclick="event.stopPropagation()">${getInspirationBadgeHtml(c.name)}${getExhaustionBadgeHtml(c.name)}${getConditionBadgesHtml(c.name)}${getConcBadgeHtml(c.name)}${getTagBadgesHtml(c.name)}</div>
+          <div class="conditions-row" onclick="event.stopPropagation()">${getInspirationBadgeHtml(c.name)}${getExhaustionBadgeHtml(c.name)}${getConditionBadgesHtml(c.name)}${getConcBadgeHtml(c.name)}${getTagBadgesHtml(c.name)}${getCardDmgBadgesHtml(c)}</div>
           <div style="display:flex;gap:8px;align-items:center;margin-top:3px" onclick="event.stopPropagation()">
             <button class="card-cond-btn ${hasConditions(c.name)?'has-conds':''}" onclick="openCondPopup(${JSON.stringify(c.name)},event)">⚡ ${hasConditions(c.name)?'Conds':'Condition'}</button>
             <button class="card-enc-btn ${isInActiveEncounter(c.name)?'in-enc':''}" onclick="addCharToActiveEncounter(${JSON.stringify(c.name)},${maxHp})">☩ ${isInActiveEncounter(c.name)?'In Enc':'Encounter'}</button>
@@ -10035,6 +10035,37 @@ function clearTagFilter(dropdown) {
 const DMG_TYPES = ['fire','cold','lightning','thunder','poison','acid','necrotic','radiant','psychic','force','bludgeoning','piercing','slashing','nonmagical'];
 const DMG_ICONS = { fire:'🔥',cold:'❄',lightning:'⚡',thunder:'🌩',poison:'☠',acid:'🧪',necrotic:'💀',radiant:'✨',psychic:'🧠',force:'💥',bludgeoning:'🔨',piercing:'🗡',slashing:'⚔',nonmagical:'⚔' };
 const DMG_COLORS = { fire:'#cc4422',cold:'#4499cc',lightning:'#cccc22',thunder:'#9966cc',poison:'#44aa22',acid:'#88aa00',necrotic:'#666',radiant:'#ccaa22',psychic:'#aa44cc',force:'#4488ff',bludgeoning:'#887755',piercing:'#aa7755',slashing:'#994444',nonmagical:'#555' };
+
+// Manual damage defense overrides (stored per character)
+const DMG_OVERRIDE_KEY = 'tiamat_dmg_overrides';
+function loadDmgOverrides() { try{return JSON.parse(localStorage.getItem(DMG_OVERRIDE_KEY))||{};}catch{return{};} }
+function saveDmgOverrides(d){localStorage.setItem(DMG_OVERRIDE_KEY,JSON.stringify(d));}
+function setDmgOverride(name,dtype,state){
+  const d=loadDmgOverrides(); if(!d[name]) d[name]={};
+  if(!state) delete d[name][dtype]; else d[name][dtype]=state;
+  if(!Object.keys(d[name]||{}).length) delete d[name];
+  saveDmgOverrides(d);
+}
+function getDmgOverrides(name){return loadDmgOverrides()[name]||{};}
+
+function getCardDmgBadgesHtml(char) {
+  const {resistances,immunities,vulnerabilities}=inferDamageDefenses(char);
+  const overrides=getDmgOverrides(char.name);
+  // Merge: overrides win
+  const allR=new Set([...resistances,...Object.keys(overrides).filter(k=>overrides[k]==='resist')]);
+  const allI=new Set([...immunities,...Object.keys(overrides).filter(k=>overrides[k]==='immune')]);
+  const allV=new Set([...vulnerabilities,...Object.keys(overrides).filter(k=>overrides[k]==='vuln')]);
+  // Remove if manually cleared
+  Object.keys(overrides).forEach(k=>{if(overrides[k]===null){allR.delete(k);allI.delete(k);allV.delete(k);}});
+  if(!allR.size&&!allI.size&&!allV.size) return '';
+  const mkBadge=(dmg,type)=>{
+    const icon=DMG_ICONS[dmg]||'◆',shortLabel=type==='immune'?'◆':type==='resist'?'½':'2×';
+    const col=type==='immune'?'#888':type==='resist'?(DMG_COLORS[dmg]||'#9098b8'):'#cc4444';
+    const bg=type==='immune'?'rgba(80,80,80,0.3)':type==='resist'?`${DMG_COLORS[dmg]||'#555'}25`:'rgba(200,50,50,0.25)';
+    return `<span style="display:inline-flex;align-items:center;gap:2px;font-size:9px;padding:1px 5px;border-radius:8px;border:1px solid ${col}55;background:${bg};color:${col};cursor:default;margin:1px" title="${type.toUpperCase()}: ${dmg}">${icon} ${shortLabel}</span>`;
+  };
+  return [...allI].map(d=>mkBadge(d,'immune')).join('')+[...allR].map(d=>mkBadge(d,'resist')).join('')+[...allV].map(d=>mkBadge(d,'vuln')).join('');
+}
 
 function inferDamageDefenses(c) {
   const text = ((c.traits || []).join(' ') + ' ' + (c.lore || '') + ' ' + (c.subtitle || '')).toLowerCase();
