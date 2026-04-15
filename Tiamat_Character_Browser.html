@@ -28323,6 +28323,133 @@ function _hookRoll() {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 178: Spellcaster Combat Card — per-character combat spell sheet
+// Shows spell attack bonus, save DC, all known spells grouped by level with roll buttons.
+
+function openCasterCard(charName) {
+  const ex = document.getElementById('casterCardOverlay');
+  if (ex) ex.remove();
+  const chars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+  const c = chars.find(x => x.name === charName);
+  if (!c) { showToast('Character not found', '#cc4444'); return; }
+
+  // Gather spells
+  const known = typeof getKnownSpells === 'function' ? getKnownSpells(c) : [];
+  const allSpells = (typeof inferSpells === 'function' ? inferSpells(c) : []);
+  const spellList = [...new Set([...known, ...allSpells])];
+
+  // Compute spell attack + save DC
+  const intMod = (() => { const a=(c.abilities||[]).find(a=>a[0]==='INT'); return a?Math.floor((a[1]-10)/2):0; })();
+  const wisMod = (() => { const a=(c.abilities||[]).find(a=>a[0]==='WIS'); return a?Math.floor((a[1]-10)/2):0; })();
+  const chaMod = (() => { const a=(c.abilities||[]).find(a=>a[0]==='CHA'); return a?Math.floor((a[1]-10)/2):0; })();
+  const lv = (() => { try { return JSON.parse(localStorage.getItem('tiamat_char_level')||'{}')[c.name]||1; } catch { return 1; } })();
+  const prof = typeof profByLevel === 'function' ? profByLevel(lv) : 3;
+
+  // Pick best caster mod
+  const title = (c.title||'').toLowerCase();
+  const castMod = title.match(/wizard|mage|sorcerer|artificer/) ? intMod : title.match(/cleric|druid|ranger|paladin/) ? wisMod : chaMod;
+  const spellAtk = prof + castMod;
+  const saveDC = 8 + prof + castMod;
+
+  // Group spells by level using SPELL_LIBRARY
+  const grouped = {};
+  spellList.forEach(name => {
+    const sl = typeof SPELL_LIBRARY !== 'undefined' ? SPELL_LIBRARY[name] : null;
+    const lv = sl ? sl.level : 99;
+    if (!grouped[lv]) grouped[lv] = [];
+    grouped[lv].push({ name, data: sl });
+  });
+  const FULL_COMP = typeof FULL_SPELLS !== 'undefined' ? FULL_SPELLS : [];
+  // Fill in from FULL_SPELLS too
+  spellList.forEach(name => {
+    const fs = FULL_COMP.find(s => s.name === name);
+    if (fs && !grouped[fs.level]?.find(e => e.name === name)) {
+      if (!grouped[fs.level]) grouped[fs.level] = [];
+      grouped[fs.level].push({ name, data: fs });
+    }
+  });
+
+  const ov = document.createElement('div');
+  ov.id = 'casterCardOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9200;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+
+  const levelSections = Object.entries(grouped).sort((a,b)=>parseInt(a[0])-parseInt(b[0])).map(([lv, spells]) => {
+    const lvLabel = lv == 0 ? 'Cantrips' : `Level ${lv}`;
+    return `<div style="margin-bottom:12px">
+      <div style="font-size:10px;color:#9b6dff;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:700">${lvLabel}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px">
+        ${spells.map(({name, data}) => {
+          const hasDmg = data?.dmg;
+          const hasAtk = data?.cast && !data.desc?.includes('save');
+          const hasSave = data?.desc?.toLowerCase().match(/str save|dex save|con save|int save|wis save|cha save/);
+          return `<div style="background:rgba(155,109,255,0.07);border:1px solid rgba(155,109,255,0.15);border-radius:8px;padding:8px">
+            <div style="font-size:11px;font-weight:700;color:#e0e0ff;margin-bottom:3px">${escHtml(name)}</div>
+            ${data ? `<div style="font-size:9px;color:#6a5aaa;margin-bottom:4px">${escHtml(data.cast||'')} · ${escHtml(data.range||'')}</div>` : ''}
+            <div style="display:flex;gap:4px;flex-wrap:wrap">
+              ${hasDmg ? `<button onclick="_rollSpellFromCard('${name.replace(/'/g,"\\'")}')" style="background:rgba(204,68,68,0.12);border:1px solid rgba(204,68,68,0.3);color:#cc6666;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:9px">🎲 ${escHtml(data.dmg)}</button>` : ''}
+              ${hasAtk ? `<button onclick="rollD20Log(${spellAtk},'${escHtml(name)} atk')" style="background:rgba(68,136,255,0.12);border:1px solid rgba(68,136,255,0.3);color:#4488ff;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:9px">+${spellAtk} atk</button>` : ''}
+              <span style="font-size:9px;color:#4a5272;padding:2px 4px;background:rgba(0,0,0,0.3);border-radius:4px">DC ${saveDC}</span>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+
+  ov.innerHTML = `
+    <div style="width:700px;max-width:100%;color:#c8d0e8;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;position:sticky;top:0;background:rgba(6,6,26,0.97);padding:12px 0;border-bottom:1px solid rgba(155,109,255,0.2);backdrop-filter:blur(4px)">
+        <div>
+          <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:700;color:#9b6dff">${escHtml(c.name)} — Spell Card</div>
+          <div style="font-size:11px;color:#6a5aaa;margin-top:2px">Spell Atk: <strong style="color:#4488ff">+${spellAtk}</strong> · Save DC: <strong style="color:#cc4444">${saveDC}</strong> · Prof: <strong style="color:#9b6dff">+${prof}</strong></div>
+        </div>
+        <button onclick="document.getElementById('casterCardOverlay').remove()" style="background:none;border:1px solid #2a2040;color:#6a5aaa;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px">✕</button>
+      </div>
+      ${Object.keys(grouped).length ? levelSections : '<div style="color:#4a5272;text-align:center;padding:30px;font-size:12px">No spells found for this character.</div>'}
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+function _rollSpellFromCard(spellName) {
+  const sl = typeof SPELL_LIBRARY !== 'undefined' ? SPELL_LIBRARY[spellName] : null;
+  const fs = typeof FULL_SPELLS !== 'undefined' ? FULL_SPELLS.find(s=>s.name===spellName) : null;
+  const dmgExpr = sl?.dmg || fs?.dmg || '1d8';
+  if (typeof rollDice === 'function') {
+    const result = rollDice(dmgExpr);
+    logEntry('roll', `${escHtml(spellName)}: ${dmgExpr} = <strong>${result}</strong>`);
+    showToast(`${spellName}: ${result}`, '#9b6dff');
+  }
+}
+
+function rollD20Log(bonus, label) {
+  const roll = Math.floor(Math.random() * 20) + 1;
+  const total = roll + bonus;
+  logEntry('roll', `${escHtml(label)}: d20(${roll})${bonus>=0?'+':''}${bonus} = <strong>${total}</strong>${roll===20?' ★ CRIT':roll===1?' ☠ FUMBLE':''}`);
+  showToast(`${label}: ${total}${roll===20?' ★':roll===1?' ☠':''}`, '#9b6dff');
+}
+
+// Add Caster Card to character cards via context menu / stats tab
+// (accessed via: filterGroup buttons show a "Spell Card" button on caster characters)
+// Also add as a standalone button in filter row
+(function() {
+  const allBtns = document.querySelectorAll('.filter-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.title = 'Caster Combat Card — per-character spell card with attack bonus, save DC, roll buttons';
+    btn.style.cssText = 'border-color:#9b6dff;color:#9b6dff';
+    btn.textContent = '✨ Caster Card';
+    btn.onclick = () => {
+      const name = prompt('Enter caster name for spell card:');
+      if (name) openCasterCard(name.trim());
+    };
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
