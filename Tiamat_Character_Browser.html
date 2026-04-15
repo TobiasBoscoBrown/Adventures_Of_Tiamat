@@ -26443,6 +26443,113 @@ function _cfRenderTable() {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 164: Session Quick Facts Board — pin important session facts during play
+// Sticky-note style panel: quick add, color tags, persist in localStorage.
+
+const FACTS_KEY = 'tiamat_quick_facts';
+const FACT_COLORS = [
+  { id:'gold', label:'Gold', bg:'rgba(201,162,39,0.15)', border:'rgba(201,162,39,0.4)', text:'#c9a227' },
+  { id:'red',  label:'Red',  bg:'rgba(204,68,68,0.15)', border:'rgba(204,68,68,0.4)',  text:'#cc4444' },
+  { id:'blue', label:'Blue', bg:'rgba(68,136,255,0.15)',border:'rgba(68,136,255,0.4)', text:'#4488ff' },
+  { id:'green',label:'Green',bg:'rgba(68,170,68,0.15)', border:'rgba(68,170,68,0.4)', text:'#44aa44' },
+  { id:'purple',label:'Purple',bg:'rgba(155,109,255,0.15)',border:'rgba(155,109,255,0.4)',text:'#9b6dff' },
+];
+
+function _loadFacts() { try { return JSON.parse(localStorage.getItem(FACTS_KEY)||'[]'); } catch { return []; } }
+function _saveFacts(arr) { localStorage.setItem(FACTS_KEY, JSON.stringify(arr)); }
+
+function openQuickFacts() {
+  const ex = document.getElementById('quickFactsOverlay');
+  if (ex) { ex.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'quickFactsOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9200;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+  ov.innerHTML = `
+    <div style="width:700px;max-width:100%;color:#c8d0e8;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;position:sticky;top:0;background:rgba(6,6,26,0.97);padding:12px 0;border-bottom:1px solid rgba(201,162,39,0.2);backdrop-filter:blur(4px);z-index:10">
+        <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:700;color:#c9a227">📌 Quick Facts Board</div>
+        <div style="display:flex;gap:8px">
+          <button onclick="_factClearAll()" style="background:rgba(204,68,68,0.1);border:1px solid rgba(204,68,68,0.3);color:#cc4444;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px" title="Clear all facts">🗑 Clear All</button>
+          <button onclick="document.getElementById('quickFactsOverlay').remove()" style="background:none;border:1px solid #2a2040;color:#6a5aaa;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px">✕</button>
+        </div>
+      </div>
+      <!-- Add new fact -->
+      <div style="background:rgba(0,0,0,0.4);border:1px solid rgba(201,162,39,0.2);border-radius:10px;padding:14px;margin-bottom:16px">
+        <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap">
+          <textarea id="factInput" placeholder="Quick fact — e.g. 'The vault code is 4477' or 'The mayor is bribed by the guild'" style="flex:1;min-width:200px;background:#0c0c20;border:1px solid #2a2050;color:#c8d0e8;border-radius:6px;padding:8px;font-size:12px;font-family:inherit;resize:vertical;min-height:48px;max-height:120px" onkeydown="if(event.key==='Enter'&&event.ctrlKey)_factAdd()"></textarea>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <select id="factColor" style="background:#0c0c20;border:1px solid #2a2050;color:#c8d0e8;border-radius:6px;padding:6px 8px;font-size:12px;cursor:pointer">
+              ${FACT_COLORS.map(c=>`<option value="${c.id}">${c.label}</option>`).join('')}
+            </select>
+            <button onclick="_factAdd()" style="background:rgba(201,162,39,0.15);border:1px solid rgba(201,162,39,0.5);color:#c9a227;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:700">📌 Pin (Ctrl+Enter)</button>
+          </div>
+        </div>
+      </div>
+      <!-- Facts grid -->
+      <div id="factsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;padding-bottom:40px"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _factRender();
+}
+
+function _factAdd() {
+  const text = (document.getElementById('factInput')?.value || '').trim();
+  if (!text) return;
+  const color = document.getElementById('factColor')?.value || 'gold';
+  const facts = _loadFacts();
+  facts.unshift({ id: Date.now(), text, color, ts: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) });
+  _saveFacts(facts);
+  if (document.getElementById('factInput')) document.getElementById('factInput').value = '';
+  _factRender();
+  showToast('Fact pinned!', '#c9a227');
+}
+
+function _factDelete(id) {
+  _saveFacts(_loadFacts().filter(f => f.id !== id));
+  _factRender();
+}
+
+function _factClearAll() {
+  if (!confirm('Clear all quick facts?')) return;
+  _saveFacts([]);
+  _factRender();
+}
+
+function _factRender() {
+  const el = document.getElementById('factsGrid');
+  if (!el) return;
+  const facts = _loadFacts();
+  if (!facts.length) {
+    el.innerHTML = '<div style="color:#4a5272;font-size:12px;grid-column:1/-1;text-align:center;padding:20px">No facts pinned yet. Add one above!</div>';
+    return;
+  }
+  el.innerHTML = facts.map(f => {
+    const col = FACT_COLORS.find(c => c.id === f.color) || FACT_COLORS[0];
+    return `<div style="background:${col.bg};border:1px solid ${col.border};border-radius:10px;padding:12px;position:relative;word-break:break-word">
+      <button onclick="_factDelete(${f.id})" style="position:absolute;top:6px;right:6px;background:none;border:none;color:#4a5272;cursor:pointer;font-size:14px;line-height:1;padding:2px" title="Remove">×</button>
+      <div style="font-size:12px;color:${col.text};line-height:1.5;padding-right:18px">${escHtml(f.text)}</div>
+      <div style="font-size:9px;color:#4a5272;margin-top:6px">${f.ts || ''}</div>
+    </div>`;
+  }).join('');
+}
+
+// Add Quick Facts button to encounter-open-btn row
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'Quick Facts Board — pin session facts and secrets during play';
+    btn.style.cssText = 'border-color:#c9a227;color:#c9a227';
+    btn.textContent = '📌 Facts';
+    btn.onclick = openQuickFacts;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
