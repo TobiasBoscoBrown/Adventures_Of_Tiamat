@@ -5801,6 +5801,7 @@ function buildStatsPanel(c) {
     ${buildHitDiceSection(c)}
     ${buildDamageDefenseSection(c)}
     ${buildHpSparkline(c)}
+    ${buildConcentrationSection(c)}
     ${buildSpeedSection(c)}
     <div class="stats-section">
       <div class="stats-section-title">Ability Scores <span style="font-size:10px;color:#4a5272;font-weight:400;font-family:'Inter',sans-serif">— click to roll</span></div>
@@ -8408,6 +8409,93 @@ function clearLog() {
   sessionLog = [];
   saveSessionLog();
   renderLog();
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 94: Concentration Spell Tracker — track which
+//   spell each character is concentrating on. Shown in modal
+//   and initiative tracker. Breaking breaks concentration.
+// ══════════════════════════════════════════════════════════
+const CONCENTRATION_KEY = 'tiamat_concentration';
+
+function getConcentration(charName) {
+  try {
+    const all = JSON.parse(localStorage.getItem(CONCENTRATION_KEY) || '{}');
+    return all[charName] || null;
+  } catch { return null; }
+}
+function setConcentration(charName, spellName) {
+  try {
+    const all = JSON.parse(localStorage.getItem(CONCENTRATION_KEY) || '{}');
+    if (spellName) all[charName] = spellName;
+    else delete all[charName];
+    localStorage.setItem(CONCENTRATION_KEY, JSON.stringify(all));
+  } catch {}
+}
+function breakConcentration(charName, evt) {
+  evt && evt.stopPropagation();
+  const spell = getConcentration(charName);
+  if (!spell) return;
+  setConcentration(charName, null);
+  if (typeof showToast === 'function') showToast(`${charName} broke concentration on ${spell}`, '#44aaff');
+  if (typeof logEntry === 'function') logEntry(`🔵 ${charName} broke concentration on <em>${spell}</em>`);
+  // Refresh initiative and modal
+  if (typeof renderInitiative === 'function') renderInitiative();
+  refreshConcentrationSection(charName);
+}
+
+function buildConcentrationSection(c) {
+  const spell = getConcentration(c.name);
+  const concSpells = (c.spells || []).filter(s => {
+    // Common concentration spells
+    const concNames = ['bless','bane','blur','calm emotions','confusion','dominate','entangle','fly','fog cloud','haste','hex','hold','hypnotic pattern','invisibility','moonbeam','polymorph','silence','slow','spiritual weapon','stoneskin','wall of fire'];
+    return concNames.some(n => s.toLowerCase().includes(n));
+  });
+  return `<div class="stats-section" id="concSection_${safeId(c.name)}">
+    <div class="stats-section-title">🔵 Concentration</div>
+    ${spell
+      ? `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;">
+          <span style="font-size:13px;font-weight:600;color:#44aaff;">${spell}</span>
+          <span style="font-size:11px;color:#9098b8;">active</span>
+          <button onclick="breakConcentration('${c.name.replace(/'/g,"\\'")}',event)" style="margin-left:auto;background:#0e1422;border:1px solid #cc3333;color:#cc3333;border-radius:5px;padding:3px 10px;cursor:pointer;font-size:11px;">✕ Break</button>
+        </div>`
+      : `<div style="color:#4a5272;font-size:12px;font-style:italic;margin-bottom:6px;">Not concentrating.</div>`
+    }
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
+      ${concSpells.map(s => `<button onclick="setCharConc('${c.name.replace(/'/g,"\\'")}','${s.replace(/'/g,"\\'")}',event)" style="background:${spell===s?'#44aaff22':'transparent'};border:1px solid ${spell===s?'#44aaff':'#2a3358'};color:${spell===s?'#44aaff':'#9098b8'};border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;">${s}</button>`).join('')}
+      <button onclick="promptConc('${c.name.replace(/'/g,"\\'")}',event)" style="background:transparent;border:1px dashed #2a3358;color:#4a5272;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;">+ Other</button>
+      ${spell ? `<button onclick="breakConcentration('${c.name.replace(/'/g,"\\'")}',event)" style="background:transparent;border:1px solid #cc333344;color:#cc3333;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;">✕ Clear</button>` : ''}
+    </div>
+  </div>`;
+}
+
+function setCharConc(charName, spellName, evt) {
+  evt && evt.stopPropagation();
+  const curr = getConcentration(charName);
+  if (curr === spellName) { breakConcentration(charName); return; }
+  if (curr) {
+    if (typeof showToast === 'function') showToast(`Dropped ${curr}, now concentrating on ${spellName}`, '#44aaff');
+    if (typeof logEntry === 'function') logEntry(`🔵 ${charName} switched concentration to <em>${spellName}</em>`);
+  } else {
+    if (typeof showToast === 'function') showToast(`${charName} concentrating on ${spellName}`, '#44aaff');
+    if (typeof logEntry === 'function') logEntry(`🔵 ${charName} began concentrating on <em>${spellName}</em>`);
+  }
+  setConcentration(charName, spellName);
+  if (typeof renderInitiative === 'function') renderInitiative();
+  refreshConcentrationSection(charName);
+}
+
+function promptConc(charName, evt) {
+  evt && evt.stopPropagation();
+  const spell = prompt(`Concentrating on which spell? (${charName})`);
+  if (spell && spell.trim()) setCharConc(charName, spell.trim(), evt);
+}
+
+function refreshConcentrationSection(charName) {
+  const el = document.getElementById('concSection_' + safeId(charName));
+  if (!el) return;
+  const c = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS.find(x => x.name === charName) : null;
+  if (c) el.outerHTML = buildConcentrationSection(c);
 }
 
 // ══════════════════════════════════════════════════════════
@@ -11697,6 +11785,7 @@ function renderInitiative() {
       <button class="init-remove-btn" onclick="removeFromInitiative(${JSON.stringify(e.name)})">✕</button>
       ${durBadges ? `<div style="width:100%;padding:0 8px 4px;display:flex;gap:3px;flex-wrap:wrap">${durBadges}</div>` : ''}
       ${(()=>{const legMax=getLegendaryMax(e.name);if(!legMax)return '';const legCur=getLegendaryCharges(e.name);const pips=Array.from({length:legMax},(_,i)=>`<span onclick="spendLegendaryAction(${JSON.stringify(e.name)})" title="Legendary Action — click to spend" style="cursor:pointer;display:inline-block;width:10px;height:10px;border-radius:50%;border:1px solid #c9a227;background:${i<legCur?'#c9a227':'transparent'};margin-right:2px"></span>`).join('');return `<div style="width:100%;padding:0 8px 4px;display:flex;align-items:center;gap:4px"><span style="font-size:9px;color:#c9a227;letter-spacing:.3px">LEG</span>${pips}</div>`;})()}
+      ${(()=>{const conc=getConcentration(e.name);if(!conc)return '';return `<div style="width:100%;padding:0 8px 4px;display:flex;align-items:center;gap:4px"><span style="font-size:9px;color:#44aaff;border:1px solid #44aaff55;border-radius:4px;padding:1px 5px;cursor:pointer;" onclick="breakConcentration(${JSON.stringify(e.name)})" title="Concentrating on ${conc} — click to break">🔵 ${conc}</span></div>`;})()}
     </div>`;
   };
 
