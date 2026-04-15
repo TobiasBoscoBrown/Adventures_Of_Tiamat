@@ -1770,6 +1770,30 @@
     box-shadow: 0 0 8px rgba(220,20,20,0.5);
   }
   .ex-pip:hover { border-color: #aa3333; }
+  /* Iteration 33: Currency Tracker */
+  .currency-section { margin: 8px 0; }
+  .currency-grid { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+  .currency-coin {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    background: #0a0a1e; border: 1px solid #1e2040; border-radius: 8px;
+    padding: 8px 12px; cursor: pointer; transition: all .15s; min-width: 58px;
+  }
+  .currency-coin:hover { border-color: var(--coin-color, #c9a227); box-shadow: 0 0 8px rgba(201,162,39,0.2); }
+  .currency-coin .coin-icon {
+    font-size: 18px; line-height: 1;
+  }
+  .currency-coin .coin-amount {
+    font-size: 16px; font-weight: 700; color: var(--coin-color, #c9a227); font-family: 'Cinzel', serif;
+  }
+  .currency-coin .coin-label {
+    font-size: 9px; color: #4a5272; letter-spacing: 1px; text-transform: uppercase;
+  }
+  .currency-total { font-size:11px; color:#7a7aaa; margin-top:6px; }
+  .currency-popup {
+    position: fixed; background: #0e0e24; border: 1px solid rgba(201,162,39,.5);
+    border-radius: 10px; padding: 14px; z-index: 9000;
+    box-shadow: 0 8px 32px rgba(0,0,0,.8); min-width: 220px;
+  }
   /* Concentration modal button */
   .conc-set-btn {
     background: rgba(201,162,39,0.1);
@@ -4878,6 +4902,7 @@ function buildStatsPanel(c) {
         <span class="stat-chip"><strong>Passive Perc</strong> ${passivePerc}</span>
       </div>
     </div>
+    ${buildCurrencySection(c.name)}
     ${buildSpeedSection(c)}
     <div class="stats-section">
       <div class="stats-section-title">Ability Scores <span style="font-size:10px;color:#4a5272;font-weight:400;font-family:'Inter',sans-serif">— click to roll</span></div>
@@ -8677,6 +8702,101 @@ function clearTagFilter(dropdown) {
   renderGrid();
 }
 // ────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// ITERATION 33: Currency Tracker — GP/SP/CP/EP/PP per
+//   character. Click any coin to open input popup. Total
+//   shown in gold equivalent. DnD Beyond equivalent + better.
+// ══════════════════════════════════════════════════════════
+const COINS = [
+  { key:'pp', label:'PP', name:'Platinum', icon:'🔵', color:'#a8c0d0', mult:10 },
+  { key:'gp', label:'GP', name:'Gold',     icon:'🟡', color:'#c9a227', mult:1  },
+  { key:'ep', label:'EP', name:'Electrum', icon:'🟢', color:'#88bbaa', mult:0.5},
+  { key:'sp', label:'SP', name:'Silver',   icon:'⚪', color:'#9098b8', mult:0.1},
+  { key:'cp', label:'CP', name:'Copper',   icon:'🟠', color:'#b87333', mult:0.01}
+];
+let currencyState = {};
+try { currencyState = JSON.parse(localStorage.getItem('tiamat_currency')) || {}; } catch { currencyState = {}; }
+function saveCurrency() { localStorage.setItem('tiamat_currency', JSON.stringify(currencyState)); }
+function getCoins(name) { return currencyState[name] || {pp:0,gp:0,ep:0,sp:0,cp:0}; }
+function setCoins(name, coins) {
+  currencyState[name] = coins;
+  saveCurrency();
+  if (currentModalIdx >= 0 && filteredChars[currentModalIdx]?.name === name) {
+    const c = filteredChars[currentModalIdx];
+    document.getElementById('statsPanel').innerHTML = buildStatsPanel(c);
+  }
+}
+function getTotalGP(name) {
+  const c = getCoins(name);
+  return c.pp*10 + c.gp*1 + c.ep*0.5 + c.sp*0.1 + c.cp*0.01;
+}
+function buildCurrencySection(name) {
+  const coins = getCoins(name);
+  const total = getTotalGP(name);
+  const hasAny = Object.values(coins).some(v => v > 0);
+  const coinHtml = COINS.map(co =>
+    `<div class="currency-coin" style="--coin-color:${co.color}" onclick="openCurrencyPopup(${JSON.stringify(name)},${JSON.stringify(co.key)},event)" title="Click to edit ${co.name}">
+      <div class="coin-icon">${co.icon}</div>
+      <div class="coin-amount" style="color:${co.color}">${(coins[co.key]||0).toLocaleString()}</div>
+      <div class="coin-label">${co.label}</div>
+    </div>`
+  ).join('');
+  return `<div class="stats-section currency-section">
+    <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>💰 Currency</span>
+      ${hasAny ? `<span class="currency-total">≈ ${total.toFixed(1)} GP total</span>` : ''}
+    </div>
+    <div class="currency-grid">${coinHtml}</div>
+  </div>`;
+}
+function openCurrencyPopup(name, coinKey, evt) {
+  evt.stopPropagation();
+  document.querySelectorAll('.currency-popup').forEach(p => p.remove());
+  const co = COINS.find(c => c.key === coinKey);
+  const coins = getCoins(name);
+  const popup = document.createElement('div');
+  popup.className = 'currency-popup';
+  popup.innerHTML = `
+    <div style="font-size:12px;color:#c9a227;font-weight:700;margin-bottom:10px;font-family:'Cinzel',serif">${co.icon} ${co.name} Pieces — ${name}</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+      <button onclick="adjustCoin(${JSON.stringify(name)},${JSON.stringify(coinKey)},-100)" style="background:#1e2040;border:1px solid #333;color:#9098b8;border-radius:4px;padding:4px 8px;cursor:pointer">-100</button>
+      <button onclick="adjustCoin(${JSON.stringify(name)},${JSON.stringify(coinKey)},-10)" style="background:#1e2040;border:1px solid #333;color:#9098b8;border-radius:4px;padding:4px 8px;cursor:pointer">-10</button>
+      <button onclick="adjustCoin(${JSON.stringify(name)},${JSON.stringify(coinKey)},-1)" style="background:#1e2040;border:1px solid #333;color:#9098b8;border-radius:4px;padding:4px 8px;cursor:pointer">-1</button>
+      <span id="coinVal_${coinKey}" style="font-size:20px;font-weight:700;color:${co.color};min-width:50px;text-align:center;font-family:'Cinzel',serif">${coins[coinKey]||0}</span>
+      <button onclick="adjustCoin(${JSON.stringify(name)},${JSON.stringify(coinKey)},1)" style="background:#1e2040;border:1px solid #333;color:#9098b8;border-radius:4px;padding:4px 8px;cursor:pointer">+1</button>
+      <button onclick="adjustCoin(${JSON.stringify(name)},${JSON.stringify(coinKey)},10)" style="background:#1e2040;border:1px solid #333;color:#9098b8;border-radius:4px;padding:4px 8px;cursor:pointer">+10</button>
+      <button onclick="adjustCoin(${JSON.stringify(name)},${JSON.stringify(coinKey)},100)" style="background:#1e2040;border:1px solid #333;color:#9098b8;border-radius:4px;padding:4px 8px;cursor:pointer">+100</button>
+    </div>
+    <div style="display:flex;gap:8px">
+      <input id="coinInput_${coinKey}" type="number" min="0" value="${coins[coinKey]||0}" style="flex:1;background:#0a0a1e;border:1px solid #4a5272;color:#e0e0ff;border-radius:6px;padding:6px 10px;font-size:14px">
+      <button onclick="setCoinDirect(${JSON.stringify(name)},${JSON.stringify(coinKey)})" style="background:rgba(201,162,39,0.15);border:1px solid rgba(201,162,39,0.5);color:#c9a227;border-radius:6px;padding:6px 12px;cursor:pointer">Set</button>
+    </div>`;
+  document.body.appendChild(popup);
+  // Position popup
+  const rect = evt.target.closest('.currency-coin').getBoundingClientRect();
+  popup.style.left = Math.min(rect.left, window.innerWidth - 340) + 'px';
+  popup.style.top = (rect.bottom + 4) + 'px';
+  popup.dataset.name = name; popup.dataset.key = coinKey;
+  setTimeout(() => document.addEventListener('click', function rem(e) { if (!popup.contains(e.target) && !e.target.closest('.currency-coin')) { popup.remove(); document.removeEventListener('click', rem); } }), 50);
+}
+function adjustCoin(name, key, delta) {
+  const coins = getCoins(name);
+  coins[key] = Math.max(0, (coins[key]||0) + delta);
+  setCoins(name, coins);
+  const el = document.getElementById('coinVal_' + key);
+  if (el) el.textContent = coins[key];
+  const inp = document.getElementById('coinInput_' + key);
+  if (inp) inp.value = coins[key];
+}
+function setCoinDirect(name, key) {
+  const inp = document.getElementById('coinInput_' + key);
+  if (!inp) return;
+  const coins = getCoins(name);
+  coins[key] = Math.max(0, parseInt(inp.value) || 0);
+  setCoins(name, coins);
+  document.querySelectorAll('.currency-popup').forEach(p => p.remove());
+}
+
 // ══════════════════════════════════════════════════════════
 // ITERATION 32: Exhaustion Tracker — 1-6 level system with
 //   D&D 5e effect descriptions per level. Shows as badge on
