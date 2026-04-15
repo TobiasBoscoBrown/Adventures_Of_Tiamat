@@ -28450,6 +28450,144 @@ function rollD20Log(bonus, label) {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 179: Session Achievement Badges — award roleplay/combat badges to characters
+// Celebrate great moments: clutch saves, best roleplay, most creative solutions.
+
+const ACHIEVEMENTS_KEY = 'tiamat_achievements';
+const PRESET_BADGES = [
+  { id:'clutch',    emoji:'⚡', label:'Clutch Save',        desc:'Made a critical save that changed the encounter.' },
+  { id:'mvp',       emoji:'🏆', label:'Session MVP',        desc:'Outstanding overall performance this session.' },
+  { id:'rp_star',   emoji:'🎭', label:'Roleplay Star',      desc:'Exceptional in-character roleplay.' },
+  { id:'big_hit',   emoji:'💥', label:'Big Hit',            desc:'Dealt massive damage in a single attack.' },
+  { id:'creative',  emoji:'💡', label:'Creative Solution',  desc:'Solved a problem in an unexpected way.' },
+  { id:'team_play', emoji:'🤝', label:'Team Player',        desc:'Enabled another character\'s great moment.' },
+  { id:'first_blood',emoji:'🗡','label':'First Blood',      desc:'Got the first kill of the encounter.' },
+  { id:'comeback',  emoji:'🔄', label:'Comeback Kid',       desc:'Survived near death and turned it around.' },
+  { id:'secret',    emoji:'🔍', label:'Secret Finder',      desc:'Discovered hidden info or a secret.' },
+  { id:'diplomat',  emoji:'🕊', label:'Peacemaker',         desc:'Resolved a conflict without combat.' },
+  { id:'overkill',  emoji:'💀', label:'Overkill',           desc:'Massive overkill on an enemy.' },
+  { id:'lucky',     emoji:'🍀', label:'Lucky Break',        desc:'An unlikely result saved the day.' },
+  { id:'nat20',     emoji:'⭐', label:'Natural 20',         desc:'Rolled a nat 20 at a critical moment.' },
+  { id:'funny',     emoji:'😂', label:'Best One-Liner',     desc:'Said something unforgettably funny.' },
+  { id:'custom',    emoji:'🎖', label:'Custom Badge',       desc:'DM custom achievement.' },
+];
+
+function _loadAchievements() { try { return JSON.parse(localStorage.getItem(ACHIEVEMENTS_KEY)||'{}'); } catch { return {}; } }
+function _saveAchievements(d) { localStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify(d)); }
+
+function openAchievements() {
+  const ex = document.getElementById('achievementsOverlay');
+  if (ex) { ex.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'achievementsOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9200;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+  const chars = (typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : []);
+  ov.innerHTML = `
+    <div style="width:720px;max-width:100%;color:#c8d0e8;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;position:sticky;top:0;background:rgba(6,6,26,0.97);padding:12px 0;border-bottom:1px solid rgba(201,162,39,0.25);backdrop-filter:blur(4px)">
+        <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:700;color:#c9a227">🏆 Session Achievements</div>
+        <button onclick="document.getElementById('achievementsOverlay').remove()" style="background:none;border:1px solid #2a2040;color:#6a5aaa;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px">✕</button>
+      </div>
+      <!-- Award panel -->
+      <div style="background:rgba(0,0,0,0.35);border:1px solid rgba(201,162,39,0.2);border-radius:12px;padding:16px;margin-bottom:16px">
+        <div style="font-size:11px;font-weight:700;color:#c9a227;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px">🎖 Award a Badge</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+          <div>
+            <div style="font-size:10px;color:#6a5aaa;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">Character</div>
+            <select id="achCharSel" style="width:100%;background:#0c0c20;border:1px solid #2a2050;color:#c8d0e8;border-radius:6px;padding:6px;font-size:12px;box-sizing:border-box">
+              <option value="">— Select Character —</option>
+              ${chars.map(c=>`<option value="${escHtml(c.name)}">${escHtml(c.name)}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <div style="font-size:10px;color:#6a5aaa;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">Badge</div>
+            <select id="achBadgeSel" style="width:100%;background:#0c0c20;border:1px solid #2a2050;color:#c8d0e8;border-radius:6px;padding:6px;font-size:12px;box-sizing:border-box">
+              ${PRESET_BADGES.map(b=>`<option value="${b.id}">${b.emoji} ${b.label}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div style="margin-bottom:10px">
+          <div style="font-size:10px;color:#6a5aaa;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">Reason (optional)</div>
+          <input id="achReason" placeholder="What happened? e.g. 'Rolled nat 20 to pick the lock under pressure'" style="width:100%;background:#0c0c20;border:1px solid #2a2050;color:#c8d0e8;border-radius:6px;padding:6px;font-size:11px;box-sizing:border-box">
+        </div>
+        <button onclick="_achAward()" style="background:rgba(201,162,39,0.15);border:1px solid rgba(201,162,39,0.5);color:#c9a227;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:13px;font-weight:700">🏆 Award Badge</button>
+      </div>
+      <!-- All achievements -->
+      <div id="achDisplay" style="padding-bottom:40px"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _achRender();
+}
+
+function _achAward() {
+  const charName = document.getElementById('achCharSel')?.value;
+  const badgeId = document.getElementById('achBadgeSel')?.value;
+  const reason = document.getElementById('achReason')?.value || '';
+  if (!charName) { showToast('Select a character', '#cc4444'); return; }
+  const badge = PRESET_BADGES.find(b => b.id === badgeId);
+  if (!badge) return;
+  const all = _loadAchievements();
+  if (!all[charName]) all[charName] = [];
+  all[charName].unshift({
+    badgeId, emoji: badge.emoji, label: badge.label,
+    reason, date: new Date().toLocaleDateString(),
+    id: Date.now()
+  });
+  _saveAchievements(all);
+  document.getElementById('achReason').value = '';
+  _achRender();
+  logEntry('note', `🏆 <strong>${escHtml(charName)}</strong> earned badge: ${badge.emoji} <strong>${escHtml(badge.label)}</strong>${reason?' — '+escHtml(reason.substring(0,60)):''}`);
+  showToast(`${badge.emoji} ${badge.label} awarded to ${charName}!`, '#c9a227');
+}
+
+function _achRender() {
+  const el = document.getElementById('achDisplay');
+  if (!el) return;
+  const all = _loadAchievements();
+  const chars = Object.keys(all).filter(n => all[n]?.length);
+  if (!chars.length) {
+    el.innerHTML = '<div style="color:#4a5272;text-align:center;padding:30px;font-size:13px">No badges awarded yet. Select a character and badge above!</div>';
+    return;
+  }
+  el.innerHTML = chars.map(name => {
+    const badges = all[name];
+    return `<div style="background:rgba(0,0,0,0.35);border:1px solid rgba(201,162,39,0.15);border-radius:12px;padding:14px;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:700;color:#e0e0ff;font-family:'Cinzel',serif;margin-bottom:10px">${escHtml(name)} <span style="font-size:11px;color:#c9a227">(${badges.length} badge${badges.length!==1?'s':''})</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${badges.map((b,i) => `
+          <div style="background:rgba(201,162,39,0.08);border:1px solid rgba(201,162,39,0.2);border-radius:8px;padding:6px 10px;position:relative;group" title="${escHtml(b.reason||b.label)} · ${b.date}">
+            <span style="font-size:16px">${b.emoji}</span>
+            <span style="font-size:11px;color:#c9a227;margin-left:4px;font-weight:600">${escHtml(b.label)}</span>
+            ${b.reason ? `<div style="font-size:9px;color:#6a7090;margin-top:2px">${escHtml(b.reason.substring(0,50))}</div>` : ''}
+            <button onclick="_achDelete('${name.replace(/'/g,"\\'")}',${i})" style="position:absolute;top:2px;right:4px;background:none;border:none;color:#3a3060;cursor:pointer;font-size:11px;line-height:1;padding:0" title="Remove">×</button>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function _achDelete(charName, idx) {
+  const all = _loadAchievements();
+  if (all[charName]) { all[charName].splice(idx, 1); if (!all[charName].length) delete all[charName]; _saveAchievements(all); _achRender(); }
+}
+
+// Add Achievements button
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'Session Achievements — award roleplay and combat badges to characters';
+    btn.style.cssText = 'border-color:#c9a227;color:#c9a227';
+    btn.textContent = '🏆 Badges';
+    btn.onclick = openAchievements;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
