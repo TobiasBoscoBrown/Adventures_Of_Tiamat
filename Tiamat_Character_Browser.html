@@ -3851,6 +3851,7 @@
   <div class="log-header">
     <div class="log-title">✦ Session Log</div>
     <div class="log-controls">
+      <button class="log-ctrl-btn" onclick="showSessionStats()" title="Session combat statistics">📊 Stats</button>
       <button class="log-ctrl-btn" onclick="exportLog()">⬇ Export</button>
       <button class="log-ctrl-btn" onclick="clearLog()">✕ Clear</button>
     </div>
@@ -7490,6 +7491,122 @@ function exportLog() {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `tiamat_session_${date}.txt`;
+  a.click();
+}
+
+function showSessionStats() {
+  // Build stats from hpLog
+  const stats = {};
+  let totalDmg = 0, totalHeal = 0;
+  UNIQUE_CHARS.forEach(c => {
+    const log = hpLog[c.name] || [];
+    let dmg = 0, heal = 0, timesHit = 0, timesHealed = 0;
+    log.forEach(e => {
+      if (e.type === 'dmg') { dmg += e.amount; timesHit++; totalDmg += e.amount; }
+      else if (e.type === 'heal' || e.type === 'full') { heal += e.amount; timesHealed++; totalHeal += e.amount; }
+    });
+    if (dmg > 0 || heal > 0) stats[c.name] = { dmg, heal, timesHit, timesHealed };
+  });
+
+  const sorted = Object.entries(stats).sort((a,b) => b[1].dmg - a[1].dmg);
+
+  // Remove existing stats panel
+  document.querySelectorAll('.session-stats-overlay').forEach(e => e.remove());
+
+  const overlay = document.createElement('div');
+  overlay.className = 'session-stats-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9998;display:flex;align-items:center;justify-content:center';
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+  const currentHpSummary = UNIQUE_CHARS.map(c => {
+    const max = parseInt(c.hp) || 1;
+    const curr = getCharHP(c.name, max);
+    const pct = Math.round((curr/max)*100);
+    const insp = hasInspiration(c.name) ? ' ⭐' : '';
+    return `${c.name}: ${curr}/${max} HP (${pct}%)${insp}`;
+  }).join('\n');
+
+  overlay.innerHTML = `<div style="background:linear-gradient(160deg,#07101a,#0c1620);border:1px solid rgba(201,162,39,0.3);border-radius:14px;padding:24px;max-width:560px;width:94%;max-height:80vh;overflow-y:auto;font-size:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-family:'Cinzel',serif;color:#c9a227;font-size:15px;font-weight:700;letter-spacing:1px">📊 SESSION STATISTICS</div>
+      <button onclick="this.closest('.session-stats-overlay').remove()" style="background:none;border:1px solid #2a2a50;color:#4a5272;border-radius:6px;padding:4px 10px;cursor:pointer">✕</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <div style="background:rgba(204,51,51,0.1);border:1px solid rgba(204,51,51,0.3);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:#cc5533;font-family:'Cinzel',serif">${totalDmg}</div>
+        <div style="color:#4a5272;font-size:10px;text-transform:uppercase;letter-spacing:1px">Total Damage Taken</div>
+      </div>
+      <div style="background:rgba(68,170,68,0.1);border:1px solid rgba(68,170,68,0.3);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:#44aa44;font-family:'Cinzel',serif">${totalHeal}</div>
+        <div style="color:#4a5272;font-size:10px;text-transform:uppercase;letter-spacing:1px">Total Healing Done</div>
+      </div>
+    </div>
+
+    ${sorted.length ? `<div style="font-size:10px;color:#c9a227;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">By Character</div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:16px">
+      <tr><th style="text-align:left;color:#4a5272;font-size:9px;text-transform:uppercase;padding:4px 6px;border-bottom:1px solid #1e2040">Character</th>
+          <th style="text-align:right;color:#cc5533;font-size:9px;text-transform:uppercase;padding:4px 6px;border-bottom:1px solid #1e2040">Dmg Taken</th>
+          <th style="text-align:right;color:#44aa44;font-size:9px;text-transform:uppercase;padding:4px 6px;border-bottom:1px solid #1e2040">Healed</th>
+          <th style="text-align:right;color:#4a5272;font-size:9px;text-transform:uppercase;padding:4px 6px;border-bottom:1px solid #1e2040">Hits</th></tr>
+      ${sorted.map(([name, s]) => `<tr>
+        <td style="padding:4px 6px;color:#e0e0ff;border-bottom:1px solid rgba(30,32,64,0.5)">${name}</td>
+        <td style="padding:4px 6px;text-align:right;color:#cc5533;border-bottom:1px solid rgba(30,32,64,0.5)">${s.dmg}</td>
+        <td style="padding:4px 6px;text-align:right;color:#44aa44;border-bottom:1px solid rgba(30,32,64,0.5)">${s.heal}</td>
+        <td style="padding:4px 6px;text-align:right;color:#4a5272;border-bottom:1px solid rgba(30,32,64,0.5)">${s.timesHit}×</td>
+      </tr>`).join('')}
+    </table>` : '<div style="color:#2a2a50;font-style:italic;margin-bottom:16px">No combat data this session yet</div>'}
+
+    <div style="font-size:10px;color:#c9a227;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Current Party Status</div>
+    <div style="background:#0a0a1a;border:1px solid #1e2040;border-radius:8px;padding:10px;font-size:11px;color:#9098b8;line-height:1.8">
+      ${UNIQUE_CHARS.map(c => {
+        const max = parseInt(c.hp)||1; const curr = getCharHP(c.name,max);
+        const pct = Math.round((curr/max)*100);
+        const color = curr === 0 ? '#cc3333' : pct >= 50 ? '#44aa44' : pct >= 25 ? '#dd8822' : '#cc3333';
+        const insp = (typeof hasInspiration==='function' && hasInspiration(c.name)) ? ' ⭐' : '';
+        const exlvl = (typeof getExhaustLevel==='function' && getExhaustLevel(c.name)>0) ? ` 💤L${getExhaustLevel(c.name)}` : '';
+        return `<span style="display:inline-block;margin:1px 4px"><span style="color:#f0e6d3">${c.name.split(' ')[0]}</span> <span style="color:${color}">${curr}/${max}</span>${insp}${exlvl}</span>`;
+      }).join('')}
+    </div>
+
+    <div style="margin-top:12px;text-align:right">
+      <button onclick="exportSessionSummary()" style="background:rgba(201,162,39,0.1);border:1px solid rgba(201,162,39,0.3);color:#c9a227;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:11px">⬇ Export Summary</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+}
+
+function exportSessionSummary() {
+  const lines = ['Adventures of Tiamat — Session Summary', new Date().toLocaleString(), '='.repeat(50), ''];
+  lines.push('PARTY STATUS');
+  UNIQUE_CHARS.forEach(c => {
+    const max = parseInt(c.hp)||1; const curr = getCharHP(c.name,max);
+    const insp = (typeof hasInspiration==='function' && hasInspiration(c.name)) ? ' [INSPIRED]' : '';
+    const exlvl = (typeof getExhaustLevel==='function' && getExhaustLevel(c.name)>0) ? ` [Exhaustion ${getExhaustLevel(c.name)}]` : '';
+    lines.push(`  ${c.name}: ${curr}/${max} HP${insp}${exlvl}`);
+  });
+  lines.push('', 'HP HISTORY (per character)');
+  UNIQUE_CHARS.forEach(c => {
+    const log = hpLog[c.name] || [];
+    if (log.length) {
+      lines.push(`  ${c.name}:`);
+      log.forEach(e => lines.push(`    [${e.ts}] ${e.type.toUpperCase()}: ${e.amount} (${e.beforeHp}→${e.afterHp}/${e.maxHp})`));
+    }
+  });
+  lines.push('', 'QUEST STATUS');
+  const quests = (typeof loadQuests === 'function') ? loadQuests() : [];
+  quests.forEach(q => lines.push(`  [${q.status.toUpperCase()}] ${q.name}`));
+  lines.push('', 'LOOT');
+  const loot = (typeof loadLoot === 'function') ? loadLoot() : { pp:0, gp:0, sp:0, cp:0, items:[] };
+  lines.push(`  Currency: ${loot.pp}pp ${loot.gp}gp ${loot.sp}sp ${loot.cp}cp`);
+  (loot.items||[]).forEach(item => lines.push(`  ${item.name} (${item.rarity})`));
+  lines.push('', 'SESSION LOG');
+  sessionLog.forEach(e => lines.push(`  [${e.ts}] ${e.msg.replace(/<[^>]*>/g,'')}`));
+
+  const blob = new Blob([lines.join('\n')], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `tiamat_session_summary_${new Date().toLocaleDateString().replace(/\//g,'-')}.txt`;
   a.click();
 }
 
