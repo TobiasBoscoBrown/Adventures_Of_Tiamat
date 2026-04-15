@@ -5802,6 +5802,7 @@ function buildStatsPanel(c) {
       <div id="spellSlotsFor_${safeId(c.name)}">${buildSpellSlotsHtml(c)}</div>
     </div>` : ''}
     ${buildSpellBook(c)}
+    ${buildHomebrewSpells(c)}
     ${buildSpellCombos(c)}
     <div class="stats-section">
       <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
@@ -9506,6 +9507,189 @@ const RULES_DB = [
   { cat:'Special', name:'Flanking (Variant)', text:'If using optional flanking rule: creatures on opposite sides of an enemy grant advantage on attack rolls against it.' },
   { cat:'Special', name:'Inspiration', text:'Roll with advantage on one attack, save, or check. Granted by DM for exceptional roleplay, heroism, or character consistency.' },
 ];
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 88: Homebrew Spell Creator — define custom spells,
+//   attach to individual characters, roll damage from modal.
+//   Spells stored in localStorage as tiamat_homebrew_spells.
+// ══════════════════════════════════════════════════════════
+const HB_SPELLS_KEY = 'tiamat_homebrew_spells';
+const HB_SPELL_SCHOOLS = ['Abjuration','Conjuration','Divination','Enchantment','Evocation','Illusion','Necromancy','Transmutation','Universal'];
+const HB_SPELL_LEVELS = ['Cantrip','1st','2nd','3rd','4th','5th','6th','7th','8th','9th'];
+
+function getHomebrewSpells() {
+  try { return JSON.parse(localStorage.getItem(HB_SPELLS_KEY) || '[]'); } catch { return []; }
+}
+function saveHomebrewSpells(arr) {
+  localStorage.setItem(HB_SPELLS_KEY, JSON.stringify(arr));
+}
+function getCharHomebrewSpells(charName) {
+  return getHomebrewSpells().filter(s => !s.assignedTo || s.assignedTo === charName || s.assignedTo === 'all');
+}
+
+function buildHomebrewSpells(c) {
+  const spells = getCharHomebrewSpells(c.name);
+  const spellRows = spells.map(s => {
+    const dmgBtn = s.damage ? `<button onclick="rollHbSpell('${s.id}','${c.name.replace(/'/g,"\\'")}',event)" style="background:#3a1a3a;border:1px solid #cc44cc;color:#cc44cc;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;margin-left:6px;">🎲 ${s.damage}</button>` : '';
+    return `<div style="display:flex;align-items:flex-start;gap:6px;padding:6px 0;border-bottom:1px solid #1e2744;">
+      <div style="flex:1;">
+        <div style="font-weight:600;color:#cc44cc;font-size:13px;">${s.name} <span style="font-size:10px;color:#9098b8;font-weight:400;">${s.level} · ${s.school}</span>${dmgBtn}</div>
+        <div style="font-size:11px;color:#9098b8;margin-top:2px;">${s.castingTime || '1 action'} · ${s.range || 'Self'} · ${s.duration || 'Instantaneous'}</div>
+        <div style="font-size:12px;color:#c8d0e8;margin-top:3px;">${s.description || ''}</div>
+      </div>
+      <button onclick="deleteHbSpell('${s.id}','${c.name.replace(/'/g,"\\'")}',event)" style="background:none;border:none;color:#cc3333;cursor:pointer;font-size:14px;padding:0 4px;flex-shrink:0;" title="Delete">🗑</button>
+    </div>`;
+  }).join('');
+  return `<div class="stats-section">
+    <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center;">
+      🪄 Homebrew Spells
+      <button onclick="openHbSpellCreator('${c.name.replace(/'/g,"\\'")}',event)" style="background:#3a1a3a;border:1px solid #cc44cc;color:#cc44cc;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:11px;">+ Add Spell</button>
+    </div>
+    ${spells.length ? `<div id="hbSpellList_${safeId(c.name)}">${spellRows}</div>` : `<div style="color:#4a5272;font-size:12px;font-style:italic;" id="hbSpellList_${safeId(c.name)}">No homebrew spells yet. Click + Add Spell to create one.</div>`}
+  </div>`;
+}
+
+function rollHbSpell(spellId, charName, evt) {
+  evt && evt.stopPropagation();
+  const spell = getHomebrewSpells().find(s => s.id === spellId);
+  if (!spell || !spell.damage) return;
+  const result = (typeof rollDiceExpr === 'function') ? rollDiceExpr(spell.damage) : null;
+  if (!result) return;
+  const msg = `🪄 ${charName} casts ${spell.name}: ${result.rolls.join('+')} = <b>${result.total}</b> ${spell.damageType || 'damage'}`;
+  if (typeof showToast === 'function') showToast(`${spell.name}: ${result.total} ${spell.damageType || 'damage'}`, '#cc44cc');
+  if (typeof logEntry === 'function') logEntry(msg);
+}
+
+function deleteHbSpell(spellId, charName, evt) {
+  evt && evt.stopPropagation();
+  const arr = getHomebrewSpells().filter(s => s.id !== spellId);
+  saveHomebrewSpells(arr);
+  const listEl = document.getElementById('hbSpellList_' + safeId(charName));
+  if (listEl) {
+    const spells = getCharHomebrewSpells(charName);
+    if (spells.length === 0) {
+      listEl.innerHTML = '<div style="color:#4a5272;font-size:12px;font-style:italic;">No homebrew spells yet. Click + Add Spell to create one.</div>';
+    } else {
+      // Re-render by closing and reopening the modal is complex — just show toast
+    }
+  }
+  if (typeof showToast === 'function') showToast('Spell deleted', '#cc3333');
+}
+
+function openHbSpellCreator(charName, evt) {
+  evt && evt.stopPropagation();
+  const existing = document.getElementById('hbSpellCreatorOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'hbSpellCreatorOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;';
+  ov.innerHTML = `
+    <div style="background:#151c2e;border:1px solid #cc44cc;border-radius:12px;width:520px;max-width:100%;padding:24px;color:#c8d0e8;font-family:'Inter',sans-serif;max-height:90vh;overflow-y:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+        <div style="font-size:17px;font-weight:700;color:#cc44cc;">🪄 Create Homebrew Spell</div>
+        <button onclick="document.getElementById('hbSpellCreatorOverlay').remove()" style="background:#2a3358;border:none;color:#c8d0e8;border-radius:6px;padding:5px 12px;cursor:pointer;">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div style="grid-column:1/-1;">
+          <label style="font-size:11px;color:#9098b8;display:block;margin-bottom:4px;">Spell Name *</label>
+          <input id="hbsName" placeholder="e.g. Shadow Bolt" style="width:100%;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:8px;color:#c8d0e8;font-size:13px;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#9098b8;display:block;margin-bottom:4px;">Level</label>
+          <select id="hbsLevel" style="width:100%;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:8px;color:#c8d0e8;font-size:13px;">
+            ${HB_SPELL_LEVELS.map(l => `<option>${l}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;color:#9098b8;display:block;margin-bottom:4px;">School</label>
+          <select id="hbsSchool" style="width:100%;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:8px;color:#c8d0e8;font-size:13px;">
+            ${HB_SPELL_SCHOOLS.map(s => `<option>${s}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;color:#9098b8;display:block;margin-bottom:4px;">Casting Time</label>
+          <input id="hbsCastTime" value="1 action" style="width:100%;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:8px;color:#c8d0e8;font-size:13px;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#9098b8;display:block;margin-bottom:4px;">Range</label>
+          <input id="hbsRange" value="60 feet" style="width:100%;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:8px;color:#c8d0e8;font-size:13px;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#9098b8;display:block;margin-bottom:4px;">Duration</label>
+          <input id="hbsDuration" value="Instantaneous" style="width:100%;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:8px;color:#c8d0e8;font-size:13px;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#9098b8;display:block;margin-bottom:4px;">Damage Dice (optional)</label>
+          <input id="hbsDamage" placeholder="e.g. 3d6, 2d8+4" style="width:100%;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:8px;color:#c8d0e8;font-size:13px;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#9098b8;display:block;margin-bottom:4px;">Damage Type</label>
+          <input id="hbsDmgType" placeholder="e.g. fire, necrotic" style="width:100%;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:8px;color:#c8d0e8;font-size:13px;box-sizing:border-box;">
+        </div>
+        <div style="grid-column:1/-1;">
+          <label style="font-size:11px;color:#9098b8;display:block;margin-bottom:4px;">Assign To</label>
+          <select id="hbsAssign" style="width:100%;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:8px;color:#c8d0e8;font-size:13px;">
+            <option value="${charName}">${charName} only</option>
+            <option value="all">All characters</option>
+          </select>
+        </div>
+        <div style="grid-column:1/-1;">
+          <label style="font-size:11px;color:#9098b8;display:block;margin-bottom:4px;">Description</label>
+          <textarea id="hbsDesc" rows="4" placeholder="Spell effect description…" style="width:100%;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:8px;color:#c8d0e8;font-size:13px;box-sizing:border-box;resize:vertical;"></textarea>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button onclick="document.getElementById('hbSpellCreatorOverlay').remove()" style="background:#2a3358;border:none;color:#c8d0e8;border-radius:6px;padding:8px 18px;cursor:pointer;">Cancel</button>
+        <button onclick="saveHbSpell('${charName.replace(/'/g,"\\'")}',event)" style="background:#cc44cc;border:none;color:#fff;border-radius:6px;padding:8px 18px;cursor:pointer;font-weight:600;">✓ Save Spell</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  document.getElementById('hbsName').focus();
+}
+
+function saveHbSpell(charName, evt) {
+  evt && evt.stopPropagation();
+  const name = document.getElementById('hbsName').value.trim();
+  if (!name) { if (typeof showToast === 'function') showToast('Spell name required', '#cc3333'); return; }
+  const spell = {
+    id: 'hbs_' + Date.now(),
+    name,
+    level: document.getElementById('hbsLevel').value,
+    school: document.getElementById('hbsSchool').value,
+    castingTime: document.getElementById('hbsCastTime').value,
+    range: document.getElementById('hbsRange').value,
+    duration: document.getElementById('hbsDuration').value,
+    damage: document.getElementById('hbsDamage').value.trim(),
+    damageType: document.getElementById('hbsDmgType').value.trim(),
+    description: document.getElementById('hbsDesc').value.trim(),
+    assignedTo: document.getElementById('hbsAssign').value,
+    createdAt: Date.now(),
+  };
+  const arr = getHomebrewSpells();
+  arr.push(spell);
+  saveHomebrewSpells(arr);
+  document.getElementById('hbSpellCreatorOverlay').remove();
+  if (typeof showToast === 'function') showToast(`Spell "${name}" saved!`, '#cc44cc');
+  // Refresh modal section
+  const listEl = document.getElementById('hbSpellList_' + safeId(charName));
+  if (listEl) {
+    const spells = getCharHomebrewSpells(charName);
+    const spellRows = spells.map(s => {
+      const dmgBtn = s.damage ? `<button onclick="rollHbSpell('${s.id}','${charName.replace(/'/g,"\\'")}',event)" style="background:#3a1a3a;border:1px solid #cc44cc;color:#cc44cc;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;margin-left:6px;">🎲 ${s.damage}</button>` : '';
+      return `<div style="display:flex;align-items:flex-start;gap:6px;padding:6px 0;border-bottom:1px solid #1e2744;">
+        <div style="flex:1;">
+          <div style="font-weight:600;color:#cc44cc;font-size:13px;">${s.name} <span style="font-size:10px;color:#9098b8;font-weight:400;">${s.level} · ${s.school}</span>${dmgBtn}</div>
+          <div style="font-size:11px;color:#9098b8;margin-top:2px;">${s.castingTime || '1 action'} · ${s.range || 'Self'} · ${s.duration || 'Instantaneous'}</div>
+          <div style="font-size:12px;color:#c8d0e8;margin-top:3px;">${s.description || ''}</div>
+        </div>
+        <button onclick="deleteHbSpell('${s.id}','${charName.replace(/'/g,"\\'")}',event)" style="background:none;border:none;color:#cc3333;cursor:pointer;font-size:14px;padding:0 4px;flex-shrink:0;" title="Delete">🗑</button>
+      </div>`;
+    }).join('');
+    listEl.innerHTML = spellRows;
+  }
+}
 
 // ══════════════════════════════════════════════════════════
 // ITERATION 87: CR Reference Panel — full table of every CR
