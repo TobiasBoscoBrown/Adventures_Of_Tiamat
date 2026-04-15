@@ -30462,6 +30462,292 @@ function _sdRender() {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 195: Encounter Combat Journal
+const CJNL_KEY = 'tiamat_combat_journal';
+function _cjLoad() { try { return JSON.parse(localStorage.getItem(CJNL_KEY)||'[]'); } catch(e){return[];} }
+function _cjSave(d) { localStorage.setItem(CJNL_KEY, JSON.stringify(d)); }
+
+const CJ_OUTCOMES = ['Victory','Pyrrhic Victory','Tactical Retreat','Partial Victory','Fled','TPK (Total Party Kill)','Negotiated End','Ambushed'];
+const CJ_DIFFICULTIES = ['Trivial','Easy','Medium','Hard','Deadly','Legendary'];
+
+function openCombatJournal() {
+  document.getElementById('cjOverlay')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'cjOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9300;display:flex;align-items:center;justify-content:center';
+
+  const outcomeOpts = CJ_OUTCOMES.map(o=>`<option value="${o}">${o}</option>`).join('');
+  const diffOpts = CJ_DIFFICULTIES.map(d=>`<option value="${d}">${d}</option>`).join('');
+
+  ov.innerHTML = `
+    <div style="background:#10102a;border:1px solid #cc4444;border-radius:12px;padding:24px;max-width:700px;width:95%;max-height:90vh;overflow-y:auto;font-family:inherit">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <h2 style="margin:0;color:#cc4444;font-size:1.3rem">⚔ Encounter Combat Journal</h2>
+        <button onclick="document.getElementById('cjOverlay').remove()" style="background:none;border:none;color:#aaa;font-size:1.4rem;cursor:pointer">✕</button>
+      </div>
+      <details style="margin-bottom:14px">
+        <summary style="color:#cc4444;cursor:pointer;font-weight:700;padding:10px;background:rgba(204,68,68,0.08);border:1px solid #cc444433;border-radius:6px">+ Log New Encounter</summary>
+        <div style="padding:12px;background:rgba(0,0,0,0.2);border:1px solid #333;border-top:none;border-radius:0 0 6px 6px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+            <div>
+              <label style="color:#888;font-size:0.78rem;display:block;margin-bottom:3px">Encounter Name</label>
+              <input id="cjName" placeholder="vs Goblin Ambush..." style="width:100%;padding:6px 8px;background:#1a1a3a;border:1px solid #333;border-radius:6px;color:#fff;box-sizing:border-box">
+            </div>
+            <div>
+              <label style="color:#888;font-size:0.78rem;display:block;margin-bottom:3px">Session / Date</label>
+              <input id="cjSession" placeholder="Session 12 / 2026-04-15" style="width:100%;padding:6px 8px;background:#1a1a3a;border:1px solid #333;border-radius:6px;color:#fff;box-sizing:border-box">
+            </div>
+            <div>
+              <label style="color:#888;font-size:0.78rem;display:block;margin-bottom:3px">Outcome</label>
+              <select id="cjOutcome" style="width:100%;padding:6px 8px;background:#1a1a3a;border:1px solid #33333344;border-radius:6px;color:#aaa">${outcomeOpts}</select>
+            </div>
+            <div>
+              <label style="color:#888;font-size:0.78rem;display:block;margin-bottom:3px">Difficulty</label>
+              <select id="cjDiff" style="width:100%;padding:6px 8px;background:#1a1a3a;border:1px solid #33333344;border-radius:6px;color:#aaa">${diffOpts}</select>
+            </div>
+            <div>
+              <label style="color:#888;font-size:0.78rem;display:block;margin-bottom:3px">Total XP Awarded</label>
+              <input id="cjXp" type="number" placeholder="1200" style="width:100%;padding:6px 8px;background:#1a1a3a;border:1px solid #333;border-radius:6px;color:#fff;box-sizing:border-box">
+            </div>
+            <div>
+              <label style="color:#888;font-size:0.78rem;display:block;margin-bottom:3px">Rounds Fought</label>
+              <input id="cjRounds" type="number" placeholder="5" style="width:100%;padding:6px 8px;background:#1a1a3a;border:1px solid #333;border-radius:6px;color:#fff;box-sizing:border-box">
+            </div>
+          </div>
+          <div style="margin-bottom:8px">
+            <label style="color:#888;font-size:0.78rem;display:block;margin-bottom:3px">Loot / Rewards</label>
+            <input id="cjLoot" placeholder="200 gp, Cloak of Elvenkind, spell scroll..." style="width:100%;padding:6px 8px;background:#1a1a3a;border:1px solid #333;border-radius:6px;color:#fff;box-sizing:border-box">
+          </div>
+          <div style="margin-bottom:10px">
+            <label style="color:#888;font-size:0.78rem;display:block;margin-bottom:3px">Notable Moments / DM Notes</label>
+            <textarea id="cjNotes" rows="3" placeholder="Korath went down to 0 HP twice. Rook landed the killing blow on the werewolf. Players discovered the secret passage..." style="width:100%;padding:6px 8px;background:#1a1a3a;border:1px solid #333;border-radius:6px;color:#fff;resize:vertical;box-sizing:border-box"></textarea>
+          </div>
+          <button onclick="_cjLog()" style="width:100%;padding:8px;background:rgba(204,68,68,0.15);border:1px solid #cc4444;border-radius:6px;color:#cc4444;cursor:pointer;font-weight:700">⚔ Log Encounter</button>
+        </div>
+      </details>
+      <div id="cjBody"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _cjRender();
+}
+
+function _cjLog() {
+  const name = document.getElementById('cjName')?.value?.trim();
+  if (!name) { showToast('Enter encounter name','#cc4444'); return; }
+  const d = _cjLoad();
+  d.unshift({
+    name,
+    session: document.getElementById('cjSession')?.value?.trim() || '',
+    outcome: document.getElementById('cjOutcome')?.value || CJ_OUTCOMES[0],
+    diff: document.getElementById('cjDiff')?.value || CJ_DIFFICULTIES[2],
+    xp: parseInt(document.getElementById('cjXp')?.value||'0'),
+    rounds: parseInt(document.getElementById('cjRounds')?.value||'0'),
+    loot: document.getElementById('cjLoot')?.value?.trim() || '',
+    notes: document.getElementById('cjNotes')?.value?.trim() || '',
+    ts: new Date().toLocaleDateString()
+  });
+  _cjSave(d);
+  ['cjName','cjSession','cjXp','cjRounds','cjLoot','cjNotes'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  showToast('Encounter logged!','#cc4444');
+  logEntry('combat','Encounter: '+name);
+  _cjRender();
+}
+
+function _cjDelete(i) { const d=_cjLoad(); d.splice(i,1); _cjSave(d); _cjRender(); }
+
+function _cjRender() {
+  const body = document.getElementById('cjBody');
+  if (!body) return;
+  const d = _cjLoad();
+  if (!d.length) { body.innerHTML='<p style="color:#666;text-align:center;font-size:0.85rem">No encounters logged yet.</p>'; return; }
+  const outcomeColors = {Victory:'#44bb88','Pyrrhic Victory':'#ff8844','Tactical Retreat':'#4488ff','Partial Victory':'#c9a227',Fled:'#888','TPK (Total Party Kill)':'#cc4444','Negotiated End':'#9b6dff','Ambushed':'#cc4444'};
+  const totalXp = d.reduce((s,e)=>s+(e.xp||0),0);
+  body.innerHTML = `<div style="color:#888;font-size:0.8rem;margin-bottom:10px">${d.length} encounters logged · ${totalXp.toLocaleString()} total XP</div>`
+    + d.map((e,i) => {
+      const col = outcomeColors[e.outcome]||'#aaa';
+      return `<div style="background:rgba(0,0,0,0.3);border-left:3px solid ${col};border-radius:6px;padding:12px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+          <div>
+            <span style="color:#c9a227;font-weight:700">${escHtml(e.name)}</span>
+            ${e.session?`<span style="color:#555;font-size:0.78rem;margin-left:8px">${escHtml(e.session)}</span>`:''}
+          </div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span style="color:${col};font-size:0.8rem;font-weight:700">${escHtml(e.outcome)}</span>
+            <button onclick="_cjDelete(${i})" style="padding:1px 5px;background:none;border:1px solid #ff5050;border-radius:4px;color:#ff5050;cursor:pointer;font-size:0.7rem">✕</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:0.78rem;color:#888;margin-bottom:6px">
+          <span>Difficulty: <span style="color:#aaa">${escHtml(e.diff)}</span></span>
+          ${e.xp?`<span>XP: <span style="color:#c9a227">${e.xp.toLocaleString()}</span></span>`:''}
+          ${e.rounds?`<span>Rounds: <span style="color:#aaa">${e.rounds}</span></span>`:''}
+          <span style="color:#555">${e.ts||''}</span>
+        </div>
+        ${e.loot?`<div style="font-size:0.8rem;color:#c9a227;margin-bottom:4px">💎 ${escHtml(e.loot)}</div>`:''}
+        ${e.notes?`<div style="font-size:0.8rem;color:#bbb;font-style:italic">${escHtml(e.notes)}</div>`:''}
+      </div>`;
+    }).join('');
+}
+
+// Add Combat Journal button
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'Encounter Combat Journal — record encounters with outcome, XP, loot, notes';
+    btn.style.cssText = 'border-color:#cc4444;color:#cc4444';
+    btn.textContent = '⚔ Combat Log';
+    btn.onclick = openCombatJournal;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 196: CR vs Party Level Threat Assessor
+// XP thresholds per player (per DMG Table 3-4)
+const CR_XP_MAP = {'0':10,'1/8':25,'1/4':50,'1/2':100,'1':200,'2':450,'3':700,'4':1100,'5':1800,'6':2300,'7':2900,'8':3900,'9':5000,'10':5900,'11':7200,'12':8400,'13':10000,'14':11500,'15':13000,'16':15000,'17':18000,'18':20000,'19':22000,'20':25000,'21':33000,'22':41000,'23':50000,'24':62000,'25':75000,'26':90000,'27':105000,'28':120000,'29':135000,'30':155000};
+const XP_THRESH = {
+  1:[25,50,75,100], 2:[50,100,150,200], 3:[75,150,225,400], 4:[125,250,375,500],
+  5:[250,500,750,1100], 6:[300,600,900,1400], 7:[350,750,1100,1700], 8:[450,900,1400,2100],
+  9:[550,1100,1600,2400], 10:[600,1200,1900,2800], 11:[800,1600,2400,3600],
+  12:[1000,2000,3000,4500], 13:[1100,2200,3400,5100], 14:[1250,2500,3800,5700],
+  15:[1400,2800,4300,6400], 16:[1600,3200,4800,7200], 17:[2000,3900,5900,8800],
+  18:[2100,4200,6300,9500], 19:[2400,4900,7300,10900], 20:[2800,5700,8500,12700],
+};
+
+function openCrAssessor() {
+  document.getElementById('craOverlay')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'craOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9300;display:flex;align-items:center;justify-content:center';
+  const crKeys = Object.keys(CR_XP_MAP);
+  const crOpts = crKeys.map(k=>`<option value="${k}">${k}</option>`).join('');
+
+  ov.innerHTML = `
+    <div style="background:#10102a;border:1px solid #c9a227;border-radius:12px;padding:24px;max-width:620px;width:95%;max-height:90vh;overflow-y:auto;font-family:inherit">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <h2 style="margin:0;color:#c9a227;font-size:1.3rem">⚖ CR vs Party Threat Assessor</h2>
+        <button onclick="document.getElementById('craOverlay').remove()" style="background:none;border:none;color:#aaa;font-size:1.4rem;cursor:pointer">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+        <div>
+          <label style="color:#888;font-size:0.8rem;display:block;margin-bottom:4px">Party Level</label>
+          <input id="craLevel" type="number" min="1" max="20" value="5" oninput="_craUpdate()" style="width:100%;padding:8px;background:#1a1a3a;border:1px solid #c9a22744;border-radius:6px;color:#c9a227;font-size:1rem">
+        </div>
+        <div>
+          <label style="color:#888;font-size:0.8rem;display:block;margin-bottom:4px">Party Size</label>
+          <input id="craSize" type="number" min="1" max="10" value="4" oninput="_craUpdate()" style="width:100%;padding:8px;background:#1a1a3a;border:1px solid #33333344;border-radius:6px;color:#fff;font-size:1rem">
+        </div>
+        <div>
+          <label style="color:#888;font-size:0.8rem;display:block;margin-bottom:4px">Monster CR</label>
+          <select id="craCr" onchange="_craUpdate()" style="width:100%;padding:8px;background:#1a1a3a;border:1px solid #33333344;border-radius:6px;color:#aaa;font-size:0.9rem">${crOpts}</select>
+        </div>
+      </div>
+      <div style="margin-bottom:10px">
+        <label style="color:#888;font-size:0.8rem;display:block;margin-bottom:4px">Monster Count</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${[1,2,3,4,5,6,8,10,12].map(n=>`<button onclick="document.getElementById('craMult').value=${n};_craUpdate()" style="padding:4px 10px;background:rgba(201,162,39,0.1);border:1px solid #c9a22733;border-radius:4px;color:#c9a227;cursor:pointer;font-size:0.85rem">${n}</button>`).join('')}
+          <input id="craMult" type="number" min="1" value="1" oninput="_craUpdate()" style="width:60px;padding:4px 8px;background:#1a1a3a;border:1px solid #333;border-radius:4px;color:#fff;font-size:0.9rem">
+        </div>
+      </div>
+      <div id="craResult" style="background:rgba(0,0,0,0.4);border-radius:8px;padding:16px;margin-top:4px"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  // Default CR selection to "5"
+  const sel = document.getElementById('craCr');
+  if (sel) sel.value = '5';
+  _craUpdate();
+}
+
+function _craUpdate() {
+  const level = parseInt(document.getElementById('craLevel')?.value||'5');
+  const size = parseInt(document.getElementById('craSize')?.value||'4');
+  const cr = document.getElementById('craCr')?.value || '5';
+  const mult = parseInt(document.getElementById('craMult')?.value||'1');
+  const result = document.getElementById('craResult');
+  if (!result) return;
+
+  const crXp = CR_XP_MAP[cr] || 0;
+  // Encounter multiplier per DMG
+  const multTable = [[1,1],[2,1.5],[3,2],[4,2],[5,2],[6,2],[7,2.5],[8,2.5],[9,3],[10,3],[11,4],[12,4]];
+  let encMult = 1;
+  for (const [n,m] of multTable) { if (mult >= n) encMult = m; }
+  // Adjust multiplier for small/large party
+  if (size < 3) encMult = Math.min(encMult + 0.5, 4);
+  if (size > 5) encMult = Math.max(encMult - 0.5, 0.5);
+
+  const totalXp = crXp * mult;
+  const adjXp = Math.round(totalXp * encMult);
+  const thresh = XP_THRESH[Math.min(20,Math.max(1,level))] || XP_THRESH[5];
+  const [easy, med, hard, deadly] = thresh.map(t => t * size);
+
+  let diff, diffCol;
+  if (adjXp < easy) { diff='Trivial'; diffCol='#888'; }
+  else if (adjXp < med) { diff='Easy'; diffCol='#44bb88'; }
+  else if (adjXp < hard) { diff='Medium'; diffCol='#c9a227'; }
+  else if (adjXp < deadly) { diff='Hard'; diffCol='#ff8844'; }
+  else { diff='DEADLY'; diffCol='#cc4444'; }
+
+  const bars = [
+    { label:'Easy', val:easy, col:'#44bb88' },
+    { label:'Medium', val:med, col:'#c9a227' },
+    { label:'Hard', val:hard, col:'#ff8844' },
+    { label:'Deadly', val:deadly, col:'#cc4444' },
+  ];
+  const maxThresh = deadly * 1.5;
+
+  result.innerHTML = `
+    <div style="text-align:center;margin-bottom:14px">
+      <div style="font-size:2rem;font-weight:700;color:${diffCol}">${diff}</div>
+      <div style="color:#aaa;font-size:0.85rem">${mult}× CR ${cr} vs party of ${size} at level ${level}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;text-align:center">
+      <div style="background:rgba(0,0,0,0.3);border-radius:6px;padding:8px">
+        <div style="color:#888;font-size:0.72rem">Base XP</div>
+        <div style="color:#aaa;font-size:1rem;font-weight:700">${totalXp.toLocaleString()}</div>
+      </div>
+      <div style="background:rgba(0,0,0,0.3);border-radius:6px;padding:8px">
+        <div style="color:#888;font-size:0.72rem">Adjusted XP (×${encMult})</div>
+        <div style="color:#c9a227;font-size:1rem;font-weight:700">${adjXp.toLocaleString()}</div>
+      </div>
+      <div style="background:rgba(0,0,0,0.3);border-radius:6px;padding:8px">
+        <div style="color:#888;font-size:0.72rem">Deadly Threshold</div>
+        <div style="color:#cc4444;font-size:1rem;font-weight:700">${deadly.toLocaleString()}</div>
+      </div>
+    </div>
+    ${bars.map(b => {
+      const pct = Math.min(100, (adjXp/maxThresh)*100);
+      const thPct = Math.min(100, (b.val/maxThresh)*100);
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="color:${b.col};font-size:0.75rem;min-width:52px">${b.label}</span>
+        <div style="flex:1;position:relative;background:#1a1a3a;border-radius:4px;height:10px">
+          <div style="position:absolute;background:${diffCol}33;border-radius:4px;height:10px;width:${pct}%"></div>
+          <div style="position:absolute;border-left:2px solid ${b.col};height:10px;left:${thPct}%"></div>
+        </div>
+        <span style="color:#555;font-size:0.72rem;min-width:42px;text-align:right">${b.val.toLocaleString()}</span>
+      </div>`;
+    }).join('')}`;
+}
+
+// Add CR Assessor button
+(function() {
+  const allBtns = document.querySelectorAll('.filter-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.title = 'CR vs Party Threat Assessor — visual difficulty rating with DMG thresholds';
+    btn.style.cssText = 'border-color:#c9a227;color:#c9a227';
+    btn.textContent = '⚖ CR Check';
+    btn.onclick = openCrAssessor;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
