@@ -5634,6 +5634,7 @@ function buildStatsPanel(c) {
         ).join('')}
       </div>
     </div>
+    ${buildAlignmentSection(c)}
     ${buildProficienciesSection(c)}
     ${buildTraitsSection(c)}
     ${isSpellcaster(c) ? `
@@ -8708,6 +8709,79 @@ function clearInitiative() {
   renderInitiative();
   renderGrid();
   updateHud();
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 81: Alignment Tracker — 9-alignment moral compass
+//   shown in character modal. DM can track moral drift via notes.
+//   Auto-infers starting alignment from lore/traits text.
+// ══════════════════════════════════════════════════════════
+const ALIGNMENT_GRID = [
+  ['Lawful Good',    'Neutral Good',   'Chaotic Good'],
+  ['Lawful Neutral', 'True Neutral',   'Chaotic Neutral'],
+  ['Lawful Evil',    'Neutral Evil',   'Chaotic Evil'],
+];
+const ALIGNMENT_COLORS = {
+  'Lawful Good':'#4488ff', 'Neutral Good':'#44aa44', 'Chaotic Good':'#88bb22',
+  'Lawful Neutral':'#9098b8', 'True Neutral':'#666', 'Chaotic Neutral':'#888',
+  'Lawful Evil':'#cc6622', 'Neutral Evil':'#aa2222', 'Chaotic Evil':'#cc0000',
+};
+const ALIGNMENT_ICONS = {
+  'Lawful Good':'⚖✨', 'Neutral Good':'✨', 'Chaotic Good':'⚡✨',
+  'Lawful Neutral':'⚖', 'True Neutral':'◈', 'Chaotic Neutral':'⚡',
+  'Lawful Evil':'⚖☠', 'Neutral Evil':'☠', 'Chaotic Evil':'⚡☠',
+};
+
+function extractAlignment(c) {
+  const text = ((c.lore||'') + ' ' + (c.traits||[]).join(' ') + ' ' + (c.title||'')).toLowerCase();
+  if (text.includes('lawful good') || text.includes('paladin') || text.includes('holy knight')) return 'Lawful Good';
+  if (text.includes('chaotic good') || text.includes('robin hood') || text.includes('free spirit')) return 'Chaotic Good';
+  if (text.includes('neutral good')) return 'Neutral Good';
+  if (text.includes('lawful evil') || text.includes('tyrant') || text.includes('devil')) return 'Lawful Evil';
+  if (text.includes('chaotic evil') || text.includes('demon') || text.includes('destruction')) return 'Chaotic Evil';
+  if (text.includes('neutral evil') || text.includes('assassin') || text.includes('self-serving')) return 'Neutral Evil';
+  if (text.includes('lawful neutral') || text.includes('judge') || text.includes('soldier')) return 'Lawful Neutral';
+  if (text.includes('chaotic neutral') || text.includes('wanderer') || text.includes('unpredictable')) return 'Chaotic Neutral';
+  if (text.includes('evil')) return 'Neutral Evil';
+  if (text.includes('good')) return 'Neutral Good';
+  return 'True Neutral';
+}
+
+function getCharAlignment(charName) {
+  try {
+    const stored = JSON.parse(localStorage.getItem('tiamat_alignment') || '{}');
+    return stored[charName] || null;
+  } catch(e) { return null; }
+}
+function setCharAlignment(charName, alignment) {
+  let stored = {};
+  try { stored = JSON.parse(localStorage.getItem('tiamat_alignment') || '{}'); } catch(e) {}
+  stored[charName] = alignment;
+  localStorage.setItem('tiamat_alignment', JSON.stringify(stored));
+}
+
+function buildAlignmentSection(c) {
+  const stored = getCharAlignment(c.name);
+  const inferred = extractAlignment(c);
+  const current = stored || inferred;
+  const t = getTheme(c.theme);
+  const acol = ALIGNMENT_COLORS[current] || '#9098b8';
+  const grid = ALIGNMENT_GRID.map(row =>
+    `<div style="display:flex;gap:4px">${row.map(al => {
+      const isActive = al === current;
+      const acl = ALIGNMENT_COLORS[al] || '#9098b8';
+      return `<button onclick="setCharAlignment(${JSON.stringify(c.name)},${JSON.stringify(al)});if(currentModalIdx>=0)document.getElementById('statsPanel').innerHTML=buildStatsPanel(filteredChars[currentModalIdx])" title="${al}" style="flex:1;padding:5px 2px;background:${isActive?acl+'22':'none'};border:1px solid ${isActive?acl:'#1e2040'};color:${isActive?acl:'#4a5272'};border-radius:5px;cursor:pointer;font-size:9px;letter-spacing:.2px;font-weight:${isActive?'700':'400'}">${al.replace('Neutral','Neut').replace('Chaotic','Chaot').replace('Lawful','Law')}</button>`;
+    }).join('')}</div>`
+  ).join('');
+  return `<div class="stats-section">
+    <div class="stats-section-title">⚖ Alignment</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <span style="font-size:14px">${ALIGNMENT_ICONS[current]||'◈'}</span>
+      <span style="font-size:13px;font-weight:700;color:${acol}">${current}</span>
+      ${!stored ? `<span style="font-size:9px;color:#4a5272">(inferred — click to set)</span>` : ''}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px">${grid}</div>
+  </div>`;
 }
 
 // ══════════════════════════════════════════════════════════
