@@ -27405,6 +27405,137 @@ function _arcDelete(name) {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 171: Spell Range & Area Quick Reference
+// Visual guide to ranges, AoE types, grid squares. Helps DMs rule on distances fast.
+
+function openRangeRef() {
+  const ex = document.getElementById('rangeRefOverlay');
+  if (ex) { ex.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'rangeRefOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.90);z-index:9200;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+
+  const rangeData = [
+    { label:'Touch',      ft:0,   sq:0,   color:'#44aa44', desc:'Must be adjacent (within 5 ft)' },
+    { label:'5 ft',       ft:5,   sq:1,   color:'#44aa44', desc:'Self / adjacent' },
+    { label:'10 ft',      ft:10,  sq:2,   color:'#44aa44', desc:'Close melee range' },
+    { label:'30 ft',      ft:30,  sq:6,   color:'#c9a227', desc:'Short spell range, Thunderwave, Hex' },
+    { label:'60 ft',      ft:60,  sq:12,  color:'#c9a227', desc:'Fireball center, many attack spells' },
+    { label:'90 ft',      ft:90,  sq:18,  color:'#cc8822', desc:'Hold Person, Hold Monster' },
+    { label:'120 ft',     ft:120, sq:24,  color:'#cc8822', desc:'Lightning Bolt, Hypnotic Pattern' },
+    { label:'150 ft',     ft:150, sq:30,  color:'#cc4444', desc:'Fireball, Banishment, Chain Lightning' },
+    { label:'300 ft',     ft:300, sq:60,  color:'#cc4444', desc:'Ice Storm' },
+    { label:'500 ft',     ft:500, sq:100, color:'#9b6dff', desc:'Dimension Door' },
+    { label:'1 mile',     ft:5280,sq:1056,color:'#9b6dff', desc:'Meteor Swarm' },
+  ];
+
+  const aoeSections = [
+    {
+      title: 'Sphere / Burst',
+      color: '#cc4444',
+      items: [
+        ['5 ft radius',  '5 ft',  '1 sq radius',  'Thunderclap, some explosions'],
+        ['10 ft radius', '10 ft', '2 sq radius',  'Burning Hands-adjacent'],
+        ['15 ft radius', '15 ft', '3 sq radius',  'Spirit Guardians (inner zone)'],
+        ['20 ft radius', '20 ft', '4 sq radius',  'Fireball (standard), Shatter'],
+        ['30 ft radius', '30 ft', '6 sq radius',  'Antimagic Field, Spirit Guardians (full)'],
+        ['60 ft radius', '60 ft', '12 sq radius', 'Sunburst, Meteor Swarm (each)'],
+      ]
+    },
+    {
+      title: 'Cone',
+      color: '#cc8822',
+      items: [
+        ['15 ft cone',   '15 ft',  '3 sq length', 'Burning Hands, Breath Weapons (small)'],
+        ['30 ft cone',   '30 ft',  '6 sq length', 'Cone of Cold, Dragon Breath'],
+        ['60 ft cone',   '60 ft',  '12 sq length','Larger breath weapons'],
+        ['90 ft cone',   '90 ft',  '18 sq length','Gargantuan dragon breath'],
+      ]
+    },
+    {
+      title: 'Line',
+      color: '#4488ff',
+      items: [
+        ['5 ft line (60 ft)',    '60 ft × 5 ft',    '12×1 sq', 'Lightning Bolt (standard)'],
+        ['5 ft line (100 ft)',   '100 ft × 5 ft',   '20×1 sq', 'Lightning Bolt (maximized)'],
+        ['5 ft line (self)',     '60 ft × 5 ft',    '12 sq',   'Sunbeam'],
+        ['10 ft wide line',     '30 ft × 10 ft',   '6×2 sq',  'Wall effects, wider beams'],
+      ]
+    },
+    {
+      title: 'Cube',
+      color: '#44aacc',
+      items: [
+        ['5 ft cube',   '5 ft',   '1×1×1 sq',  'Very small AoE, a single square'],
+        ['10 ft cube',  '10 ft',  '2×2×2 sq',  'Silence, small clouds'],
+        ['15 ft cube',  '15 ft',  '3×3×3 sq',  'Thunderwave'],
+        ['20 ft cube',  '20 ft',  '4×4×4 sq',  'Medium zone effects'],
+        ['30 ft cube',  '30 ft',  '6×6×6 sq',  'Hypnotic Pattern, web'],
+      ]
+    },
+  ];
+
+  ov.innerHTML = `
+    <div style="width:800px;max-width:100%;color:#c8d0e8;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;position:sticky;top:0;background:rgba(6,6,26,0.97);padding:12px 0;border-bottom:1px solid rgba(68,136,255,0.2);backdrop-filter:blur(4px)">
+        <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:700;color:#4488ff">📐 Range & Area Reference</div>
+        <button onclick="document.getElementById('rangeRefOverlay').remove()" style="background:none;border:1px solid #2a2040;color:#6a5aaa;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px">✕</button>
+      </div>
+      <!-- Range table -->
+      <div style="background:rgba(0,0,0,0.35);border:1px solid rgba(68,136,255,0.15);border-radius:12px;padding:16px;margin-bottom:16px">
+        <div style="font-size:11px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">📏 Range Reference (5 ft = 1 grid square)</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">
+          ${rangeData.map(r => `
+            <div style="background:rgba(0,0,0,0.3);border:1px solid ${r.color}25;border-radius:8px;padding:10px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                <span style="font-size:14px;font-weight:700;color:${r.color};font-family:'Cinzel',serif">${r.label}</span>
+                ${r.sq > 0 ? `<span style="font-size:10px;color:#4a5272;background:#1a1a30;padding:2px 6px;border-radius:4px">${r.sq} sq</span>` : ''}
+              </div>
+              <div style="font-size:10px;color:#6a7090">${r.desc}</div>
+            </div>`).join('')}
+        </div>
+      </div>
+      <!-- AoE tables -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-bottom:40px">
+        ${aoeSections.map(sec => `
+          <div style="background:rgba(0,0,0,0.3);border:1px solid ${sec.color}20;border-radius:12px;padding:14px">
+            <div style="font-size:11px;color:${sec.color};font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">${sec.title}</div>
+            <table style="width:100%;border-collapse:collapse">
+              <tr style="border-bottom:1px solid rgba(255,255,255,0.06)">
+                <th style="font-size:9px;color:#4a5272;text-align:left;padding:4px 0;font-weight:600;text-transform:uppercase">Size</th>
+                <th style="font-size:9px;color:#4a5272;text-align:left;padding:4px 4px;font-weight:600;text-transform:uppercase">Grid</th>
+                <th style="font-size:9px;color:#4a5272;text-align:left;padding:4px 0;font-weight:600;text-transform:uppercase">Examples</th>
+              </tr>
+              ${sec.items.map(([size, dims, sq, ex]) => `
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+                  <td style="padding:5px 4px 5px 0;font-size:11px;color:${sec.color};font-weight:600;white-space:nowrap">${size}</td>
+                  <td style="padding:5px 4px;font-size:10px;color:#6a7090;white-space:nowrap">${sq}</td>
+                  <td style="padding:5px 0;font-size:10px;color:#8090b0">${ex}</td>
+                </tr>`).join('')}
+            </table>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+// Add Range Ref button
+(function() {
+  const allBtns = document.querySelectorAll('.filter-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.title = 'Spell Range & Area Reference — ranges, cones, spheres, lines in grid squares';
+    btn.style.cssText = 'border-color:#4488ff;color:#4488ff';
+    btn.textContent = '📐 Ranges';
+    btn.onclick = openRangeRef;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
