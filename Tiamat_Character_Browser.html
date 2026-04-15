@@ -1676,6 +1676,48 @@
     0%,100% { box-shadow: 0 0 4px rgba(201,162,39,0.3); }
     50% { box-shadow: 0 0 10px rgba(201,162,39,0.6); }
   }
+  /* Iteration 31: Inspiration Badge */
+  .inspiration-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    background: rgba(255,215,0,0.18);
+    border: 1px solid rgba(255,215,0,0.6);
+    color: #ffd700;
+    cursor: pointer;
+    user-select: none;
+    transition: all .15s;
+    animation: inspirGlow 2s ease-in-out infinite;
+    white-space: nowrap;
+    font-weight: 700;
+  }
+  .inspiration-badge:hover { opacity: 0.7; transform: scale(1.05); }
+  @keyframes inspirGlow {
+    0%,100% { box-shadow: 0 0 5px rgba(255,215,0,0.3); }
+    50% { box-shadow: 0 0 14px rgba(255,215,0,0.7); }
+  }
+  .inspiration-modal-btn {
+    background: rgba(255,215,0,0.1);
+    border: 1px solid rgba(255,215,0,0.35);
+    color: #b8941a;
+    border-radius: 8px;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: 'Cinzel', serif;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .inspiration-modal-btn.active {
+    background: rgba(255,215,0,0.22);
+    border-color: #ffd700;
+    color: #ffd700;
+    box-shadow: 0 0 10px rgba(255,215,0,0.4);
+  }
+  .inspiration-modal-btn:hover { border-color: #ffd700; color: #ffd700; }
   /* Concentration modal button */
   .conc-set-btn {
     background: rgba(201,162,39,0.1);
@@ -3112,6 +3154,7 @@
         </div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
+        <button id="modalInspirationBtn" class="inspiration-modal-btn" onclick="toggleModalInspiration()" title="Toggle Inspiration — advantage on one roll">✦ Inspiration</button>
         <div class="modal-nav">
           <button onclick="navChar(-1)">&#9664; Prev</button>
           <button onclick="navChar(1)">Next &#9654;</button>
@@ -4454,7 +4497,7 @@ function renderGrid() {
             </div>
           </div>
           ${c.quote ? `<div class="card-quote">"${c.quote}"</div>` : ''}
-          <div class="conditions-row" onclick="event.stopPropagation()">${getConditionBadgesHtml(c.name)}${getConcBadgeHtml(c.name)}${getTagBadgesHtml(c.name)}</div>
+          <div class="conditions-row" onclick="event.stopPropagation()">${getInspirationBadgeHtml(c.name)}${getConditionBadgesHtml(c.name)}${getConcBadgeHtml(c.name)}${getTagBadgesHtml(c.name)}</div>
           <div style="display:flex;gap:8px;align-items:center;margin-top:3px" onclick="event.stopPropagation()">
             <button class="card-cond-btn ${hasConditions(c.name)?'has-conds':''}" onclick="openCondPopup(${JSON.stringify(c.name)},event)">⚡ ${hasConditions(c.name)?'Conds':'Condition'}</button>
             <button class="card-enc-btn ${isInActiveEncounter(c.name)?'in-enc':''}" onclick="addCharToActiveEncounter(${JSON.stringify(c.name)},${maxHp})">☩ ${isInActiveEncounter(c.name)?'In Enc':'Encounter'}</button>
@@ -6055,6 +6098,8 @@ function openModal(idx) {
   document.getElementById('modalTabStats').classList.add('active');
 
   document.getElementById('modal').classList.add('open');
+  // Refresh inspiration button state
+  if (typeof refreshInspirationBtn === 'function') refreshInspirationBtn(c.name);
 }
 
 function closeModal() {
@@ -8579,6 +8624,41 @@ function clearTagFilter(dropdown) {
   renderGrid();
 }
 // ────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// ITERATION 31: Inspiration Token — DnD Beyond's most used
+//   feature. Each character can hold Inspiration (granted by
+//   DM for good roleplay). Glows gold on card, toggleable
+//   from modal header with single click.
+// ══════════════════════════════════════════════════════════
+let inspirationState = {};
+try { inspirationState = JSON.parse(localStorage.getItem('tiamat_inspiration')) || {}; } catch { inspirationState = {}; }
+function saveInspiration() { localStorage.setItem('tiamat_inspiration', JSON.stringify(inspirationState)); }
+function getInspiration(name) { return !!inspirationState[name]; }
+function toggleInspiration(name) {
+  inspirationState[name] = !inspirationState[name];
+  saveInspiration();
+  renderGrid();
+  if (currentModalIdx >= 0 && filteredChars[currentModalIdx]?.name === name) {
+    refreshInspirationBtn(name);
+  }
+}
+function getInspirationBadgeHtml(name) {
+  if (!getInspiration(name)) return '';
+  return `<span class="inspiration-badge" onclick="toggleInspiration(${JSON.stringify(name)})" title="Has Inspiration — click to remove">✦ Inspired</span>`;
+}
+function refreshInspirationBtn(name) {
+  const btn = document.getElementById('modalInspirationBtn');
+  if (!btn) return;
+  const has = getInspiration(name);
+  btn.classList.toggle('active', has);
+  btn.title = has ? 'Has Inspiration — click to remove' : 'Grant Inspiration (advantage on one d20 roll)';
+  btn.innerHTML = has ? '✦ Inspired!' : '✦ Inspiration';
+}
+function toggleModalInspiration() {
+  if (currentModalIdx < 0) return;
+  const name = filteredChars[currentModalIdx].name;
+  toggleInspiration(name);
+}
 
 renderGrid();
 </script>
