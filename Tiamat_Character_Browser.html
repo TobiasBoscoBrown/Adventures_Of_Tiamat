@@ -3675,6 +3675,14 @@
     <div class="stat-badge stat-live" id="statDown" onclick="filterToDown()" title="Click to show downed characters" style="display:none"><strong id="downCount">0</strong> ⚠ Down</div>
     <div class="stat-badge stat-live" id="statConds" onclick="filterToConditions()" title="Click to show characters with conditions" style="display:none"><strong id="condsCount">0</strong> ⚡ Conditions</div>
     <div class="stat-badge stat-live" id="statCombat" onclick="openInitiativePanel()" title="Click to open initiative tracker" style="display:none"><strong id="combatCount">0</strong> ⚔ In Combat</div>
+    <!-- Iter 101: Target AC tracker — persists across rolls -->
+    <div class="stat-badge" style="display:flex;align-items:center;gap:6px;padding:4px 10px" title="Set target AC — attack rolls will show HIT or MISS vs this AC">
+      <span style="font-size:10px;color:#4a5272">TARGET AC</span>
+      <input id="targetAcInput" type="number" min="0" max="30" value="12"
+        style="width:36px;background:#0a0a20;border:1px solid #333;border-radius:4px;padding:2px 4px;color:#c9a227;font-size:13px;font-weight:700;font-family:'Cinzel',serif;text-align:center;outline:none"
+        onfocus="this.style.borderColor='#c9a227'" onblur="this.style.borderColor='#333'"
+        title="Target AC for attack rolls">
+    </div>
   </div>
 </header>
 
@@ -6068,11 +6076,13 @@ function buildStatsPanel(c) {
 
   const passivePerc = 10 + parseInt(wis.mod || 0);
 
+  // Iter 103: Condition badges now clickable to show effect description
   const condBadges = conditions.length ?
     `<div style="margin-bottom:10px">${conditions.map(cn => {
       const cd = CONDITIONS.find(x => x.name === cn);
       const cls = cd ? getCondClass(cd.type) : 'cond-debuff';
-      return `<span class="condition-badge ${cls}" style="cursor:default">${cn}</span>`;
+      const tipText = cd && cd.effects ? cd.effects.join(' | ') : cn;
+      return `<span class="condition-badge ${cls}" style="cursor:pointer" title="${tipText}" onclick="showCondDetailPopup(${JSON.stringify(cn)})">${cd?.icon||''} ${cn}</span>`;
     }).join('')}</div>` : '';
 
   const noteBox = notes && notes.text ?
@@ -6692,26 +6702,26 @@ function closeCompareModal() {
 
 // ── SPELL BOOK PANEL ────────────────────────────────────
 const SPELL_LIBRARY = {
-  // Cantrips
-  'Fire Bolt':        { level:0, school:'Evocation', cast:'1 action', range:'120 ft', desc:'A mote of fire. 1d10 fire damage (scales by level).' },
+  // Cantrips — iter 102: added dmg/dmgType for auto-roll
+  'Fire Bolt':        { level:0, school:'Evocation', cast:'1 action', range:'120 ft', desc:'A mote of fire. 1d10 fire damage (scales by level).', dmg:'1d10', dmgType:'fire' },
   'Mage Hand':        { level:0, school:'Conjuration', cast:'1 action', range:'30 ft', desc:'Spectral hand that can manipulate objects up to 10 lbs.' },
-  'Sacred Flame':     { level:0, school:'Evocation', cast:'1 action', range:'60 ft', desc:'DEX save or take 1d8 radiant damage. Ignores cover.' },
+  'Sacred Flame':     { level:0, school:'Evocation', cast:'1 action', range:'60 ft', desc:'DEX save or take 1d8 radiant damage. Ignores cover.', dmg:'1d8', dmgType:'radiant' },
   'Minor Illusion':   { level:0, school:'Illusion', cast:'1 action', range:'30 ft', desc:'Create a sound or image. Lasts 1 minute.' },
-  'Eldritch Blast':   { level:0, school:'Evocation', cast:'1 action', range:'120 ft', desc:'Beam of crackling energy. 1d10 force damage.' },
-  'Toll the Dead':    { level:0, school:'Necromancy', cast:'1 action', range:'60 ft', desc:'WIS save or 1d8 necrotic (1d12 if wounded).' },
+  'Eldritch Blast':   { level:0, school:'Evocation', cast:'1 action', range:'120 ft', desc:'Beam of crackling energy. 1d10 force damage.', dmg:'1d10', dmgType:'force' },
+  'Toll the Dead':    { level:0, school:'Necromancy', cast:'1 action', range:'60 ft', desc:'WIS save or 1d8 necrotic (1d12 if wounded).', dmg:'1d8', dmgType:'necrotic' },
   // Level 1
-  'Magic Missile':    { level:1, school:'Evocation', cast:'1 action', range:'120 ft', desc:'Three darts. Each hits. 1d4+1 force each. Auto-hits.' },
-  'Cure Wounds':      { level:1, school:'Evocation', cast:'1 action', range:'Touch', desc:'Touch to heal 1d8+spellcasting mod HP.' },
-  'Healing Word':     { level:1, school:'Evocation', cast:'Bonus action', range:'60 ft', desc:'Bonus action heal: 1d4+spellcasting mod.' },
+  'Magic Missile':    { level:1, school:'Evocation', cast:'1 action', range:'120 ft', desc:'Three darts. Each hits. 1d4+1 force each. Auto-hits.', dmg:'3d4+3', dmgType:'force' },
+  'Cure Wounds':      { level:1, school:'Evocation', cast:'1 action', range:'Touch', desc:'Touch to heal 1d8+spellcasting mod HP.', dmg:'1d8', dmgType:'healing' },
+  'Healing Word':     { level:1, school:'Evocation', cast:'Bonus action', range:'60 ft', desc:'Bonus action heal: 1d4+spellcasting mod.', dmg:'1d4', dmgType:'healing' },
   'Shield':           { level:1, school:'Abjuration', cast:'Reaction', range:'Self', desc:'+5 AC until start of your next turn. Blocks Magic Missile.' },
-  'Chromatic Orb':    { level:1, school:'Evocation', cast:'1 action', range:'90 ft', desc:'3d8 of chosen element: acid/cold/fire/lightning/poison/thunder.' },
+  'Chromatic Orb':    { level:1, school:'Evocation', cast:'1 action', range:'90 ft', desc:'3d8 of chosen element: acid/cold/fire/lightning/poison/thunder.', dmg:'3d8', dmgType:'elemental' },
   // Level 2
   'Misty Step':       { level:2, school:'Conjuration', cast:'Bonus action', range:'Self', desc:'Teleport up to 30 ft to unoccupied space you can see.' },
   'Hold Person':      { level:2, school:'Enchantment', cast:'1 action', range:'60 ft', desc:'WIS save or paralyzed. Repeat each turn. 1 min concentration.' },
   'Invisibility':     { level:2, school:'Illusion', cast:'1 action', range:'Touch', desc:'Target invisible until they attack/cast. 1 hour conc.' },
-  'Shatter':          { level:2, school:'Evocation', cast:'1 action', range:'60 ft', desc:'CON save or 3d8 thunder damage, half on success. 10 ft sphere.' },
+  'Shatter':          { level:2, school:'Evocation', cast:'1 action', range:'60 ft', desc:'CON save or 3d8 thunder damage, half on success. 10 ft sphere.', dmg:'3d8', dmgType:'thunder' },
   // Level 3
-  'Fireball':         { level:3, school:'Evocation', cast:'1 action', range:'150 ft', desc:'DEX save or 8d6 fire, half on success. 20 ft radius.' },
+  'Fireball':         { level:3, school:'Evocation', cast:'1 action', range:'150 ft', desc:'DEX save or 8d6 fire, half on success. 20 ft radius.', dmg:'8d6', dmgType:'fire' },
   'Counterspell':     { level:3, school:'Abjuration', cast:'Reaction', range:'60 ft', desc:'Automatically negate a spell of 3rd level or lower.' },
   'Hypnotic Pattern': { level:3, school:'Illusion', cast:'1 action', range:'120 ft', desc:'WIS save or charmed/incapacitated. 1 min concentration.' },
   'Animate Dead':     { level:3, school:'Necromancy', cast:'1 min', range:'10 ft', desc:'Raise undead servant from corpse. Obeys your commands.' },
@@ -6732,7 +6742,25 @@ const SPELL_LIBRARY = {
   'Gravity Sinkhole':      { level:4, school:'Graviturgy', cast:'1 action', range:'120 ft', desc:'STR save or pulled to center + 5d10 force damage.' },
   'Pulse Wave':            { level:3, school:'Graviturgy', cast:'1 action', range:'Self', desc:'DEX save: pushed 15 ft OR pulled 15 ft + 6d6 force damage.' },
   'Immovable Object':      { level:2, school:'Graviturgy', cast:'1 action', range:'Touch', desc:'Object up to 10 lbs. cannot be moved for 1 hour.' },
-  'Magnify Gravity':       { level:1, school:'Graviturgy', cast:'1 action', range:'60 ft', desc:'CON save or 2d8 force. Speed halved until end of next turn.' },
+  'Magnify Gravity':       { level:1, school:'Graviturgy', cast:'1 action', range:'60 ft', desc:'CON save or 2d8 force. Speed halved until end of next turn.', dmg:'2d8', dmgType:'force' },
+  // Level 5 with damage
+  'Cone of Cold':          { level:5, school:'Evocation', cast:'1 action', range:'Self (60-ft cone)', desc:'CON save or 8d8 cold, half on success.', dmg:'8d8', dmgType:'cold' },
+  'Wall of Force':         { level:5, school:'Evocation', cast:'1 action', range:'120 ft', desc:'Invisible wall of force, immune to damage. 10 min concentration.' },
+  'Bigby\'s Hand':         { level:5, school:'Evocation', cast:'1 action', range:'120 ft', desc:'Large magical hand. Clenched Fist: 4d8 force damage.', dmg:'4d8', dmgType:'force' },
+  // Level 6
+  'Chain Lightning':       { level:6, school:'Evocation', cast:'1 action', range:'150 ft', desc:'DEX save or 10d8 lightning. Arcs to 3 additional targets.', dmg:'10d8', dmgType:'lightning' },
+  'Disintegrate':          { level:6, school:'Transmutation', cast:'1 action', range:'60 ft', desc:'DEX save or 10d6+40 force. Disintegrates on 0 HP.', dmg:'10d6+40', dmgType:'force' },
+  'Sunbeam':               { level:6, school:'Evocation', cast:'1 action', range:'Self (60-ft line)', desc:'CON save or 6d8 radiant, half on success. Concentration.', dmg:'6d8', dmgType:'radiant' },
+  // Level 7
+  'Finger of Death':       { level:7, school:'Necromancy', cast:'1 action', range:'60 ft', desc:'CON save or 7d8+30 necrotic. Creature killed rises as zombie.', dmg:'7d8+30', dmgType:'necrotic' },
+  'Fire Storm':            { level:7, school:'Evocation', cast:'1 action', range:'150 ft', desc:'DEX save or 7d10 fire, half on success. 10 10-ft cubes.', dmg:'7d10', dmgType:'fire' },
+  // Level 8
+  'Sunburst':              { level:8, school:'Evocation', cast:'1 action', range:'150 ft', desc:'CON save or 12d6 radiant, blinded 1 min on fail.', dmg:'12d6', dmgType:'radiant' },
+  'Maze':                  { level:8, school:'Conjuration', cast:'1 action', range:'60 ft', desc:'Banish creature to demiplane maze for up to 10 min.' },
+  // Level 9
+  'Meteor Swarm':          { level:9, school:'Evocation', cast:'1 action', range:'1 mile', desc:'DEX save or 20d6 fire + 20d6 bludgeoning, half on success.', dmg:'20d6', dmgType:'fire+bludgeoning' },
+  'Wish':                  { level:9, school:'Conjuration', cast:'1 action', range:'Self', desc:'The most powerful spell. Duplicate any spell of 8th level or lower, or other reality-altering effect.' },
+  'Power Word Kill':       { level:9, school:'Enchantment', cast:'1 action', range:'60 ft', desc:'Target with ≤100 HP dies instantly. No save.' },
 };
 
 function inferSpells(c) {
@@ -7015,15 +7043,45 @@ function removeHomebrewSpell(charName, idx) {
 }
 
 function rollSpellAttack(name, school, atkBonus, dc) {
+  // Iter 102: Check if this is a spell name (has a SPELL_LIBRARY entry) vs. a character name
+  // When called from spellbook, name=spellName, school=school, atkBonus=modifier, dc=spellDC
+  const spellData = SPELL_LIBRARY[name];
   const roll = Math.floor(Math.random() * 20) + 1;
   const mod = parseInt(atkBonus) || 0;
   const total = roll + mod;
   const isCrit = roll === 20, isFumble = roll === 1;
   const modStr = mod >= 0 ? `+${mod}` : `${mod}`;
-  showModalRollResult(
-    `${name} (${school}): d20(${roll})${modStr}=${total}${isCrit?' ★ CRIT!':isFumble?' ☠ FUMBLE':''}  [DC ${dc}]`,
-    isCrit, isFumble, total
-  );
+
+  // Use rich popup for spells too
+  let dmgResult = null;
+  if (spellData && spellData.dmg && !isFumble) {
+    dmgResult = rollDamageString(spellData.dmg, isCrit);
+  }
+
+  if (typeof showRichRollResult === 'function') {
+    showRichRollResult({
+      name: `${name} (${school||'Spell'})`,
+      atkRoll: roll, atkMod: mod, atkTotal: total, isCrit, isFumble,
+      dmgResult, dtype: spellData?.dmgType || 'force'
+    });
+  } else {
+    showModalRollResult(
+      `${name} (${school}): d20(${roll})${modStr}=${total}${isCrit?' ★ CRIT!':isFumble?' ☠ FUMBLE':''}  [DC ${dc}]`,
+      isCrit, isFumble, total
+    );
+  }
+  // Show spell DC note
+  if (dc && !spellData?.dmg) {
+    setTimeout(() => {
+      const el = document.getElementById('richRollOverlay');
+      if (el) {
+        const dcNote = document.createElement('div');
+        dcNote.style.cssText = 'font-size:11px;color:#9b6dff;margin-top:6px;border-top:1px solid #1e2040;padding-top:6px';
+        dcNote.textContent = `Targets must beat Save DC ${dc}`;
+        el.querySelector('div[style*="border-radius:18px"]')?.appendChild(dcNote);
+      }
+    }, 50);
+  }
 }
 // ────────────────────────────────────────────────────────
 
@@ -8001,8 +8059,13 @@ function rollDamageString(dmgStr, isCrit) {
 function showRichRollResult({ name, atkRoll, atkMod, atkTotal, isCrit, isFumble, dmgResult, dtype }) {
   const existing = document.getElementById('richRollOverlay');
   if (existing) existing.remove();
-  const atkColor = isCrit ? '#c9a227' : isFumble ? '#cc3333' : '#4488ff';
-  const atkLabel = isCrit ? '★ CRITICAL HIT!' : isFumble ? '☠ FUMBLE — MISS' : 'ATTACK ROLL';
+  // Iter 101: Check target AC
+  const targetAc = parseInt(document.getElementById('targetAcInput')?.value) || 0;
+  const hitsTarget = isCrit || (!isFumble && targetAc > 0 && atkTotal >= targetAc);
+  const missesTarget = isFumble || (!isCrit && targetAc > 0 && atkTotal < targetAc);
+  const atkColor = isCrit ? '#c9a227' : isFumble ? '#cc3333' : hitsTarget ? '#44cc88' : missesTarget ? '#cc5555' : '#4488ff';
+  const atkLabel = isCrit ? '★ CRITICAL HIT!' : isFumble ? '☠ FUMBLE — MISS' :
+    targetAc > 0 ? (hitsTarget ? `HIT vs AC ${targetAc}!` : `MISS vs AC ${targetAc}`) : 'ATTACK ROLL';
   const modStr = atkMod >= 0 ? `+${atkMod}` : `${atkMod}`;
   let dmgHtml = '';
   if (dmgResult && !isFumble) {
@@ -20953,6 +21016,36 @@ function convertLootCoins() {
 }
 
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 103: Condition detail popup — click a condition badge to see full rules
+// ─────────────────────────────────────────────────────────────────────────────
+function showCondDetailPopup(condName) {
+  const cd = getAllConditions?.().find(c => c.name === condName) || CONDITIONS.find(c => c.name === condName);
+  if (!cd) return;
+  const existing = document.getElementById('condDetailPopup');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'condDetailPopup';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9850;display:flex;align-items:center;justify-content:center';
+  overlay.addEventListener('click', e => { if(e.target===overlay) overlay.remove(); });
+  const cls = getCondClass?.(cd.type) || 'cond-debuff';
+  const effectHtml = (cd.effects||[]).map(e => `<li style="margin-bottom:6px;color:#b8c0d8">${escHtml(e)}</li>`).join('');
+  overlay.innerHTML = `
+    <div style="background:#0d0d1e;border:1px solid ${cd.color||'#9098b8'};border-radius:14px;padding:24px;max-width:400px;width:90%;box-shadow:0 12px 40px rgba(0,0,0,.8)" onclick="event.stopPropagation()">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <span style="font-size:28px">${cd.icon||'⚡'}</span>
+        <div>
+          <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:700;color:${cd.color||'#9098b8'}">${escHtml(cd.name)}</div>
+          <div style="font-size:10px;color:#4a5272;text-transform:uppercase;letter-spacing:1px">${cd.type||'condition'}</div>
+        </div>
+        <button onclick="document.getElementById('condDetailPopup').remove()" style="margin-left:auto;background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <ul style="list-style:disc;padding-left:18px;font-size:12px;line-height:1.7">${effectHtml}</ul>
+      <div style="margin-top:14px;text-align:center;font-size:10px;color:#2a2a50">Click backdrop to close</div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Iter 92: Quick HP adjustment (±1, ±5) directly from card buttons
