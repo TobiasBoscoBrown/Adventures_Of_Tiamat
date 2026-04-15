@@ -3715,6 +3715,7 @@
   <button class="filter-btn" onclick="openPotionPanel()" style="border-color:#cc4488;color:#cc4488;" title="Potion Quick-Use — drink potions, roll healing dice, track quantities">🧪 Potions</button>
   <button class="filter-btn" onclick="openAmmoPanel('',event)" style="border-color:#aa8833;color:#aa8833;" title="Ammunition Tracker — track arrows, bolts and ranged ammo per character">🏹 Ammo</button>
   <button class="filter-btn" onclick="openFeatBrowser()" style="border-color:#44cc88;color:#44cc88;" title="Feat Browser — searchable PHB feat reference with prerequisites and descriptions">📖 Feats</button>
+  <button class="filter-btn" onclick="openBackgroundBrowser()" style="border-color:#c9a227;color:#c9a227;" title="Background Browser — searchable PHB background reference with skills, features, and equipment">📜 BGs</button>
   <button class="filter-btn" onclick="openRandomEncTable()" style="border-color:#cc8844;color:#cc8844;" title="Random Encounter Table — roll by terrain">🎲 Enc Table</button>
   <button class="filter-btn" onclick="openCampaignTimeline()" style="border-color:#44cc88;color:#44cc88;" title="Campaign timeline — track key events">📅 Timeline</button>
   <button class="filter-btn" onclick="openWeatherPanel()" style="border-color:#2299bb;color:#2299bb;" title="Weather &amp; Environment — ambient conditions affecting gameplay">🌤 Weather</button>
@@ -21418,6 +21419,94 @@ function renderFeatList() {
       <div style="padding:8px 12px 10px;font-size:12px;color:#b0b8d8;border-top:1px solid #1a1a3a;line-height:1.5">${escHtml(f.desc)}</div>
     </details>`;
   }).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 118: Background Reference Browser — searchable
+//   panel with all PHB backgrounds, skill proficiencies,
+//   tool proficiencies, languages, feature name, and
+//   suggested characteristics. Toolbar: 📜 Backgrounds
+// ══════════════════════════════════════════════════════════
+const BACKGROUND_LIST = [
+  { name:'Acolyte',          skills:'Insight, Religion',         tools:'None',                        languages:'Two of your choice',       feature:'Shelter of the Faithful',    featureDesc:'You command the respect of those who share your faith. You receive free healing and care at temples of your faith, and your allies can be made members of the same faith.' },
+  { name:'Charlatan',        skills:'Deception, Sleight of Hand',tools:'Disguise kit, Forgery kit',   languages:'None',                     feature:'False Identity',              featureDesc:'You have a second identity including documentation, established acquaintances, and disguises. You can forge documents including official papers.' },
+  { name:'Criminal',         skills:'Deception, Stealth',        tools:'Thieves\' tools, 1 gaming set',languages:'None',                   feature:'Criminal Contact',            featureDesc:'You have a reliable and trustworthy contact who acts as your liaison to a network of criminals.' },
+  { name:'Entertainer',      skills:'Acrobatics, Performance',   tools:'Disguise kit, 1 musical instrument',languages:'None',              feature:'By Popular Demand',           featureDesc:'You can always find a place to perform. Receive free lodging and food while performing, and have a small audience.' },
+  { name:'Folk Hero',        skills:'Animal Handling, Survival', tools:'Artisan\'s tools, Vehicles (land)',languages:'None',              feature:'Rustic Hospitality',          featureDesc:'Since you come from the people, they will shelter you. Commoners will hide you, and common folk won\'t betray you.' },
+  { name:'Guild Artisan',    skills:'Insight, Persuasion',       tools:'Artisan\'s tools (one type)',  languages:'One of your choice',       feature:'Guild Membership',            featureDesc:'Guild members will provide lodging and food if necessary and pay for your funeral if needed. You must pay dues of 5gp per month.' },
+  { name:'Hermit',           skills:'Medicine, Religion',        tools:'Herbalism kit',               languages:'One of your choice',       feature:'Discovery',                   featureDesc:'The quiet seclusion of your extended hermitage gave you access to a unique and powerful discovery — perhaps a secret truth, a hidden location, or a life-altering realization.' },
+  { name:'Noble',            skills:'History, Persuasion',       tools:'1 gaming set',                languages:'One of your choice',       feature:'Position of Privilege',       featureDesc:'Welcome in high society. Other nobles treat you as a peer. You can secure an audience with a local noble.' },
+  { name:'Outlander',        skills:'Athletics, Survival',       tools:'1 musical instrument',        languages:'One of your choice',       feature:'Wanderer',                    featureDesc:'Excellent memory for terrain and geography. Can find food and water for yourself and up to 5 others per day in natural environment.' },
+  { name:'Sage',             skills:'Arcana, History',           tools:'None',                        languages:'Two of your choice',       feature:'Researcher',                  featureDesc:'When you attempt to learn or recall a piece of lore, if you don\'t know it, you know where to obtain it. You know libraries, scholars, or sages who can help.' },
+  { name:'Sailor',           skills:'Athletics, Perception',     tools:'Navigator\'s tools, Vehicles (water)',languages:'None',            feature:'Ship\'s Passage',             featureDesc:'Secure free passage on sailing ships for yourself and companions when needed. You might have to assist the crew.' },
+  { name:'Soldier',          skills:'Athletics, Intimidation',   tools:'1 gaming set, Vehicles (land)',languages:'None',                   feature:'Military Rank',               featureDesc:'You have a military rank from your career as a soldier. Soldiers loyal to your former military pay you respect, and you can invoke your rank to influence them.' },
+  { name:'Urchin',           skills:'Sleight of Hand, Stealth',  tools:'Disguise kit, Thieves\' tools',languages:'None',                   feature:'City Secrets',                featureDesc:'You know the secret patterns and flow of cities. You can find passages through the urban sprawl that others would miss. You travel between city locations at twice normal speed.' },
+  { name:'Anthropologist',   skills:'Insight, Religion',         tools:'None',                        languages:'Two of your choice',       feature:'Adept Linguist',              featureDesc:'You can communicate with humanoids who don\'t speak any language you know. After 24hrs of immersion in a language, you gain rudimentary understanding.' },
+  { name:'Archaeologist',    skills:'History, Survival',         tools:'Cartographer\'s or Jeweler\'s tools',languages:'One of your choice',feature:'Historical Knowledge',        featureDesc:'You can determine the original monetary value of mundane items from civilizations at least a century old.' },
+  { name:'City Watch',       skills:'Athletics, Insight',        tools:'None',                        languages:'Two of your choice',       feature:'Watcher\'s Eye',              featureDesc:'Your experience allows you to find the local watch or make contact with the city\'s criminal underground.' },
+  { name:'Cloistered Scholar',skills:'History + one of Arcana/Nature/Religion',tools:'None',          languages:'Two of your choice',       feature:'Library Access',              featureDesc:'You have free access to the library where you studied, plus other learned institutions. Others may not have this access.' },
+  { name:'Courtier',         skills:'Insight, Persuasion',       tools:'None',                        languages:'Two of your choice',       feature:'Court Functionary',           featureDesc:'Your knowledge of how bureaucracies function lets you find the right person for any meeting.' },
+  { name:'Faction Agent',    skills:'Insight + one faction skill',tools:'None',                       languages:'Two of your choice',       feature:'Safe Haven',                  featureDesc:'As a faction agent you have access to a secret network of supporters who can provide a safe house, bail money, or false identities.' },
+  { name:'Far Traveler',     skills:'Insight, Perception',       tools:'1 musical instrument or gaming set',languages:'One of your choice',feature:'All Eyes on You',             featureDesc:'Your accent, mannerisms, and clothing mark you as foreign. Curious folk will seek you out; important people may pay you particular attention.' },
+  { name:'Haunted One',      skills:'Two of: Arcana, Investigation, Religion, Survival',tools:'None', languages:'One exotic language',       feature:'Heart of Darkness',           featureDesc:'Those who look into your eyes can see something has shaken you to the core. Common folk sense your darkness.' },
+  { name:'Inheritor',        skills:'Survival + Arcana/History/Religion',tools:'None',               languages:'None',                     feature:'Inheritance',                 featureDesc:'You inherit something of sentimental, symbolic, or actual value — an object, a title, or something else. Work with your DM on the details.' },
+  { name:'Knight of the Order',skills:'Persuasion + one knightly skill',tools:'1 gaming set or musical instrument',languages:'One of your choice',feature:'Knightly Regard',      featureDesc:'You receive shelter and succor from members of your order and those with kindred ideologies.' },
+  { name:'Mercenary Veteran',skills:'Athletics, Persuasion',     tools:'1 gaming set, Vehicles (land)',languages:'None',                   feature:'Mercenary Life',              featureDesc:'You can recall a mercenary company you previously served with. You\'re able to find the headquarters of a mercenary company.' },
+];
+
+function openBackgroundBrowser() {
+  const existing = document.getElementById('bgBrowserOv');
+  if (existing) { existing.remove(); return; }
+
+  const ov = document.createElement('div');
+  ov.id = 'bgBrowserOv';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:3000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick = e => { if(e.target===ov) ov.remove(); };
+  ov.innerHTML = `<div style="background:#0d0d1a;border:1px solid #2a2a5a;border-radius:12px;padding:20px;max-width:640px;width:100%;max-height:88vh;display:flex;flex-direction:column;position:relative">
+    <button onclick="document.getElementById('bgBrowserOv').remove()" style="position:absolute;top:10px;right:14px;background:none;border:none;color:#7a7aaa;font-size:20px;cursor:pointer">✕</button>
+    <div style="font-size:18px;font-weight:700;color:#c9a227;margin-bottom:4px">📜 Background Browser</div>
+    <div style="font-size:11px;color:#7a7aaa;margin-bottom:10px">${BACKGROUND_LIST.length} PHB + supplement backgrounds — click to expand</div>
+    <input id="bgSearchInp" type="text" placeholder="Search by name, skill, feature…" oninput="renderBgList()"
+      style="background:#0a0a18;border:1px solid #2a2a50;color:#e8e8f8;border-radius:5px;padding:7px 10px;font-size:12px;margin-bottom:12px;outline:none">
+    <div id="bgListScroll" style="overflow-y:auto;flex:1"></div>
+  </div>`;
+  document.body.appendChild(ov);
+  renderBgList();
+  ov.querySelector('#bgSearchInp').focus();
+}
+
+function renderBgList() {
+  const q = (document.getElementById('bgSearchInp')?.value || '').toLowerCase();
+  const container = document.getElementById('bgListScroll');
+  if (!container) return;
+
+  const bgs = BACKGROUND_LIST.filter(b =>
+    !q || b.name.toLowerCase().includes(q) || b.skills.toLowerCase().includes(q) ||
+    b.feature.toLowerCase().includes(q) || b.featureDesc.toLowerCase().includes(q) ||
+    b.tools.toLowerCase().includes(q)
+  );
+
+  if (!bgs.length) {
+    container.innerHTML = '<div style="color:#4a5272;text-align:center;padding:20px">No backgrounds match your search</div>';
+    return;
+  }
+
+  container.innerHTML = bgs.map(b => `<details style="border:1px solid #1a1a3a;border-radius:6px;margin-bottom:5px;background:rgba(20,20,40,0.3)">
+    <summary style="padding:8px 12px;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;user-select:none">
+      <span style="font-size:13px;font-weight:600;color:#c9a227;flex:1">${escHtml(b.name)}</span>
+      <span style="font-size:10px;color:#9098b8;flex-shrink:0;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(b.skills)}</span>
+      <span style="color:#4a5272;font-size:12px;flex-shrink:0">▾</span>
+    </summary>
+    <div style="padding:8px 12px 10px;border-top:1px solid #1a1a3a">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+        <div><span style="font-size:10px;color:#4a5272;text-transform:uppercase;letter-spacing:1px">Skills</span><div style="font-size:11px;color:#9098b8">${escHtml(b.skills)}</div></div>
+        <div><span style="font-size:10px;color:#4a5272;text-transform:uppercase;letter-spacing:1px">Tools</span><div style="font-size:11px;color:#9098b8">${escHtml(b.tools)}</div></div>
+        <div><span style="font-size:10px;color:#4a5272;text-transform:uppercase;letter-spacing:1px">Languages</span><div style="font-size:11px;color:#9098b8">${escHtml(b.languages)}</div></div>
+        <div><span style="font-size:10px;color:#44cc88;text-transform:uppercase;letter-spacing:1px">Feature</span><div style="font-size:11px;color:#44cc88;font-weight:600">${escHtml(b.feature)}</div></div>
+      </div>
+      <div style="font-size:11px;color:#b0b8d8;line-height:1.5;padding:6px 8px;background:rgba(40,40,80,0.3);border-radius:4px;border-left:2px solid #c9a22766">${escHtml(b.featureDesc)}</div>
+    </div>
+  </details>`).join('');
 }
 // ────────────────────────────────────────────────────────
 </script>
