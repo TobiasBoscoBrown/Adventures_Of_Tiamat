@@ -3601,6 +3601,7 @@
   <button class="filter-btn" onclick="openGraveyardPanel()" style="border-color:#555;color:#888;" title="Character graveyard — fallen heroes and villains">💀 Graveyard</button>
   <button class="filter-btn" onclick="openSessionPrep()" style="border-color:#44cc88;color:#44cc88;" title="Session Prep Checklist — track DM readiness tasks">📋 Prep</button>
   <button class="filter-btn" onclick="openLairNotes()" style="border-color:#aa6644;color:#aa6644;" title="Lair Map Notes — describe rooms, traps, and areas">🗺 Lair</button>
+  <button class="filter-btn" onclick="openCrReference()" style="border-color:#dd8833;color:#dd8833;" title="CR Reference — challenge rating stats, XP, proficiency bonus">⚔ CR Ref</button>
   <button class="filter-btn" onclick="openRulesPanel()" style="border-color:#4488ff;color:#4488ff;" title="Quick Reference Rules — searchable 5e rules lookup">📚 Rules</button>
   <button class="filter-btn" onclick="openShortcutsHelp()" style="border-color:#4488ff;color:#4488ff;" title="Keyboard shortcuts — press ? anytime">⌨ ?</button>
   <button class="filter-btn" onclick="openGlobalSearch()" style="border-color:#c9a227;color:#9098b8;" title="Global search — Ctrl+K">🔍 Search All</button>
@@ -9505,6 +9506,133 @@ const RULES_DB = [
   { cat:'Special', name:'Flanking (Variant)', text:'If using optional flanking rule: creatures on opposite sides of an enemy grant advantage on attack rolls against it.' },
   { cat:'Special', name:'Inspiration', text:'Roll with advantage on one attack, save, or check. Granted by DM for exceptional roleplay, heroism, or character consistency.' },
 ];
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 87: CR Reference Panel — full table of every CR
+//   with XP value, proficiency bonus, typical AC/HP/atk/DC,
+//   and a search/filter. Toolbar: ⚔ CR Ref
+// ══════════════════════════════════════════════════════════
+const CR_REFERENCE_TABLE = [
+  // [cr, xp, profBonus, typicalAC, typicalHP, atkBonus, saveDC]
+  ['0',      10,     2,  13,   3,  3, 13],
+  ['1/8',    25,     2,  13,  21,  3, 13],
+  ['1/4',    50,     2,  13,  36,  3, 13],
+  ['1/2',   100,     2,  13,  49,  3, 13],
+  ['1',     200,     2,  13,  78,  3, 13],
+  ['2',     450,     2,  13,  93,  3, 13],
+  ['3',     700,     2,  13, 108,  4, 13],
+  ['4',    1100,     2,  14, 123,  5, 14],
+  ['5',    1800,     3,  15, 138,  6, 15],
+  ['6',    2300,     3,  15, 153,  6, 15],
+  ['7',    2900,     3,  15, 168,  6, 15],
+  ['8',    3900,     3,  16, 183,  7, 16],
+  ['9',    5000,     4,  16, 198,  7, 16],
+  ['10',   5900,     4,  17, 213,  7, 16],
+  ['11',   7200,     4,  17, 228,  8, 17],
+  ['12',   8400,     4,  17, 243,  8, 17],
+  ['13',  10000,     5,  18, 258,  8, 18],
+  ['14',  11500,     5,  19, 273,  8, 18],
+  ['15',  13000,     5,  19, 288,  8, 18],
+  ['16',  15000,     5,  19, 303,  9, 18],
+  ['17',  18000,     6,  19, 318, 10, 19],
+  ['18',  20000,     6,  19, 333, 10, 19],
+  ['19',  22000,     6,  19, 348, 10, 19],
+  ['20',  25000,     6,  19, 378, 10, 19],
+  ['21',  33000,     7,  19, 393, 11, 20],
+  ['22',  41000,     7,  19, 408, 11, 20],
+  ['23',  50000,     7,  19, 423, 11, 20],
+  ['24',  62000,     7,  19, 438, 12, 21],
+  ['25',  75000,     8,  19, 453, 12, 21],
+  ['26',  90000,     8,  19, 468, 12, 21],
+  ['27', 105000,     8,  19, 483, 13, 22],
+  ['28', 120000,     8,  19, 498, 13, 22],
+  ['29', 135000,     9,  19, 513, 13, 22],
+  ['30', 155000,     9,  19, 528, 14, 23],
+];
+
+function getCrDifficultyLabel(cr) {
+  const n = cr === '0' ? 0 : cr.includes('/') ? eval(cr) : parseFloat(cr);
+  if (n <= 1/4) return {label:'Trivial', col:'#6688aa'};
+  if (n <= 1) return {label:'Easy', col:'#44cc88'};
+  if (n <= 4) return {label:'Medium', col:'#cccc44'};
+  if (n <= 8) return {label:'Hard', col:'#ee8833'};
+  if (n <= 15) return {label:'Deadly', col:'#cc3333'};
+  return {label:'Legendary', col:'#cc44cc'};
+}
+
+function openCrReference() {
+  const existing = document.getElementById('crRefOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'crRefOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto;';
+  ov.innerHTML = `
+    <div style="background:#151c2e;border:1px solid #2a3358;border-radius:12px;width:780px;max-width:100%;padding:24px;color:#c8d0e8;font-family:'Inter',sans-serif;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-size:18px;font-weight:700;color:#dd8833;">⚔ Challenge Rating Reference</div>
+        <button onclick="document.getElementById('crRefOverlay').remove()" style="background:#2a3358;border:none;color:#c8d0e8;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:14px;">✕ Close</button>
+      </div>
+      <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;">
+        <input id="crRefSearch" oninput="renderCrTable()" placeholder="Filter CR, XP, difficulty…" style="flex:1;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:8px 12px;color:#c8d0e8;font-size:13px;">
+        <select id="crRefDiff" onchange="renderCrTable()" style="background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:8px;color:#c8d0e8;font-size:13px;">
+          <option value="">All Difficulties</option>
+          <option>Trivial</option><option>Easy</option><option>Medium</option><option>Hard</option><option>Deadly</option><option>Legendary</option>
+        </select>
+      </div>
+      <div style="overflow-x:auto;">
+        <table id="crRefTable" style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead>
+            <tr style="background:#1e2744;color:#9098b8;text-align:left;">
+              <th style="padding:8px 10px;border-bottom:1px solid #2a3358;">CR</th>
+              <th style="padding:8px 10px;border-bottom:1px solid #2a3358;">XP</th>
+              <th style="padding:8px 10px;border-bottom:1px solid #2a3358;">Prof Bonus</th>
+              <th style="padding:8px 10px;border-bottom:1px solid #2a3358;">Typical AC</th>
+              <th style="padding:8px 10px;border-bottom:1px solid #2a3358;">Typical HP</th>
+              <th style="padding:8px 10px;border-bottom:1px solid #2a3358;">Atk Bonus</th>
+              <th style="padding:8px 10px;border-bottom:1px solid #2a3358;">Save DC</th>
+              <th style="padding:8px 10px;border-bottom:1px solid #2a3358;">Difficulty</th>
+            </tr>
+          </thead>
+          <tbody id="crRefTbody"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:14px;font-size:11px;color:#4a5272;">
+        Stats per <em>Dungeon Master's Guide</em> Table 9-1. Typical values guide monster design; published monsters may vary.
+        Party difficulty thresholds assume 4 characters at average CR-appropriate level.
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  renderCrTable();
+}
+
+function renderCrTable() {
+  const tbody = document.getElementById('crRefTbody');
+  if (!tbody) return;
+  const q = (document.getElementById('crRefSearch')?.value || '').toLowerCase();
+  const diff = document.getElementById('crRefDiff')?.value || '';
+  const rows = CR_REFERENCE_TABLE.filter(([cr, xp]) => {
+    const d = getCrDifficultyLabel(cr);
+    if (diff && d.label !== diff) return false;
+    if (q && !`cr${cr} xp${xp} ${d.label}`.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  tbody.innerHTML = rows.map(([cr, xp, prof, ac, hp, atk, dc], i) => {
+    const d = getCrDifficultyLabel(cr);
+    const bg = i % 2 === 0 ? '#0e1422' : '#111827';
+    return `<tr style="background:${bg};">
+      <td style="padding:7px 10px;font-weight:700;color:#dd8833;">${cr}</td>
+      <td style="padding:7px 10px;color:#c9a227;">${xp.toLocaleString()}</td>
+      <td style="padding:7px 10px;text-align:center;">+${prof}</td>
+      <td style="padding:7px 10px;text-align:center;">${ac}</td>
+      <td style="padding:7px 10px;text-align:center;">${hp}</td>
+      <td style="padding:7px 10px;text-align:center;">+${atk}</td>
+      <td style="padding:7px 10px;text-align:center;">${dc}</td>
+      <td style="padding:7px 10px;"><span style="background:${d.col}22;color:${d.col};border-radius:4px;padding:2px 7px;font-size:11px;">${d.label}</span></td>
+    </tr>`;
+  }).join('');
+}
 
 function openRulesPanel() {
   const existing = document.getElementById('rulesPanelOverlay');
