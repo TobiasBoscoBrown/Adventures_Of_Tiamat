@@ -26227,6 +26227,222 @@ function _scRender() {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 163: Critical Hit & Fumble Tables — cinematic nat-20 / nat-1 effects
+// Melee and ranged crit/fumble tables with d20 rolls for dramatic results.
+
+const CRIT_EFFECTS_MELEE = [
+  'Double damage dice on the attack.',
+  'Target knocked prone (no save).',
+  'Target drops their weapon 10 ft away.',
+  'Maximum damage on all dice.',
+  'Target is stunned until end of your next turn.',
+  'Critical hit echoes — another nearby enemy takes 1d6 damage.',
+  'Deep wound: target has disadvantage on attack rolls until healed.',
+  'Target\'s AC reduced by 2 until end of combat (shattered armor).',
+  'You strike a vital point — double proficiency bonus to damage.',
+  'Target is pushed 15 ft in a direction you choose.',
+  'Target is dazed: loses reaction until start of their next turn.',
+  'You may immediately make a free bonus attack.',
+  'Feared! Target must succeed WIS save DC 14 or be frightened of you.',
+  'Bleed: target loses 1d4 HP at the start of each of their turns for 3 rounds.',
+  'Target drops to one knee — they are restrained until end of their next turn.',
+  'Strike through! Roll damage a second time, take the higher result.',
+  'Savage blow: target is poisoned until the start of your next turn.',
+  'Target\'s speed is halved until end of their next turn.',
+  'You deal maximum damage and regain 1d6 HP (life steal).',
+  'Cinematic kill if target is reduced to 0 HP — describe it dramatically.',
+];
+
+const FUMBLE_EFFECTS_MELEE = [
+  'You miss badly — lose your bonus action this turn.',
+  'Off-balance: attackers have advantage against you until end of your turn.',
+  'You drop your weapon 5 ft away.',
+  'Pulled muscle: disadvantage on STR checks for 1 minute.',
+  'Stumble and fall prone.',
+  'Strike an ally within reach for half normal weapon damage (DEX save DC 13 to avoid).',
+  'Your weapon is lodged in a surface — action to free it.',
+  'Over-swung: you are stunned until end of your next turn.',
+  'Armor strap breaks — AC reduced by 1 until repaired.',
+  'You overshoot: move 5 ft in the attack direction involuntarily.',
+  'Wrist strain: disadvantage on weapon attacks until end of your next turn.',
+  'You expose your flank: the next attack against you has advantage.',
+  'Your grip slips: damage dice halved on your next successful hit.',
+  'Trip over your own feet — fall prone, movement to stand uses all remaining speed.',
+  'Wild swing: enemy may make a free opportunity attack against you.',
+  'Dazed by your own miss: lose your reaction this round.',
+  'Momentary blindness: disadvantage on all attacks until end of your next turn.',
+  'You crash into nearby cover — dislodge an environmental object.',
+  'Confidence shaken: subtract 1d4 from next attack roll.',
+  'Epic fumble: describe it dramatically. Lose action and bonus action.',
+];
+
+const CRIT_EFFECTS_RANGED = [
+  'Arrow/bolt pins target to a surface for 1 round (STR DC 14 to free as action).',
+  'Head shot: target is deafened until end of their next turn.',
+  'Double damage dice on the attack.',
+  'Target loses reaction until start of their next turn.',
+  'Arrow seeks vital spot: maximum damage dealt.',
+  'Knock back: target pushed 10 ft from impact.',
+  'Chain shot: bolt fragments hit a second target within 5 ft for 1d6 damage.',
+  'Pinpoint accuracy: ignore cover bonus this attack.',
+  'Shout of glory: allies within 30 ft gain advantage on their next attack.',
+  'Target drops what they\'re holding.',
+  'Grievous wound: target\'s speed halved for 1 minute.',
+  'You\'ve zeroed in: your next ranged attack this combat has advantage.',
+  'Ranged precision: bypass damage resistance this attack.',
+  'Ricochet: arrow bounces to hit another enemy for 1d4 damage.',
+  'Target can\'t take reactions until end of their next turn.',
+  'Blinded momentarily: target has disadvantage on their next attack roll.',
+  'Ammo lodges deep: target takes 1d4 damage at start of their next turn.',
+  'Double proficiency added to damage.',
+  'Trajectory trick: the attack ignores half-cover and three-quarters cover.',
+  'Perfect shot: choose exactly which creature the overage damage rolls hit.',
+];
+
+const FUMBLE_EFFECTS_RANGED = [
+  'String snaps — bow/crossbow cannot be fired until repaired (short rest).',
+  'Arrow deflects into an ally within 5 ft for 1d4 damage.',
+  'Shot goes wild: random creature within 30 ft (friend or foe) takes 1 damage.',
+  'Pulled draw: disadvantage on ranged attacks until end of next turn.',
+  'Quiver spill: lose 1d4+1 pieces of ammunition.',
+  'Sun in eyes (or similar): blinded until start of next turn.',
+  'Bowstring hits arm: disadvantage on STR checks for 1 minute.',
+  'Jamm/misfire: you must spend your action to clear the weapon.',
+  'Over-loaded arm: disadvantage on DEX saves until end of your next turn.',
+  'Spooked: you are frightened of the nearest enemy until end of your turn.',
+  'You lose your footing: fall prone.',
+  'The range is farther than you gauged: automatic disadvantage on next ranged attack.',
+  'You\'ve telegraphed your position: enemies know exactly where you are (no stealth benefit).',
+  'Knocked out of rhythm: no bonus action this turn.',
+  'The shot ricochets to hit you for 1d4 damage.',
+  'Grip too tight: disadvantage on DEX checks for 1 minute.',
+  'Dramatic overcorrection — move 5 ft in a random direction.',
+  'Focus shattered: concentration spell ends (if you\'re concentrating).',
+  'Epic miss: enemy may attempt to use a reaction attack.',
+  'The whole party sees it — morale suffers. All allies -1 to next attack.',
+];
+
+function openCritFumbleTable() {
+  const ex = document.getElementById('critFumbleOverlay');
+  if (ex) { ex.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'critFumbleOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9200;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML = `
+    <div style="width:600px;max-width:100%;max-height:90vh;overflow-y:auto;background:linear-gradient(160deg,#0e0820,#180e30);border:2px solid rgba(201,162,39,0.4);border-radius:16px;padding:24px;color:#c8d0e8;font-family:'Inter',sans-serif;box-shadow:0 0 60px rgba(201,162,39,0.15)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:700;color:#c9a227">⚔ Critical & Fumble Tables</div>
+        <button onclick="document.getElementById('critFumbleOverlay').remove()" style="background:none;border:1px solid #2a2040;color:#6a5aaa;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px">✕</button>
+      </div>
+      <!-- Mode selector -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+        <button id="cfModeBtn_critMelee" onclick="_cfSetMode('critMelee',this)" style="flex:1;background:rgba(201,162,39,0.2);border:2px solid rgba(201,162,39,0.6);color:#c9a227;border-radius:8px;padding:8px;cursor:pointer;font-size:12px;font-weight:700">★ Melee Crit</button>
+        <button id="cfModeBtn_fumbleMelee" onclick="_cfSetMode('fumbleMelee',this)" style="flex:1;background:rgba(204,68,68,0.1);border:1px solid rgba(204,68,68,0.3);color:#cc4444;border-radius:8px;padding:8px;cursor:pointer;font-size:12px">☠ Melee Fumble</button>
+        <button id="cfModeBtn_critRanged" onclick="_cfSetMode('critRanged',this)" style="flex:1;background:rgba(68,136,255,0.1);border:1px solid rgba(68,136,255,0.3);color:#4488ff;border-radius:8px;padding:8px;cursor:pointer;font-size:12px">★ Ranged Crit</button>
+        <button id="cfModeBtn_fumbleRanged" onclick="_cfSetMode('fumbleRanged',this)" style="flex:1;background:rgba(102,68,204,0.1);border:1px solid rgba(102,68,204,0.3);color:#6644cc;border-radius:8px;padding:8px;cursor:pointer;font-size:12px">☠ Ranged Fumble</button>
+      </div>
+      <!-- Roll area -->
+      <div style="text-align:center;margin-bottom:16px">
+        <button onclick="_cfRoll()" style="background:rgba(201,162,39,0.2);border:2px solid rgba(201,162,39,0.6);color:#c9a227;border-radius:10px;padding:12px 28px;cursor:pointer;font-size:16px;font-weight:700;letter-spacing:1px;transition:all 0.15s" onmouseover="this.style.background='rgba(201,162,39,0.35)'" onmouseout="this.style.background='rgba(201,162,39,0.2)'">🎲 Roll d20</button>
+      </div>
+      <!-- Result -->
+      <div id="cfResult" style="min-height:80px;background:rgba(0,0,0,0.4);border:1px solid rgba(201,162,39,0.2);border-radius:10px;padding:16px;text-align:center;margin-bottom:16px">
+        <div style="color:#4a5272;font-size:12px">Click Roll to get a dramatic effect</div>
+      </div>
+      <!-- Full table toggle -->
+      <div style="text-align:center;margin-bottom:8px">
+        <button onclick="_cfToggleTable()" style="background:rgba(0,0,0,0.3);border:1px solid #2a2040;color:#6a5aaa;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:11px" id="cfTableToggleBtn">📋 Show Full Table</button>
+      </div>
+      <div id="cfFullTable" style="display:none;max-height:300px;overflow-y:auto;background:rgba(0,0,0,0.3);border:1px solid #2a2040;border-radius:8px;padding:10px"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  window._cfMode = 'critMelee';
+  _cfRenderTable();
+}
+
+function _cfSetMode(mode, btn) {
+  window._cfMode = mode;
+  ['critMelee','fumbleMelee','critRanged','fumbleRanged'].forEach(m => {
+    const b = document.getElementById('cfModeBtn_' + m);
+    if (!b) return;
+    if (m === mode) {
+      b.style.border = '2px solid rgba(201,162,39,0.6)';
+      b.style.background = 'rgba(201,162,39,0.2)';
+      b.style.color = '#c9a227';
+    } else {
+      b.style.border = '1px solid rgba(128,128,128,0.25)';
+      b.style.background = 'rgba(0,0,0,0.2)';
+      b.style.color = '#6a5aaa';
+    }
+  });
+  document.getElementById('cfResult').innerHTML = '<div style="color:#4a5272;font-size:12px">Click Roll to get a dramatic effect</div>';
+  const ft = document.getElementById('cfFullTable');
+  if (ft && ft.style.display !== 'none') _cfRenderTable();
+}
+
+function _cfGetTable() {
+  const m = window._cfMode || 'critMelee';
+  if (m === 'critMelee') return CRIT_EFFECTS_MELEE;
+  if (m === 'fumbleMelee') return FUMBLE_EFFECTS_MELEE;
+  if (m === 'critRanged') return CRIT_EFFECTS_RANGED;
+  return FUMBLE_EFFECTS_RANGED;
+}
+
+function _cfRoll() {
+  const table = _cfGetTable();
+  const roll = Math.floor(Math.random() * 20) + 1;
+  const effect = table[roll - 1] || table[0];
+  const isCrit = (window._cfMode || '').startsWith('crit');
+  const color = isCrit ? '#c9a227' : '#cc4444';
+  const icon = isCrit ? '★' : '☠';
+  const el = document.getElementById('cfResult');
+  if (el) el.innerHTML = `
+    <div style="font-size:11px;color:#4a5272;margin-bottom:4px">d20 → ${roll}</div>
+    <div style="font-size:22px;margin-bottom:8px">${icon}</div>
+    <div style="font-size:15px;font-weight:700;color:${color};line-height:1.4">${escHtml(effect)}</div>
+    <button onclick="logEntry('roll','${isCrit?'★ CRIT':'☠ FUMBLE'}: ${escHtml(effect).replace(/'/g,"\\'")}'); showToast('Logged','${color}');" style="margin-top:10px;background:rgba(0,0,0,0.3);border:1px solid #2a2040;color:#6a5aaa;border-radius:5px;padding:4px 10px;cursor:pointer;font-size:10px">📋 Log It</button>`;
+}
+
+function _cfToggleTable() {
+  const ft = document.getElementById('cfFullTable');
+  const btn = document.getElementById('cfTableToggleBtn');
+  if (!ft) return;
+  const visible = ft.style.display !== 'none';
+  ft.style.display = visible ? 'none' : 'block';
+  if (btn) btn.textContent = visible ? '📋 Show Full Table' : '📋 Hide Table';
+  if (!visible) _cfRenderTable();
+}
+
+function _cfRenderTable() {
+  const ft = document.getElementById('cfFullTable');
+  if (!ft) return;
+  const table = _cfGetTable();
+  const isCrit = (window._cfMode || '').startsWith('crit');
+  const color = isCrit ? '#c9a227' : '#cc4444';
+  ft.innerHTML = table.map((eff, i) => `
+    <div style="display:flex;gap:8px;padding:5px 4px;border-bottom:1px solid rgba(255,255,255,0.04)">
+      <span style="font-size:11px;font-weight:700;color:${color};min-width:20px;text-align:right">${i+1}</span>
+      <span style="font-size:11px;color:#8090b0;line-height:1.4">${escHtml(eff)}</span>
+    </div>`).join('');
+}
+
+// Add Crit/Fumble button to filter-btn row
+(function() {
+  const allBtns = document.querySelectorAll('.filter-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.title = 'Critical Hit & Fumble Tables — dramatic d20 effects for nat 20s and nat 1s';
+    btn.style.cssText = 'border-color:#c9a227;color:#c9a227';
+    btn.textContent = '⚔ Crit Tables';
+    btn.onclick = openCritFumbleTable;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
