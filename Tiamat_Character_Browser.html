@@ -3614,6 +3614,7 @@
     <button class="encounter-open-btn" onclick="openCondPicker()" style="border-color:#aa66dd;color:#aa66dd" title="Quick Condition Picker — search & apply conditions to any character">⚡ Cond</button>
     <button class="encounter-open-btn" onclick="openCampaignDashboard()" style="border-color:#9b6dff;color:#9b6dff" title="Campaign Dashboard — full campaign state at a glance">📊 Dashboard</button>
     <button class="encounter-open-btn" onclick="toggleDicePanel()" id="dicePanelBtn" style="border-color:#dd6622;color:#dd6622" title="Dice Roller — roll any die with modifier, advantage/disadvantage, history">🎲 Dice</button>
+    <button class="encounter-open-btn" onclick="openRandomTables()" style="border-color:#c9a227;color:#c9a227" title="Random Tables — weather, NPC quirks, tavern names, encounter hooks, etc.">🃏 Tables</button>
     <div class="stat-badge"><strong id="totalCount">0</strong> Characters</div>
     <div class="stat-badge"><strong id="visibleCount">0</strong> Showing</div>
     <div class="stat-badge stat-live" id="statDown" onclick="filterToDown()" title="Click to show downed characters" style="display:none"><strong id="downCount">0</strong> ⚠ Down</div>
@@ -9659,6 +9660,65 @@ function removeAward(idx) {
   const awards = loadAwards();
   awards.splice(idx, 1);
   saveAwards(awards);
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 89: Random Tables Panel — one-click DM random tables:
+//   weather, NPC traits, encounter hooks, tavern names, loot flavor,
+//   rumors, complications. Results logged to session.
+// ══════════════════════════════════════════════════════════
+const RANDOM_TABLES = {
+  'Weather': ['Clear skies, warm breeze','Light overcast, cool','Heavy fog, visibility 30ft','Drizzle, muddy roads','Thunderstorm — hard rain, lightning','Blizzard, difficult terrain','Scorching heat, CON saves every 2hrs','Eerie supernatural mist','Hail, 1d4 bludgeoning per min outside','Rainbow after storms, birds singing'],
+  'NPC Quirk': ['Constantly whistles off-key','Never makes eye contact','Speaks only in questions','Laughs at completely wrong moments','Obsessed with a mundane hobby','Has an unusual pet nearby','Repeats the last thing you say','Excessively formal even in combat','Refers to self in third person','Sneezes dramatically before speaking'],
+  'NPC Motivation': ['Greed — wants money above all','Love — protecting someone dear','Revenge — a bitter grudge','Ambition — climbing to power','Fear — terrified of something','Duty — bound by oath or order','Curiosity — seeks forbidden knowledge','Survival — just trying to live','Faith — zealously devout','Guilt — atoning for past sins'],
+  'Encounter Hook': ['A wounded traveler collapses at your feet','Smoke rises from a distant village','A mysterious locked chest sits in the road','Screaming heard from a nearby alley','An old map falls from a dead courier','A child tugs at your cloak, eyes wide','Merchant argues with armed bandits','Strange lights in the sky at midnight','A crow keeps following the party','Posted bounty: wanted, dead or alive'],
+  'Tavern Name': ['The Stumbling Goblin','The Gilded Flagon','The Howling Wolf','The Rusty Anchor','The Wanderer\'s Rest','The Broken Shield','The Black Cauldron','The Lucky Dice','The Singing Dragon','The Tarnished Crown'],
+  'Loot Flavor': ['Wrapped in oiled leather','Stuffed in a dirty sock','Hidden inside a false-bottomed flask','Tied with a ribbon and sealed with wax','Smells faintly of sulfur','Covered in dried blood — not the owner\'s','Engraved with a family crest','Warm to the touch for no reason','Makes a faint humming sound','Wrapped in pages torn from a spellbook'],
+  'Complication': ['A party member is spotted by an old enemy','The local law arrives — looking for someone','An unexpected ally offers help… for a price','The goal is guarded by an innocent','A fire breaks out nearby','Someone in the party is pickpocketed','A rival party has the same objective','The weather turns deadly','A deadline moves up dramatically','Someone important recognizes a party member'],
+  'Rumor': ['They say the duke is secretly a vampire','Treasure buried under the old mill','The forest shrine grants wishes — at a cost','A merchant guild is fixing all prices','An assassin\'s guild operates out of the inn','The road north is haunted at night','The temple\'s relics were stolen last moon','A dragon was spotted near the pass','The blacksmith is a retired adventurer','War brewing between two noble houses'],
+  'Dungeon Feature': ['A room with no visible exits','Fountain with liquid that glows faintly','Faded mural depicting a ritual','Pile of gear from a previous party','Pressure plate hidden under rubble','A locked iron door — faint crying inside','Ceiling covered in sleeping bats','Trap disarmed but not removed','Shrine to a forgotten deity','Pit of bones — some still have flesh']
+};
+let randTableHistory = [];
+
+function openRandomTables() {
+  const existing = document.getElementById('randTableOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'randTableOverlay';
+  ov.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:min(540px,95vw);max-height:85vh;background:linear-gradient(160deg,#0d0b00,#1a1200);border:1px solid rgba(201,162,39,0.5);border-radius:14px;z-index:1000;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.9);overflow:hidden';
+  ov.innerHTML = `
+    <div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(201,162,39,0.2)">
+      <span style="font-family:'Cinzel',serif;font-size:15px;font-weight:900;color:#c9a227;letter-spacing:2px">🎲 RANDOM TABLES</span>
+      <button onclick="document.getElementById('randTableOverlay').remove()" style="background:none;border:none;color:#6a7299;font-size:18px;cursor:pointer">✕</button>
+    </div>
+    <div style="padding:10px 14px;display:grid;grid-template-columns:1fr 1fr;gap:8px;overflow-y:auto">
+      ${Object.entries(RANDOM_TABLES).map(([name, entries]) => `
+        <button onclick="rollRandomTable(${JSON.stringify(name)})"
+          style="background:rgba(201,162,39,0.08);border:1px solid rgba(201,162,39,0.3);border-radius:8px;padding:10px 12px;color:#c9a227;font-family:'Cinzel',serif;font-size:12px;cursor:pointer;text-align:left;transition:all 0.15s"
+          onmouseover="this.style.background='rgba(201,162,39,0.18)'" onmouseout="this.style.background='rgba(201,162,39,0.08)'">
+          🎲 ${name}<br><span style="font-size:10px;color:#6a7299;font-family:sans-serif">${entries.length} results</span>
+        </button>`).join('')}
+    </div>
+    <div style="border-top:1px solid rgba(201,162,39,0.15);padding:10px 14px">
+      <div style="font-size:10px;color:#c9a227;margin-bottom:6px;letter-spacing:1px">RECENT ROLLS</div>
+      <div id="randTableRecent" style="font-size:12px;color:#9098b8;line-height:1.7;min-height:40px;max-height:120px;overflow-y:auto">
+        ${randTableHistory.length ? randTableHistory.slice(0,5).map(h=>`<div><span style="color:#c9a227;font-weight:700">${h.table}:</span> ${h.result}</div>`).join('') : '<span style="color:#4a5272;font-style:italic">No rolls yet</span>'}
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+}
+
+function rollRandomTable(tableName) {
+  const entries = RANDOM_TABLES[tableName];
+  if (!entries) return;
+  const result = entries[Math.floor(Math.random() * entries.length)];
+  randTableHistory.unshift({ table: tableName, result });
+  if (randTableHistory.length > 20) randTableHistory.pop();
+  logEntry('dm', `🎲 <strong>${escHtml(tableName)}:</strong> ${escHtml(result)}`);
+  const recentEl = document.getElementById('randTableRecent');
+  if (recentEl) recentEl.innerHTML = randTableHistory.slice(0,5).map(h=>`<div><span style="color:#c9a227;font-weight:700">${escHtml(h.table)}:</span> ${escHtml(h.result)}</div>`).join('');
+  // Flash the result in a toast
+  showToast(`${tableName}: ${result}`, '#c9a227');
 }
 
 // ══════════════════════════════════════════════════════════
