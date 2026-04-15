@@ -3788,6 +3788,12 @@
             style="background:rgba(221,136,34,0.2);border-color:#dd8822;color:#dd8822">⬡</button>
   </div>
   <div id="hpTempDisplay" style="font-size:11px;color:#dd8822;text-align:center;min-height:14px;margin-top:2px"></div>
+  <!-- Damage type selector for auto-resistance calculation -->
+  <div style="margin-top:4px;border-top:1px solid #1e2040;padding-top:5px">
+    <div style="font-size:9px;color:#4a5272;letter-spacing:.5px;margin-bottom:3px">DMG TYPE (auto-applies resistance)</div>
+    <div id="dmgTypeRow" style="display:flex;flex-wrap:wrap;gap:2px"></div>
+    <div id="dmgResistNote" style="font-size:9px;color:#4a5272;min-height:12px;margin-top:2px"></div>
+  </div>
   <div style="display:flex;gap:6px;margin-top:6px">
     <button class="hp-popup-full" style="flex:1;background:rgba(68,136,255,.12);border-color:#4488ff;color:#88bbff;font-size:11px" onclick="shortRest()" title="Short Rest: roll hit dice to heal">☽ Short Rest</button>
     <button class="hp-popup-full" style="flex:1;font-size:11px" onclick="applyHpAction('full')">↺ Full HP</button>
@@ -4934,8 +4940,43 @@ function hpStatusInfo(pct) {
   return ['stat-dead', '✝ Down'];
 }
 
+let selectedDmgType = null;
+const DMG_TYPE_ICONS = { fire:'🔥',cold:'❄',lightning:'⚡',poison:'☠',acid:'🧪',necrotic:'💀',radiant:'✨',thunder:'💥',psychic:'🔮',force:'🌀',piercing:'🗡',slashing:'⚔',bludgeoning:'🪨',nonmagical:'⚙' };
+
+function renderDmgTypeRow(charName) {
+  const row = document.getElementById('dmgTypeRow');
+  const note = document.getElementById('dmgResistNote');
+  if (!row) return;
+  const char = UNIQUE_CHARS.find(c => c.name === charName);
+  const defs = char && typeof inferDamageDefenses === 'function' ? inferDamageDefenses(char) : {resistances:[],immunities:[],vulnerabilities:[]};
+  const types = ['fire','cold','lightning','poison','acid','necrotic','radiant','thunder','psychic','force','piercing','slashing','bludgeoning'];
+  row.innerHTML = types.map(t => {
+    const isImmune = defs.immunities.includes(t);
+    const isResist = defs.resistances.includes(t);
+    const isVuln = defs.vulnerabilities.includes(t);
+    const isSel = selectedDmgType === t;
+    const borderCol = isImmune ? '#666' : isResist ? '#4488ff' : isVuln ? '#cc4444' : (isSel ? '#dd8822' : '#2a2a50');
+    const bgCol = isSel ? 'rgba(221,136,34,.2)' : isImmune ? 'rgba(100,100,100,.1)' : isResist ? 'rgba(68,136,255,.08)' : isVuln ? 'rgba(204,68,68,.08)' : 'transparent';
+    return `<button onclick="selectDmgType(${JSON.stringify(t)},${JSON.stringify(charName)})" style="border:1px solid ${borderCol};background:${bgCol};color:${isSel?'#dd8822':'#9098b8'};border-radius:4px;padding:1px 4px;cursor:pointer;font-size:9px;line-height:1.5" title="${t}${isImmune?' — IMMUNE':isResist?' — Resistant':isVuln?' — Vulnerable':''}">${DMG_TYPE_ICONS[t]||''}${isImmune?'◈':isResist?'½':isVuln?'×2':''}</button>`;
+  }).join('') + `<button onclick="selectDmgType(null,${JSON.stringify(charName)})" style="border:1px solid #2a2a50;background:${selectedDmgType===null?'rgba(200,200,255,.05)':'transparent'};color:#4a5272;border-radius:4px;padding:1px 5px;cursor:pointer;font-size:9px;line-height:1.5" title="No type / clear">✕</button>`;
+  note.textContent = selectedDmgType ? getDmgTypeNote(selectedDmgType, defs) : '';
+}
+
+function selectDmgType(type, charName) {
+  selectedDmgType = type;
+  renderDmgTypeRow(charName);
+}
+
+function getDmgTypeNote(type, defs) {
+  if (defs.immunities.includes(type)) return `IMMUNE to ${type} — damage will be 0`;
+  if (defs.resistances.includes(type)) return `Resistant to ${type} — damage halved`;
+  if (defs.vulnerabilities.includes(type)) return `Vulnerable to ${type} — damage doubled`;
+  return '';
+}
+
 function openHpPopup(name, maxHp, event) {
   event.stopPropagation();
+  selectedDmgType = null;
   popupCharName = name;
   popupCharMax = maxHp;
   const currHp = getCharHP(name, maxHp);
@@ -4956,6 +4997,7 @@ function openHpPopup(name, maxHp, event) {
   popup.style.top = y + 'px';
   popup.classList.add('open');
   refreshDeathSavesUI(name, currHp);
+  renderDmgTypeRow(name);
   setTimeout(() => document.getElementById('hpDmgInput').focus(), 40);
 }
 
@@ -4969,7 +5011,19 @@ function applyHpAction(type) {
   let tempHp = getTempHP(popupCharName);
 
   if (type === 'dmg') {
-    const val = parseInt(document.getElementById('hpDmgInput').value) || 0;
+    let val = parseInt(document.getElementById('hpDmgInput').value) || 0;
+    let dmgNote = '';
+    // Apply damage type resistance/immunity/vulnerability
+    if (val > 0 && selectedDmgType) {
+      const char = UNIQUE_CHARS.find(c => c.name === popupCharName);
+      if (char && typeof inferDamageDefenses === 'function') {
+        const defs = inferDamageDefenses(char);
+        if (defs.immunities.includes(selectedDmgType)) { val = 0; dmgNote = `Immune to ${selectedDmgType} — 0 damage`; }
+        else if (defs.resistances.includes(selectedDmgType)) { val = Math.floor(val / 2); dmgNote = `Resistant to ${selectedDmgType} — halved to ${val}`; }
+        else if (defs.vulnerabilities.includes(selectedDmgType)) { val = val * 2; dmgNote = `Vulnerable to ${selectedDmgType} — doubled to ${val}`; }
+      }
+    }
+    if (dmgNote) logEntry('roll', `<strong>${escHtml(popupCharName)}</strong>: ${dmgNote}`);
     if (val > 0) {
       // Damage hits temp HP first
       if (tempHp > 0) {
