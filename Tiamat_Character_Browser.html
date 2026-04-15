@@ -67,6 +67,10 @@
     0%,100% { box-shadow: 0 0 0 0 transparent; }
     50% { box-shadow: 0 0 8px 2px currentColor; }
   }
+  @keyframes activeTurnPulse {
+    0%,100% { box-shadow: 0 0 0 2px #f0c060, 0 0 12px rgba(240,192,96,.2); }
+    50% { box-shadow: 0 0 0 2px #f0c060, 0 0 28px rgba(240,192,96,.5); }
+  }
 
   /* ── Search & Filter Bar ── */
   .toolbar {
@@ -5647,7 +5651,8 @@ function renderGrid() {
       return `<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:10px;margin-top:6px">${saves.join('')}</div>`;
     })();
     const deceasedOverlay = isDeceased(c.name) ? `<div style="position:absolute;inset:0;background:rgba(0,0,0,0.7);z-index:20;display:flex;align-items:center;justify-content:center;border-radius:10px;pointer-events:none"><div style="text-align:center"><div style="font-size:32px">💀</div><div style="font-size:10px;color:#666;font-family:'Cinzel',serif">DECEASED</div><div style="font-size:9px;color:#444">${graveyardState[c.name]?.cause||''}</div></div></div>` : '';
-    return `<div class="card" style="--accent:${isDeceased(c.name)?'#333':t.accent};--glow:${t.glow};${isDeceased(c.name)?'filter:grayscale(0.8);opacity:0.7':''}" onclick="openModal(${i})" oncontextmenu="event.preventDefault();openStatBlockPopup(${JSON.stringify(c.name)},event)" title="Left-click to open full sheet • Right-click for stat block popup">${deceasedOverlay}
+    const isActiveTurn = initiativeList.length > 0 && currentTurnIdx >= 0 && initiativeList[currentTurnIdx]?.name === c.name;
+    return `<div class="card${isActiveTurn?' active-combatant-card':''}" data-char="${escHtml(c.name)}" style="--accent:${isDeceased(c.name)?'#333':t.accent};--glow:${t.glow};${isDeceased(c.name)?'filter:grayscale(0.8);opacity:0.7':''}${isActiveTurn?';box-shadow:0 0 0 2px #f0c060,0 0 20px rgba(240,192,96,.25);animation:activeTurnPulse 1.5s ease-in-out infinite':''}" onclick="openModal(${i})" oncontextmenu="event.preventDefault();openStatBlockPopup(${JSON.stringify(c.name)},event)" title="Left-click to open full sheet • Right-click for stat block popup${isActiveTurn?' · ⚔ ACTIVE TURN':''}">${deceasedOverlay}
       <div class="card-tooltip" style="--accent:${t.accent}">
         <div class="tt-name">${c.name}</div>
         <div class="tt-title">${c.title}</div>
@@ -14717,6 +14722,23 @@ function resetTurnActions(name, event) {
 }
 function clearTurnActions() { turnActionState = {}; }
 
+// Update card glow highlights for active combatant without full re-render
+function updateActiveTurnCards() {
+  const activeName = (initiativeList.length > 0 && currentTurnIdx >= 0) ? initiativeList[currentTurnIdx]?.name : null;
+  document.querySelectorAll('.card[data-char]').forEach(card => {
+    const charName = card.getAttribute('data-char');
+    if (charName === activeName) {
+      card.style.boxShadow = '0 0 0 2px #f0c060, 0 0 20px rgba(240,192,96,.25)';
+      card.style.animation = 'activeTurnPulse 1.5s ease-in-out infinite';
+      card.classList.add('active-combatant-card');
+    } else {
+      card.style.boxShadow = '';
+      card.style.animation = '';
+      card.classList.remove('active-combatant-card');
+    }
+  });
+}
+
 let lairActionEnabled = false;
 let lairActionDescription = '';
 
@@ -15478,6 +15500,7 @@ function editInitScore(name,event) {
   el.innerHTML = html;
   updateEncounterDiffBadge();
   renderActiveTurnBar();
+  if (typeof updateActiveTurnCards === 'function') updateActiveTurnCards();
 }
 
 function updateEncounterDiffBadge() {
