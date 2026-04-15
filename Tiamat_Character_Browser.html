@@ -11786,8 +11786,62 @@ function renderInitiative() {
       ${durBadges ? `<div style="width:100%;padding:0 8px 4px;display:flex;gap:3px;flex-wrap:wrap">${durBadges}</div>` : ''}
       ${(()=>{const legMax=getLegendaryMax(e.name);if(!legMax)return '';const legCur=getLegendaryCharges(e.name);const pips=Array.from({length:legMax},(_,i)=>`<span onclick="spendLegendaryAction(${JSON.stringify(e.name)})" title="Legendary Action — click to spend" style="cursor:pointer;display:inline-block;width:10px;height:10px;border-radius:50%;border:1px solid #c9a227;background:${i<legCur?'#c9a227':'transparent'};margin-right:2px"></span>`).join('');return `<div style="width:100%;padding:0 8px 4px;display:flex;align-items:center;gap:4px"><span style="font-size:9px;color:#c9a227;letter-spacing:.3px">LEG</span>${pips}</div>`;})()}
       ${(()=>{const conc=getConcentration(e.name);if(!conc)return '';return `<div style="width:100%;padding:0 8px 4px;display:flex;align-items:center;gap:4px"><span style="font-size:9px;color:#44aaff;border:1px solid #44aaff55;border-radius:4px;padding:1px 5px;cursor:pointer;" onclick="breakConcentration(${JSON.stringify(e.name)})" title="Concentrating on ${conc} — click to break">🔵 ${conc}</span></div>`;})()}
+      ${(()=>{ if(!isDefeated) return ''; const ds=getDeathSaves(e.name); const suc=Array.from({length:3},(_,i)=>`<span onclick="rollDeathSave(${JSON.stringify(e.name)},'success')" title="Success — click to add" style="cursor:pointer;display:inline-block;width:9px;height:9px;border-radius:50%;border:1px solid #44cc88;background:${i<ds.successes?'#44cc88':'transparent'};margin-right:1px"></span>`).join(''); const fail=Array.from({length:3},(_,i)=>`<span onclick="rollDeathSave(${JSON.stringify(e.name)},'failure')" title="Failure — click to add" style="cursor:pointer;display:inline-block;width:9px;height:9px;border-radius:50%;border:1px solid #cc3333;background:${i<ds.failures?'#cc3333':'transparent'};margin-right:1px"></span>`).join(''); return `<div style="width:100%;padding:0 8px 5px;display:flex;align-items:center;gap:6px"><span style="font-size:9px;color:#cc3333;">💀</span>${suc}<span style="font-size:8px;color:#4a5272;">/</span>${fail}<button onclick="clearDeathSaves(${JSON.stringify(e.name)})" style="margin-left:4px;background:none;border:none;color:#4a5272;cursor:pointer;font-size:9px;padding:0" title="Stabilize / clear">↺</button></div>`; })()}
     </div>`;
   };
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 95: Death Save Tracker — track death saves in
+//   initiative. 3 successes = stable; 3 failures = dead.
+//   Shown when character is at 0 HP in initiative.
+// ══════════════════════════════════════════════════════════
+const DEATH_SAVES_KEY = 'tiamat_death_saves';
+
+function getDeathSaves(charName) {
+  try {
+    const all = JSON.parse(localStorage.getItem(DEATH_SAVES_KEY) || '{}');
+    return all[charName] || { successes: 0, failures: 0 };
+  } catch { return { successes: 0, failures: 0 }; }
+}
+function setDeathSaves(charName, saves) {
+  try {
+    const all = JSON.parse(localStorage.getItem(DEATH_SAVES_KEY) || '{}');
+    all[charName] = saves;
+    localStorage.setItem(DEATH_SAVES_KEY, JSON.stringify(all));
+  } catch {}
+}
+function clearDeathSaves(charName) {
+  const all = JSON.parse(localStorage.getItem(DEATH_SAVES_KEY) || '{}');
+  delete all[charName];
+  localStorage.setItem(DEATH_SAVES_KEY, JSON.stringify(all));
+  if (typeof showToast === 'function') showToast(`${charName} stabilized`, '#44cc88');
+  if (typeof renderInitiative === 'function') renderInitiative();
+}
+function rollDeathSave(charName, type) {
+  const ds = getDeathSaves(charName);
+  if (type === 'success') {
+    ds.successes = Math.min(3, ds.successes + 1);
+    if (ds.successes >= 3) {
+      if (typeof showToast === 'function') showToast(`${charName} is STABLE! (3 successes)`, '#44cc88');
+      if (typeof logEntry === 'function') logEntry(`💀 ${charName} <b style="color:#44cc88">stabilized</b> (3 death save successes)`);
+      clearDeathSaves(charName);
+      return;
+    }
+    if (typeof showToast === 'function') showToast(`${charName}: Death save SUCCESS (${ds.successes}/3)`, '#44cc88');
+  } else {
+    ds.failures = Math.min(3, ds.failures + 1);
+    if (ds.failures >= 3) {
+      if (typeof showToast === 'function') showToast(`${charName} is DEAD! (3 failures)`, '#cc3333');
+      if (typeof logEntry === 'function') logEntry(`💀 ${charName} <b style="color:#cc3333">died</b> (3 death save failures)`);
+      clearDeathSaves(charName);
+      return;
+    }
+    if (typeof showToast === 'function') showToast(`${charName}: Death save FAILURE (${ds.failures}/3)`, '#cc3333');
+  }
+  if (typeof logEntry === 'function') logEntry(`💀 ${charName} death save ${type}: ${ds.successes}✓ ${ds.failures}✗`);
+  setDeathSaves(charName, ds);
+  if (typeof renderInitiative === 'function') renderInitiative();
+}
 
 function editInitScore(name,event) {
   if(event) event.stopPropagation();
