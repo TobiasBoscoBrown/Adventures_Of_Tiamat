@@ -2,7 +2,7 @@
 
 ## Project Overview
 A single-file D&D campaign management web app for the "Tiamat" world.
-**File:** `Tiamat_Character_Browser.html` (24,000+ lines, self-contained)
+**File:** `Tiamat_Character_Browser.html` (30,000+ lines, self-contained)
 **Goal:** Make this the ultimate DM tool — better than DND Beyond, with full user control.
 
 ## Architecture
@@ -121,7 +121,19 @@ Core character browser, search/filter, dark theme, tooltips, view modes.
 - Iter 177: Encounter Hook Generator — narrative hooks with motive + complication + twist
 - Iter 178: Caster Combat Card — per-NPC spell sheet with attack bonus, save DC, roll buttons
 - Iter 179: Session Achievement Badges — award roleplay/combat badges to characters
-- Iter 180: Campaign Stats Dashboard — visual overview of all campaign data and totals ← CURRENT
+- Iter 180: Campaign Stats Dashboard — visual overview of all campaign data and totals
+
+### Iterations 181–190
+- Iter 181: Encounter Countdown Timer — floating HUD widget with color shifts and alarm
+- Iter 182: Multi-Damage-Type Roll Calculator — composite damage (e.g. 2d6fire+1d4cold) with per-type totals
+- Iter 183: Party Spell Slot Panel — track all caster slots in one place with long-rest button
+- Iter 184: NPC Schedule & Patrol Tracker — track where NPCs are at each time of day
+- Iter 185: Encounter Hazard & Lair Effect Tracker — active effects with round countdown
+- Iter 186: PC Wish List & Goals Tracker — items/spells/story-goals per character
+- Iter 187: ASI & Feat History Log — log ability score improvements and feats by level
+- Iter 188: Magic Item Identifier & Attunement Dashboard — identify items, track 3-slot attunement
+- Iter 189: Party Concentration Tracker — one-spell limit enforced, tick-all rounds, auto-expire
+- Iter 190: Random Encounter Generator — 6 terrains × 10 encounters each with CR/XP ← CURRENT
 
 ## Features Currently Implemented (What We Have)
 - Character browser: search, filter by category/theme, view modes (grid/compact/list)
