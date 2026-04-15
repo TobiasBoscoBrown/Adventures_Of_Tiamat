@@ -9845,6 +9845,94 @@ function clearTagFilter(dropdown) {
 }
 // ────────────────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════
+// ITERATION 58: Global Deep Search — search ALL content:
+//   lore, traits, spells, quotes, notes, conditions.
+//   Keyboard shortcut Ctrl+K opens the spotlight.
+// ══════════════════════════════════════════════════════════
+function openGlobalSearch() {
+  const existing = document.getElementById('globalSearchOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'globalSearchOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.75);z-index:9600;display:flex;align-items:flex-start;justify-content:center;padding-top:10vh';
+  overlay.innerHTML = `
+    <div style="background:#0a0a1e;border:1px solid rgba(201,162,39,.4);border-radius:14px;width:100%;max-width:620px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.9)">
+      <div style="padding:14px 16px;border-bottom:1px solid #1e2040;display:flex;align-items:center;gap:10px">
+        <span style="font-size:16px">🔍</span>
+        <input id="globalSearchInput" placeholder="Search everything — lore, traits, spells, notes, quotes..."
+          style="flex:1;background:none;border:none;color:#e0e0ff;font-size:15px;outline:none;font-family:'Inter',sans-serif"
+          oninput="runGlobalSearch(this.value)" autofocus>
+        <span style="font-size:10px;color:#4a5272;background:#06061a;padding:2px 6px;border-radius:4px">ESC</span>
+      </div>
+      <div id="globalSearchResults" style="max-height:65vh;overflow-y:auto;padding:8px">
+        <div style="text-align:center;color:#4a5272;padding:30px;font-size:12px">Type to search across all characters, lore, traits, spells, and notes</div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.getElementById('globalSearchInput').focus();
+}
+function runGlobalSearch(query) {
+  const q = query.toLowerCase().trim();
+  const el = document.getElementById('globalSearchResults');
+  if (!q || q.length < 2) {
+    el.innerHTML = '<div style="text-align:center;color:#4a5272;padding:20px;font-size:12px">Type at least 2 characters</div>';
+    return;
+  }
+  const notes = loadAllNotes();
+  const results = [];
+  UNIQUE_CHARS.forEach(c => {
+    const matches = [];
+    const check = (field, value, context) => {
+      if (value && value.toLowerCase().includes(q)) matches.push({ field, context: value.slice(0, 80) });
+    };
+    check('name', c.name, c.name);
+    check('title', c.title, c.title);
+    check('subtitle', c.subtitle, c.subtitle);
+    check('quote', c.quote, `"${c.quote}"`);
+    check('lore', c.lore, c.lore);
+    (c.traits || []).forEach(tr => check('trait', tr, tr));
+    (notes[c.name]?.text || '').split('\n').forEach(line => check('note', line, 'Note: ' + line));
+    if (matches.length) results.push({ c, matches });
+  });
+  if (!results.length) {
+    el.innerHTML = `<div style="text-align:center;color:#4a5272;padding:30px;font-size:12px">No results for "${q}"</div>`;
+    return;
+  }
+  el.innerHTML = results.slice(0, 20).map(({ c, matches }) => {
+    const t = getTheme(c.theme);
+    return `<div onclick="openGlobalSearchResult(${JSON.stringify(c.name)})" style="padding:10px 12px;border-radius:8px;cursor:pointer;margin-bottom:4px;border:1px solid #1e2040;transition:all .1s" onmouseover="this.style.background='#0e0e24';this.style.borderColor='${t.accent}'" onmouseout="this.style.background='';this.style.borderColor='#1e2040'">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
+        <span style="font-size:13px;font-weight:600;color:${t.accent};font-family:'Cinzel',serif">${c.name}</span>
+        <span style="font-size:10px;color:#4a5272">${c.title} · CR ${c.cr}</span>
+      </div>
+      ${matches.slice(0,2).map(m => {
+        const hi = m.context.replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi'), '<mark style="background:rgba(201,162,39,0.3);color:#c9a227;border-radius:2px">$&</mark>');
+        return `<div style="font-size:11px;color:#7a7aaa"><span style="color:#4488ff;text-transform:uppercase;font-size:9px;letter-spacing:.5px">${m.field}</span> ${hi}</div>`;
+      }).join('')}
+      ${matches.length > 2 ? `<div style="font-size:10px;color:#4a5272">+${matches.length-2} more matches</div>` : ''}
+    </div>`;
+  }).join('') + (results.length > 20 ? `<div style="text-align:center;color:#4a5272;font-size:11px;padding:8px">Showing 20 of ${results.length} results</div>` : '');
+}
+function openGlobalSearchResult(name) {
+  document.getElementById('globalSearchOverlay')?.remove();
+  // Clear filters and find character
+  currentSearch = '';
+  currentFilter = 'all';
+  document.getElementById('searchBox').value = '';
+  renderGrid();
+  const idx = filteredChars.findIndex(c => c.name === name);
+  if (idx >= 0) openModal(idx);
+}
+// Ctrl+K shortcut for global search
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    e.preventDefault();
+    openGlobalSearch();
+  }
+});
+
+// ══════════════════════════════════════════════════════════
 // ITERATION 57: Character Graveyard — Track fallen characters
 //   with cause of death, session date. View campaign losses
 //   in a dedicated graveyard panel. Adds skull overlay on card.
