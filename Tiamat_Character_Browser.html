@@ -3562,6 +3562,7 @@
   <button class="filter-btn" onclick="openFactionMap()" style="border-color:#9b6dff;color:#9b6dff;" title="Faction Allegiance Map — overview of all groups">⚑ Factions</button>
   <button class="filter-btn" onclick="openEncounterBuilder()" style="border-color:#cc3333;color:#cc3333;" title="Encounter Builder — build &amp; balance encounters by CR/XP">🐉 Build Enc</button>
   <button class="filter-btn" onclick="openGraveyardPanel()" style="border-color:#555;color:#888;" title="Character graveyard — fallen heroes and villains">💀 Graveyard</button>
+  <button class="filter-btn" onclick="openSessionPrep()" style="border-color:#44cc88;color:#44cc88;" title="Session Prep Checklist — track DM readiness tasks">📋 Prep</button>
   <button class="filter-btn" onclick="openShortcutsHelp()" style="border-color:#4488ff;color:#4488ff;" title="Keyboard shortcuts — press ? anytime">⌨ ?</button>
   <button class="filter-btn" onclick="openGlobalSearch()" style="border-color:#c9a227;color:#9098b8;" title="Global search — Ctrl+K">🔍 Search All</button>
   <button class="filter-btn" onclick="openDiceMacros()" style="border-color:#ff8822;color:#ff8822;" title="Quick Dice Macros — save &amp; replay dice rolls">🎲 Dice</button>
@@ -8681,6 +8682,108 @@ function clearInitiative() {
   renderInitiative();
   renderGrid();
   updateHud();
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 76: Session Prep Checklist — DM todo list for session
+//   readiness. Default tasks + custom tasks. Tracks completion.
+//   Resets are manual (archived per session).
+// ══════════════════════════════════════════════════════════
+const SESSION_PREP_KEY = 'tiamat_session_prep';
+const DEFAULT_PREP_TASKS = [
+  'Review last session notes and recap',
+  'Check player character HP/resources',
+  'Prepare 3 potential NPC voices',
+  'Set weather and environmental conditions',
+  'Review faction standings and allegiances',
+  'Prepare 2-3 encounter options for likely paths',
+  'Have backup random encounter table ready',
+  'Review PCs\' outstanding plot hooks',
+  'Confirm magic item availability in nearby shops',
+  'Set mood lighting / background music playlist',
+];
+
+function loadPrepTasks() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(SESSION_PREP_KEY));
+    if (stored) return stored;
+  } catch(e) {}
+  return DEFAULT_PREP_TASKS.map((text, i) => ({ id: i, text, done: false }));
+}
+function savePrepTasks(tasks) { localStorage.setItem(SESSION_PREP_KEY, JSON.stringify(tasks)); }
+
+function openSessionPrep() {
+  const existing = document.getElementById('sessionPrepOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'sessionPrepOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.65);z-index:9500;display:flex;align-items:flex-start;justify-content:center;padding-top:6vh;overflow-y:auto';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  overlay.innerHTML = `
+    <div style="background:#0d0d1a;border:1px solid rgba(68,204,136,0.4);border-radius:14px;padding:24px;width:520px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.7)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:700;color:#44cc88">📋 Session Prep Checklist</div>
+        <button onclick="document.getElementById('sessionPrepOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <div id="prepTaskList" style="margin-bottom:14px"></div>
+      <div style="display:flex;gap:8px;border-top:1px solid #1e2040;padding-top:12px">
+        <input id="prepNewTask" placeholder="Add new prep task..." style="flex:1;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:7px 10px;font-size:12px;font-family:inherit" onkeydown="if(event.key==='Enter')addPrepTask()">
+        <button onclick="addPrepTask()" style="background:rgba(68,204,136,0.15);border:1px solid rgba(68,204,136,0.4);color:#44cc88;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:12px">+ Add</button>
+        <button onclick="resetPrepTasks()" style="background:none;border:1px solid #2a2a50;color:#4a5272;border-radius:6px;padding:7px 10px;cursor:pointer;font-size:11px" title="Reset all tasks to unchecked">↻</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  renderPrepTaskList();
+}
+
+function renderPrepTaskList() {
+  const el = document.getElementById('prepTaskList');
+  if (!el) return;
+  const tasks = loadPrepTasks();
+  const done = tasks.filter(t => t.done).length;
+  const pct = tasks.length ? Math.round(done / tasks.length * 100) : 0;
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <div style="flex:1;height:4px;border-radius:2px;background:#1e2040">
+        <div style="height:100%;border-radius:2px;background:#44cc88;width:${pct}%;transition:width .3s"></div>
+      </div>
+      <span style="font-size:11px;color:#44cc88">${done}/${tasks.length}</span>
+    </div>
+    ${tasks.map((t, i) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #0e0e20">
+        <input type="checkbox" ${t.done?'checked':''} onchange="togglePrepTask(${i})" style="accent-color:#44cc88;cursor:pointer;width:14px;height:14px">
+        <span style="flex:1;font-size:12px;color:${t.done?'#4a5272':'#c8d0e8'};text-decoration:${t.done?'line-through':'none'}">${t.text}</span>
+        <button onclick="deletePrepTask(${i})" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:11px;padding:0" title="Remove task">✕</button>
+      </div>`).join('')}`;
+}
+
+function togglePrepTask(idx) {
+  const tasks = loadPrepTasks();
+  tasks[idx].done = !tasks[idx].done;
+  savePrepTasks(tasks);
+  renderPrepTaskList();
+}
+function addPrepTask() {
+  const input = document.getElementById('prepNewTask');
+  const text = (input?.value || '').trim();
+  if (!text) return;
+  const tasks = loadPrepTasks();
+  tasks.push({ id: Date.now(), text, done: false });
+  savePrepTasks(tasks);
+  input.value = '';
+  renderPrepTaskList();
+}
+function deletePrepTask(idx) {
+  const tasks = loadPrepTasks();
+  tasks.splice(idx, 1);
+  savePrepTasks(tasks);
+  renderPrepTaskList();
+}
+function resetPrepTasks() {
+  const tasks = loadPrepTasks().map(t => ({ ...t, done: false }));
+  savePrepTasks(tasks);
+  renderPrepTaskList();
+  showToast('Prep checklist reset', '#44cc88');
 }
 
 // ══════════════════════════════════════════════════════════
