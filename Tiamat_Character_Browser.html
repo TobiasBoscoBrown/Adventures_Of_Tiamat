@@ -9359,6 +9359,13 @@ function renderHealthPanel() {
         const short = concSpell.length > 14 ? concSpell.slice(0, 13) + '…' : concSpell;
         extraParts.push(`<span title="Concentrating: ${escHtml(concSpell)}" style="color:#c9a227;background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.3);border-radius:8px;padding:0 4px;cursor:pointer" onclick="clearConc(${JSON.stringify(c.name)},event)">🔮 ${escHtml(short)}</span>`);
       }
+      // Exhaustion
+      const exLv = typeof getExhaustion === 'function' ? getExhaustion(c.name) : 0;
+      if (exLv > 0) {
+        const exEffects = ['','Disadv checks','Spd halved','Disadv atk+saves','HP max halved','Spd 0','☠ Death'];
+        const exCol = exLv >= 4 ? '#ff4444' : exLv >= 2 ? '#dd8822' : '#e07070';
+        extraParts.push(`<span title="Exhaustion ${exLv}: ${exEffects[exLv]||''}" style="color:${exCol};background:rgba(224,112,112,.1);border:1px solid ${exCol}44;border-radius:8px;padding:0 4px">😴 Ex${exLv}</span>`);
+      }
       // Temp HP
       const tmp = getTempHP(c.name);
       if (tmp > 0) {
@@ -11911,6 +11918,9 @@ function renderActiveTurnBar() {
   const maxHp = parseInt(char.hp)||1;
   const conc = getConcSpell(char.name);
   const conds = getAllConditions ? getAllConditions().filter(c=>(condState[char.name]||{})[c.name]).map(c=>c.icon+c.name) : [];
+  const exhaustLv = typeof getExhaustion === 'function' ? getExhaustion(char.name) : 0;
+  const exhaustEffects = ['','Disadv checks','Speed halved','Disadv atk+saves','HP max halved','Speed 0','☠ Death'];
+  const exhaustChip = exhaustLv > 0 ? chip(`😴 Ex${exhaustLv}`, exhaustEffects[exhaustLv]||'', exhaustLv >= 4 ? '#ff4444' : exhaustLv >= 2 ? '#dd8822' : '#e07070') : '';
 
   const chip = (label, val, col='#9098b8') => `<span style="font-size:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:2px 7px;color:${col}"><span style="color:#4a5272;font-size:9px">${label} </span>${val}</span>`;
 
@@ -11928,6 +11938,7 @@ function renderActiveTurnBar() {
     ${chip('HP', `${currHp}/${maxHp}`, currHp/maxHp < 0.25 ? '#ff6666' : currHp/maxHp < 0.5 ? '#dd8822' : '#44aa44')}
     ${chip('PP', pp, '#aa88ff')}
     ${conc ? chip('⊙', escHtml(conc.length>10?conc.slice(0,9)+'…':conc), '#c9a227') : ''}
+    ${exhaustChip}
     ${conds.slice(0,3).map(c=>chip('', escHtml(c.slice(0,2)+c.slice(2,12)), '#dd8822')).join('')}
     <button onclick="setAdvState(${JSON.stringify(char.name)},'adv')" style="background:${curAdv==='adv'?'rgba(68,170,68,.3)':'rgba(68,170,68,.07)'};border:1px solid ${curAdv==='adv'?'#44aa44':'rgba(68,170,68,.3)'};color:${curAdv==='adv'?'#44ff44':'#44aa44'};border-radius:4px;padding:1px 6px;cursor:pointer;font-size:10px;font-weight:700" title="Toggle Advantage on all rolls">↑ Adv</button>
     <button onclick="setAdvState(${JSON.stringify(char.name)},'dis')" style="background:${curAdv==='dis'?'rgba(204,51,51,.3)':'rgba(204,51,51,.07)'};border:1px solid ${curAdv==='dis'?'#cc3333':'rgba(204,51,51,.3)'};color:${curAdv==='dis'?'#ff4444':'#cc3333'};border-radius:4px;padding:1px 6px;cursor:pointer;font-size:10px;font-weight:700" title="Toggle Disadvantage on all rolls">↓ Dis</button>
