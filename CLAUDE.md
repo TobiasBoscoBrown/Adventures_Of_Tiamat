@@ -157,7 +157,10 @@ Core character browser, search/filter, dark theme, tooltips, view modes.
 - Iter 207: Random Tables Roller — d8–d20 tables for weather, NPC traits, motivation, shop names, tavern events, plot twists
 - Iter 208: Treasure & Loot Generator — DMG individual and hoard treasure by CR tier (gold, gems, art objects, magic items)
 - Iter 209: Search History — remember last 12 searches, show on focus for quick recall
-- Iter 210: Post-Combat Cleanup — one-click clear temp HP, conditions, and concentration for all party members after a fight ← CURRENT
+- Iter 210: Post-Combat Cleanup — one-click clear temp HP, conditions, and concentration for all party members after a fight
+
+### Iterations 211–220
+- Iter 211: Full Party Skill Matrix — all characters × all 18 skills in one scrollable table, color-coded by proficiency, click-to-roll, filterable by ability score ← CURRENT
 
 ## Features Currently Implemented (What We Have)
 - Character browser: search, filter by category/theme, view modes (grid/compact/list)

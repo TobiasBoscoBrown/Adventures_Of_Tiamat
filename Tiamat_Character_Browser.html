@@ -32519,6 +32519,185 @@ function _mqbDeleteSaved(name) {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 211: Full Party Skill Matrix — all characters × all 18 skills in one table
+// Click any cell to instantly roll that skill check for that character.
+// Color-coded by proficiency. Filter by ability. Better than DnD Beyond!
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PSM_SKILLS = [
+  {name:'Athletics',       ab:'STR', short:'Ath'},
+  {name:'Acrobatics',      ab:'DEX', short:'Acr'},
+  {name:'Sleight of Hand', ab:'DEX', short:'SoH'},
+  {name:'Stealth',         ab:'DEX', short:'Ste'},
+  {name:'Arcana',          ab:'INT', short:'Arc'},
+  {name:'History',         ab:'INT', short:'His'},
+  {name:'Investigation',   ab:'INT', short:'Inv'},
+  {name:'Nature',          ab:'INT', short:'Nat'},
+  {name:'Religion',        ab:'INT', short:'Rel'},
+  {name:'Animal Handling', ab:'WIS', short:'AHa'},
+  {name:'Insight',         ab:'WIS', short:'Ins'},
+  {name:'Medicine',        ab:'WIS', short:'Med'},
+  {name:'Perception',      ab:'WIS', short:'Per'},
+  {name:'Survival',        ab:'WIS', short:'Sur'},
+  {name:'Deception',       ab:'CHA', short:'Dec'},
+  {name:'Intimidation',    ab:'CHA', short:'Int'},
+  {name:'Performance',     ab:'CHA', short:'Prf'},
+  {name:'Persuasion',      ab:'CHA', short:'Prs'},
+];
+
+const PSM_AB_COLORS = {STR:'#cc6644', DEX:'#44aa66', INT:'#4488ff', WIS:'#44bbcc', CHA:'#cc44aa'};
+
+let _psmFilter = 'ALL';
+
+function _psmGetCharData(c) {
+  const crNum = parseFloat(c.cr) || 1;
+  const prof = crNum >= 17 ? 6 : crNum >= 13 ? 5 : crNum >= 9 ? 4 : crNum >= 5 ? 3 : 2;
+  const ab = {};
+  (c.abilities || []).forEach(([n,s,m,hl]) => { ab[n] = { score:s, mod:parseInt(m)||0, hl:!!hl }; });
+  const getAb = name => ab[name] || {score:10, mod:0, hl:false};
+  const traitText = (c.traits||[]).join(' ').toLowerCase();
+  const loreText = (c.lore||'').toLowerCase();
+
+  return PSM_SKILLS.map(sk => {
+    const abData = getAb(sk.ab);
+    const isProfByHl = abData.hl;
+    const isProfByText = ['proficien','expert in','advantage on '].some(k => traitText.includes(k + sk.name.toLowerCase()) || loreText.includes(k + sk.name.toLowerCase()));
+    const isProf = isProfByHl || isProfByText;
+    const total = abData.mod + (isProf ? prof : 0);
+    return { skill: sk.name, ab: sk.ab, mod: total, isProf, raw: abData.mod, prof };
+  });
+}
+
+function _psmRollSkill(charName, skillName, mod) {
+  const roll = Math.floor(Math.random() * 20) + 1;
+  const modVal = parseInt(mod) || 0;
+  const total = roll + modVal;
+  const isCrit = roll === 20;
+  const isFumble = roll === 1;
+  const modStr = modVal >= 0 ? '+' + modVal : '' + modVal;
+  const color = isCrit ? '#c9a227' : isFumble ? '#cc3333' : '#4488ff';
+  const label = isCrit ? '★ NAT 20!' : isFumble ? '☠ NAT 1' : `d20${modStr} = ${total}`;
+  showToast(`${charName} — ${skillName}: ${label}`, color, 3500);
+  if (typeof logEntry === 'function') logEntry('roll', `🎲 <b>${charName}</b> ${skillName}: d20(${roll})${modStr} = <b>${total}</b>${isCrit?' ★':isFumble?' ☠':''}`);
+}
+
+function _psmRender() {
+  const tbody = document.getElementById('psmTbody');
+  const thead = document.getElementById('psmThead');
+  if (!tbody || !thead) return;
+
+  const chars = (window.UNIQUE_CHARS || []).filter(c => {
+    const grp = (c.group||'').toLowerCase();
+    return grp !== 'deceased';
+  });
+
+  const filteredSkills = _psmFilter === 'ALL' ? PSM_SKILLS : PSM_SKILLS.filter(s => s.ab === _psmFilter);
+
+  // Header
+  thead.innerHTML = `<tr>
+    <th style="position:sticky;left:0;z-index:3;background:#0a0a20;min-width:110px;text-align:left;padding:6px 8px;font-size:11px;color:#7a7aaa;font-weight:600;border-bottom:2px solid #1e1e40;border-right:1px solid #1e1e40">Character</th>
+    ${filteredSkills.map(sk => `<th title="${sk.name} (${sk.ab})" style="min-width:42px;padding:4px 3px;text-align:center;font-size:9.5px;font-weight:700;letter-spacing:.3px;border-bottom:2px solid #1e1e40;border-right:1px solid #131330;color:${PSM_AB_COLORS[sk.ab]||'#9098b8'};cursor:default">${sk.short}<br><span style="font-size:8px;opacity:0.7">${sk.ab}</span></th>`).join('')}
+    <th style="min-width:46px;padding:4px 3px;text-align:center;font-size:9px;color:#44bbcc;border-bottom:2px solid #1e1e40;letter-spacing:.3px" title="Passive Perception (10 + WIS mod + Perception proficiency)">Pass<br>Perc</th>
+  </tr>`;
+
+  // Rows
+  tbody.innerHTML = chars.map(c => {
+    const skillData = _psmGetCharData(c);
+    const filtSkillData = _psmFilter === 'ALL' ? skillData : skillData.filter(d => d.ab === _psmFilter);
+    const maxHp = parseInt(c.hp) || 1;
+    const currHp = typeof getCharHP === 'function' ? getCharHP(c.name, maxHp) : maxHp;
+    const hpPct = currHp / maxHp;
+    const hpColor = hpPct <= 0.25 ? '#cc3333' : hpPct <= 0.5 ? '#cc8822' : '#44aa66';
+
+    const percData = skillData.find(d => d.skill === 'Perception');
+    const passivePerc = percData ? 10 + percData.raw + (percData.isProf ? percData.prof : 0) : 10;
+
+    const cells = filtSkillData.map(d => {
+      const modStr = d.mod >= 0 ? '+' + d.mod : '' + d.mod;
+      const bg = d.isProf ? 'rgba(201,162,39,0.12)' : 'transparent';
+      const textColor = d.isProf ? '#c9a227' : '#7080a8';
+      const dotColor = d.isProf ? '#c9a227' : 'transparent';
+      return `<td onclick="_psmRollSkill(${JSON.stringify(c.name)},${JSON.stringify(d.skill)},${d.mod})" title="Roll ${d.skill} for ${c.name} (d20${modStr})" style="text-align:center;padding:4px 3px;font-size:11px;font-weight:${d.isProf?700:400};color:${textColor};background:${bg};border-right:1px solid #131330;cursor:pointer;transition:background 0.1s;position:relative" onmouseover="this.style.background='rgba(68,136,255,0.2)';this.style.color='#88aaff'" onmouseout="this.style.background='${bg}';this.style.color='${textColor}'">
+        ${d.isProf?`<span style="position:absolute;top:2px;left:3px;width:4px;height:4px;border-radius:50%;background:${dotColor}"></span>`:''}
+        ${modStr}
+      </td>`;
+    }).join('');
+
+    return `<tr style="border-bottom:1px solid #131330" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+      <td style="position:sticky;left:0;z-index:2;background:#09091e;padding:5px 8px;border-right:1px solid #1e1e40;min-width:110px" title="Open ${c.name}">
+        <div style="font-size:11px;font-weight:700;color:#c8d0e8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px;cursor:pointer" onclick="openModal(${(window.UNIQUE_CHARS||[]).indexOf(c)})">${c.name}</div>
+        <div style="font-size:9px;color:${hpColor};margin-top:1px">${currHp}/${maxHp} HP</div>
+      </td>
+      ${cells}
+      <td style="text-align:center;padding:4px 3px;font-size:11px;font-weight:700;color:#44bbcc;border-right:1px solid #131330">${passivePerc}</td>
+    </tr>`;
+  }).join('');
+}
+
+function openPartySkillMatrix() {
+  const ex = document.getElementById('psmOverlay');
+  if (ex) { ex.remove(); return; }
+
+  const ov = document.createElement('div');
+  ov.id = 'psmOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9350;display:flex;flex-direction:column;font-family:"Inter",sans-serif';
+
+  const abBtns = ['ALL','STR','DEX','INT','WIS','CHA'].map(ab =>
+    `<button onclick="_psmFilter='${ab}';document.querySelectorAll('.psm-ab-btn').forEach(b=>b.classList.remove('psm-active'));this.classList.add('psm-active');_psmRender()" class="psm-ab-btn${ab==='ALL'?' psm-active':''}" data-ab="${ab}" style="padding:4px 10px;border-radius:12px;border:1px solid ${ab==='ALL'?'#9b6dff':(PSM_AB_COLORS[ab]||'#444')};color:${ab==='ALL'?'#9b6dff':(PSM_AB_COLORS[ab]||'#aaa')};background:${ab==='ALL'?'rgba(155,109,255,0.15)':'transparent'};cursor:pointer;font-size:11px;font-weight:600;transition:all 0.15s">${ab}</button>`
+  ).join('');
+
+  ov.innerHTML = `
+    <style>
+      .psm-active { opacity:1 !important; font-weight:700 !important; }
+      #psmTable { border-collapse:collapse; width:100%; }
+      #psmTable td, #psmTable th { border-bottom:1px solid #131330; }
+    </style>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid #1e1e40;flex-shrink:0;background:#07071a">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span style="font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:#9b6dff">🎓 Party Skill Matrix</span>
+        <span style="font-size:11px;color:#4a5272">— click any cell to roll · gold = proficient · dot = has proficiency</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="display:flex;gap:5px;flex-wrap:wrap">${abBtns}</div>
+        <button onclick="document.getElementById('psmOverlay').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px;margin-left:8px">✕</button>
+      </div>
+    </div>
+    <div style="overflow:auto;flex:1;padding:0">
+      <table id="psmTable">
+        <thead id="psmThead" style="position:sticky;top:0;z-index:4;background:#0a0a20"></thead>
+        <tbody id="psmTbody"></tbody>
+      </table>
+    </div>
+    <div style="padding:8px 18px;border-top:1px solid #1e1e40;background:#07071a;flex-shrink:0;font-size:10px;color:#3a3a60;display:flex;gap:20px">
+      <span>● Gold highlight + dot = proficient (adds prof bonus)</span>
+      <span>Pass Perc = 10 + WIS mod + Perception prof</span>
+      <span>Click character name to open full sheet</span>
+    </div>
+  `;
+
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _psmFilter = 'ALL';
+  _psmRender();
+}
+
+// Add Party Skill Matrix button to toolbar
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'Party Skill Matrix — all characters × all 18 skills in one table, click to roll';
+    btn.style.cssText = 'border-color:#9b6dff;color:#9b6dff';
+    btn.textContent = '🎓 Skill Matrix';
+    btn.onclick = openPartySkillMatrix;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
