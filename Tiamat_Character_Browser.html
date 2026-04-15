@@ -3561,6 +3561,9 @@
   <button class="filter-btn" onclick="openGraveyardPanel()" style="border-color:#555;color:#888;" title="Character graveyard — fallen heroes and villains">💀 Graveyard</button>
   <button class="filter-btn" onclick="openShortcutsHelp()" style="border-color:#4488ff;color:#4488ff;" title="Keyboard shortcuts — press ? anytime">⌨ ?</button>
   <button class="filter-btn" onclick="openGlobalSearch()" style="border-color:#c9a227;color:#9098b8;" title="Global search — Ctrl+K">🔍 Search All</button>
+  <button class="filter-btn" onclick="openDiceMacros()" style="border-color:#ff8822;color:#ff8822;" title="Quick Dice Macros — save &amp; replay dice rolls">🎲 Dice</button>
+  <button class="filter-btn" onclick="openPartySettings()" style="border-color:#9b6dff;color:#9b6dff;" title="Party settings — set level &amp; size for CR difficulty meter">⚔ Party</button>
+  <button class="filter-btn" onclick="openNameGenerator()" style="border-color:#c9a227;color:#c9a227;" title="Random NPC Name Generator — by race &amp; gender">📜 Names</button>
   <span style="color: #333; margin: 0 4px;">|</span>
   <span style="font-size:11px;color:#4a5272;margin-right:4px">View:</span>
   <button class="filter-btn view-btn active" id="viewGrid" onclick="setView('grid',this)" title="Grid view">⊞ Grid</button>
@@ -4275,24 +4278,46 @@
 
 <!-- AoE Damage/Heal Modal -->
 <div class="modal-backdrop" id="aoeDmgModal" onclick="if(event.target===this)closeAoeDmg()" style="display:none;align-items:center;justify-content:center">
-  <div class="session-manager-content" style="max-width:560px;width:96%">
+  <div class="session-manager-content" style="max-width:580px;width:96%">
     <div class="session-manager-header">
       <div class="session-manager-title">💥 AoE DAMAGE / HEAL</div>
       <button class="modal-close" onclick="closeAoeDmg()">✕</button>
+    </div>
+    <!-- Spell Quick-fill row -->
+    <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap">
+      <span style="font-size:11px;color:#4a5272;white-space:nowrap">Quick Spell:</span>
+      <select id="aoeSpellPicker" onchange="aoeLoadSpell(this.value)" style="flex:1;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer">
+        <option value="">— pick a spell to auto-fill —</option>
+        <option value="fireball|8d6|DEX|fire|20">Fireball (8d6 fire, DEX save, 20ft)</option>
+        <option value="lightning_bolt|8d6|DEX|lightning|5">Lightning Bolt (8d6 lightning, DEX save, 5ft wide)</option>
+        <option value="cone_of_cold|8d8|CON|cold|60">Cone of Cold (8d8 cold, CON save, 60ft cone)</option>
+        <option value="shatter|3d8|CON|thunder|10">Shatter (3d8 thunder, CON save, 10ft radius)</option>
+        <option value="thunderwave|2d8|CON|thunder|15">Thunderwave (2d8 thunder, CON save, 15ft cube)</option>
+        <option value="hypnotic_pattern|0|WIS|psychic|30">Hypnotic Pattern (WIS save, 30ft cube)</option>
+        <option value="slow|0|WIS|none|40">Slow (WIS save, 40ft cube)</option>
+        <option value="earthquake|2d8|CON|bludgeoning|100">Earthquake (2d8, CON save, 100ft radius)</option>
+        <option value="meteor_swarm|40d6|DEX|fire|40">Meteor Swarm (20d6 fire+20d6 bludgeoning, 40ft radius)</option>
+        <option value="mass_cure_wounds|3d8+5|heal|heal|30">Mass Cure Wounds (3d8+5 heal, 30ft radius)</option>
+        <option value="spirit_guardians|3d8|WIS|radiant|15">Spirit Guardians (3d8, WIS save, 15ft radius)</option>
+        <option value="cloud_of_daggers|4d4|DEX|slashing|5">Cloud of Daggers (4d4, DEX save, 5ft cube)</option>
+      </select>
+      <span id="aoeSpellInfo" style="font-size:10px;color:#4a5272"></span>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
       <input type="number" id="aoeAmount" placeholder="Amount" style="width:90px;background:#06061a;border:1px solid #2a2a50;border-radius:8px;padding:8px 12px;color:#e0e0ff;font-size:14px;outline:none" min="1">
       <button onclick="applyAoe('dmg')" style="background:rgba(204,51,51,.15);border:1px solid #cc3333;color:#cc3333;border-radius:8px;padding:8px 16px;cursor:pointer;font-size:13px;font-weight:600">⚔ Damage All</button>
       <button onclick="applyAoe('half')" style="background:rgba(204,51,51,.08);border:1px solid #cc333388;color:#cc333388;border-radius:8px;padding:8px 16px;cursor:pointer;font-size:13px">½ Half Dmg</button>
       <button onclick="applyAoe('heal')" style="background:rgba(68,170,68,.15);border:1px solid #44aa44;color:#44aa44;border-radius:8px;padding:8px 16px;cursor:pointer;font-size:13px;font-weight:600">✚ Heal All</button>
+      <button onclick="aoeRollDamage()" style="background:rgba(255,136,34,.1);border:1px solid #ff8822;color:#ff8822;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:12px" title="Roll the spell's damage dice and auto-fill">🎲 Roll</button>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:10px">
       <button onclick="aoeSelectAll(true)" style="background:none;border:1px solid #2a2a50;color:#7a7aaa;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">Select All</button>
       <button onclick="aoeSelectAll(false)" style="background:none;border:1px solid #2a2a50;color:#7a7aaa;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">None</button>
       <button onclick="aoeSelectCombat()" style="background:none;border:1px solid #dd6622;color:#dd6622;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">⚔ In Combat</button>
+      <button onclick="aoeSelectEnemies()" style="background:none;border:1px solid #cc3333;color:#cc3333;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">👹 Enemies</button>
       <span id="aoeSelCount" style="font-size:11px;color:#4a5272;margin-left:auto;align-self:center"></span>
     </div>
-    <div id="aoeCharList" style="max-height:360px;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:4px"></div>
+    <div id="aoeCharList" style="max-height:320px;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:4px"></div>
     <div id="aoeResult" style="margin-top:10px;font-size:12px;color:#9098b8;min-height:20px"></div>
   </div>
 </div>
@@ -5196,6 +5221,7 @@ function renderGrid() {
               <span class="hp-st ${hpStClass}">${hpStText}</span>
               <span class="temp-hp-badge" style="font-size:10px;color:#dd8822;${getTempHP(c.name)>0?'':'display:none'}">${getTempHP(c.name)>0?`⬡ +${getTempHP(c.name)}`:''}</span>
             </div>
+            ${getCrMeterHtml(c.cr)}
             ${currHp === 0 ? (()=>{ const _ds = (typeof getDeathSaves==='function') ? getDeathSaves(c.name) : {successes:[false,false,false],failures:[false,false,false]}; return `<div class="death-saves-row" id="dsrow_${sid}" onclick="event.stopPropagation()">
               <span style="font-size:9px;color:#44aa44;letter-spacing:0.5px">✓ </span>
               ${[0,1,2].map(i => `<span class="ds-pip success${_ds.successes[i]?' filled':''}" onclick="toggleDeathSave(${JSON.stringify(c.name)},'success',${i},event)"></span>`).join('')}
@@ -5587,6 +5613,7 @@ function buildStatsPanel(c) {
       <div id="spellSlotsFor_${safeId(c.name)}">${buildSpellSlotsHtml(c)}</div>
     </div>` : ''}
     ${buildSpellBook(c)}
+    ${buildSpellCombos(c)}
     <div class="stats-section">
       <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
         <span>Relationships</span>
@@ -10024,6 +10051,388 @@ function buildDamageDefenseSection(c) {
     ${resistances.length ? `<div style="margin-bottom:6px"><span style="font-size:9px;color:#4488ff;letter-spacing:1px">RESIST </span>${resistances.map(d => chip(d,'resist')).join('')}</div>` : ''}
     ${vulnerabilities.length ? `<div><span style="font-size:9px;color:#cc4444;letter-spacing:1px">VULNER </span>${vulnerabilities.map(d => chip(d,'vuln')).join('')}</div>` : ''}
   </div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 66: AoE Spell Targeting — spell quick-fill, dice roller,
+//   and "enemies only" selector for AoE panel.
+// ══════════════════════════════════════════════════════════
+let currentAoeSpell = null;
+
+function aoeLoadSpell(val) {
+  if (!val) { currentAoeSpell = null; document.getElementById('aoeSpellInfo').textContent = ''; return; }
+  const [id, diceStr, save, dmgType, radius] = val.split('|');
+  currentAoeSpell = { id, diceStr, save, dmgType, radius };
+  const saveLabel = save === 'heal' ? '' : ` · ${save} save`;
+  const dmgLabel = dmgType === 'none' || dmgType === 'heal' ? '' : ` · ${dmgType}`;
+  document.getElementById('aoeSpellInfo').textContent = `${diceStr}${dmgLabel}${saveLabel} · ${radius}ft`;
+  if (diceStr !== '0') aoeRollDamage();
+}
+
+function aoeRollDamage() {
+  const spell = currentAoeSpell;
+  if (!spell || spell.diceStr === '0') { showToast('Pick a damaging spell first', '#cc4444'); return; }
+  const res = rollDiceExpr(spell.diceStr);
+  if (res) {
+    document.getElementById('aoeAmount').value = res.total;
+    showToast(`🎲 ${spell.id.replace(/_/g,' ')}: ${res.total} [${res.rolls.join('+')}]`, '#ff8822');
+  }
+}
+
+function aoeSelectEnemies() {
+  // Select characters whose group contains "Enemy", "Monster", "Boss", or cr > 5
+  aoeSelected.clear();
+  UNIQUE_CHARS.forEach(c => {
+    const grp = (c.group || '').toLowerCase();
+    const cr = parseFloat(c.cr) || 0;
+    if (grp.includes('enemy') || grp.includes('monster') || grp.includes('boss') || grp.includes('villain') || grp.includes('npc') || cr >= 5) {
+      aoeSelected.add(c.name);
+    }
+  });
+  renderAoeList();
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 65: Random Name Generator — generate NPC names by
+//   race and gender using phoneme tables. Click to copy.
+// ══════════════════════════════════════════════════════════
+const NAME_TABLES = {
+  Human: {
+    male:   { prefixes: ['Al','Ber','Car','Dal','Ed','Fer','Gar','Har','Ig','Jar','Kel','Lor','Mar','Nor','Or','Per','Ren','Ser','Tor','Ul','Ven','War','Xan','Yan','Zor'], suffixes: ['and','bert','den','erick','ford','gar','helm','ic','ius','kin','lek','mer','nor','ond','ric','ston','tan','us','vard','win'] },
+    female: { prefixes: ['Ade','Bri','Cal','Del','Eli','Flo','Gal','Hel','Isa','Jor','Kat','Lau','Mir','Nor','Oli','Per','Ros','Ser','Tia','Uri','Val','Wil','Xan','Yv','Zel'], suffixes: ['a','ana','ine','ia','ien','ine','lis','na','ne','ra','ria','rin','sa','sel','ta','wen','yn'] },
+    surnames: ['Blackwood','Crownfall','Dawnstar','Emberglow','Frostmantle','Goldvein','Hammersong','Ironside','Jademore','Kindlewick','Lightbringer','Moonwhisper','Nighthollow','Oakheart','Proudmoore','Quickblade','Ravenscroft','Shadowmere','Stormveil','Thistledown','Underhill','Vexwood','Warwick','Yarrow','Zealstone']
+  },
+  Elf: {
+    male:   { prefixes: ['Ael','Ara','Cal','Dal','Eld','Fen','Gal','Hae','Ilu','Jer','Kel','Lae','Mir','Nae','Olu','Phi','Rae','Syl','Tae','Ul','Var','Wil','Xan','Yae','Zan'], suffixes: ['adrin','arien','edil','en','evar','ian','iel','il','in','is','ithar','on','or','orn','ovan','riel','rin','ron','thas','vir'] },
+    female: { prefixes: ['Aer','Ari','Cal','Del','Eli','Fen','Gal','Ilu','Jal','Kel','Lae','Mir','Nae','Olu','Per','Rae','Sil','Tae','Ul','Var','Wil','Xae','Yae','Zan'], suffixes: ['ael','aine','are','aria','ariel','aven','elas','elin','elyn','ia','iel','ina','ira','is','ith','lia','lira','ra','rial','ris'] },
+    surnames: ['Amastacia','Brightwood','Calanor','Dawntracker','Evershade','Faenor','Galanodel','Holimion','Ilphelkiir','Jhantar','Keyleth','Liadon','Meliamne','Naïlo','Ostoroth','Paperchase','Qualanthis','Raethran','Silverfrond','Truefeather','Ulondarr','Vindothiel','Woodwhisper','Xiloscient','Yaeldrin']
+  },
+  Dwarf: {
+    male:   { prefixes: ['Bar','Bor','Dal','Dur','Eld','Fal','Gar','Grim','Hal','Hor','Kel','Kor','Lar','Mor','Nor','Or','Ral','Rig','Stor','Thak','Thor','Ul','Var','War','Zor'], suffixes: ['ak','ald','an','ark','den','dur','ek','en','gard','in','kar','kin','kor','lin','mir','mund','nar','nir','rak','rin','stor','thar','tin','ulf','wick'] },
+    female: { prefixes: ['Amb','Bar','Bre','Dal','Dur','Gal','Gur','Hel','Kel','Kir','Lar','Mir','Nor','Ols','Ral','Rig','Rul','Sig','Tor','Ul','Umb','Var','Vig','Wil','Yur'], suffixes: ['a','ala','da','en','ga','ia','ika','ilda','in','ina','ka','kel','na','nika','ra','rin','rud','sig','ta','tha','ul','ula'] },
+    surnames: ['Balderk','Battlehammer','Brawnanvil','Dankil','Fireforge','Frostbeard','Gorunn','Holderhek','Loderr','Lutgehr','Rumnaheim','Strakeln','Torunn','Ungart','Vondal','Warcrown','Zelexis','Armbreaker','Deepdelver','Stonetooth']
+  },
+  Tiefling: {
+    male:   { prefixes: ['Adr','Ak','Anz','Ath','Bal','Bel','Cal','Car','Dav','Del','Ev','Gaz','Ish','Kaz','Kel','Lor','Mak','Mor','Naz','Phe','Rak','Rex','Ser','Thal','Vek','Zer'], suffixes: ['azar','el','emon','en','eus','iel','imon','kel','kus','mael','mon','nael','os','rak','rel','rex','rus','sel','tan','thon','uel','us','vel','zar','zel'] },
+    female: { prefixes: ['Akta','Ama','Ash','Cal','Cri','Del','Fal','Fen','Gla','Har','Ish','Kel','Lev','Mir','Nar','Phe','Pri','Rak','Ser','Sil','Tal','Thu','Tia','Var','Zel'], suffixes: ['a','ael','aia','aith','ana','ara','aris','ath','ela','ia','ina','ira','ith','iva','na','nia','ra','rina','ris','sha','ta','tia','vel','via','zia'] },
+    surnames: ['Bloodthorn','Casmaran','Devilkin','Embersoul','Flamebrand','Grimgaze','Hellswind','Ironveil','Jadescorn','Kessler','Lickedflame','Mordecai','Nightveil','Obsidian','Pyroclaw','Ravenbane','Scorneye','Threnody','Umbral','Voidwalker','Wickedthorn','Xanthius','Zeraphine']
+  },
+  Halfling: {
+    male:   { prefixes: ['Alton','Ander','Beau','Bin','Bon','Bron','Calin','Dal','Dob','Err','Fin','Fri','Gab','Gal','Herb','Hig','Jan','Jor','Kel','Lan','Lind','Mag','Mer','Mer','Ned','Nob','Norm','Odo','Olo','Ori','Per','Pippin','Rob','Ros','Sam','Tom','Vil','Wel','Wil','Yar'], suffixes: ['ber','bin','bo','bon','bur','ca','den','do','don','fin','ford','gar','gen','gold','kin','land','le','lin','mel','ner','pin','pip','read','rick','rin','row','shire','ton','vill','well','win'] },
+    female: { prefixes: ['And','Bell','Bere','Cal','Cil','Del','Dim','Eli','Em','Fan','Gab','Gill','Hil','Isa','Lil','Lin','Mel','Mer','Oda','Per','Por','Pur','Reb','Roc','Rose','Saf','Tam','Tru','Ula','Vin'], suffixes: ['a','ama','amy','aña','belle','boro','del','ella','en','er','ia','ina','ira','la','lea','lia','lin','ly','na','ra','rea','rin','ro','sa','shire','ta','wyn','ya'] },
+    surnames: ['Brushgather','Goodbarrel','Greenbottle','Highhill','Hilltopple','Leagallow','Openhill','Sandybanks','Tealeaf','Thorngage','Tosscobble','Underbough','Warmwater','Willowmere']
+  },
+  Orc: {
+    male:   { prefixes: ['Ag','Gor','Gra','Grim','Grug','Gut','Hor','Mag','Mog','Mor','Nog','Rak','Rig','Rog','Ruk','Shar','Tha','Tok','Torg','Ug','Urg','Vor','Vrak','Warg','Zug'], suffixes: ['ash','dur','gash','gor','grub','gul','gum','gur','kar','kor','kul','mak','mar','mol','nak','nar','nok','rak','rash','rok','ruk','tar','thar','ug','uk'] },
+    female: { prefixes: ['Ag','Bru','Dal','Dur','Gar','Gra','Gur','Kal','Mag','Mar','Mog','Nar','Rak','Ruk','Sha','Thar','Ug','Ura','Var','Ven','Vor','Wul','Xag','Yar','Zag'], suffixes: ['a','aka','ash','da','ga','gash','ga','ika','ira','ka','kra','na','ora','ra','rak','sha','ta','tara','tha','tra','ug','uka','ura','va'] },
+    surnames: ['Bloodfist','Bonecrusher','Deathmaw','Fleshripper','Gutspill','Ironjaw','Kneecleaver','Meatgrinder','Neckbreaker','Rageclaw','Skullcrusher','Stoneback','Tuskgore','Wolfhide']
+  },
+  Gnome: {
+    male:   { prefixes: ['Alb','Alv','Bel','Bin','Bof','Bom','Bor','Bur','Dal','Don','Dun','Eld','Fil','Fin','Fog','For','Fum','Gel','Gil','Gim','Gin','Gli','Glo','Glu','Gob'], suffixes: ['adoc','afor','alin','an','ander','apin','arat','ares','asel','aven','bard','bel','bin','bon','bur','del','din','don','dor','dur','fin','forr','fun','gel','gem'] },
+    female: { prefixes: ['Abi','Adal','Bimb','Bri','Cal','Car','Dar','Del','Dim','Ela','Eli','Fan','Fili','Fri','Gal','Gli','Gor','Hid','Ima','Jola','Kel','Lini','Lor','Loz','Mel'], suffixes: ['a','ala','amble','ana','ane','ara','aris','bel','bella','bin','bun','da','del','della','en','era','ia','ina','ira','isa','ita','la','lea','lia','lin'] },
+    surnames: ['Beren','Bumblethorn','Daergel','Folkor','Garrick','Gimble','Glim','Nackle','Ningel','Raulnor','Scheppen','Timbers','Turen','Waywocket']
+  },
+};
+
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function generateName(race, gender) {
+  const table = NAME_TABLES[race];
+  if (!table) return `Unknown-${Math.floor(Math.random()*999)}`;
+  const g = gender === 'female' ? table.female : table.male;
+  const first = pick(g.prefixes) + pick(g.suffixes);
+  const last = pick(table.surnames);
+  return `${first} ${last}`;
+}
+
+function openNameGenerator() {
+  const existing = document.getElementById('nameGenOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'nameGenOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.65);z-index:9400;display:flex;align-items:flex-start;justify-content:center;padding-top:8vh';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  overlay.innerHTML = `
+    <div style="background:#0d0d1a;border:1px solid rgba(201,162,39,0.4);border-radius:14px;padding:24px;width:480px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.7)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:700;color:#c9a227">📜 NPC Name Generator</div>
+        <button onclick="document.getElementById('nameGenOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <select id="nameGenRace" style="flex:1;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:7px 10px;font-size:12px;cursor:pointer">
+          ${Object.keys(NAME_TABLES).map(r => `<option value="${r}">${r}</option>`).join('')}
+        </select>
+        <select id="nameGenGender" style="width:110px;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:7px 10px;font-size:12px;cursor:pointer">
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+          <option value="any">Any</option>
+        </select>
+        <button onclick="genNames()" style="background:rgba(201,162,39,0.15);border:1px solid rgba(201,162,39,0.4);color:#c9a227;border-radius:6px;padding:7px 16px;cursor:pointer;font-size:12px">↻ Generate</button>
+      </div>
+      <div id="nameGenResults" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;min-height:120px"></div>
+      <div style="font-size:10px;color:#2a2a50;margin-top:10px;text-align:center">Click a name to copy it</div>
+    </div>`;
+  document.body.appendChild(overlay);
+  genNames();
+}
+
+function genNames() {
+  const race = document.getElementById('nameGenRace')?.value || 'Human';
+  const gender = document.getElementById('nameGenGender')?.value || 'any';
+  const results = document.getElementById('nameGenResults');
+  if (!results) return;
+  const genders = gender === 'any' ? ['male','male','female','female','male','female','male','female','male','female'] :
+                  Array(10).fill(gender);
+  results.innerHTML = genders.map(g => {
+    const name = generateName(race, g);
+    return `<button onclick="navigator.clipboard?.writeText(${JSON.stringify(name)});showToast('Copied: ${name}','#c9a227')" style="background:#06061a;border:1px solid #1e2040;color:#c8d0e8;border-radius:6px;padding:7px 10px;cursor:pointer;font-size:12px;text-align:left;transition:border-color 0.15s" onmouseover="this.style.borderColor='#c9a227'" onmouseout="this.style.borderColor='#1e2040'">${name}</button>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 64: CR Challenge Meter — shows encounter difficulty
+//   for a given character vs the active party. Uses XP thresholds
+//   from DMG to rate Easy/Medium/Hard/Deadly. Displayed as a
+//   small color-coded badge on each card below the HP bar.
+// ══════════════════════════════════════════════════════════
+// XP by CR (per character)
+const CR_XP_VALS = {'0':10,'1/8':25,'1/4':50,'1/2':100,'1':200,'2':450,'3':700,'4':1100,'5':1800,'6':2300,'7':2900,'8':3900,'9':5000,'10':5900,'11':7200,'12':8400,'13':10000,'14':11500,'15':13000,'16':15000,'17':18000,'18':20000,'19':22000,'20':25000,'21':33000,'22':41000,'23':50000,'24':62000,'25':75000,'26':90000,'27':105000,'28':120000,'29':135000,'30':155000};
+// XP thresholds per-character-level for a party of 4
+const XP_THRESHOLDS = {1:[25,50,75,100],2:[50,100,150,200],3:[75,150,225,400],4:[125,250,375,500],5:[250,500,750,1100],6:[300,600,900,1400],7:[350,750,1100,1700],8:[450,900,1400,2100],9:[550,1100,1600,2400],10:[600,1200,1900,2800],11:[800,1600,2400,3600],12:[1000,2000,3000,4500],13:[1100,2200,3400,5100],14:[1250,2500,3800,5700],15:[1400,2800,4300,6400],16:[1600,3200,4800,7200],17:[2000,3900,5900,8800],18:[2100,4200,6300,9500],19:[2400,4900,7300,10900],20:[2800,5700,8500,12700]};
+
+function getCrDifficulty(cr, partyLevel, partySize) {
+  const xp = CR_XP_VALS[cr] || 0;
+  if (!xp) return null;
+  const lvl = Math.max(1, Math.min(20, partyLevel || 5));
+  const sz = Math.max(1, partySize || 4);
+  const thresh = XP_THRESHOLDS[lvl] || XP_THRESHOLDS[5];
+  // Adjust thresholds for party size (scale from 4-person baseline)
+  const mult = sz / 4;
+  const [easy, medium, hard, deadly] = thresh.map(t => t * mult);
+  if (xp < easy)   return { label: 'Easy',   color: '#44aa44', bg: '#44aa4422' };
+  if (xp < medium) return { label: 'Medium', color: '#88aa22', bg: '#88aa2222' };
+  if (xp < hard)   return { label: 'Hard',   color: '#cc8822', bg: '#cc882222' };
+  if (xp < deadly) return { label: 'Hard',   color: '#cc8822', bg: '#cc882222' };
+  return { label: 'Deadly', color: '#cc3333', bg: '#cc333322' };
+}
+
+// Party settings stored in localStorage
+function getPartySettings() {
+  try { return JSON.parse(localStorage.getItem('tiamat_party_settings')) || { level: 5, size: 4 }; }
+  catch(e) { return { level: 5, size: 4 }; }
+}
+function savePartySettings(s) { localStorage.setItem('tiamat_party_settings', JSON.stringify(s)); }
+
+function getCrMeterHtml(cr) {
+  const party = getPartySettings();
+  const diff = getCrDifficulty(cr, party.level, party.size);
+  if (!diff) return '';
+  const xp = CR_XP_VALS[cr] || 0;
+  return `<div style="display:flex;align-items:center;gap:4px;margin-top:3px">
+    <span style="font-size:9px;color:#4a5272;letter-spacing:.3px">ENC</span>
+    <span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;background:${diff.bg};color:${diff.color};border:1px solid ${diff.color}44">${diff.label}</span>
+    <span style="font-size:9px;color:#2a2a50">${xp.toLocaleString()} XP</span>
+  </div>`;
+}
+
+function openPartySettings() {
+  const existing = document.getElementById('partySettingsOverlay');
+  if (existing) { existing.remove(); return; }
+  const party = getPartySettings();
+  const overlay = document.createElement('div');
+  overlay.id = 'partySettingsOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:9400;display:flex;align-items:center;justify-content:center';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  overlay.innerHTML = `
+    <div style="background:#0d0d1a;border:1px solid rgba(155,109,255,0.4);border-radius:14px;padding:24px;width:320px;box-shadow:0 8px 40px rgba(0,0,0,.7)">
+      <div style="font-size:15px;font-weight:700;color:#9b6dff;margin-bottom:16px">⚔ Party Settings</div>
+      <div style="font-size:11px;color:#4a5272;margin-bottom:8px">Used for CR difficulty calculations</div>
+      <div style="display:flex;gap:16px;margin-bottom:16px">
+        <label style="flex:1">
+          <div style="font-size:11px;color:#9098b8;margin-bottom:4px">Party Level</div>
+          <input type="number" id="partyLevel" value="${party.level}" min="1" max="20" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:6px 10px;font-size:13px">
+        </label>
+        <label style="flex:1">
+          <div style="font-size:11px;color:#9098b8;margin-bottom:4px">Party Size</div>
+          <input type="number" id="partySize" value="${party.size}" min="1" max="10" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:6px 10px;font-size:13px">
+        </label>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="applyPartySettings()" style="flex:1;background:rgba(155,109,255,0.15);border:1px solid rgba(155,109,255,0.4);color:#9b6dff;border-radius:6px;padding:8px;cursor:pointer;font-size:12px">✓ Apply</button>
+        <button onclick="document.getElementById('partySettingsOverlay').remove()" style="background:none;border:1px solid #2a2a50;color:#4a5272;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:12px">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+function applyPartySettings() {
+  const level = parseInt(document.getElementById('partyLevel')?.value) || 5;
+  const size  = parseInt(document.getElementById('partySize')?.value) || 4;
+  savePartySettings({ level: Math.max(1, Math.min(20, level)), size: Math.max(1, Math.min(10, size)) });
+  document.getElementById('partySettingsOverlay')?.remove();
+  renderGrid();
+  showToast(`Party: Level ${level}, Size ${size}`, '#9b6dff');
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 63: Spell Combo Builder — shows tactical synergies
+//   between this character's spells and traits. Highlights
+//   powerful combos (Concentration + AoE, Debuff + Damage, etc.)
+// ══════════════════════════════════════════════════════════
+const SPELL_COMBOS = [
+  { name:'Hypnotic Pattern + Fireball', tags:['hypnotic pattern','fireball'], desc:'Incapacitate a cluster, then detonate — targets can\'t dodge.', color:'#cc4422', icon:'💥' },
+  { name:'Hold Person + Sneak/Crits', tags:['hold person','paralyzed'], desc:'Paralyzed targets grant auto-crits to adjacent melee attackers.', color:'#9b6dff', icon:'⚡' },
+  { name:'Banishment + Action Surge', tags:['banishment','action surge'], desc:'Remove the biggest threat, then focus down others.', color:'#4488ff', icon:'🌀' },
+  { name:'Web + Fire', tags:['web','fireball'], desc:'Web restrains, fire ignites it — double damage zone.', color:'#cc4422', icon:'🔥' },
+  { name:'Darkness + Devil\'s Sight', tags:["darkness","devil's sight"], desc:'Blind all enemies while you see perfectly.', color:'#888', icon:'👁' },
+  { name:'Slow + Multiattack', tags:['slow'], desc:'Slow halves enemy actions and AC — devastating against bosses.', color:'#44ccaa', icon:'🐢' },
+  { name:'Haste + Multiattack', tags:['haste'], desc:'Double attacks on your strongest melee fighter.', color:'#88aa22', icon:'⚡' },
+  { name:'Wall of Fire + Forced Movement', tags:['wall of fire'], desc:'Push enemies into persistent fire wall with spells or attacks.', color:'#cc4422', icon:'🔥' },
+  { name:'Polymorph + Counterspell', tags:['polymorph','counterspell'], desc:'Transform the caster, countering their signature spells.', color:'#9b6dff', icon:'🦎' },
+  { name:'Fog Cloud + Blindsense', tags:['fog cloud'], desc:'Create fog to negate ranged attacks if your team has other senses.', color:'#9098b8', icon:'🌫' },
+  { name:'Phantasmal Killer + Frightened', tags:['phantasmal killer','fear'], desc:'Layer fear effects for persistent Wisdom saves.', color:'#cc4444', icon:'💀' },
+  { name:'Bless + Sharpshooter', tags:['bless'], desc:'Bless offsets Sharpshooter/GWM penalty — massive damage gain.', color:'#c9a227', icon:'✦' },
+  { name:'Spirit Guardians + Sentinel', tags:['spirit guardians'], desc:'Slow enemies into melee range, sentinel stops their escape.', color:'#44ccaa', icon:'🛡' },
+  { name:'Contagion + Disadvantage Aura', tags:['contagion'], desc:'Contagion stacks with any disadvantage source for near-perfect hit suppression.', color:'#44aa44', icon:'☠' },
+  { name:'Dissonant Whispers + Opportunity', tags:['dissonant whispers'], desc:'Force flee → trigger free opportunity attacks from allies.', color:'#9b6dff', icon:'👂' },
+];
+
+function buildSpellCombos(c) {
+  if (!isSpellcaster(c)) return '';
+  const spells = inferSpells(c).map(s => s.toLowerCase());
+  const traitText = (c.traits || []).join(' ').toLowerCase();
+  const loreText = (c.lore || '').toLowerCase();
+  const allText = spells.join(' ') + ' ' + traitText + ' ' + loreText;
+
+  const matches = SPELL_COMBOS.filter(combo =>
+    combo.tags.some(tag => allText.includes(tag.toLowerCase()))
+  );
+  if (!matches.length) return '';
+
+  const chips = matches.map(combo => `
+    <div style="display:flex;gap:8px;align-items:flex-start;padding:9px 10px;background:${combo.color}11;border:1px solid ${combo.color}33;border-radius:8px;margin-bottom:6px">
+      <span style="font-size:16px;flex-shrink:0">${combo.icon}</span>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:${combo.color};margin-bottom:2px">${combo.name}</div>
+        <div style="font-size:11px;color:#9098b8;line-height:1.5">${combo.desc}</div>
+      </div>
+    </div>`).join('');
+
+  return `<div class="stats-section">
+    <div class="stats-section-title">✨ Spell Combos <span style="font-size:10px;color:#4a5272;font-weight:400;font-family:'Inter',sans-serif">— tactical synergies detected</span></div>
+    ${chips}
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 62: Quick Dice Macros — save custom dice expressions
+//   (e.g. "2d6+3 fire") and replay with one click. Stored in
+//   localStorage. Supports any NdX±Y format.
+// ══════════════════════════════════════════════════════════
+const DICE_MACROS_KEY = 'tiamat_dice_macros';
+const DEFAULT_DICE_MACROS = [
+  { label: 'D20 Check',   expr: '1d20',     color: '#9b6dff' },
+  { label: 'Fireball',    expr: '8d6',      color: '#cc4422' },
+  { label: 'Greataxe',    expr: '1d12+5',   color: '#ff8822' },
+  { label: 'Longsword',   expr: '1d8+4',    color: '#4488ff' },
+  { label: 'Sneak Attack',expr: '3d6',      color: '#44aa44' },
+  { label: 'Healing Word',expr: '1d4+4',    color: '#44ccaa' },
+];
+
+function loadDiceMacros() {
+  try { return JSON.parse(localStorage.getItem(DICE_MACROS_KEY)) || DEFAULT_DICE_MACROS.slice(); }
+  catch(e) { return DEFAULT_DICE_MACROS.slice(); }
+}
+function saveDiceMacros(arr) {
+  localStorage.setItem(DICE_MACROS_KEY, JSON.stringify(arr));
+}
+
+function rollDiceExpr(expr) {
+  // Parse NdX+Y or NdX-Y
+  const m = expr.trim().match(/^(\d+)d(\d+)([+-]\d+)?$/i);
+  if (!m) { showToast(`Invalid dice: ${expr}`, '#cc4444'); return null; }
+  const n = parseInt(m[1]), sides = parseInt(m[2]), bonus = parseInt(m[3]||'0');
+  let total = bonus, rolls = [];
+  for (let i = 0; i < n; i++) {
+    const r = Math.floor(Math.random() * sides) + 1;
+    rolls.push(r); total += r;
+  }
+  return { total, rolls, n, sides, bonus, expr };
+}
+
+function fireDiceMacro(expr, label) {
+  const res = rollDiceExpr(expr);
+  if (!res) return;
+  const rollStr = res.rolls.length > 1 ? ` [${res.rolls.join('+')}]` : '';
+  const bonusStr = res.bonus !== 0 ? (res.bonus > 0 ? `+${res.bonus}` : `${res.bonus}`) : '';
+  showToast(`🎲 ${label}: ${res.total}${rollStr}${bonusStr ? ' ('+bonusStr+' bonus)' : ''}`, '#ff8822');
+  // Log to round log if combat is active
+  if (typeof addRoundLogEntry === 'function' && typeof currentRound !== 'undefined' && currentRound > 0) {
+    addRoundLogEntry(currentRound, `🎲 ${label} (${expr}): <strong>${res.total}</strong>${rollStr}`);
+  }
+}
+
+function openDiceMacros() {
+  const existing = document.getElementById('diceMacrosOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'diceMacrosOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.65);z-index:9500;display:flex;align-items:flex-start;justify-content:center;padding-top:8vh';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  overlay.innerHTML = `
+    <div style="background:#0d0d1a;border:1px solid rgba(255,136,34,0.4);border-radius:14px;padding:24px;width:520px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.7)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:700;color:#ff8822">🎲 Quick Dice Macros</div>
+        <button onclick="document.getElementById('diceMacrosOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <div id="diceMacroList" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px"></div>
+      <div style="border-top:1px solid #1e2040;padding-top:14px">
+        <div style="font-size:11px;color:#4a5272;margin-bottom:8px;letter-spacing:.5px">ADD NEW MACRO</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input id="dmLabel" placeholder="Label (e.g. Sneak Attack)" style="flex:1;min-width:130px;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:6px 10px;font-size:12px">
+          <input id="dmExpr"  placeholder="Dice (e.g. 3d6+2)" style="width:110px;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:6px 10px;font-size:12px">
+          <input id="dmColor" type="color" value="#9b6dff" style="width:38px;height:30px;border:1px solid #2a2a50;border-radius:6px;background:#06061a;cursor:pointer;padding:2px">
+          <button onclick="addDiceMacro()" style="background:rgba(255,136,34,0.15);border:1px solid rgba(255,136,34,0.4);color:#ff8822;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:12px">+ Add</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  renderDiceMacroList();
+}
+
+function renderDiceMacroList() {
+  const list = document.getElementById('diceMacroList');
+  if (!list) return;
+  const macros = loadDiceMacros();
+  if (!macros.length) { list.innerHTML = '<div style="color:#4a5272;font-size:12px;grid-column:span 2">No macros yet — add one below.</div>'; return; }
+  list.innerHTML = macros.map((m, i) => `
+    <div style="display:flex;align-items:center;gap:6px;background:${m.color}11;border:1px solid ${m.color}44;border-radius:8px;padding:8px 10px">
+      <button onclick="fireDiceMacro(${JSON.stringify(m.expr)},${JSON.stringify(m.label)})" style="flex:1;background:none;border:none;color:${m.color};cursor:pointer;font-size:12px;font-weight:600;text-align:left">
+        🎲 ${m.label}<br><span style="font-size:10px;color:#4a5272">${m.expr}</span>
+      </button>
+      <button onclick="deleteDiceMacro(${i})" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:12px" title="Delete">✕</button>
+    </div>`).join('');
+}
+
+function addDiceMacro() {
+  const label = (document.getElementById('dmLabel')?.value || '').trim();
+  const expr  = (document.getElementById('dmExpr')?.value  || '').trim();
+  const color = document.getElementById('dmColor')?.value || '#9b6dff';
+  if (!label || !expr) { showToast('Enter a label and dice expression', '#cc4444'); return; }
+  if (!expr.match(/^\d+d\d+([+-]\d+)?$/i)) { showToast('Invalid format — use NdX or NdX±Y', '#cc4444'); return; }
+  const macros = loadDiceMacros();
+  macros.push({ label, expr, color });
+  saveDiceMacros(macros);
+  document.getElementById('dmLabel').value = '';
+  document.getElementById('dmExpr').value  = '';
+  renderDiceMacroList();
+  showToast(`Added macro: ${label}`, '#44aa44');
+}
+
+function deleteDiceMacro(idx) {
+  const macros = loadDiceMacros();
+  macros.splice(idx, 1);
+  saveDiceMacros(macros);
+  renderDiceMacroList();
 }
 
 // ══════════════════════════════════════════════════════════
