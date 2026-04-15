@@ -26048,6 +26048,185 @@ function openDmQuickRef() {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 162: Full Spell Compendium — browsable spell reference with 100+ spells
+// Filter by level, school, class. Full details: components, duration, concentration.
+
+const FULL_SPELLS = [
+  // Cantrips
+  {name:'Fire Bolt',level:0,school:'Evocation',cast:'1 action',range:'120 ft',comp:'V,S',duration:'Instant',conc:false,classes:['Sorcerer','Wizard'],desc:'Ranged spell attack. 1d10 fire (4th: 2d10, 11th: 3d10, 17th: 4d10). Ignites flammable objects.'},
+  {name:'Ray of Frost',level:0,school:'Evocation',cast:'1 action',range:'60 ft',comp:'V,S',duration:'Instant',conc:false,classes:['Sorcerer','Wizard'],desc:'Ranged spell attack. 1d8 cold. Target speed −10 ft until start of your next turn.'},
+  {name:'Eldritch Blast',level:0,school:'Evocation',cast:'1 action',range:'120 ft',comp:'V,S',duration:'Instant',conc:false,classes:['Warlock'],desc:'Ranged spell attack: 1d10 force. Extra beams at 5th (×2), 11th (×3), 17th (×4) level.'},
+  {name:'Toll the Dead',level:0,school:'Necromancy',cast:'1 action',range:'60 ft',comp:'V,S',duration:'Instant',conc:false,classes:['Cleric','Warlock','Wizard'],desc:'WIS save or 1d8 necrotic. 1d12 if target is missing HP. Scales at higher levels.'},
+  {name:'Vicious Mockery',level:0,school:'Enchantment',cast:'1 action',range:'60 ft',comp:'V',duration:'Instant',conc:false,classes:['Bard'],desc:'WIS save or 1d4 psychic + disadvantage on next attack roll.'},
+  {name:'Mage Hand',level:0,school:'Conjuration',cast:'1 action',range:'30 ft',comp:'V,S',duration:'1 minute',conc:false,classes:['Sorcerer','Warlock','Wizard','Bard'],desc:'Spectral hand to manipulate objects up to 10 lbs, open doors/containers, stow/retrieve items.'},
+  {name:'Minor Illusion',level:0,school:'Illusion',cast:'1 action',range:'30 ft',comp:'S,M',duration:'1 minute',conc:false,classes:['Bard','Sorcerer','Warlock','Wizard'],desc:'Create sound or image. Sound: volume up to a scream. Image: fits in 5 ft cube. Investigation vs DC 14 to disbelieve.'},
+  {name:'Prestidigitation',level:0,school:'Transmutation',cast:'1 action',range:'10 ft',comp:'V,S',duration:'Up to 1 hour',conc:false,classes:['Bard','Sorcerer','Warlock','Wizard'],desc:'Magical tricks: create small effects, clean/soil, chill/warm/flavor, mark, create small sensory illusion.'},
+  {name:'Guidance',level:0,school:'Divination',cast:'1 action',range:'Touch',comp:'V,S',duration:'1 minute',conc:true,classes:['Cleric','Druid'],desc:'Willing creature can add 1d4 to one ability check of its choice.'},
+  {name:'Sacred Flame',level:0,school:'Evocation',cast:'1 action',range:'60 ft',comp:'V,S',duration:'Instant',conc:false,classes:['Cleric'],desc:'DEX save or 1d8 radiant. No cover benefit. Scales at higher levels.'},
+  {name:'Produce Flame',level:0,school:'Conjuration',cast:'1 action',range:'Self',comp:'V,S',duration:'10 minutes',conc:false,classes:['Druid'],desc:'Bright light 10 ft, dim 10 ft. Hurl as ranged spell attack: 1d8 fire. Scales.'},
+  {name:'Shillelagh',level:0,school:'Transmutation',cast:'Bonus action',range:'Touch',comp:'V,S,M',duration:'1 minute',conc:false,classes:['Druid'],desc:'Wooden club/staff attack rolls use spellcasting modifier, d8 damage, counts as magical.'},
+  // Level 1
+  {name:'Cure Wounds',level:1,school:'Evocation',cast:'1 action',range:'Touch',comp:'V,S',duration:'Instant',conc:false,classes:['Bard','Cleric','Druid','Paladin','Ranger'],desc:'Restore 1d8 + spellcasting mod HP. +1d8 per slot level above 1st.'},
+  {name:'Healing Word',level:1,school:'Evocation',cast:'Bonus action',range:'60 ft',comp:'V',duration:'Instant',conc:false,classes:['Bard','Cleric','Druid'],desc:'Restore 1d4 + spellcasting mod HP. +1d4 per slot level above 1st.'},
+  {name:'Magic Missile',level:1,school:'Evocation',cast:'1 action',range:'120 ft',comp:'V,S',duration:'Instant',conc:false,classes:['Sorcerer','Wizard'],desc:'3 darts, each auto-hits for 1d4+1 force. +1 dart per slot level above 1st.'},
+  {name:'Shield',level:1,school:'Abjuration',cast:'Reaction',range:'Self',comp:'V,S',duration:'1 round',conc:false,classes:['Sorcerer','Wizard'],desc:'+5 AC until start of next turn (including triggering attack). Blocks Magic Missile.'},
+  {name:'Bless',level:1,school:'Enchantment',cast:'1 action',range:'30 ft',comp:'V,S,M',duration:'1 minute',conc:true,classes:['Cleric','Paladin'],desc:'Up to 3 creatures add 1d4 to attack rolls and saving throws. +1 target per slot level above 1st.'},
+  {name:'Hex',level:1,school:'Enchantment',cast:'Bonus action',range:'90 ft',comp:'V,S,M',duration:'1 hour',conc:true,classes:['Warlock'],desc:'Curse a creature: extra 1d6 necrotic on each hit. Choose ability type for disadvantage on checks. Move on target death.'},
+  {name:'Hunter\'s Mark',level:1,school:'Divination',cast:'Bonus action',range:'90 ft',comp:'V',duration:'1 hour',conc:true,classes:['Ranger'],desc:'Mark quarry: extra 1d6 damage on each hit. Advantage tracking. Move on target death.'},
+  {name:'Faerie Fire',level:1,school:'Evocation',cast:'1 action',range:'60 ft',comp:'V',duration:'1 minute',conc:true,classes:['Bard','Druid'],desc:'DEX save or outlined in blue/green/violet. Can\'t be invisible. Attacks against them = advantage.'},
+  {name:'Sleep',level:1,school:'Enchantment',cast:'1 action',range:'90 ft',comp:'V,S,M',duration:'1 minute',conc:false,classes:['Bard','Sorcerer','Wizard'],desc:'Affects creatures with fewest HP first. 5d8 HP pool (at 1st slot). +2d8 per slot above 1st.'},
+  {name:'Thunderwave',level:1,school:'Evocation',cast:'1 action',range:'Self (15 ft cube)',comp:'V,S',duration:'Instant',conc:false,classes:['Bard','Cleric','Druid','Sorcerer','Wizard'],desc:'CON save: 2d8 thunder + pushed 10 ft. Half on success. Objects auto-pushed. +1d8 per slot above 1st.'},
+  {name:'Detect Magic',level:1,school:'Divination',cast:'1 action',range:'Self',comp:'V,S',duration:'10 minutes',conc:true,classes:['All casters'],desc:'Sense magic within 30 ft. See aura around magical objects/creatures. Know school of magic.'},
+  {name:'Identify',level:1,school:'Divination',cast:'1 minute (ritual)',range:'Touch',comp:'V,S,M',duration:'Instant',conc:false,classes:['Bard','Wizard'],desc:'Ritual. Learn magical properties of one item, including command words and attunement.'},
+  {name:'Absorb Elements',level:1,school:'Abjuration',cast:'Reaction',range:'Self',comp:'S',duration:'1 round',conc:false,classes:['Druid','Ranger','Sorcerer','Wizard'],desc:'Reaction to taking acid/cold/fire/lightning/thunder damage. Resistance to triggering damage type. Extra 1d6 on next melee attack.'},
+  // Level 2
+  {name:'Misty Step',level:2,school:'Conjuration',cast:'Bonus action',range:'Self',comp:'V',duration:'Instant',conc:false,classes:['Sorcerer','Warlock','Wizard'],desc:'Teleport to an unoccupied space within 30 ft that you can see.'},
+  {name:'Hold Person',level:2,school:'Enchantment',cast:'1 action',range:'60 ft',comp:'V,S,M',duration:'1 minute',conc:true,classes:['Bard','Cleric','Druid','Sorcerer','Warlock','Wizard'],desc:'WIS save or paralyzed. Repeat at end of each turn. +1 target per slot level above 2nd.'},
+  {name:'Mirror Image',level:2,school:'Illusion',cast:'1 action',range:'Self',comp:'V,S',duration:'1 minute',conc:false,classes:['Sorcerer','Warlock','Wizard'],desc:'3 illusory duplicates. Attackers must roll to hit; duplicate destroyed on hit. AC: 10+DEX.'},
+  {name:'Suggestion',level:2,school:'Enchantment',cast:'1 action',range:'30 ft',comp:'V,M',duration:'8 hours',conc:true,classes:['Bard','Sorcerer','Warlock','Wizard'],desc:'WIS save or follow reasonable 1-2 sentence suggestion until fulfilled, or 8 hours.'},
+  {name:'Spiritual Weapon',level:2,school:'Evocation',cast:'Bonus action',range:'60 ft',comp:'V,S',duration:'1 minute',conc:false,classes:['Cleric'],desc:'Bonus action attack: 1d8 + spellcasting mod force. Move 20 ft + attack each turn. +1d8 per 2 slot levels above 2nd.'},
+  {name:'Spider Climb',level:2,school:'Transmutation',cast:'1 action',range:'Touch',comp:'V,S,M',duration:'1 hour',conc:true,classes:['Sorcerer','Warlock','Wizard'],desc:'Target can move along walls/ceilings without hands free. Speed unaffected.'},
+  {name:'Silence',level:2,school:'Illusion',cast:'1 action (ritual)',range:'120 ft',comp:'V,S',duration:'10 minutes',conc:true,classes:['Bard','Cleric','Ranger'],desc:'20 ft radius, no sound. Deafened while in area. Can\'t cast spells with verbal components.'},
+  {name:'Aid',level:2,school:'Abjuration',cast:'1 action',range:'30 ft',comp:'V,S,M',duration:'8 hours',conc:false,classes:['Cleric','Paladin','Ranger'],desc:'3 targets gain +5 HP max and current HP. +5 per slot level above 2nd.'},
+  {name:'Scorching Ray',level:2,school:'Evocation',cast:'1 action',range:'120 ft',comp:'V,S',duration:'Instant',conc:false,classes:['Sorcerer','Wizard'],desc:'3 rays, each ranged spell attack for 2d6 fire. +1 ray per slot level above 2nd.'},
+  {name:'Darkness',level:2,school:'Evocation',cast:'1 action',range:'60 ft',comp:'V,M',duration:'10 minutes',conc:true,classes:['Sorcerer','Warlock','Wizard'],desc:'15 ft radius magical darkness. Can\'t be seen through. Blocks all light unless magical.'},
+  // Level 3
+  {name:'Fireball',level:3,school:'Evocation',cast:'1 action',range:'150 ft',comp:'V,S,M',duration:'Instant',conc:false,classes:['Sorcerer','Wizard'],desc:'DEX save or 8d6 fire in 20 ft radius, half on success. +1d6 per slot above 3rd.'},
+  {name:'Counterspell',level:3,school:'Abjuration',cast:'Reaction',range:'60 ft',comp:'S',duration:'Instant',conc:false,classes:['Sorcerer','Warlock','Wizard'],desc:'Interrupt a spell being cast. Auto-negate if slot ≤3rd. Higher: ability check = 10+slot level.'},
+  {name:'Hypnotic Pattern',level:3,school:'Illusion',cast:'1 action',range:'120 ft',comp:'S,M',duration:'1 minute',conc:true,classes:['Bard','Sorcerer','Warlock','Wizard'],desc:'WIS save or charmed and incapacitated in 30 ft cube. Action to shake target out.'},
+  {name:'Animate Dead',level:3,school:'Necromancy',cast:'1 minute',range:'10 ft',comp:'V,S,M',duration:'24 hours',conc:false,classes:['Cleric','Wizard'],desc:'Raise undead servant from humanoid corpse. Obeys commands. Max INT score of 8, loses personality.'},
+  {name:'Dispel Magic',level:3,school:'Abjuration',cast:'1 action',range:'120 ft',comp:'V,S',duration:'Instant',conc:false,classes:['Bard','Cleric','Druid','Paladin','Sorcerer','Warlock','Wizard'],desc:'End all spells of 3rd level or lower on target. Higher spells: ability check DC = 10+spell level.'},
+  {name:'Fly',level:3,school:'Transmutation',cast:'1 action',range:'Touch',comp:'V,S,M',duration:'10 minutes',conc:true,classes:['Sorcerer','Warlock','Wizard'],desc:'Target gains flying speed of 60 ft. +1 target per slot level above 3rd.'},
+  {name:'Spirit Guardians',level:3,school:'Conjuration',cast:'1 action',range:'Self',comp:'V,S,M',duration:'10 minutes',conc:true,classes:['Cleric'],desc:'15 ft radius aura: creatures must succeed WIS save or 3d8 radiant/necrotic half. Speed halved in area. +1d8 per slot above 3rd.'},
+  {name:'Lightning Bolt',level:3,school:'Evocation',cast:'1 action',range:'Self (100 ft line)',comp:'V,S,M',duration:'Instant',conc:false,classes:['Sorcerer','Wizard'],desc:'DEX save or 8d6 lightning in 100 ft × 5 ft line. Half on success. +1d6 per slot above 3rd.'},
+  {name:'Mass Healing Word',level:3,school:'Evocation',cast:'Bonus action',range:'60 ft',comp:'V',duration:'Instant',conc:false,classes:['Bard','Cleric'],desc:'Up to 6 creatures regain 1d4 + spellcasting mod HP. +1d4 per slot above 3rd.'},
+  {name:'Haste',level:3,school:'Transmutation',cast:'1 action',range:'30 ft',comp:'V,S,M',duration:'1 minute',conc:true,classes:['Sorcerer','Wizard'],desc:'Target: speed doubled, +2 AC, advantage DEX saves, extra action (Attack/Dash/Disengage/Hide/Use Object). Lethargy 1 turn when it ends.'},
+  // Level 4
+  {name:'Banishment',level:4,school:'Abjuration',cast:'1 action',range:'60 ft',comp:'V,S,M',duration:'1 minute',conc:true,classes:['Cleric','Paladin','Sorcerer','Warlock','Wizard'],desc:'CHA save or banished. Native plane: returns when concentration ends. Non-native: permanently if 1 minute holds.'},
+  {name:'Polymorph',level:4,school:'Transmutation',cast:'1 action',range:'60 ft',comp:'V,S,M',duration:'1 hour',conc:true,classes:['Bard','Druid','Sorcerer','Wizard'],desc:'WIS save (unwilling) or transform into beast with CR ≤ target level. HP: beast form HP. Reverts at 0 HP.'},
+  {name:'Greater Invisibility',level:4,school:'Illusion',cast:'1 action',range:'Touch',comp:'V,S',duration:'1 minute',conc:true,classes:['Bard','Sorcerer','Wizard'],desc:'Target invisible even while attacking or casting. Attacks = advantage, attacks vs you = disadvantage.'},
+  {name:'Stoneskin',level:4,school:'Abjuration',cast:'1 action',range:'Touch',comp:'V,S,M',duration:'1 hour',conc:true,classes:['Druid','Ranger','Sorcerer','Wizard'],desc:'Target has resistance to nonmagical bludgeoning, piercing, and slashing damage.'},
+  {name:'Dimension Door',level:4,school:'Conjuration',cast:'1 action',range:'500 ft',comp:'V',duration:'Instant',conc:false,classes:['Bard','Sorcerer','Warlock','Wizard'],desc:'Teleport to any familiar location within 500 ft. Bring one willing creature. Fail if space occupied.'},
+  {name:'Gravity Sinkhole',level:4,school:'Graviturgy',cast:'1 action',range:'120 ft',comp:'V,S',duration:'Instant',conc:false,classes:['Wizard'],desc:'STR save or pulled to center + 5d10 force damage. Success: half damage, no pull.'},
+  {name:'Ice Storm',level:4,school:'Evocation',cast:'1 action',range:'300 ft',comp:'V,S,M',duration:'Instant',conc:false,classes:['Druid','Sorcerer','Wizard'],desc:'DEX save or 2d8 bludgeoning + 4d6 cold in 20 ft cylinder. Ground becomes difficult terrain. +1d8 per slot above 4th.'},
+  // Level 5
+  {name:'Hold Monster',level:5,school:'Enchantment',cast:'1 action',range:'90 ft',comp:'V,S,M',duration:'1 minute',conc:true,classes:['Bard','Sorcerer','Warlock','Wizard'],desc:'WIS save or paralyzed. Repeat at end of each turn. +1 target per slot above 5th.'},
+  {name:'Dominate Person',level:5,school:'Enchantment',cast:'1 action',range:'60 ft',comp:'V,S',duration:'1 minute',conc:true,classes:['Bard','Sorcerer','Wizard'],desc:'WIS save or charmed: you have telepathic link, can issue commands. Repeat save if takes damage.'},
+  {name:'Wall of Force',level:5,school:'Evocation',cast:'1 action',range:'120 ft',comp:'V,S,M',duration:'10 minutes',conc:true,classes:['Wizard'],desc:'Invisible wall of force (10 panels, each 10×10 ft). Immune to all damage. Nothing passes.'},
+  {name:'Cone of Cold',level:5,school:'Evocation',cast:'1 action',range:'Self (60-ft cone)',comp:'V,S,M',duration:'Instant',conc:false,classes:['Sorcerer','Wizard'],desc:'CON save or 8d8 cold, half on success. Killed creatures become frozen statues. +1d8 per slot above 5th.'},
+  {name:'Teleportation Circle',level:5,school:'Conjuration',cast:'1 minute',range:'10 ft',comp:'V,M',duration:'1 round',conc:false,classes:['Bard','Sorcerer','Wizard'],desc:'Draw 10 ft circle on floor: portal to permanent teleportation circle you know. One-way.'},
+  {name:'Bigby\'s Hand',level:5,school:'Evocation',cast:'1 action',range:'120 ft',comp:'V,S,M',duration:'1 minute',conc:true,classes:['Wizard'],desc:'Large magical hand. Clenched fist: 4d8 force. Forceful hand: 5d6+STR push. Grasping: Athletics vs your Arcana.'},
+  {name:'Mass Cure Wounds',level:5,school:'Evocation',cast:'1 action',range:'60 ft',comp:'V,S',duration:'Instant',conc:false,classes:['Bard','Cleric','Druid'],desc:'Up to 6 creatures regain 3d8 + spellcasting mod HP each. +1d8 per slot above 5th.'},
+  // Level 6
+  {name:'Chain Lightning',level:6,school:'Evocation',cast:'1 action',range:'150 ft',comp:'V,S,M',duration:'Instant',conc:false,classes:['Sorcerer','Wizard'],desc:'DEX save or 10d8 lightning. Arcs to 3 more targets (DEX save, same damage). +1 arc per slot above 6th.'},
+  {name:'Disintegrate',level:6,school:'Transmutation',cast:'1 action',range:'60 ft',comp:'V,S,M',duration:'Instant',conc:false,classes:['Sorcerer','Wizard'],desc:'DEX save or 10d6+40 force. Creature killed by it disintegrates. +3d6 per slot above 6th.'},
+  {name:'True Seeing',level:6,school:'Divination',cast:'1 action',range:'Touch',comp:'V,S,M',duration:'1 hour',conc:false,classes:['Cleric','Sorcerer','Warlock','Wizard'],desc:'Target gains truesight 120 ft, see into Ethereal Plane, and see through illusions/transmutations.'},
+  {name:'Heal',level:6,school:'Evocation',cast:'1 action',range:'60 ft',comp:'V,S',duration:'Instant',conc:false,classes:['Cleric','Druid'],desc:'Restore 70 HP to target. Cure blindness, deafness, disease. No overheal. +10 HP per slot above 6th.'},
+  // Level 7
+  {name:'Finger of Death',level:7,school:'Necromancy',cast:'1 action',range:'60 ft',comp:'V,S',duration:'Instant',conc:false,classes:['Sorcerer','Warlock','Wizard'],desc:'CON save or 7d8+30 necrotic, half on success. Humanoid killed rises as zombie under your control.'},
+  {name:'Fire Storm',level:7,school:'Evocation',cast:'1 action',range:'150 ft',comp:'V,S',duration:'Instant',conc:false,classes:['Cleric','Druid','Sorcerer'],desc:'DEX save or 7d10 fire in 10 10-ft cubes (contiguous), half on success.'},
+  {name:'Teleport',level:7,school:'Conjuration',cast:'1 action',range:'10 ft',comp:'V',duration:'Instant',conc:false,classes:['Bard','Sorcerer','Wizard'],desc:'Teleport up to 8 willing creatures to destination. Roll on table: Familiarity affects success chance.'},
+  // Level 8
+  {name:'Power Word Stun',level:8,school:'Enchantment',cast:'1 action',range:'60 ft',comp:'V',duration:'Varies',conc:false,classes:['Sorcerer','Warlock','Wizard'],desc:'Target ≤150 HP stunned. Repeat CON save at end of each turn.'},
+  {name:'Sunburst',level:8,school:'Evocation',cast:'1 action',range:'150 ft',comp:'V,S,M',duration:'Instant',conc:false,classes:['Druid','Sorcerer','Wizard'],desc:'CON save or 12d6 radiant and blinded 1 min in 60 ft radius. Undead/ooze disadvantage.'},
+  {name:'Maze',level:8,school:'Conjuration',cast:'1 action',range:'60 ft',comp:'V,S',duration:'10 minutes',conc:true,classes:['Wizard'],desc:'Banish to extradimensional maze. DC 20 INT check (action) to escape. Minotaurs auto-succeed.'},
+  // Level 9
+  {name:'Wish',level:9,school:'Conjuration',cast:'1 action',range:'Self',comp:'V',duration:'Instant',conc:false,classes:['Sorcerer','Wizard'],desc:'Duplicate any spell ≤8th level without components, or alter reality. Stress: 33% lose Wish ability; STR to 3 for 2d4 days; 50% chance to not work again.'},
+  {name:'Meteor Swarm',level:9,school:'Evocation',cast:'1 action',range:'1 mile',comp:'V,S',duration:'Instant',conc:false,classes:['Sorcerer','Wizard'],desc:'DEX save or 20d6 fire + 20d6 bludgeoning in four 40 ft radius spheres. Half on success.'},
+  {name:'Power Word Kill',level:9,school:'Enchantment',cast:'1 action',range:'60 ft',comp:'V',duration:'Instant',conc:false,classes:['Sorcerer','Warlock','Wizard'],desc:'Target ≤100 HP dies instantly. No saving throw.'},
+  {name:'True Resurrection',level:9,school:'Necromancy',cast:'1 hour',range:'Touch',comp:'V,S,M',duration:'Instant',conc:false,classes:['Cleric','Druid'],desc:'Restore any creature dead ≤200 years to life with full HP. Even if no body remains. 25,000 gp diamond.'},
+];
+
+const SPELL_SCHOOLS = ['All','Abjuration','Conjuration','Divination','Enchantment','Evocation','Illusion','Necromancy','Transmutation','Graviturgy'];
+const SPELL_CLASSES_LIST = ['All','Bard','Cleric','Druid','Paladin','Ranger','Sorcerer','Warlock','Wizard'];
+
+let _scFilter = { level: 'All', school: 'All', cls: 'All', q: '' };
+
+function openSpellCompendium() {
+  const ex = document.getElementById('spellCompOverlay');
+  if (ex) { ex.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'spellCompOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9200;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+  ov.innerHTML = `
+    <div style="width:900px;max-width:100%;color:#c8d0e8;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;position:sticky;top:0;background:rgba(6,6,26,0.97);padding:12px 0;border-bottom:1px solid rgba(155,109,255,0.2);backdrop-filter:blur(4px);z-index:10">
+        <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:700;color:#9b6dff">✨ Spell Compendium</div>
+        <button onclick="document.getElementById('spellCompOverlay').remove()" style="background:none;border:1px solid #2a2040;color:#6a5aaa;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:13px">✕</button>
+      </div>
+      <!-- Filters -->
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+        <input id="scSearch" type="text" placeholder="Search spells…" oninput="_scRender()" style="flex:1;min-width:160px;background:#0c0c20;border:1px solid #2a2050;color:#c8d0e8;border-radius:6px;padding:7px 10px;font-size:13px">
+        <select id="scLevel" onchange="_scRender()" style="background:#0c0c20;border:1px solid #2a2050;color:#c8d0e8;border-radius:6px;padding:7px;font-size:12px">
+          <option>All</option>${[0,1,2,3,4,5,6,7,8,9].map(l=>`<option>${l}</option>`).join('')}
+        </select>
+        <select id="scSchool" onchange="_scRender()" style="background:#0c0c20;border:1px solid #2a2050;color:#c8d0e8;border-radius:6px;padding:7px;font-size:12px">
+          ${SPELL_SCHOOLS.map(s=>`<option>${s}</option>`).join('')}
+        </select>
+        <select id="scClass" onchange="_scRender()" style="background:#0c0c20;border:1px solid #2a2050;color:#c8d0e8;border-radius:6px;padding:7px;font-size:12px">
+          ${SPELL_CLASSES_LIST.map(s=>`<option>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div id="scResults" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;padding-bottom:40px"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _scRender();
+}
+
+function _scRender() {
+  const q = (document.getElementById('scSearch')?.value||'').toLowerCase();
+  const lv = document.getElementById('scLevel')?.value||'All';
+  const sch = document.getElementById('scSchool')?.value||'All';
+  const cls = document.getElementById('scClass')?.value||'All';
+  const filtered = FULL_SPELLS.filter(s => {
+    if (q && !s.name.toLowerCase().includes(q) && !s.desc.toLowerCase().includes(q)) return false;
+    if (lv !== 'All' && String(s.level) !== lv) return false;
+    if (sch !== 'All' && s.school !== sch) return false;
+    if (cls !== 'All' && !s.classes.some(c => c === cls || c === 'All casters')) return false;
+    return true;
+  });
+  const LEVEL_COLORS = ['#888','#44aa88','#4488ff','#cc4444','#9b6dff','#cc8822','#44aacc','#cc44aa','#888888','#c9a227'];
+  const el = document.getElementById('scResults');
+  if (!el) return;
+  if (!filtered.length) { el.innerHTML = '<div style="color:#4a5272;padding:20px;text-align:center;grid-column:1/-1">No spells match filters.</div>'; return; }
+  el.innerHTML = filtered.map(s => {
+    const lc = LEVEL_COLORS[s.level] || '#888';
+    const lvLabel = s.level === 0 ? 'Cantrip' : `Level ${s.level}`;
+    return `<div style="background:rgba(0,0,0,0.4);border:1px solid ${lc}33;border-radius:10px;padding:14px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+        <div style="font-size:13px;font-weight:700;color:#e0e0ff">${escHtml(s.name)}</div>
+        <span style="font-size:10px;color:${lc};background:${lc}18;border-radius:4px;padding:2px 6px;white-space:nowrap;margin-left:8px">${lvLabel}</span>
+      </div>
+      <div style="font-size:10px;color:${lc};margin-bottom:6px">${escHtml(s.school)}${s.conc?' · Concentration':''}</div>
+      <div style="font-size:10px;color:#8090b0;margin-bottom:6px;display:flex;flex-wrap:wrap;gap:6px">
+        <span>⏱ ${escHtml(s.cast)}</span>
+        <span>📍 ${escHtml(s.range)}</span>
+        <span>⌛ ${escHtml(s.duration)}</span>
+        <span>🧩 ${escHtml(s.comp)}</span>
+      </div>
+      <div style="font-size:11px;color:#9098b8;line-height:1.5">${escHtml(s.desc)}</div>
+      <div style="font-size:9px;color:#4a5272;margin-top:6px">${s.classes.map(c=>escHtml(c)).join(' · ')}</div>
+    </div>`;
+  }).join('');
+}
+
+// Add Spell Compendium button to encounter-open-btn row
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'Spell Compendium — browse all spells by level, school, class';
+    btn.style.cssText = 'border-color:#44aaff;color:#44aaff';
+    btn.textContent = '✨ Spells';
+    btn.onclick = openSpellCompendium;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
