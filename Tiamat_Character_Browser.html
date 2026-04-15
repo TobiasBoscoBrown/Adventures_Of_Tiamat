@@ -3423,6 +3423,7 @@
       <button class="init-ctrl-btn" onclick="rollAllInitiative()" title="Roll initiative for all NPCs">⚄ Roll All</button>
       <button class="init-ctrl-btn next-btn" onclick="nextTurn()" title="Next turn">Next ▶</button>
       <button class="init-ctrl-btn" onclick="toggleGroupRoll()" title="Group saving throw / ability check" style="border-color:#aa66dd;color:#aa66dd">⚔ Save</button>
+      <button class="init-ctrl-btn" onclick="toggleBulkCond(event)" title="Apply condition to all in initiative" style="border-color:#dd8822;color:#dd8822">⚡ Bulk</button>
       <button class="init-ctrl-btn" onclick="clearInitiative()" title="Clear initiative">✕</button>
     </div>
   </div>
@@ -8829,6 +8830,90 @@ function clearTagFilter(dropdown) {
   renderGrid();
 }
 // ────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// ITERATION 39: Bulk Condition Applicator — Apply or remove
+//   any condition to ALL characters currently in initiative.
+//   Perfect for area effects: fog, frightened, poisoned, etc.
+// ══════════════════════════════════════════════════════════
+function toggleBulkCond(evt) {
+  evt.stopPropagation();
+  const existing = document.querySelector('.bulk-cond-popup');
+  if (existing) { existing.remove(); return; }
+  if (!initiativeList.length) { showToast('No characters in initiative', '#cc4444'); return; }
+  const popup = document.createElement('div');
+  popup.className = 'bulk-cond-popup';
+  popup.style.cssText = 'position:fixed;background:#0e0e24;border:1px solid rgba(221,136,34,.5);border-radius:12px;padding:14px;z-index:9000;box-shadow:0 8px 32px rgba(0,0,0,.8);min-width:260px;max-height:70vh;overflow-y:auto';
+  const names = initiativeList.map(e => e.name).filter(Boolean);
+  // All possible conditions + common area conditions grouped first
+  const areaFirst = ['Poisoned','Frightened','Prone','Blinded','Deafened','Charmed','Paralyzed','Restrained'];
+  const rest = CONDITIONS.map(c => c.name).filter(n => !areaFirst.includes(n));
+  const allConds = [...areaFirst, ...rest];
+  popup.innerHTML = `
+    <div style="font-size:12px;color:#dd8822;font-weight:700;margin-bottom:8px;font-family:'Cinzel',serif">⚡ BULK CONDITIONS</div>
+    <div style="font-size:10px;color:#4a5272;margin-bottom:10px">Affects all ${names.length} characters in initiative</div>
+    <div style="display:flex;gap:6px;margin-bottom:10px">
+      <button onclick="bulkClearAllConds()" style="flex:1;background:rgba(204,51,51,0.1);border:1px solid rgba(204,51,51,0.4);color:#cc4444;border-radius:6px;padding:5px;cursor:pointer;font-size:11px">✕ Clear All Conditions</button>
+    </div>
+    <div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:6px">APPLY TO ALL:</div>
+    ${allConds.map(cn => {
+      const cd = CONDITIONS.find(c => c.name === cn);
+      const cls = cd ? getCondClass(cd.type) : '';
+      return `<div onclick="bulkApplyCond(${JSON.stringify(cn)})" style="padding:5px 8px;cursor:pointer;border-radius:4px;font-size:12px;display:flex;align-items:center;gap:6px;margin-bottom:2px" onmouseover="this.style.background='#1e2040'" onmouseout="this.style.background=''">
+        <span class="condition-badge ${cls}" style="cursor:default;font-size:10px;padding:1px 6px">${cn}</span>
+        <span style="font-size:10px;color:#4a5272">${cd ? cd.effect.slice(0,40) + '…' : ''}</span>
+      </div>`;
+    }).join('')}
+    <div style="border-top:1px solid #1e2040;margin-top:8px;padding-top:8px">
+      <div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:6px">REMOVE FROM ALL:</div>
+      ${allConds.map(cn => `<div onclick="bulkRemoveCond(${JSON.stringify(cn)})" style="padding:3px 8px;cursor:pointer;border-radius:4px;font-size:11px;color:#4a5272" onmouseover="this.style.background='#1e2040';this.style.color='#cc4444'" onmouseout="this.style.background='';this.style.color='#4a5272'">✕ Remove ${cn}</div>`).join('')}
+    </div>`;
+  document.body.appendChild(popup);
+  const rect = evt.target.getBoundingClientRect();
+  popup.style.left = Math.max(4, rect.left - 100) + 'px';
+  popup.style.top = (rect.bottom + 4) + 'px';
+  setTimeout(() => document.addEventListener('click', function rem(e) {
+    if (!popup.contains(e.target)) { popup.remove(); document.removeEventListener('click', rem); }
+  }), 50);
+}
+function bulkApplyCond(condName) {
+  initiativeList.forEach(entry => {
+    if (!entry.name) return;
+    const conds = getCharConditions(entry.name);
+    if (!conds.includes(condName)) {
+      const all = loadAllConditions();
+      all[entry.name] = [...(all[entry.name] || []), condName];
+      localStorage.setItem('tiamat_conditions', JSON.stringify(all));
+    }
+  });
+  document.querySelectorAll('.bulk-cond-popup').forEach(p => p.remove());
+  renderGrid();
+  showToast(`Applied ${condName} to ${initiativeList.length} characters`, '#dd8822');
+}
+function bulkRemoveCond(condName) {
+  initiativeList.forEach(entry => {
+    if (!entry.name) return;
+    const all = loadAllConditions();
+    if (all[entry.name]) {
+      all[entry.name] = all[entry.name].filter(c => c !== condName);
+      localStorage.setItem('tiamat_conditions', JSON.stringify(all));
+    }
+  });
+  document.querySelectorAll('.bulk-cond-popup').forEach(p => p.remove());
+  renderGrid();
+  showToast(`Removed ${condName} from all in initiative`, '#44aa44');
+}
+function bulkClearAllConds() {
+  initiativeList.forEach(entry => {
+    if (!entry.name) return;
+    const all = loadAllConditions();
+    delete all[entry.name];
+    localStorage.setItem('tiamat_conditions', JSON.stringify(all));
+  });
+  document.querySelectorAll('.bulk-cond-popup').forEach(p => p.remove());
+  renderGrid();
+  showToast(`Cleared all conditions from ${initiativeList.length} characters`, '#44aa44');
+}
+
 // ══════════════════════════════════════════════════════════
 // ITERATION 37: Character Export/Import — Backup full state
 //   per character as JSON. Includes HP, conditions, notes,
