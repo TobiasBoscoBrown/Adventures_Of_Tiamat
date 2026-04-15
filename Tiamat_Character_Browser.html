@@ -3557,6 +3557,7 @@
   <button class="filter-btn" onclick="openAoeDmg()" style="border-color:#cc3333;color:#cc3333;" title="AoE damage/heal — apply to multiple characters at once">💥 AoE</button>
   <button class="filter-btn" onclick="showPassiveSkills()" style="border-color:#2299bb;color:#2299bb;" title="Party passive Perception, Investigation & Insight">👁 Passives</button>
   <button class="filter-btn" onclick="openTreasureGenerator()" style="border-color:#c9a227;color:#c9a227;" title="Random treasure generator by CR">💎 Treasure</button>
+  <button class="filter-btn" onclick="openRandomEncTable()" style="border-color:#cc8844;color:#cc8844;" title="Random Encounter Table — roll by terrain">🎲 Enc Table</button>
   <button class="filter-btn" onclick="openCampaignTimeline()" style="border-color:#44cc88;color:#44cc88;" title="Campaign timeline — track key events">📅 Timeline</button>
   <button class="filter-btn" onclick="openWeatherPanel()" style="border-color:#2299bb;color:#2299bb;" title="Weather &amp; Environment — ambient conditions affecting gameplay">🌤 Weather</button>
   <button class="filter-btn" onclick="openFactionMap()" style="border-color:#9b6dff;color:#9b6dff;" title="Faction Allegiance Map — overview of all groups">⚑ Factions</button>
@@ -8709,6 +8710,130 @@ function clearInitiative() {
   renderInitiative();
   renderGrid();
   updateHud();
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 82: Random Encounter Table — terrain-based preset
+//   encounters + custom user encounters. Roll d6/d8/d10/d12.
+// ══════════════════════════════════════════════════════════
+const RAND_ENC_PRESETS = {
+  Forest:    ['1d4 Wolves','2d6 Goblins','1 Brown Bear','1d4 Bandits','1 Green Hag + 1d4 Twig Blights','1 Owlbear','1d8 Giant Spiders','3 Ettercaps','1d4 Dryads (hostile)','1 Treant (awakened)','1d6 Vine Blights','2d4 Pixies + 1 Sprite'],
+  Dungeon:   ['1d4 Skeletons','1d6 Giant Rats','1d4 Zombies','1 Mimic','2d4 Kobolds + 1 Wyrmling','1 Gelatinous Cube','1d4 Shadows','1 Basilisk','1d4 Darkmantles','1 Roper','2d6 Troglodytes','1 Beholder Zombie'],
+  Mountain:  ['1d4 Orcs','1 Mountain Lion','2d4 Giant Eagles','1 Stone Giant','1d6 Duergar','1 Frost Giant','1d4 Hippogriffs','1 Roc','3 Yeti','1 Manticore','2d4 Dwarven Miners (neutral)','1 Purple Worm'],
+  Swamp:     ['1d6 Bullywugs','1 Lizardfolk Shaman + 2d4 Lizardfolk','1 Black Dragon Wyrmling','2d4 Giant Frogs','1 Will-o-Wisp','1d4 Crocodiles','1 Hag (night hag)','1d6 Zombies','1 Giant Crocodile','2d4 Stirges','1 Yuan-ti Pureblood','1 Hydra'],
+  Coast:     ['1d4 Merfolk','1d6 Sahuagin','1 Sea Hag','2d6 Commoners (fishermen)','1 Plesiosaurus','1d4 Reef Sharks','1 Water Elemental','1d4 Pirates (bandit stats)','1 Marid','1 Giant Shark','1d6 Harpies','1 Dragon Turtle'],
+  Underdark: ['1d6 Drow Scouts','1d4 Mind Flayers','2d6 Myconids','1 Beholder','1d8 Quaggoth','1 Umber Hulk','1d4 Cloakers','1 Orc War Chief + 2d6 Orcs','1 Aboleth','3 Drow Elite Warriors','1d6 Phase Spiders','1 Purple Worm'],
+  Urban:     ['1d4 Thugs','2d6 Commoners + 1 Spy','1 Doppelganger','1d4 Cultists + 1 Cult Fanatic','1 Vampire Spawn','1d6 City Watch','1 Assassin','2d4 Bandits + 1 Bandit Captain','1 Wererat','1 Rakshasa (disguised)','1d4 Kenku','1 Shapechanger (in disguise)'],
+  Desert:    ['1d6 Gnolls','1 Lamia','2d4 Giant Scorpions','1 Blue Dragon Wyrmling','1d4 Yuan-ti Purebloods','1 Androsphinx','2d6 Thri-kreen','1 Mummy','1d4 Fire Elementals','1 Efreeti','2d4 Sand Nadders','1 Sandworm (Purple Worm)'],
+};
+const RAND_ENC_KEY = 'tiamat_rand_enc';
+
+function loadCustomEncs() {
+  try { return JSON.parse(localStorage.getItem(RAND_ENC_KEY)) || {}; }
+  catch(e) { return {}; }
+}
+function saveCustomEncs(d) { localStorage.setItem(RAND_ENC_KEY, JSON.stringify(d)); }
+
+function openRandomEncTable() {
+  const existing = document.getElementById('randEncOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'randEncOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:9500;display:flex;align-items:flex-start;justify-content:center;padding-top:5vh;overflow-y:auto';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  const terrains = Object.keys(RAND_ENC_PRESETS);
+  overlay.innerHTML = `
+    <div style="background:#0d0d1a;border:1px solid rgba(136,68,68,0.4);border-radius:14px;padding:24px;width:600px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.7)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:700;color:#cc8844">🎲 Random Encounter Table</div>
+        <button onclick="document.getElementById('randEncOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <!-- Terrain + dice -->
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+        <select id="encTerrain" style="flex:1;min-width:120px;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:7px 8px;font-size:12px;cursor:pointer">
+          ${terrains.map(t => `<option value="${t}">${t}</option>`).join('')}
+          <option value="Custom">Custom</option>
+        </select>
+        <select id="encDice" style="width:80px;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:7px 8px;font-size:12px;cursor:pointer">
+          <option>d6</option><option>d8</option><option>d10</option><option selected>d12</option>
+        </select>
+        <button onclick="rollRandomEnc()" style="background:rgba(204,136,68,0.15);border:1px solid rgba(204,136,68,0.4);color:#cc8844;border-radius:6px;padding:7px 18px;cursor:pointer;font-size:13px;font-weight:700">🎲 Roll!</button>
+      </div>
+      <!-- Result -->
+      <div id="randEncResult" style="background:#06061a;border:1px solid #1e2040;border-radius:8px;padding:14px;margin-bottom:14px;min-height:50px;font-size:13px;color:#c8d0e8;text-align:center">
+        <span style="color:#4a5272">Click Roll! to generate an encounter</span>
+      </div>
+      <!-- Table preview -->
+      <div id="randEncTable" style="max-height:200px;overflow-y:auto;margin-bottom:12px"></div>
+      <!-- Custom encounter add -->
+      <div style="border-top:1px solid #1e2040;padding-top:12px">
+        <div style="font-size:10px;color:#4a5272;letter-spacing:.5px;margin-bottom:6px">ADD TO CUSTOM TABLE</div>
+        <div style="display:flex;gap:8px">
+          <input id="customEncText" placeholder="e.g. 2d4 Bandits + 1 Captain" style="flex:1;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:6px 10px;font-size:12px;font-family:inherit">
+          <button onclick="addCustomEnc()" style="background:rgba(204,136,68,0.1);border:1px solid rgba(204,136,68,0.3);color:#cc8844;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:11px">+ Add</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  renderEncTable('Forest');
+  document.getElementById('encTerrain').addEventListener('change', e => renderEncTable(e.target.value));
+}
+
+function getEncTableForTerrain(terrain) {
+  const custom = loadCustomEncs();
+  if (terrain === 'Custom') return custom['Custom'] || [];
+  return [...(RAND_ENC_PRESETS[terrain] || []), ...(custom[terrain] || [])];
+}
+
+function renderEncTable(terrain) {
+  const el = document.getElementById('randEncTable');
+  if (!el) return;
+  const table = getEncTableForTerrain(terrain);
+  el.innerHTML = `<div style="font-size:10px;color:#4a5272;letter-spacing:.5px;margin-bottom:4px">TABLE (${table.length} entries)</div>
+    ${table.map((enc, i) => `<div style="font-size:11px;color:#9098b8;padding:3px 0;border-bottom:1px solid #0e0e20">${i+1}. ${enc}</div>`).join('')}`;
+}
+
+function rollRandomEnc() {
+  const terrain = document.getElementById('encTerrain')?.value || 'Forest';
+  const diceStr = document.getElementById('encDice')?.value || 'd12';
+  const sides = parseInt(diceStr.slice(1)) || 12;
+  const table = getEncTableForTerrain(terrain);
+  if (!table.length) { document.getElementById('randEncResult').innerHTML = '<span style="color:#cc4444">No encounters in this table.</span>'; return; }
+  const roll = Math.floor(Math.random() * Math.min(sides, table.length));
+  const result = table[roll];
+  document.getElementById('randEncResult').innerHTML = `
+    <div style="font-size:10px;color:#4a5272;margin-bottom:4px">🎲 d${sides} → ${roll+1} | ${terrain}</div>
+    <div style="font-size:16px;font-weight:700;color:#cc8844">${result}</div>
+    <button onclick="addRandEncToInitiative(${JSON.stringify(result)})" style="margin-top:8px;background:rgba(201,162,39,0.1);border:1px solid rgba(201,162,39,0.3);color:#c9a227;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:11px">⚔ Add to Initiative</button>`;
+  renderEncTable(terrain);
+}
+
+function addCustomEnc() {
+  const text = (document.getElementById('customEncText')?.value || '').trim();
+  if (!text) return;
+  const terrain = document.getElementById('encTerrain')?.value || 'Custom';
+  const custom = loadCustomEncs();
+  if (!custom[terrain]) custom[terrain] = [];
+  custom[terrain].push(text);
+  saveCustomEncs(custom);
+  document.getElementById('customEncText').value = '';
+  renderEncTable(terrain);
+  showToast(`Added to ${terrain} table`, '#cc8844');
+}
+
+function addRandEncToInitiative(text) {
+  // Parse "NdX CreatureName" and add to initiative
+  const match = text.match(/(\d+d?\d*)\s+(.+)/);
+  const name = match ? match[2].split('+')[0].trim() : text;
+  const count = match ? (match[1].includes('d') ? Math.floor(Math.random() * parseInt(match[1].split('d')[1] || 1)) + parseInt(match[1].split('d')[0] || 1) : parseInt(match[1])) : 1;
+  for (let i = 0; i < Math.min(count, 10); i++) {
+    const eName = count > 1 ? `${name} #${i+1}` : name;
+    initiativeList.push({ name: eName, maxHp: 30, initiative: Math.floor(Math.random()*20)+1, isNpc:false });
+  }
+  initiativeList.sort((a,b)=>b.initiative-a.initiative);
+  renderInitiative();
+  document.getElementById('initiativePanel')?.classList.add('open');
+  showToast(`Added ${count}x ${name} to initiative`, '#c9a227');
 }
 
 // ══════════════════════════════════════════════════════════
