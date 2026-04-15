@@ -1029,6 +1029,23 @@
     line-height: 1.5;
     font-style: italic;
   }
+
+  /* ── Bio Editor (Iteration 71) ── */
+  .bio-section { margin-bottom: 14px; }
+  .bio-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+  .bio-field-row.tri { grid-template-columns: 1fr 1fr 1fr; }
+  .bio-field-wrap { display: flex; flex-direction: column; gap: 3px; }
+  .bio-field-label { font-size: 9px; color: #4a5272; text-transform: uppercase; letter-spacing: 1px; }
+  .bio-input { background: #06061a; border: 1px solid #1e2040; border-radius: 6px; color: #c8d0e8; font-size: 12px; padding: 6px 10px; font-family: 'Inter', sans-serif; outline: none; transition: border-color .2s; width: 100%; box-sizing: border-box; }
+  .bio-input:focus { border-color: #9b6dff; }
+  .bio-input::placeholder { color: #2a2a50; font-style: italic; }
+  .bio-textarea { min-height: 56px; resize: vertical; line-height: 1.5; }
+  .bio-pf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .bio-pf-tile { background: #06061a; border: 1px solid #1e2040; border-radius: 8px; padding: 10px 12px; }
+  .bio-pf-title { font-size: 9px; color: var(--accent,#c9a227); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; display: flex; align-items: center; gap: 4px; }
+  .bio-pf-tile textarea.bio-input { background: transparent; border: none; border-bottom: 1px solid #1e2040; border-radius: 0; padding: 0 0 4px; font-style: italic; color: #b8c0d8; }
+  .bio-pf-tile textarea.bio-input:focus { border-bottom-color: var(--accent,#c9a227); }
+
   .alignment-badge {
     display: inline-block;
     padding: 4px 12px;
@@ -6306,6 +6323,84 @@ function generateTimeline(c) {
   return events.slice(0, 6);
 }
 
+// ══════════════════════════════════════════════════════════
+// ITERATION 71: Editable Character Bio Panel — store personality
+//   traits, ideals, bonds, flaws, and physical attributes per
+//   character in localStorage. Displayed & edited in Story tab.
+// ══════════════════════════════════════════════════════════
+const BIO_KEY_PREFIX = 'tiamat_bio_';
+function loadBio(name) {
+  try { return JSON.parse(localStorage.getItem(BIO_KEY_PREFIX + name)) || {}; }
+  catch { return {}; }
+}
+function saveBioField(name, field, value) {
+  const bio = loadBio(name);
+  bio[field] = value;
+  localStorage.setItem(BIO_KEY_PREFIX + name, JSON.stringify(bio));
+}
+function buildBioSection(c) {
+  const bio = loadBio(c.name);
+  const esc = s => String(s || '').replace(/"/g, '&quot;');
+  const nameJ = JSON.stringify(c.name);
+  function field(label, key, placeholder, isArea) {
+    const tag = isArea ? 'textarea' : 'input';
+    const val = esc(bio[key] || '');
+    const extra = isArea ? `rows="2">${val}</textarea>` : `value="${val}" />`;
+    return `<div class="bio-field-wrap">
+      <div class="bio-field-label">${label}</div>
+      <${tag} class="bio-input${isArea?' bio-textarea':''}" placeholder="${placeholder}"
+        onblur="saveBioField(${nameJ},'${key}',this.value)"
+        ${isArea ? '' : `oninput="saveBioField(${nameJ},'${key}',this.value)"`}
+        ${extra}
+    </div>`;
+  }
+  function pfTile(label, icon, key, placeholder) {
+    const val = esc(bio[key] || '');
+    return `<div class="bio-pf-tile">
+      <div class="bio-pf-title">${icon} ${label}</div>
+      <textarea class="bio-input bio-textarea" rows="3" placeholder="${placeholder}"
+        onblur="saveBioField(${nameJ},'${key}',this.value)">${val}</textarea>
+    </div>`;
+  }
+  return `
+    <div class="story-block bio-section">
+      <div class="story-block-title">📋 Character Biography</div>
+      <div class="bio-field-row tri">
+        ${field('Race / Species','race','Human, Elf, Dwarf…',false)}
+        ${field('Class & Level','classLvl','Fighter 5 / Rogue 3…',false)}
+        ${field('Background','background','Soldier, Sage…',false)}
+      </div>
+      <div class="bio-field-row" style="grid-template-columns:1fr 1fr 1fr 1fr">
+        ${field('Age','age','35',false)}
+        ${field('Height','height',"6'2\"",false)}
+        ${field('Weight','weight','190 lbs',false)}
+        ${field('Alignment','bioAlignment','Lawful Good',false)}
+      </div>
+      <div class="bio-field-row" style="grid-template-columns:1fr 1fr 1fr">
+        ${field('Eyes','eyes','Brown',false)}
+        ${field('Hair','hair','Black',false)}
+        ${field('Skin','skin','Tan',false)}
+      </div>
+    </div>
+    <div class="story-block bio-section">
+      <div class="story-block-title">🎭 Personality</div>
+      <div class="bio-pf-grid">
+        ${pfTile('Personality Traits','🗣','traits','Describe how this character acts, speaks, and presents themselves…')}
+        ${pfTile('Ideals','✨','ideal','What does this character believe in above all else?')}
+        ${pfTile('Bonds','💎','bond','Who or what does this character care about most?')}
+        ${pfTile('Flaws','⚠','flaw','What weakness or vice does this character have?')}
+      </div>
+    </div>
+    <div class="story-block bio-section">
+      <div class="story-block-title">📖 Backstory</div>
+      ${field('','backstory','Write the character\'s backstory, history, and notable events…',true)}
+    </div>
+    <div class="story-block bio-section">
+      <div class="story-block-title">🏰 Allies & Organizations</div>
+      ${field('','allies','Guilds, factions, important allies or enemies…',true)}
+    </div>`;
+}
+
 function buildStoryPanel(c) {
   const align = extractAlignment(c);
   const alignStyle = ALIGNMENT_STYLES[align] || ALIGNMENT_STYLES['true neutral'];
@@ -6331,6 +6426,8 @@ function buildStoryPanel(c) {
         <div style="font-size:11px;color:#4a5272;margin-top:8px">— ${c.name}</div>
       </div>` : ''}
 
+      ${buildBioSection(c)}
+
       <div class="story-block">
         <div class="story-block-title">⚖ Alignment & Background</div>
         ${alignBadge}
@@ -6338,12 +6435,12 @@ function buildStoryPanel(c) {
       </div>
 
       <div class="story-block">
-        <div class="story-block-title">📖 Backstory</div>
-        <div class="story-text">${c.lore || 'No backstory recorded.'}</div>
+        <div class="story-block-title">📖 Campaign Lore</div>
+        <div class="story-text">${c.lore || 'No lore recorded.'}</div>
       </div>
 
       <div class="story-block">
-        <div class="story-block-title">🎭 Personality</div>
+        <div class="story-block-title">🎭 Auto-Generated Personality (from traits)</div>
         <div class="personality-grid">
           <div class="personality-tile">
             <div class="personality-tile-title">Personality Traits</div>
