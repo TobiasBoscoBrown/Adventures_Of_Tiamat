@@ -3544,6 +3544,7 @@
   <button class="filter-btn" onclick="openGraveyardPanel()" style="border-color:#555;color:#888;" title="Character graveyard — fallen heroes and villains">💀 Graveyard</button>
   <button class="filter-btn" onclick="openShortcutsHelp()" style="border-color:#4488ff;color:#4488ff;" title="Keyboard shortcuts — press ? anytime">⌨ ?</button>
   <button class="filter-btn" onclick="openGlobalSearch()" style="border-color:#c9a227;color:#9098b8;" title="Global search — Ctrl+K">🔍 Search All</button>
+  <button class="filter-btn" onclick="openDiceMacros()" style="border-color:#ff8822;color:#ff8822;" title="Quick Dice Macros — save &amp; replay dice rolls">🎲 Dice</button>
   <span style="color: #333; margin: 0 4px;">|</span>
   <span style="font-size:11px;color:#4a5272;margin-right:4px">View:</span>
   <button class="filter-btn view-btn active" id="viewGrid" onclick="setView('grid',this)" title="Grid view">⊞ Grid</button>
@@ -9895,6 +9896,118 @@ function buildDamageDefenseSection(c) {
     ${resistances.length ? `<div style="margin-bottom:6px"><span style="font-size:9px;color:#4488ff;letter-spacing:1px">RESIST </span>${resistances.map(d => chip(d,'resist')).join('')}</div>` : ''}
     ${vulnerabilities.length ? `<div><span style="font-size:9px;color:#cc4444;letter-spacing:1px">VULNER </span>${vulnerabilities.map(d => chip(d,'vuln')).join('')}</div>` : ''}
   </div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 62: Quick Dice Macros — save custom dice expressions
+//   (e.g. "2d6+3 fire") and replay with one click. Stored in
+//   localStorage. Supports any NdX±Y format.
+// ══════════════════════════════════════════════════════════
+const DICE_MACROS_KEY = 'tiamat_dice_macros';
+const DEFAULT_DICE_MACROS = [
+  { label: 'D20 Check',   expr: '1d20',     color: '#9b6dff' },
+  { label: 'Fireball',    expr: '8d6',      color: '#cc4422' },
+  { label: 'Greataxe',    expr: '1d12+5',   color: '#ff8822' },
+  { label: 'Longsword',   expr: '1d8+4',    color: '#4488ff' },
+  { label: 'Sneak Attack',expr: '3d6',      color: '#44aa44' },
+  { label: 'Healing Word',expr: '1d4+4',    color: '#44ccaa' },
+];
+
+function loadDiceMacros() {
+  try { return JSON.parse(localStorage.getItem(DICE_MACROS_KEY)) || DEFAULT_DICE_MACROS.slice(); }
+  catch(e) { return DEFAULT_DICE_MACROS.slice(); }
+}
+function saveDiceMacros(arr) {
+  localStorage.setItem(DICE_MACROS_KEY, JSON.stringify(arr));
+}
+
+function rollDiceExpr(expr) {
+  // Parse NdX+Y or NdX-Y
+  const m = expr.trim().match(/^(\d+)d(\d+)([+-]\d+)?$/i);
+  if (!m) { showToast(`Invalid dice: ${expr}`, '#cc4444'); return null; }
+  const n = parseInt(m[1]), sides = parseInt(m[2]), bonus = parseInt(m[3]||'0');
+  let total = bonus, rolls = [];
+  for (let i = 0; i < n; i++) {
+    const r = Math.floor(Math.random() * sides) + 1;
+    rolls.push(r); total += r;
+  }
+  return { total, rolls, n, sides, bonus, expr };
+}
+
+function fireDiceMacro(expr, label) {
+  const res = rollDiceExpr(expr);
+  if (!res) return;
+  const rollStr = res.rolls.length > 1 ? ` [${res.rolls.join('+')}]` : '';
+  const bonusStr = res.bonus !== 0 ? (res.bonus > 0 ? `+${res.bonus}` : `${res.bonus}`) : '';
+  showToast(`🎲 ${label}: ${res.total}${rollStr}${bonusStr ? ' ('+bonusStr+' bonus)' : ''}`, '#ff8822');
+  // Log to round log if combat is active
+  if (typeof addRoundLogEntry === 'function' && typeof currentRound !== 'undefined' && currentRound > 0) {
+    addRoundLogEntry(currentRound, `🎲 ${label} (${expr}): <strong>${res.total}</strong>${rollStr}`);
+  }
+}
+
+function openDiceMacros() {
+  const existing = document.getElementById('diceMacrosOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'diceMacrosOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.65);z-index:9500;display:flex;align-items:flex-start;justify-content:center;padding-top:8vh';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  overlay.innerHTML = `
+    <div style="background:#0d0d1a;border:1px solid rgba(255,136,34,0.4);border-radius:14px;padding:24px;width:520px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.7)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:700;color:#ff8822">🎲 Quick Dice Macros</div>
+        <button onclick="document.getElementById('diceMacrosOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <div id="diceMacroList" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px"></div>
+      <div style="border-top:1px solid #1e2040;padding-top:14px">
+        <div style="font-size:11px;color:#4a5272;margin-bottom:8px;letter-spacing:.5px">ADD NEW MACRO</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input id="dmLabel" placeholder="Label (e.g. Sneak Attack)" style="flex:1;min-width:130px;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:6px 10px;font-size:12px">
+          <input id="dmExpr"  placeholder="Dice (e.g. 3d6+2)" style="width:110px;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:6px 10px;font-size:12px">
+          <input id="dmColor" type="color" value="#9b6dff" style="width:38px;height:30px;border:1px solid #2a2a50;border-radius:6px;background:#06061a;cursor:pointer;padding:2px">
+          <button onclick="addDiceMacro()" style="background:rgba(255,136,34,0.15);border:1px solid rgba(255,136,34,0.4);color:#ff8822;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:12px">+ Add</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  renderDiceMacroList();
+}
+
+function renderDiceMacroList() {
+  const list = document.getElementById('diceMacroList');
+  if (!list) return;
+  const macros = loadDiceMacros();
+  if (!macros.length) { list.innerHTML = '<div style="color:#4a5272;font-size:12px;grid-column:span 2">No macros yet — add one below.</div>'; return; }
+  list.innerHTML = macros.map((m, i) => `
+    <div style="display:flex;align-items:center;gap:6px;background:${m.color}11;border:1px solid ${m.color}44;border-radius:8px;padding:8px 10px">
+      <button onclick="fireDiceMacro(${JSON.stringify(m.expr)},${JSON.stringify(m.label)})" style="flex:1;background:none;border:none;color:${m.color};cursor:pointer;font-size:12px;font-weight:600;text-align:left">
+        🎲 ${m.label}<br><span style="font-size:10px;color:#4a5272">${m.expr}</span>
+      </button>
+      <button onclick="deleteDiceMacro(${i})" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:12px" title="Delete">✕</button>
+    </div>`).join('');
+}
+
+function addDiceMacro() {
+  const label = (document.getElementById('dmLabel')?.value || '').trim();
+  const expr  = (document.getElementById('dmExpr')?.value  || '').trim();
+  const color = document.getElementById('dmColor')?.value || '#9b6dff';
+  if (!label || !expr) { showToast('Enter a label and dice expression', '#cc4444'); return; }
+  if (!expr.match(/^\d+d\d+([+-]\d+)?$/i)) { showToast('Invalid format — use NdX or NdX±Y', '#cc4444'); return; }
+  const macros = loadDiceMacros();
+  macros.push({ label, expr, color });
+  saveDiceMacros(macros);
+  document.getElementById('dmLabel').value = '';
+  document.getElementById('dmExpr').value  = '';
+  renderDiceMacroList();
+  showToast(`Added macro: ${label}`, '#44aa44');
+}
+
+function deleteDiceMacro(idx) {
+  const macros = loadDiceMacros();
+  macros.splice(idx, 1);
+  saveDiceMacros(macros);
+  renderDiceMacroList();
 }
 
 // ══════════════════════════════════════════════════════════
