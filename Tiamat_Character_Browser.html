@@ -6143,14 +6143,73 @@ document.getElementById('searchBox').addEventListener('input', (e) => {
 });
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') { closeModal(); closeHpPopup(); }
+  const isTyping = document.activeElement && ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName);
+  if (e.key === 'Escape') { closeModal(); closeHpPopup(); closeAoeDmg?.(); closeQuestTracker?.(); }
   if (e.key === 'ArrowLeft' && currentModalIdx >= 0) navChar(-1);
   if (e.key === 'ArrowRight' && currentModalIdx >= 0) navChar(1);
-  if (e.key === '/' && currentModalIdx < 0 && document.activeElement !== document.getElementById('searchBox')) {
+  if (e.key === '/' && currentModalIdx < 0 && !isTyping) {
     e.preventDefault();
     document.getElementById('searchBox').focus();
   }
+  if (!isTyping && currentModalIdx < 0) {
+    // Combat shortcuts (only active when no modal/input focused)
+    if (e.key === 'n' && !e.ctrlKey && !e.metaKey) { // Next turn
+      if (initiativeList.length) { nextTurn(); e.preventDefault(); }
+    }
+    if (e.key === 't' && !e.ctrlKey) { // Toggle timer
+      if (document.getElementById('initiativePanel')?.classList.contains('open')) {
+        toggleTimer(); e.preventDefault();
+      }
+    }
+    if (e.key === 'r' && !e.ctrlKey) { // Reset timer
+      if (document.getElementById('initiativePanel')?.classList.contains('open')) {
+        resetTimer(); e.preventDefault();
+      }
+    }
+    if (e.key === 'i' && !e.ctrlKey) { // Toggle initiative panel
+      const panel = document.getElementById('initiativePanel');
+      if (panel) { panel.classList.toggle('open'); e.preventDefault(); }
+    }
+    if (e.key === 'h' && !e.ctrlKey) { // Toggle party health panel
+      toggleHealthPanel?.(); e.preventDefault();
+    }
+    if (e.key === '?' && !e.ctrlKey) { // Show hotkey help
+      showHotkeyHelp(); e.preventDefault();
+    }
+    if (e.key === 'd20' || e.key === 'F1') { // Quick d20
+      if (!e.ctrlKey && !e.metaKey) {
+        const roll = Math.floor(Math.random() * 20) + 1;
+        logEntry('roll', `⚄ Quick d20: <strong>${roll}</strong>${roll===20?' ★ NAT 20!':roll===1?' ☠ NAT 1':''}`);
+      }
+    }
+  }
 });
+
+function showHotkeyHelp() {
+  let hkEl = document.getElementById('hotkeyHelp');
+  if (hkEl) { hkEl.remove(); return; }
+  hkEl = document.createElement('div');
+  hkEl.id = 'hotkeyHelp';
+  hkEl.style.cssText = 'position:fixed;bottom:80px;right:20px;background:#0e0e24;border:1px solid #c9a227;border-radius:12px;padding:14px 18px;z-index:9000;font-size:11px;color:#9098b8;box-shadow:0 8px 32px rgba(0,0,0,.8);min-width:200px';
+  const keys = [
+    ['/', 'Focus search'],
+    ['ESC', 'Close modal/popup'],
+    ['← →', 'Navigate modal chars'],
+    ['n', 'Next combat turn'],
+    ['t', 'Start/pause timer'],
+    ['r', 'Reset timer'],
+    ['i', 'Toggle initiative panel'],
+    ['h', 'Toggle Party HP panel'],
+    ['?', 'Show/hide this help'],
+  ];
+  hkEl.innerHTML = `<div style="font-family:'Cinzel',serif;color:#c9a227;font-size:12px;margin-bottom:8px">⌨ KEYBOARD SHORTCUTS</div>
+    ${keys.map(([k,d]) => `<div style="display:flex;justify-content:space-between;gap:20px;margin-bottom:3px"><code style="background:#1e2040;padding:1px 5px;border-radius:3px;color:#4488ff">${k}</code><span>${d}</span></div>`).join('')}
+    <div style="margin-top:8px;color:#4a5272;font-size:10px">Click anywhere to close</div>`;
+  document.body.appendChild(hkEl);
+  setTimeout(() => document.addEventListener('click', function _cls() {
+    hkEl?.remove(); document.removeEventListener('click', _cls);
+  }), 100);
+}
 
 // Close HP popup on outside click
 document.addEventListener('click', (e) => {
