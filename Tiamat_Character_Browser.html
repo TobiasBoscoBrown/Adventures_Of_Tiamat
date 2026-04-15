@@ -6115,6 +6115,7 @@ function buildStatsPanel(c) {
         <span class="stat-chip"><strong>Passive Perc</strong> ${passivePerc}</span>
       </div>
     </div>
+    ${typeof buildCharXpSection === 'function' ? buildCharXpSection(c.name) : ''}
     ${buildCurrencySection(c.name)}
     ${buildHitDiceSection(c)}
     ${buildDamageDefenseSection(c)}
@@ -22489,6 +22490,98 @@ function cycleRelSentiment(name, target) {
   // Refresh relation badge in the open modal
   const el = document.getElementById('relDisplay_' + safeId(name));
   if (el) el.innerHTML = buildRelDisplay(name);
+}
+// Iter 133: Per-Character XP & Level Tracker
+// Each character now has their own XP separate from the party-wide pool,
+// letting DMs track individual progression (milestone or individual XP awards).
+const CHAR_XP_PREFIX = 'tiamat_cxp_';
+function getCharXp(name) { return parseInt(localStorage.getItem(CHAR_XP_PREFIX + name)) || 0; }
+function setCharXp(name, xp) { localStorage.setItem(CHAR_XP_PREFIX + name, Math.max(0, parseInt(xp) || 0)); }
+
+function buildCharXpSection(name) {
+  const xp = getCharXp(name);
+  // LEVEL_XP and PROF_BONUS are defined earlier in this script
+  let level = 1;
+  for (let i = 1; i < LEVEL_XP.length; i++) { if (xp >= LEVEL_XP[i]) level = i + 1; else break; }
+  level = Math.min(level, 20);
+  const nextXp = level < 20 ? LEVEL_XP[level] : null;
+  const prevXp = LEVEL_XP[level - 1] || 0;
+  const pct = nextXp ? Math.round((xp - prevXp) / (nextXp - prevXp) * 100) : 100;
+  const prof = (PROF_BONUS || [])[level] || 2;
+  const nameJ = JSON.stringify(name);
+  const sid = safeId(name);
+  return `
+  <div class="stats-section" id="charXpSection_${sid}">
+    <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
+      ⭐ XP &amp; Level
+      <span style="font-size:10px;color:#4a5272;font-weight:400;font-family:'Inter',sans-serif">per-character</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+      <div style="text-align:center;min-width:56px;background:#07070e;border:1px solid rgba(201,162,39,0.25);border-radius:8px;padding:6px 8px">
+        <div style="font-size:26px;font-weight:900;color:#c9a227;font-family:'Cinzel',serif;line-height:1">${level}</div>
+        <div style="font-size:8px;color:#4a5272;letter-spacing:1.5px;margin-top:2px">LEVEL</div>
+      </div>
+      <div style="flex:1">
+        <div style="background:#06061a;border-radius:4px;height:6px;overflow:hidden;border:1px solid #1e2040;margin-bottom:5px">
+          <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#8a7010,#c9a227);border-radius:4px"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:#4a5272">
+          <span>${xp.toLocaleString()} XP</span>
+          <span style="color:${nextXp ? '#6a5020' : '#c9a227'}">${nextXp ? (nextXp - xp).toLocaleString() + ' to Lv' + (level + 1) : '✦ Max Level'}</span>
+        </div>
+        <div style="font-size:10px;color:#3a3a5a;margin-top:3px">Prof Bonus: <strong style="color:#c9a227">+${prof}</strong></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:5px">
+      <input type="number" id="cxpIn_${sid}" placeholder="XP to award" min="0"
+        style="flex:1;background:#06061a;border:1px solid #1e2040;color:#c9a227;border-radius:6px;padding:5px 8px;font-size:12px;outline:none"
+        onfocus="this.style.borderColor='#c9a227'" onblur="this.style.borderColor='#1e2040'"
+        onkeydown="if(event.key==='Enter')awardCharXp(${nameJ})">
+      <button onclick="awardCharXp(${nameJ})"
+        style="background:rgba(201,162,39,0.15);border:1px solid rgba(201,162,39,0.5);color:#c9a227;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px">
+        + Award</button>
+      <button onclick="setCharXpDirect(${nameJ})" title="Set XP to exact value"
+        style="background:none;border:1px solid #1e2040;color:#4a5272;border-radius:6px;padding:5px 8px;cursor:pointer;font-size:11px">
+        Set</button>
+    </div>
+  </div>`;
+}
+
+function awardCharXp(name) {
+  const sid = safeId(name);
+  const input = document.getElementById('cxpIn_' + sid);
+  const amount = parseInt(input?.value) || 0;
+  if (amount <= 0) return;
+  const prev = getCharXp(name);
+  const newXp = prev + amount;
+  let prevLvl = 1, newLvl = 1;
+  for (let i = 1; i < LEVEL_XP.length; i++) { if (prev >= LEVEL_XP[i]) prevLvl = i + 1; else break; }
+  for (let i = 1; i < LEVEL_XP.length; i++) { if (newXp >= LEVEL_XP[i]) newLvl = i + 1; else break; }
+  setCharXp(name, newXp);
+  if (input) input.value = '';
+  const levelUp = newLvl > prevLvl;
+  if (levelUp) {
+    showToast(`🎉 ${name} → Level ${newLvl}!`, '#c9a227');
+    if (typeof playSound === 'function') playSound('crit');
+  } else {
+    showToast(`+${amount.toLocaleString()} XP — ${name} at ${newXp.toLocaleString()} XP`, '#c9a227');
+  }
+  if (typeof logEntry === 'function') logEntry('roll', `⭐ <strong>${escHtml(name)}</strong> +${amount.toLocaleString()} XP → ${newXp.toLocaleString()} XP${levelUp ? ` 🎉 <strong>LEVEL UP → Lv ${newLvl}</strong>` : ''}`);
+  // Refresh section in-place instead of rebuilding whole panel
+  const sec = document.getElementById('charXpSection_' + sid);
+  if (sec) sec.outerHTML = buildCharXpSection(name);
+}
+
+function setCharXpDirect(name) {
+  const cur = getCharXp(name);
+  const val = prompt(`Set ${name}'s XP to:`, cur);
+  if (val === null || val.trim() === '') return;
+  const xp = parseInt(val);
+  if (isNaN(xp) || xp < 0) return;
+  setCharXp(name, xp);
+  const sid = safeId(name);
+  const sec = document.getElementById('charXpSection_' + sid);
+  if (sec) sec.outerHTML = buildCharXpSection(name);
 }
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
