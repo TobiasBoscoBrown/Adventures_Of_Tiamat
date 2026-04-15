@@ -31197,6 +31197,146 @@ function _vibUpdateHud(d, hudEl) {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 200: Campaign Milestone Tracker
+const MILE_KEY = 'tiamat_milestones';
+function _mileLoad() { try { return JSON.parse(localStorage.getItem(MILE_KEY)||'[]'); } catch(e){return[];} }
+function _mileSave(d) { localStorage.setItem(MILE_KEY, JSON.stringify(d)); }
+
+const MILE_CATS = [
+  { id:'story', label:'Story Beat', icon:'📖', color:'#c9a227' },
+  { id:'combat', label:'Combat Victory', icon:'⚔', color:'#cc4444' },
+  { id:'discovery', label:'Discovery', icon:'🔍', color:'#4488ff' },
+  { id:'alliance', label:'Alliance Forged', icon:'🤝', color:'#44bb88' },
+  { id:'loss', label:'Tragedy / Loss', icon:'💔', color:'#886688' },
+  { id:'level', label:'Level Up', icon:'⭐', color:'#ffdd44' },
+  { id:'item', label:'Legendary Item', icon:'⚗', color:'#9b6dff' },
+  { id:'custom', label:'Custom', icon:'📌', color:'#aaa' },
+];
+
+function openMilestoneTracker() {
+  document.getElementById('mileOverlay')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'mileOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9300;display:flex;align-items:center;justify-content:center';
+
+  const catOpts = MILE_CATS.map(c=>`<option value="${c.id}">${c.icon} ${c.label}</option>`).join('');
+
+  ov.innerHTML = `
+    <div style="background:#10102a;border:1px solid #c9a227;border-radius:12px;padding:24px;max-width:700px;width:95%;max-height:90vh;overflow-y:auto;font-family:inherit">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <h2 style="margin:0;color:#c9a227;font-size:1.3rem">🏆 Campaign Milestones</h2>
+        <button onclick="document.getElementById('mileOverlay').remove()" style="background:none;border:none;color:#aaa;font-size:1.4rem;cursor:pointer">✕</button>
+      </div>
+      <div style="background:rgba(201,162,39,0.07);border:1px solid #c9a22733;border-radius:8px;padding:12px;margin-bottom:14px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          <select id="mileCat" style="flex:1;padding:6px 8px;background:#1a1a3a;border:1px solid #33333344;border-radius:6px;color:#aaa;min-width:130px">${catOpts}</select>
+          <input id="mileSession" placeholder="Session # or date..." style="flex:1;padding:6px 8px;background:#1a1a3a;border:1px solid #333;border-radius:6px;color:#fff;min-width:120px">
+        </div>
+        <div style="margin-bottom:8px">
+          <input id="mileTitle" placeholder="Milestone title — e.g. The Fall of Castle Dusk..." style="width:100%;padding:7px 10px;background:#1a1a3a;border:1px solid #333;border-radius:6px;color:#fff;box-sizing:border-box">
+        </div>
+        <div style="margin-bottom:10px">
+          <textarea id="mileDesc" rows="2" placeholder="Brief description of what happened, why it matters, who was involved..." style="width:100%;padding:7px 10px;background:#1a1a3a;border:1px solid #333;border-radius:6px;color:#fff;resize:vertical;box-sizing:border-box"></textarea>
+        </div>
+        <button onclick="_mileAdd()" style="width:100%;padding:8px;background:rgba(201,162,39,0.15);border:1px solid #c9a227;border-radius:6px;color:#c9a227;cursor:pointer;font-weight:700">🏆 Record Milestone</button>
+      </div>
+      <div id="mileCatFilter" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+        <button onclick="_mileFilter('all')" id="mileFilterAll" style="padding:3px 10px;background:rgba(201,162,39,0.15);border:1px solid #c9a227;border-radius:12px;color:#c9a227;cursor:pointer;font-size:0.78rem">All</button>
+        ${MILE_CATS.map(c=>`<button onclick="_mileFilter('${c.id}')" id="mileFilter_${c.id}" style="padding:3px 10px;background:transparent;border:1px solid ${c.color}55;border-radius:12px;color:${c.color}88;cursor:pointer;font-size:0.78rem">${c.icon}</button>`).join('')}
+      </div>
+      <div id="mileBody"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _mileRender('all');
+}
+
+let _mileCurrentFilter = 'all';
+function _mileFilter(cat) {
+  _mileCurrentFilter = cat;
+  // Update button states
+  document.getElementById('mileFilterAll')?.style && (document.getElementById('mileFilterAll').style.background = cat==='all'?'rgba(201,162,39,0.15)':'transparent');
+  MILE_CATS.forEach(c => {
+    const btn = document.getElementById('mileFilter_'+c.id);
+    if (btn) { btn.style.background = cat===c.id?`rgba(${c.color.replace('#','')==='c9a227'?'201,162,39':'68,136,255'},0.15)`:'transparent'; }
+  });
+  _mileRender(cat);
+}
+
+function _mileAdd() {
+  const cat = document.getElementById('mileCat')?.value || 'custom';
+  const title = document.getElementById('mileTitle')?.value?.trim();
+  const desc = document.getElementById('mileDesc')?.value?.trim();
+  const session = document.getElementById('mileSession')?.value?.trim();
+  if (!title) { showToast('Enter a milestone title','#cc4444'); return; }
+  const d = _mileLoad();
+  d.unshift({ cat, title, desc, session, ts:new Date().toLocaleDateString(), id:Date.now() });
+  _mileSave(d);
+  document.getElementById('mileTitle').value='';
+  document.getElementById('mileDesc').value='';
+  showToast('Milestone recorded!','#c9a227');
+  logEntry('story','Milestone: '+title);
+  _mileRender(_mileCurrentFilter);
+}
+
+function _mileDelete(id) {
+  const d = _mileLoad().filter(m=>m.id!==id);
+  _mileSave(d);
+  _mileRender(_mileCurrentFilter);
+}
+
+function _mileRender(filter) {
+  const body = document.getElementById('mileBody');
+  if (!body) return;
+  let d = _mileLoad();
+  if (filter && filter !== 'all') d = d.filter(m=>m.cat===filter);
+  if (!d.length) { body.innerHTML='<p style="color:#666;text-align:center;font-size:0.85rem">No milestones yet. Record your campaign history above.</p>'; return; }
+
+  // Group by category
+  const catMap = Object.fromEntries(MILE_CATS.map(c=>[c.id,c]));
+  const grouped = {};
+  d.forEach(m => {
+    if (!grouped[m.cat]) grouped[m.cat] = [];
+    grouped[m.cat].push(m);
+  });
+
+  body.innerHTML = Object.entries(grouped).map(([cat, items]) => {
+    const catInfo = catMap[cat] || { label:cat, icon:'📌', color:'#aaa' };
+    const rows = items.map(m => `
+      <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #1a1a3a">
+        <div style="flex:1">
+          <div style="color:${catInfo.color};font-weight:700;font-size:0.9rem;margin-bottom:3px">${escHtml(m.title)}</div>
+          ${m.desc?`<div style="color:#aaa;font-size:0.8rem;margin-bottom:3px">${escHtml(m.desc)}</div>`:''}
+          <div style="display:flex;gap:10px;font-size:0.72rem;color:#555">
+            ${m.session?`<span>${escHtml(m.session)}</span>`:''}
+            <span>${m.ts||''}</span>
+          </div>
+        </div>
+        <button onclick="_mileDelete(${m.id})" style="padding:2px 6px;background:none;border:1px solid #444;border-radius:4px;color:#555;cursor:pointer;font-size:0.72rem;align-self:flex-start">✕</button>
+      </div>`).join('');
+    return `<div style="background:rgba(0,0,0,0.2);border-left:3px solid ${catInfo.color};border-radius:6px;padding:12px;margin-bottom:10px">
+      <div style="color:${catInfo.color};font-weight:700;font-size:0.85rem;margin-bottom:8px">${catInfo.icon} ${catInfo.label} (${items.length})</div>
+      ${rows}
+    </div>`;
+  }).join('');
+}
+
+// Add Milestone Tracker button
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'Campaign Milestone Tracker — record and browse campaign history';
+    btn.style.cssText = 'border-color:#c9a227;color:#c9a227';
+    btn.textContent = '🏆 Milestones';
+    btn.onclick = openMilestoneTracker;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
