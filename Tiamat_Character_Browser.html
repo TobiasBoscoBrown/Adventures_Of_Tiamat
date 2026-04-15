@@ -3714,6 +3714,7 @@
   <button class="filter-btn" onclick="openEncounterBuilder()" style="border-color:#cc3333;color:#cc3333;" title="Encounter Builder — build &amp; balance encounters by CR/XP">🐉 Build Enc</button>
   <button class="filter-btn" onclick="openGraveyardPanel()" style="border-color:#555;color:#888;" title="Character graveyard — fallen heroes and villains">💀 Graveyard</button>
   <button class="filter-btn" onclick="openWorldState()" style="border-color:#5588ff;color:#5588ff;" title="World State — campaign milestones, plot events, world facts">🌍 World</button>
+  <button class="filter-btn" onclick="openXpTracker()" style="border-color:#44cc88;color:#44cc88;" title="XP Tracker — award experience, track level progress">⭐ XP</button>
   <button class="filter-btn" onclick="openSessionPrep()" style="border-color:#44cc88;color:#44cc88;" title="Session Prep Checklist — track DM readiness tasks">📋 Prep</button>
   <button class="filter-btn" onclick="openLairNotes()" style="border-color:#aa6644;color:#aa6644;" title="Lair Map Notes — describe rooms, traps, and areas">🗺 Lair</button>
   <button class="filter-btn" onclick="openCrReference()" style="border-color:#dd8833;color:#dd8833;" title="CR Reference — challenge rating stats, XP, proficiency bonus">⚔ CR Ref</button>
@@ -12952,6 +12953,125 @@ function getWorldState() {
   try { return JSON.parse(localStorage.getItem(WORLD_STATE_KEY) || '[]'); } catch { return []; }
 }
 function saveWorldState(arr) { localStorage.setItem(WORLD_STATE_KEY, JSON.stringify(arr)); }
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 100: XP Tracker — award XP to party or individual
+//   characters, track cumulative totals, show level-up progress.
+//   Milestone table per DMG. Stored in tiamat_xp.
+// ══════════════════════════════════════════════════════════
+const XP_KEY = 'tiamat_xp';
+const XP_LEVEL_THRESHOLDS = [0,300,900,2700,6500,14000,23000,34000,48000,64000,85000,100000,120000,140000,165000,195000,225000,265000,305000,355000];
+
+function getCharXp(charName) {
+  try { const all = JSON.parse(localStorage.getItem(XP_KEY) || '{}'); return all[charName] || { total: 0, log: [] }; } catch { return { total: 0, log: [] }; }
+}
+function saveCharXp(charName, data) {
+  const all = JSON.parse(localStorage.getItem(XP_KEY) || '{}');
+  all[charName] = data;
+  localStorage.setItem(XP_KEY, JSON.stringify(all));
+}
+function xpToLevel(xp) {
+  for (let i = XP_LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
+    if (xp >= XP_LEVEL_THRESHOLDS[i]) return i + 1;
+  }
+  return 1;
+}
+
+function openXpTracker() {
+  const existing = document.getElementById('xpTrackerOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'xpTrackerOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto;';
+  const allChars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+  ov.innerHTML = `
+    <div style="background:#151c2e;border:1px solid #44cc88;border-radius:12px;width:680px;max-width:100%;padding:24px;color:#c8d0e8;font-family:'Inter',sans-serif;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-size:18px;font-weight:700;color:#44cc88;">⭐ XP Tracker</div>
+        <button onclick="document.getElementById('xpTrackerOverlay').remove()" style="background:#2a3358;border:none;color:#c8d0e8;border-radius:6px;padding:6px 14px;cursor:pointer;">✕ Close</button>
+      </div>
+      <div style="margin-bottom:14px;background:#0e1422;border-radius:8px;padding:12px;">
+        <div style="font-size:12px;color:#9098b8;font-weight:600;margin-bottom:8px;">Award XP to Party</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input id="xpAwardAmt" type="number" placeholder="XP amount" min="0" style="width:120px;background:#151c2e;border:1px solid #2a3358;border-radius:6px;padding:8px;color:#c8d0e8;font-size:13px;">
+          <input id="xpAwardNote" placeholder="Source (e.g. Defeated Goblin King)" style="flex:1;background:#151c2e;border:1px solid #2a3358;border-radius:6px;padding:8px;color:#c8d0e8;font-size:13px;">
+          <button onclick="awardPartyXp()" style="background:#44cc88;border:none;color:#151c2e;border-radius:6px;padding:8px 16px;cursor:pointer;font-weight:700;">Award All</button>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+          ${[50,100,200,300,500,750,1000,2000].map(v => `<button onclick="document.getElementById('xpAwardAmt').value=${v}" style="background:#2a3358;border:none;color:#9098b8;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;">+${v}</button>`).join('')}
+        </div>
+      </div>
+      <div id="xpCharGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;max-height:50vh;overflow-y:auto;"></div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  renderXpGrid();
+}
+
+function renderXpGrid() {
+  const grid = document.getElementById('xpCharGrid');
+  if (!grid) return;
+  const allChars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+  grid.innerHTML = allChars.map(c => {
+    const xpData = getCharXp(c.name);
+    const total = xpData.total || 0;
+    const level = xpToLevel(total);
+    const nextLvl = level < 20 ? XP_LEVEL_THRESHOLDS[level] : XP_LEVEL_THRESHOLDS[19];
+    const prevLvl = XP_LEVEL_THRESHOLDS[level - 1] || 0;
+    const pct = nextLvl > prevLvl ? ((total - prevLvl) / (nextLvl - prevLvl) * 100) : 100;
+    const col = level >= 17 ? '#cc44cc' : level >= 11 ? '#cc3333' : level >= 5 ? '#c9a227' : '#44cc88';
+    const t = getTheme(c.theme);
+    return `<div style="background:#0e1422;border:1px solid #2a3358;border-radius:8px;padding:10px;">
+      <div style="font-size:13px;font-weight:600;color:${t.accent};margin-bottom:4px;">${c.name}</div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+        <span style="font-size:20px;font-weight:700;color:${col};">Lv ${level}</span>
+        <span style="font-size:11px;color:#9098b8;">${total.toLocaleString()} XP</span>
+      </div>
+      <div style="background:#1e2744;border-radius:4px;height:6px;margin-bottom:4px;overflow:hidden;">
+        <div style="background:${col};height:100%;width:${Math.min(100,pct).toFixed(1)}%;border-radius:4px;transition:width .3s;"></div>
+      </div>
+      <div style="font-size:10px;color:#4a5272;margin-bottom:6px;">${level < 20 ? `${(nextLvl - total).toLocaleString()} XP to level ${level+1}` : 'Max Level!'}</div>
+      <button onclick="openCharXpLog('${c.name.replace(/'/g,"\\'")}',event)" style="background:#2a3358;border:none;color:#9098b8;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;width:100%;">📋 View Log</button>
+    </div>`;
+  }).join('');
+}
+
+function awardPartyXp() {
+  const amt = parseInt(document.getElementById('xpAwardAmt')?.value) || 0;
+  const note = document.getElementById('xpAwardNote')?.value.trim() || 'XP awarded';
+  if (amt <= 0) { if (typeof showToast === 'function') showToast('Enter a positive XP amount', '#cc3333'); return; }
+  const allChars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+  allChars.forEach(c => {
+    const xpData = getCharXp(c.name);
+    const prevLevel = xpToLevel(xpData.total || 0);
+    xpData.total = (xpData.total || 0) + amt;
+    xpData.log = xpData.log || [];
+    xpData.log.push({ amt, note, ts: Date.now() });
+    if (xpData.log.length > 50) xpData.log = xpData.log.slice(-50);
+    saveCharXp(c.name, xpData);
+    const newLevel = xpToLevel(xpData.total);
+    if (newLevel > prevLevel) {
+      if (typeof showToast === 'function') showToast(`🎉 ${c.name} reached Level ${newLevel}!`, '#c9a227');
+      if (typeof logEntry === 'function') logEntry(`🎉 ${c.name} <b>leveled up to ${newLevel}</b>!`);
+    }
+  });
+  if (typeof showToast === 'function') showToast(`+${amt} XP awarded to all characters`, '#44cc88');
+  if (typeof logEntry === 'function') logEntry(`⭐ Party awarded <b>${amt} XP</b>: ${note}`);
+  renderXpGrid();
+  document.getElementById('xpAwardAmt').value = '';
+  document.getElementById('xpAwardNote').value = '';
+}
+
+function openCharXpLog(charName, evt) {
+  evt && evt.stopPropagation();
+  const xpData = getCharXp(charName);
+  const log = (xpData.log || []).slice(-10).reverse();
+  if (typeof showToast === 'function') {
+    const lines = log.map(e => `+${e.amt}: ${e.note}`).join('\n') || 'No XP log yet.';
+    alert(`${charName} XP Log (last 10):\n\n${lines}`);
+  }
+}
 
 function openWorldState() {
   const existing = document.getElementById('worldStateOverlay');
