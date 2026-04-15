@@ -3777,6 +3777,7 @@
   <button class="filter-btn" onclick="openBulkCondPanel()" style="border-color:#9b6dff;color:#9b6dff;" title="Bulk Conditions — apply or remove conditions to multiple characters at once (AoE spells)">⚡ Bulk Cond</button>
   <button class="filter-btn" onclick="openUpcastCalc()" style="border-color:#9b6dff;color:#9b6dff;" title="Spell Upcast Calculator — calculate scaled spell damage at higher slot levels">🔮 Upcast</button>
   <button class="filter-btn" onclick="openContestRoller()" style="border-color:#4488ff;color:#4488ff;" title="Skill Contest — roll two characters against each other (Athletics vs Athletics, Stealth vs Perception)">⚔ Contest</button>
+  <button class="filter-btn" onclick="openItemCompendium()" style="border-color:#bb88ff;color:#bb88ff;" title="Magic Item Compendium — searchable 5e magic items with full descriptions, rarity filter, assign to character">🔮 Magic Items</button>
   <button class="filter-btn" onclick="printPartySheet()" style="border-color:#4488ff;color:#4488ff;" title="Print Party Sheet — all party members on one printable page">🖨 Party Sheet</button>
   <button class="filter-btn" onclick="openWorldMap()" style="border-color:#44cc88;color:#44cc88;" title="World Map — pin characters to the Tiamat campaign map (hotkey: M)">🗺 World Map</button>
   <span style="color: #333; margin: 0 4px;">|</span>
@@ -24477,6 +24478,182 @@ function renderBgPanel(c) {
         </div>` : ''}
     </div>`;
   document.getElementById('bgPanel').innerHTML = html;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 151: Magic Item Compendium — searchable 5e SRD magic items with rarity
+//   filters, full descriptions, attunement indicators, and one-click "Give to
+//   character" that adds the item directly to that character's inventory.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const ITEM_COMP = [
+  // Potions (Common – Uncommon)
+  { name:'Potion of Healing',        rarity:'Common',    type:'Potion',   attune:false, desc:'You regain 2d4+2 hit points when you drink this potion.' },
+  { name:'Potion of Greater Healing', rarity:'Uncommon', type:'Potion',   attune:false, desc:'You regain 4d4+4 hit points when you drink this potion.' },
+  { name:'Potion of Superior Healing',rarity:'Rare',     type:'Potion',   attune:false, desc:'You regain 8d4+8 hit points when you drink this potion.' },
+  { name:'Potion of Supreme Healing', rarity:'Very Rare',type:'Potion',   attune:false, desc:'You regain 10d4+20 hit points when you drink this potion.' },
+  { name:'Potion of Invisibility',   rarity:'Very Rare', type:'Potion',   attune:false, desc:'You become invisible for 1 hour or until you attack or cast a spell.' },
+  { name:'Potion of Flying',         rarity:'Very Rare', type:'Potion',   attune:false, desc:'You gain a flying speed equal to your walking speed for 1 hour.' },
+  { name:'Potion of Speed',          rarity:'Very Rare', type:'Potion',   attune:false, desc:'Haste for 1 minute (no concentration required).' },
+  { name:'Potion of Fire Breath',    rarity:'Uncommon',  type:'Potion',   attune:false, desc:'Bonus action: exhale fire in a 30 ft cone (4d6 fire, DEX half) for up to 1 min.' },
+  { name:'Potion of Resistance',     rarity:'Uncommon',  type:'Potion',   attune:false, desc:'Resistance to one damage type for 1 hour (type determined when brewed).' },
+  { name:'Potion of Climbing',       rarity:'Common',    type:'Potion',   attune:false, desc:'Gain a climbing speed equal to your walking speed for 1 hour.' },
+  // Rings
+  { name:'Ring of Protection',       rarity:'Rare',      type:'Ring',     attune:true,  desc:'+1 bonus to AC and saving throws.' },
+  { name:'Ring of Spell Storing',    rarity:'Rare',      type:'Ring',     attune:true,  desc:'Stores up to 5 levels of spells. Others can cast stored spells using your spell save DC.' },
+  { name:'Ring of the Ram',          rarity:'Rare',      type:'Ring',     attune:true,  desc:'3 charges. Use charges to deal force damage (2d10 per charge) and push a creature.' },
+  { name:'Ring of Regeneration',     rarity:'Very Rare', type:'Ring',     attune:true,  desc:'Regain 1d6 HP every 10 minutes. Regrow lost limbs in 1d6+1 days.' },
+  { name:'Ring of Invisibility',     rarity:'Legendary', type:'Ring',     attune:true,  desc:'Become invisible at will (action). Stay invisible until you attack, cast a spell, or remove ring.' },
+  { name:'Ring of Free Action',      rarity:'Rare',      type:'Ring',     attune:true,  desc:'Immune to paralysis and ignore difficult terrain. Magic cannot reduce your speed.' },
+  { name:'Ring of Mind Shielding',   rarity:'Uncommon',  type:'Ring',     attune:true,  desc:'Immune to magic reading your thoughts, determining alignment, or using Detect Thoughts.' },
+  // Weapons
+  { name:'Sword of Vengeance',       rarity:'Uncommon',  type:'Weapon',   attune:true,  desc:'+1 bonus to attack and damage. Cursed: compelled to attack each turn or gain Disadvantage on other attacks.' },
+  { name:'+1 Weapon',                rarity:'Uncommon',  type:'Weapon',   attune:false, desc:'You have a +1 bonus to attack and damage rolls made with this magic weapon.' },
+  { name:'+2 Weapon',                rarity:'Rare',      type:'Weapon',   attune:false, desc:'You have a +2 bonus to attack and damage rolls made with this magic weapon.' },
+  { name:'+3 Weapon',                rarity:'Very Rare', type:'Weapon',   attune:false, desc:'You have a +3 bonus to attack and damage rolls made with this magic weapon.' },
+  { name:'Flame Tongue',             rarity:'Rare',      type:'Weapon',   attune:true,  desc:'Command word ignites the blade: +2d6 fire damage, sheds bright light 40 ft.' },
+  { name:'Frost Brand',              rarity:'Very Rare', type:'Weapon',   attune:true,  desc:'+1d6 cold damage. In freezing temps, sheds dim light. Extinguishes nonmagical flames 30 ft. Resistance to fire.' },
+  { name:'Vorpal Sword',             rarity:'Legendary', type:'Weapon',   attune:true,  desc:'+3 longsword/shortsword/scimitar. Score 20: decapitate (instant kill unless immune). Ignores resistance to slashing.' },
+  { name:'Sword of Sharpness',       rarity:'Very Rare', type:'Weapon',   attune:true,  desc:'Score 20: +14 damage and severe a limb (or extra 4d6 if no limbs). Deals max damage on 20 against objects.' },
+  { name:'Luck Blade',               rarity:'Legendary', type:'Weapon',   attune:true,  desc:'+1. 1 wish/day (up to 3 charges). Once per day add 1 to any saving throw. +1 AC and saves.' },
+  { name:'Dagger of Venom',          rarity:'Rare',      type:'Weapon',   attune:false, desc:'Once/day coat blade in poison for 1 minute. On hit: DC 15 CON or 2d10 poison + poisoned 1 min.' },
+  { name:'Javelin of Lightning',     rarity:'Uncommon',  type:'Weapon',   attune:false, desc:'Throw as lightning bolt (5×100 ft line, 4d6, DEX half DC 13). Returns to hand.' },
+  // Armor
+  { name:'+1 Armor',                 rarity:'Rare',      type:'Armor',    attune:false, desc:'You have a +1 bonus to AC while wearing this armor.' },
+  { name:'+2 Armor',                 rarity:'Very Rare', type:'Armor',    attune:false, desc:'You have a +2 bonus to AC while wearing this armor.' },
+  { name:'+3 Armor',                 rarity:'Legendary', type:'Armor',    attune:false, desc:'You have a +3 bonus to AC while wearing this armor.' },
+  { name:'Armor of Resistance',      rarity:'Rare',      type:'Armor',    attune:true,  desc:'Resistance to one damage type (chosen when created).' },
+  { name:'Mithral Armor',            rarity:'Uncommon',  type:'Armor',    attune:false, desc:'No stealth disadvantage. Can be worn without armor proficiency.' },
+  { name:'Adamantine Armor',         rarity:'Uncommon',  type:'Armor',    attune:false, desc:'Any critical hit against you becomes a normal hit.' },
+  { name:'Demon Armor',              rarity:'Very Rare', type:'Armor',    attune:true,  desc:'+1 AC. Fists count as unarmed strikes +1 (1d8 slashing). Cursed: disadvantage on attacks with non-demonic weapons.' },
+  { name:'Glamoured Studded Leather',rarity:'Rare',      type:'Armor',    attune:false, desc:'+1 AC. Bonus action: appear as normal clothing or armor of your choice.' },
+  // Wondrous Items
+  { name:'Cloak of Protection',      rarity:'Uncommon',  type:'Wondrous', attune:true,  desc:'+1 bonus to AC and saving throws.' },
+  { name:'Cloak of Invisibility',    rarity:'Legendary', type:'Wondrous', attune:true,  desc:'Become invisible while wearing. Disadvantage on attacks/spells against you. Lasts until removed or attacked.' },
+  { name:'Cloak of Elvenkind',       rarity:'Uncommon',  type:'Wondrous', attune:true,  desc:'Advantage on Stealth. Disadvantage on Perception against you.' },
+  { name:'Cloak of the Bat',         rarity:'Rare',      type:'Wondrous', attune:true,  desc:'Advantage on Stealth in dim/dark. Glide (60 ft) or fly 30 ft in darkness as a bat.' },
+  { name:'Boots of Speed',           rarity:'Rare',      type:'Wondrous', attune:true,  desc:'Bonus action: double speed for 10 min/day total. Opportunity attacks against you have disadvantage.' },
+  { name:'Boots of Elvenkind',       rarity:'Uncommon',  type:'Wondrous', attune:false, desc:'Your steps make no sound. Advantage on Stealth (movement).' },
+  { name:'Bag of Holding',           rarity:'Uncommon',  type:'Wondrous', attune:false, desc:'Interior 64 cubic ft (500 lb capacity). Weighs 15 lb regardless of contents. 2-min air supply inside.' },
+  { name:'Bag of Tricks',            rarity:'Uncommon',  type:'Wondrous', attune:false, desc:'3 charges/day: pull out a random beast (CR 0–2) that obeys you for 24 hr.' },
+  { name:'Belt of Giant Strength',   rarity:'Varies',    type:'Wondrous', attune:true,  desc:'Set STR to 21 (Hill), 23 (Stone), 25 (Frost/Fire), 27 (Cloud), or 29 (Storm) based on type.' },
+  { name:'Gauntlets of Ogre Power',  rarity:'Uncommon',  type:'Wondrous', attune:true,  desc:'Your Strength score is 19 while you wear these gauntlets (no effect if 19+).' },
+  { name:'Headband of Intellect',    rarity:'Uncommon',  type:'Wondrous', attune:true,  desc:'Your Intelligence score is 19 while you wear this headband (no effect if 19+).' },
+  { name:'Amulet of Health',         rarity:'Rare',      type:'Wondrous', attune:true,  desc:'Your Constitution score is 19 while you wear this amulet (no effect if 19+).' },
+  { name:'Gloves of Missile Snaring',rarity:'Uncommon',  type:'Wondrous', attune:true,  desc:'Reaction: catch ranged weapon attack. Reduce damage by 1d10+DEX and keep projectile.' },
+  { name:'Gloves of Thievery',       rarity:'Uncommon',  type:'Wondrous', attune:false, desc:'+5 to Sleight of Hand checks and Dexterity checks to pick locks. Invisible while worn.' },
+  { name:'Goggles of Night',         rarity:'Uncommon',  type:'Wondrous', attune:false, desc:'Darkvision 60 ft while wearing. If you already have darkvision, extends by 60 ft.' },
+  { name:'Necklace of Fireballs',    rarity:'Rare',      type:'Wondrous', attune:false, desc:'1-9 beads. Throw bead as Fireball (3d6 per bead, 20-ft sphere, DEX half DC 15).' },
+  { name:'Pearl of Power',           rarity:'Uncommon',  type:'Wondrous', attune:true,  desc:'Once/day: recover 1 spell slot of 3rd level or lower.' },
+  { name:'Stone of Good Luck',       rarity:'Uncommon',  type:'Wondrous', attune:true,  desc:'+1 to ability checks and saving throws.' },
+  { name:'Decanter of Endless Water',rarity:'Uncommon',  type:'Wondrous', attune:false, desc:'Unstopper for water: stream (1 gal/min), fountain (5 gal/action), geyser (30 gal/action, knockback).' },
+  { name:'Eversmoking Bottle',       rarity:'Uncommon',  type:'Wondrous', attune:false, desc:'Uncorked: heavy smoke fills 60-ft radius (heavily obscured) and grows 10 ft/round until 240 ft.' },
+  { name:'Immovable Rod',            rarity:'Uncommon',  type:'Rod',      attune:false, desc:'Click to fix in place: holds 8,000 lb, immovable in space. Another click releases it.' },
+  // Rods, Staffs, Wands
+  { name:'Rod of the Pact Keeper',   rarity:'Uncommon',  type:'Rod',      attune:true,  desc:'+1 to spell attack rolls and save DCs. Once/day: recover 1 warlock spell slot.' },
+  { name:'Staff of Healing',         rarity:'Rare',      type:'Staff',    attune:true,  desc:'10 charges. Cure Wounds (1 charge/spell level), Lesser Restoration (2), Mass Cure Wounds (5). Regain 1d6+4 at dawn.' },
+  { name:'Staff of the Magi',        rarity:'Legendary', type:'Staff',    attune:true,  desc:'50 charges. 22 spells. +2 to spell attacks. Absorb hostile spell targets to regain charges. Retributive Strike.' },
+  { name:'Wand of Magic Missiles',   rarity:'Uncommon',  type:'Wand',     attune:false, desc:'7 charges. Magic Missile (1–3 charges). Regain 1d6+1 at dawn.' },
+  { name:'Wand of Fireballs',        rarity:'Rare',      type:'Wand',     attune:true,  desc:'7 charges. Fireball (3 charges; +1 per level). Regain 1d6+1 at dawn.' },
+  { name:'Wand of Lightning Bolts',  rarity:'Rare',      type:'Wand',     attune:true,  desc:'7 charges. Lightning Bolt (3 charges; +1 per level). Regain 1d6+1 at dawn.' },
+  { name:'Wand of Paralysis',        rarity:'Rare',      type:'Wand',     attune:true,  desc:'7 charges. DC 15 CON or paralyzed 1 min. Regain 1d6+1 at dawn.' },
+  { name:'Wand of Web',              rarity:'Uncommon',  type:'Wand',     attune:true,  desc:'7 charges. Cast Web (2nd level). Regain 1d6+1 at dawn.' },
+];
+
+const RARITY_COLOR = {
+  Common:'#c8d0e8', Uncommon:'#44cc88', Rare:'#4488ff', 'Very Rare':'#9b6dff', Legendary:'#c9a227', Varies:'#dd6622'
+};
+
+function openItemCompendium() {
+  const ex = document.getElementById('itemCompOverlay');
+  if (ex) { ex.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'itemCompOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9100;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto';
+  ov.innerHTML = `
+    <div style="background:linear-gradient(160deg,#0e0a2a,#12103a);border:1px solid rgba(187,136,255,0.4);border-radius:14px;width:760px;max-width:100%;padding:20px;color:#c8d0e8;font-family:'Inter',sans-serif;position:relative">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div style="font-size:17px;font-weight:700;font-family:'Cinzel',serif;color:#bb88ff">🔮 Magic Item Compendium</div>
+        <button onclick="document.getElementById('itemCompOverlay').remove()" style="background:#1a1040;border:1px solid #3a2060;color:#9b6dff;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px">✕ Close</button>
+      </div>
+      <!-- Filters -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <input id="itemCompSearch" type="text" placeholder="Search items…" oninput="_filterItems()"
+          style="flex:1;min-width:160px;background:rgba(0,0,0,0.3);border:1px solid rgba(187,136,255,0.3);color:#c8d0e8;border-radius:8px;padding:7px 11px;font-size:12px;outline:none">
+        <select id="itemCompRarity" onchange="_filterItems()" style="background:#0e0a2a;border:1px solid rgba(187,136,255,0.3);color:#c8d0e8;border-radius:8px;padding:7px;font-size:12px;cursor:pointer">
+          <option value="">All Rarities</option>
+          ${['Common','Uncommon','Rare','Very Rare','Legendary','Varies'].map(r=>`<option value="${r}">${r}</option>`).join('')}
+        </select>
+        <select id="itemCompType" onchange="_filterItems()" style="background:#0e0a2a;border:1px solid rgba(187,136,255,0.3);color:#c8d0e8;border-radius:8px;padding:7px;font-size:12px;cursor:pointer">
+          <option value="">All Types</option>
+          ${['Armor','Potion','Ring','Rod','Staff','Wand','Weapon','Wondrous'].map(t=>`<option value="${t}">${t}</option>`).join('')}
+        </select>
+        <select id="itemCompChar" style="background:#0e0a2a;border:1px solid rgba(187,136,255,0.3);color:#c8d0e8;border-radius:8px;padding:7px;font-size:12px;cursor:pointer;max-width:160px">
+          <option value="">Give to…</option>
+          ${(typeof UNIQUE_CHARS!=='undefined'?UNIQUE_CHARS:[]).map(c=>`<option value="${escHtml(c.name)}">${escHtml(c.name)}</option>`).join('')}
+        </select>
+      </div>
+      <!-- Results -->
+      <div id="itemCompResults" style="max-height:62vh;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px"></div>
+      <div style="margin-top:10px;font-size:10px;color:#4a5272;text-align:center">${ITEM_COMP.length} items · SRD 5.1 · Click card to expand · "Give to" assigns item to inventory</div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _filterItems();
+}
+
+function _filterItems() {
+  const q = (document.getElementById('itemCompSearch')?.value||'').toLowerCase();
+  const rar = document.getElementById('itemCompRarity')?.value||'';
+  const typ = document.getElementById('itemCompType')?.value||'';
+  const el = document.getElementById('itemCompResults');
+  if (!el) return;
+  const filtered = ITEM_COMP.filter(it => {
+    if (rar && it.rarity !== rar) return false;
+    if (typ && it.type !== typ) return false;
+    if (q && !it.name.toLowerCase().includes(q) && !it.desc.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  if (!filtered.length) { el.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#4a5272;padding:24px;font-size:13px">No items match your search.</div>'; return; }
+  el.innerHTML = filtered.map((it, i) => {
+    const col = RARITY_COLOR[it.rarity] || '#c8d0e8';
+    const atBadge = it.attune ? `<span style="font-size:9px;background:rgba(201,162,39,0.1);border:1px solid rgba(201,162,39,0.3);color:#c9a227;border-radius:6px;padding:1px 5px;margin-left:4px">Attune</span>` : '';
+    return `<div style="background:rgba(0,0,0,0.3);border:1px solid ${col}33;border-radius:10px;padding:10px;cursor:pointer;transition:border-color 0.15s"
+              onmouseover="this.style.borderColor='${col}88'" onmouseout="this.style.borderColor='${col}33'"
+              onclick="_toggleItemDesc(${i})" title="Click to expand">
+        <div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:4px">
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:700;color:${col};line-height:1.3">${escHtml(it.name)}</div>
+            <div style="font-size:10px;color:#4a5272;margin-top:1px">${escHtml(it.type)} · <span style="color:${col}">${escHtml(it.rarity)}</span>${atBadge}</div>
+          </div>
+        </div>
+        <div id="itemDesc_${i}" style="display:none;font-size:11px;color:#9098b8;line-height:1.5;margin-top:6px;border-top:1px solid ${col}22;padding-top:6px">
+          ${escHtml(it.desc)}
+          <div style="margin-top:8px">
+            <button onclick="event.stopPropagation();_giveItem(${JSON.stringify(it.name)})" style="background:rgba(187,136,255,0.1);border:1px solid rgba(187,136,255,0.3);color:#bb88ff;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:10px;font-weight:700">Give to Character →</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function _toggleItemDesc(i) {
+  const el = document.getElementById('itemDesc_' + i);
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function _giveItem(itemName) {
+  const charSel = document.getElementById('itemCompChar');
+  const charName = charSel?.value;
+  if (!charName) { showToast('Select a character in "Give to…" first', '#cc4444'); return; }
+  // Add to character inventory (reuse existing inventory system)
+  const invKey = 'tiamat_inventory_' + charName;
+  const inv = (() => { try { return JSON.parse(localStorage.getItem(invKey)) || []; } catch { return []; } })();
+  const item = ITEM_COMP.find(it => it.name === itemName);
+  if (!item) return;
+  inv.push({ name: item.name, type: item.type, qty: 1, magical: true, desc: item.desc, rarity: item.rarity });
+  localStorage.setItem(invKey, JSON.stringify(inv));
+  showToast(`${itemName} → ${charName}`, '#bb88ff');
+  logEntry('loot', `🔮 <strong>${escHtml(itemName)}</strong> given to <strong>${escHtml(charName)}</strong>`);
 }
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
