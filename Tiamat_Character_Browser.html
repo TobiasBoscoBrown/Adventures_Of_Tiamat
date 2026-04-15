@@ -4440,6 +4440,17 @@
       <button class="log-ctrl-btn" onclick="clearLog()">✕ Clear</button>
     </div>
   </div>
+  <!-- Iter 146: Log filter tabs -->
+  <div id="logFilterRow" style="display:flex;gap:4px;flex-wrap:wrap;padding:6px 10px;border-bottom:1px solid rgba(201,162,39,0.15);background:rgba(0,0,0,0.2)">
+    <button onclick="_setLogFilter('')" id="lf_all" class="log-ctrl-btn" style="background:rgba(201,162,39,0.15);border-color:#c9a227;color:#c9a227;font-size:10px">All</button>
+    <button onclick="_setLogFilter('roll')" id="lf_roll" class="log-ctrl-btn" style="font-size:10px">🎲 Rolls</button>
+    <button onclick="_setLogFilter('damage')" id="lf_damage" class="log-ctrl-btn" style="font-size:10px">⚔ Damage</button>
+    <button onclick="_setLogFilter('heal')" id="lf_heal" class="log-ctrl-btn" style="font-size:10px">❤ Heal</button>
+    <button onclick="_setLogFilter('combat')" id="lf_combat" class="log-ctrl-btn" style="font-size:10px">⚡ Combat</button>
+    <button onclick="_setLogFilter('cond')" id="lf_cond" class="log-ctrl-btn" style="font-size:10px">⚠ Cond</button>
+    <button onclick="_setLogFilter('note')" id="lf_note" class="log-ctrl-btn" style="font-size:10px">✎ Notes</button>
+    <input type="text" id="logSearchInput" placeholder="🔍 Search…" oninput="renderLog()" style="flex:1;min-width:80px;background:#0a0a14;border:1px solid #2a2a40;color:#c8d0e8;border-radius:4px;padding:2px 6px;font-size:10px;outline:none">
+  </div>
   <div class="log-entries" id="logEntries">
     <div style="text-align:center;color:#2a2a50;font-size:12px;padding:20px">Session log will appear here</div>
   </div>
@@ -9618,10 +9629,31 @@ function toggleSessionLog() {
   if (panel.classList.contains('open')) renderLog();
 }
 
+let _logActiveFilter = '';
+
+function _setLogFilter(type) {
+  _logActiveFilter = type;
+  // Update button styles
+  ['all','roll','damage','heal','combat','cond','note'].forEach(t => {
+    const btn = document.getElementById('lf_' + (t === '' ? 'all' : t));
+    if (!btn) return;
+    const isActive = (t === '' && type === '') || t === type;
+    btn.style.background = isActive ? 'rgba(201,162,39,0.15)' : '';
+    btn.style.borderColor = isActive ? '#c9a227' : '';
+    btn.style.color = isActive ? '#c9a227' : '';
+  });
+  renderLog();
+}
+
 function renderLog() {
   const el = document.getElementById('logEntries');
   if (!sessionLog.length) { el.innerHTML = '<div style="text-align:center;color:#2a2a50;font-size:12px;padding:20px">Session log will appear here</div>'; return; }
-  el.innerHTML = [...sessionLog].reverse().map(e =>
+  const searchQ = (document.getElementById('logSearchInput')?.value || '').toLowerCase();
+  let entries = [...sessionLog].reverse();
+  if (_logActiveFilter) entries = entries.filter(e => e.type === _logActiveFilter);
+  if (searchQ) entries = entries.filter(e => e.msg.toLowerCase().includes(searchQ) || e.ts.includes(searchQ));
+  if (!entries.length) { el.innerHTML = `<div style="text-align:center;color:#2a2a50;font-size:12px;padding:20px">No ${_logActiveFilter || ''} entries${searchQ?' matching "'+searchQ+'"':''}</div>`; return; }
+  el.innerHTML = entries.map(e =>
     `<div class="log-entry type-${e.type}">
       <span class="log-ts">${e.ts}</span>
       <span class="log-msg">${e.msg}</span>
