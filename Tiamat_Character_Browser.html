@@ -3539,6 +3539,7 @@
   <button class="filter-btn" onclick="openTagFilter(this)" id="tagFilterBtn" style="border-color:#ffaa44;color:#9098b8;" title="Filter by custom tag">🏷 Tags</button>
   <button class="filter-btn" onclick="openAoeDmg()" style="border-color:#cc3333;color:#cc3333;" title="AoE damage/heal — apply to multiple characters at once">💥 AoE</button>
   <button class="filter-btn" onclick="showPassiveSkills()" style="border-color:#2299bb;color:#2299bb;" title="Party passive Perception, Investigation & Insight">👁 Passives</button>
+  <button class="filter-btn" onclick="openTreasureGenerator()" style="border-color:#c9a227;color:#c9a227;" title="Random treasure generator by CR">💎 Treasure</button>
   <span style="color: #333; margin: 0 4px;">|</span>
   <span style="font-size:11px;color:#4a5272;margin-right:4px">View:</span>
   <button class="filter-btn view-btn active" id="viewGrid" onclick="setView('grid',this)" title="Grid view">⊞ Grid</button>
@@ -9828,6 +9829,86 @@ function clearTagFilter(dropdown) {
   renderGrid();
 }
 // ────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// ITERATION 52: Random Treasure Generator — CR-appropriate
+//   loot tables. GP/gems/art objects/magic items by CR tier.
+//   Based on D&D 5e DMG treasure tables.
+// ══════════════════════════════════════════════════════════
+const MAGIC_ITEMS_BY_TIER = {
+  low:   ['Potion of Healing','Spell Scroll (1st)','Bag of Holding','Rope of Climbing','Cloak of Protection','Boots of Elvenkind','Goggles of Night','Ring of Swimming'],
+  mid:   ['Potion of Greater Healing','Staff of the Python','Wand of Fireballs','Cloak of Elvenkind','Gloves of Missile Snaring','Helm of Telepathy','Periapt of Health','Wand of Lightning Bolts'],
+  high:  ['Potion of Superior Healing','Flame Tongue Sword','Holy Avenger','Ring of Protection','Staff of Fire','Vorpal Sword','Belt of Giant Strength','Cloak of Displacement'],
+  legendary: ['Potion of Supreme Healing','Apparatus of Kwalish','Staff of the Magi','Ring of Wishes','Robe of the Archmagi','Tome of Clear Thought','Sword of Kas','Axe of the Dwarvish Lords']
+};
+const GEM_TABLES = {
+  low:    [['Azurite',10],['Blue Quartz',10],['Lapis Lazuli',10],['Malachite',10],['Obsidian',10]],
+  mid:    [['Amber',100],['Amethyst',100],['Coral',100],['Jade',100],['Pearl',100]],
+  high:   [['Diamond',1000],['Ruby',1000],['Sapphire',1000],['Emerald',1000]],
+  legendary: [['Diamond (5 carat)',5000],['Black Opal',5000],['Blue Sapphire',5000]]
+};
+function roll(sides) { return Math.floor(Math.random() * sides) + 1; }
+function genTreasure(cr) {
+  const crNum = parseFloat(cr) || 1;
+  let tier, gpMulti;
+  if (crNum <= 4)  { tier = 'low';       gpMulti = 1; }
+  else if (crNum <= 10) { tier = 'mid';   gpMulti = 10; }
+  else if (crNum <= 16) { tier = 'high';  gpMulti = 100; }
+  else              { tier = 'legendary'; gpMulti = 1000; }
+
+  const gp    = roll(6) * roll(6) * gpMulti;
+  const sp    = roll(6) * roll(6) * gpMulti * 10;
+  const cp    = tier === 'low' ? roll(6) * 100 : 0;
+  const gems  = roll(3) <= 2 ? [GEM_TABLES[tier][Math.floor(Math.random() * GEM_TABLES[tier].length)]] : [];
+  const hasMagic = roll(4) <= (tier === 'legendary' ? 4 : tier === 'high' ? 3 : tier === 'mid' ? 2 : 1);
+  const magicItems = hasMagic ? [MAGIC_ITEMS_BY_TIER[tier][Math.floor(Math.random() * MAGIC_ITEMS_BY_TIER[tier].length)]] : [];
+  if (tier !== 'low' && roll(6) <= 2) magicItems.push(MAGIC_ITEMS_BY_TIER[tier][Math.floor(Math.random() * MAGIC_ITEMS_BY_TIER[tier].length)]);
+
+  return { gp, sp, cp, gems, magicItems, tier };
+}
+function openTreasureGenerator() {
+  const existing = document.querySelector('.treasure-modal');
+  if (existing) { existing.remove(); return; }
+  const modal = document.createElement('div');
+  modal.className = 'treasure-modal';
+  modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#0a0a1e;border:1px solid rgba(201,162,39,.5);border-radius:14px;padding:20px;z-index:9500;box-shadow:0 8px 48px rgba(0,0,0,.9);min-width:320px;max-width:500px;width:90vw';
+  modal.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <span style="font-size:16px;font-weight:700;color:#c9a227;font-family:'Cinzel',serif">💎 Treasure Generator</span>
+      <button onclick="document.querySelector('.treasure-modal').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+      <label style="font-size:12px;color:#7a7aaa">CR:</label>
+      <select id="treasureCrSel" style="background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:4px 8px;font-size:12px">
+        <option value="1/4">CR 1/4</option><option value="1">CR 1</option><option value="2">CR 2</option><option value="3">CR 3</option>
+        <option value="5" selected>CR 5</option><option value="8">CR 8</option><option value="10">CR 10</option><option value="13">CR 13</option>
+        <option value="15">CR 15</option><option value="17">CR 17</option><option value="20">CR 20</option><option value="24">CR 24</option><option value="30">CR 30</option>
+      </select>
+      <button onclick="rollTreasure()" style="background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.5);color:#c9a227;border-radius:6px;padding:5px 14px;cursor:pointer;font-size:12px;font-family:'Cinzel',serif">Roll Treasure!</button>
+    </div>
+    <div id="treasureResult" style="font-size:13px;color:#9098b8;text-align:center;padding:20px">Click Roll to generate loot</div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => e.stopPropagation());
+  document.addEventListener('click', function rem(e) { if (!modal.contains(e.target)) { modal.remove(); document.removeEventListener('click', rem); } }, { once: true });
+}
+function rollTreasure() {
+  const cr = document.getElementById('treasureCrSel').value;
+  const t = genTreasure(cr);
+  const el = document.getElementById('treasureResult');
+  if (!el) return;
+  el.innerHTML = `
+    <div style="margin-bottom:10px">
+      <div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:6px">${t.tier.toUpperCase()} TIER HOARD</div>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+        ${t.gp ? `<div style="text-align:center"><div style="font-size:18px;font-weight:700;color:#c9a227;font-family:'Cinzel',serif">${t.gp.toLocaleString()}</div><div style="font-size:9px;color:#4a5272">GP</div></div>` : ''}
+        ${t.sp ? `<div style="text-align:center"><div style="font-size:18px;font-weight:700;color:#9098b8;font-family:'Cinzel',serif">${t.sp.toLocaleString()}</div><div style="font-size:9px;color:#4a5272">SP</div></div>` : ''}
+        ${t.cp ? `<div style="text-align:center"><div style="font-size:18px;font-weight:700;color:#b87333;font-family:'Cinzel',serif">${t.cp.toLocaleString()}</div><div style="font-size:9px;color:#4a5272">CP</div></div>` : ''}
+      </div>
+    </div>
+    ${t.gems.length ? `<div style="margin-bottom:8px"><div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:4px">💎 GEMS</div>${t.gems.map(([n,v]) => `<span style="background:#0a0a1e;border:1px solid rgba(68,136,255,0.3);color:#88bbff;border-radius:6px;padding:2px 8px;font-size:11px;margin:2px;display:inline-block">${n} (${v} gp)</span>`).join('')}</div>` : ''}
+    ${t.magicItems.length ? `<div><div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:4px">✨ MAGIC ITEMS</div>${t.magicItems.map(m => `<div style="background:rgba(201,162,39,0.08);border:1px solid rgba(201,162,39,0.3);border-radius:6px;padding:4px 10px;font-size:12px;color:#c9a227;margin:3px 0">${m}</div>`).join('')}</div>` : '<div style="font-size:11px;color:#4a5272">No magic items this time</div>'}
+    <button onclick="rollTreasure()" style="margin-top:10px;background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.3);color:#c9a227;border-radius:6px;padding:5px 20px;cursor:pointer;font-size:11px">Roll Again</button>`;
+}
+
 // ══════════════════════════════════════════════════════════
 // ITERATION 50: Attunement Slots Enforcer — max 3 attuned
 //   items tracked per character. Add custom magic items.
