@@ -3816,6 +3816,8 @@
     <span id="timerDurLabel" style="font-size:10px;color:#4a5272;min-width:28px">30s</span>
     <button onclick="resetTimer()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:12px;padding:0 2px" title="Reset timer">↺</button>
   </div>
+  <!-- Active Turn Stats Bar -->
+  <div id="activeTurnBar" style="display:none;padding:6px 12px;border-bottom:1px solid #1e2040;background:rgba(240,192,96,.04)"></div>
   <!-- Group Roll Panel (collapsible) -->
   <div id="groupRollArea" style="display:none;padding:8px 10px;border-bottom:1px solid #1e2040;background:rgba(170,102,221,.05)">
     <div style="font-size:10px;color:#aa66dd;letter-spacing:1px;margin-bottom:6px;font-family:'Cinzel',serif">⚔ GROUP CHECK / SAVE</div>
@@ -9202,10 +9204,45 @@ function initDrop(event, targetName) {
   _initDragName = null;
 }
 
+function renderActiveTurnBar() {
+  const bar = document.getElementById('activeTurnBar');
+  if (!bar) return;
+  if (!initiativeList.length || currentTurnIdx < 0 || currentTurnIdx >= initiativeList.length) {
+    bar.style.display = 'none'; return;
+  }
+  const e = initiativeList[currentTurnIdx];
+  const char = UNIQUE_CHARS.find(c => c.name === e.name);
+  if (!char) { bar.style.display = 'none'; return; }
+
+  const ac = char.ac || '—';
+  const speed = (() => { if (!char.speed) return '—'; const m = String(char.speed).match(/\d+/); return m ? m[0]+'ft' : char.speed; })();
+  const wis = (char.abilities||[]).find(a=>a[0]==='WIS'); const wisMod = wis ? (parseInt(wis[2])||0) : 0;
+  const pp = 10 + wisMod;
+  const currHp = getCharHP(char.name, parseInt(char.hp)||1);
+  const maxHp = parseInt(char.hp)||1;
+  const conc = getConcSpell(char.name);
+  const conds = getAllConditions ? getAllConditions().filter(c=>(condState[char.name]||{})[c.name]).map(c=>c.icon+c.name) : [];
+
+  const chip = (label, val, col='#9098b8') => `<span style="font-size:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:2px 7px;color:${col}"><span style="color:#4a5272;font-size:9px">${label} </span>${val}</span>`;
+
+  let html = `<div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
+    <span style="font-size:11px;color:#f0c060;font-weight:700;font-family:'Cinzel',serif;margin-right:4px">${escHtml(char.name.length>20?char.name.slice(0,19)+'…':char.name)}</span>
+    ${chip('AC', ac, '#88aaff')}
+    ${chip('HP', `${currHp}/${maxHp}`, currHp/maxHp < 0.25 ? '#ff6666' : currHp/maxHp < 0.5 ? '#dd8822' : '#44aa44')}
+    ${chip('Spd', speed, '#88ccff')}
+    ${chip('PP', pp, '#aa88ff')}
+    ${conc ? chip('⊙', escHtml(conc.length>10?conc.slice(0,9)+'…':conc), '#c9a227') : ''}
+    ${conds.slice(0,3).map(c=>chip('', escHtml(c.slice(0,2)+c.slice(2,12)), '#dd8822')).join('')}
+  </div>`;
+  bar.style.display = 'block';
+  bar.innerHTML = html;
+}
+
 function renderInitiative() {
   const el = document.getElementById('initiativeList');
   if (!initiativeList.length) {
     el.innerHTML = '<div style="text-align:center;color:#4a5272;font-size:12px;padding:20px">Add characters via the ⚔ button on their cards</div>';
+    renderActiveTurnBar();
     return;
   }
 
@@ -9294,6 +9331,7 @@ function editInitScore(name,event) {
 
   el.innerHTML = html;
   updateEncounterDiffBadge();
+  renderActiveTurnBar();
 }
 
 function updateEncounterDiffBadge() {
