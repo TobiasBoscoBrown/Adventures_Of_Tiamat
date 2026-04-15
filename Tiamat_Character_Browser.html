@@ -28698,6 +28698,140 @@ function openCampaignStats() {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 181: Encounter Countdown Timer — visible countdown for time-sensitive encounters
+// DM sets minutes/rounds, timer counts down visibly, alarm when it expires.
+
+let _cdInterval = null;
+let _cdEndTime = null;
+let _cdPaused = false;
+let _cdPausedRemaining = 0;
+let _cdLabel = '';
+
+function openCountdownTimer() {
+  const ex = document.getElementById('countdownSetup');
+  if (ex) { ex.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'countdownSetup';
+  ov.style.cssText = 'position:fixed;bottom:100px;right:20px;background:linear-gradient(160deg,#0e0820,#180e30);border:2px solid rgba(204,68,68,0.5);border-radius:14px;padding:16px;z-index:9100;width:260px;color:#c8d0e8;font-family:\'Inter\',sans-serif;box-shadow:0 4px 24px rgba(0,0,0,0.8)';
+  ov.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:700;color:#cc4444;font-family:'Cinzel',serif">⏳ Countdown Timer</div>
+      <button onclick="document.getElementById('countdownSetup').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:16px;padding:0">✕</button>
+    </div>
+    <div style="margin-bottom:10px">
+      <div style="font-size:9px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Label (what's happening?)</div>
+      <input id="cdLabel" placeholder="e.g. Until reinforcements arrive" style="width:100%;background:#0c0c20;border:1px solid #2a2050;color:#e0e0ff;border-radius:5px;padding:5px;font-size:11px;box-sizing:border-box">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+      <div>
+        <div style="font-size:9px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Minutes</div>
+        <input id="cdMinutes" type="number" value="5" min="0" max="60" style="width:100%;background:#0c0c20;border:1px solid #2a2050;color:#e0e0ff;border-radius:5px;padding:5px;font-size:16px;font-weight:700;text-align:center;box-sizing:border-box">
+      </div>
+      <div>
+        <div style="font-size:9px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Seconds</div>
+        <input id="cdSeconds" type="number" value="0" min="0" max="59" style="width:100%;background:#0c0c20;border:1px solid #2a2050;color:#e0e0ff;border-radius:5px;padding:5px;font-size:16px;font-weight:700;text-align:center;box-sizing:border-box">
+      </div>
+    </div>
+    <button onclick="_cdStart()" style="width:100%;background:rgba(204,68,68,0.2);border:1px solid rgba(204,68,68,0.5);color:#cc4444;border-radius:8px;padding:8px;cursor:pointer;font-size:13px;font-weight:700">▶ Start Countdown</button>`;
+  document.body.appendChild(ov);
+}
+
+function _cdStart() {
+  const mins = parseInt(document.getElementById('cdMinutes')?.value||5);
+  const secs = parseInt(document.getElementById('cdSeconds')?.value||0);
+  _cdLabel = document.getElementById('cdLabel')?.value||'Countdown';
+  const totalMs = (mins * 60 + secs) * 1000;
+  if (totalMs <= 0) return;
+  document.getElementById('countdownSetup')?.remove();
+
+  if (_cdInterval) { clearInterval(_cdInterval); _cdInterval = null; }
+  _cdEndTime = Date.now() + totalMs;
+  _cdPaused = false;
+  _cdPausedRemaining = 0;
+
+  // Create HUD widget
+  const existing = document.getElementById('cdHud');
+  if (existing) existing.remove();
+  const hud = document.createElement('div');
+  hud.id = 'cdHud';
+  hud.style.cssText = 'position:fixed;bottom:20px;right:20px;background:linear-gradient(135deg,#1a0808,#200a0a);border:2px solid rgba(204,68,68,0.7);border-radius:12px;padding:12px 16px;z-index:9100;min-width:180px;cursor:pointer;box-shadow:0 4px 20px rgba(204,68,68,0.3);font-family:\'Inter\',sans-serif';
+  hud.title = 'Click to pause/resume · Right-click to stop';
+  hud.onclick = _cdTogglePause;
+  hud.oncontextmenu = (e) => { e.preventDefault(); _cdStop(); };
+  hud.innerHTML = `
+    <div style="font-size:9px;color:#cc444499;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px" id="cdHudLabel">${escHtml(_cdLabel)}</div>
+    <div style="font-size:28px;font-weight:700;font-family:'Cinzel',serif;color:#cc4444;letter-spacing:2px" id="cdHudTime">--:--</div>
+    <div style="font-size:9px;color:#4a5272;margin-top:2px">Click to pause · Right-click to stop</div>`;
+  document.body.appendChild(hud);
+
+  _cdInterval = setInterval(_cdTick, 250);
+  _cdTick();
+}
+
+function _cdTick() {
+  const el = document.getElementById('cdHudTime');
+  const hud = document.getElementById('cdHud');
+  if (!el || !hud) { clearInterval(_cdInterval); return; }
+  if (_cdPaused) return;
+  const remaining = Math.max(0, _cdEndTime - Date.now());
+  const totalSecs = Math.ceil(remaining / 1000);
+  const m = Math.floor(totalSecs / 60);
+  const s = totalSecs % 60;
+  el.textContent = `${m}:${String(s).padStart(2,'0')}`;
+  // Color shift as it runs out
+  const pct = remaining / ((_cdEndTime - Date.now() + remaining));
+  if (totalSecs <= 10) {
+    el.style.color = '#ff2222';
+    hud.style.borderColor = 'rgba(255,34,34,0.9)';
+    hud.style.boxShadow = '0 4px 20px rgba(255,34,34,0.5)';
+  } else if (totalSecs <= 30) {
+    el.style.color = '#ff6622';
+    hud.style.borderColor = 'rgba(255,102,34,0.8)';
+  }
+  if (remaining <= 0) {
+    clearInterval(_cdInterval);
+    _cdInterval = null;
+    el.textContent = '0:00';
+    el.style.color = '#ff0000';
+    hud.style.background = 'linear-gradient(135deg,#3a0000,#500000)';
+    document.getElementById('cdHudLabel').textContent = '⚠ ' + _cdLabel + ' — TIME\'S UP!';
+    logEntry('combat', `⏳ <strong>Countdown expired!</strong> "${escHtml(_cdLabel)}"`);
+    showToast('⏳ TIME\'S UP: ' + _cdLabel, '#ff2222');
+  }
+}
+
+function _cdTogglePause() {
+  _cdPaused = !_cdPaused;
+  if (_cdPaused) {
+    _cdPausedRemaining = Math.max(0, _cdEndTime - Date.now());
+    document.getElementById('cdHudLabel').textContent = '⏸ ' + _cdLabel;
+  } else {
+    _cdEndTime = Date.now() + _cdPausedRemaining;
+    document.getElementById('cdHudLabel').textContent = escHtml(_cdLabel);
+  }
+}
+
+function _cdStop() {
+  if (_cdInterval) { clearInterval(_cdInterval); _cdInterval = null; }
+  document.getElementById('cdHud')?.remove();
+}
+
+// Add Countdown Timer button
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'Encounter Countdown Timer — visible countdown for time-sensitive encounters';
+    btn.style.cssText = 'border-color:#cc4444;color:#cc4444';
+    btn.textContent = '⏳ Countdown';
+    btn.onclick = openCountdownTimer;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
