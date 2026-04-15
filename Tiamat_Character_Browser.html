@@ -28089,6 +28089,158 @@ function _rxRoll() {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 176: XP Split Calculator — divide combat/session XP among party members
+// Handle absences, milestone XP, and half-shares for apprentices/NPCs.
+
+function openXpSplitter() {
+  const ex = document.getElementById('xpSplitOverlay');
+  if (ex) { ex.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'xpSplitOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.90);z-index:9200;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+
+  const favs = (() => { try { return JSON.parse(localStorage.getItem('tiamat_favorites')||'[]'); } catch { return []; } })();
+  const partyNames = favs.length
+    ? (typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : []).filter(c => favs.includes(c.name)).map(c => c.name)
+    : [];
+
+  ov.innerHTML = `
+    <div style="width:560px;max-width:100%;color:#c8d0e8;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;position:sticky;top:0;background:rgba(6,6,26,0.97);padding:12px 0;border-bottom:1px solid rgba(201,162,39,0.2);backdrop-filter:blur(4px)">
+        <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:700;color:#c9a227">⭐ XP Split Calculator</div>
+        <button onclick="document.getElementById('xpSplitOverlay').remove()" style="background:none;border:1px solid #2a2040;color:#6a5aaa;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px">✕</button>
+      </div>
+      <!-- XP input -->
+      <div style="background:rgba(0,0,0,0.35);border:1px solid rgba(201,162,39,0.2);border-radius:10px;padding:14px;margin-bottom:14px">
+        <div style="font-size:10px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Total XP to Split</div>
+        <input id="xpsTotal" type="number" value="0" min="0" oninput="_xpsUpdate()" placeholder="e.g. 1200" style="width:100%;background:#0c0c20;border:1px solid #2a2050;color:#e0e0ff;border-radius:6px;padding:8px;font-size:20px;font-weight:700;text-align:center;box-sizing:border-box">
+      </div>
+      <!-- Party members -->
+      <div style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div style="font-size:10px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px">Party Members</div>
+          <button onclick="_xpsAddCustomMember()" style="background:rgba(201,162,39,0.1);border:1px solid rgba(201,162,39,0.3);color:#c9a227;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:10px">+ Add</button>
+        </div>
+        <div id="xpsMemberList">
+          ${partyNames.length ? partyNames.map(name => `
+            <div class="xps-member" data-name="${escHtml(name)}" data-share="full" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+              <div style="display:flex;align-items:center;gap:8px">
+                <input type="checkbox" checked onchange="_xpsUpdate()" class="xps-check" style="accent-color:#c9a227">
+                <span style="font-size:12px;color:#e0e0ff">${escHtml(name)}</span>
+              </div>
+              <select onchange="this.closest('.xps-member').dataset.share=this.value;_xpsUpdate()" style="background:#0c0c20;border:1px solid #2a2050;color:#c8d0e8;border-radius:4px;padding:2px 6px;font-size:10px;cursor:pointer">
+                <option value="full">Full share</option>
+                <option value="half">½ share</option>
+                <option value="none">No share</option>
+              </select>
+            </div>`).join('') : '<div style="color:#4a5272;font-size:11px;font-style:italic">No favorites selected. Star ⭐ characters or add members manually.</div>'}
+        </div>
+      </div>
+      <!-- Results -->
+      <div id="xpsResults" style="background:rgba(0,0,0,0.35);border:1px solid rgba(201,162,39,0.15);border-radius:10px;padding:14px;margin-bottom:14px">
+        <div style="color:#4a5272;font-size:12px;text-align:center">Enter XP amount and party members above</div>
+      </div>
+      <!-- Award button -->
+      <button onclick="_xpsAward()" style="width:100%;background:rgba(201,162,39,0.15);border:1px solid rgba(201,162,39,0.5);color:#c9a227;border-radius:8px;padding:10px;cursor:pointer;font-size:13px;font-weight:700">⭐ Award XP to All Members</button>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _xpsUpdate();
+}
+
+function _xpsAddCustomMember() {
+  const name = prompt('Enter party member name:');
+  if (!name || !name.trim()) return;
+  const list = document.getElementById('xpsMemberList');
+  if (!list) return;
+  const div = document.createElement('div');
+  div.className = 'xps-member';
+  div.dataset.name = name.trim();
+  div.dataset.share = 'full';
+  div.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)';
+  div.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px">
+      <input type="checkbox" checked onchange="_xpsUpdate()" class="xps-check" style="accent-color:#c9a227">
+      <span style="font-size:12px;color:#e0e0ff">${escHtml(name.trim())}</span>
+    </div>
+    <select onchange="this.closest('.xps-member').dataset.share=this.value;_xpsUpdate()" style="background:#0c0c20;border:1px solid #2a2050;color:#c8d0e8;border-radius:4px;padding:2px 6px;font-size:10px;cursor:pointer">
+      <option value="full">Full share</option>
+      <option value="half">½ share</option>
+      <option value="none">No share</option>
+    </select>`;
+  list.appendChild(div);
+  _xpsUpdate();
+}
+
+function _xpsCalc() {
+  const total = parseInt(document.getElementById('xpsTotal')?.value || 0);
+  const members = [...document.querySelectorAll('#xpsMemberList .xps-member')];
+  const active = members.filter(m => m.querySelector('.xps-check')?.checked);
+  // Calculate total shares
+  let totalShares = 0;
+  active.forEach(m => {
+    const share = m.dataset.share;
+    totalShares += share === 'full' ? 1 : share === 'half' ? 0.5 : 0;
+  });
+  if (totalShares === 0) return { total, members: [], perShare: 0 };
+  const perShare = total / totalShares;
+  const result = active.map(m => ({
+    name: m.dataset.name,
+    share: m.dataset.share,
+    xp: Math.floor(m.dataset.share === 'full' ? perShare : m.dataset.share === 'half' ? perShare * 0.5 : 0),
+  }));
+  return { total, members: result, perShare: Math.floor(perShare) };
+}
+
+function _xpsUpdate() {
+  const { total, members, perShare } = _xpsCalc();
+  const el = document.getElementById('xpsResults');
+  if (!el) return;
+  if (!total || !members.length) {
+    el.innerHTML = '<div style="color:#4a5272;font-size:12px;text-align:center">Enter XP amount and party members above</div>';
+    return;
+  }
+  el.innerHTML = `
+    <div style="text-align:center;margin-bottom:12px">
+      <div style="font-size:11px;color:#4a5272">Total: ${total.toLocaleString()} XP ÷ ${members.length} members</div>
+      <div style="font-size:24px;font-weight:700;color:#c9a227;font-family:'Cinzel',serif">${perShare.toLocaleString()} XP</div>
+      <div style="font-size:10px;color:#4a5272">per full share</div>
+    </div>
+    <div>
+      ${members.map(m => `
+        <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+          <span style="font-size:12px;color:#c8d0e8">${escHtml(m.name)}${m.share==='half'?' <span style="font-size:9px;color:#c9a22799">(½ share)</span>':''}</span>
+          <span style="font-size:13px;font-weight:700;color:#c9a227">${m.xp.toLocaleString()} XP</span>
+        </div>`).join('')}
+    </div>`;
+}
+
+function _xpsAward() {
+  const { members } = _xpsCalc();
+  if (!members.length) { showToast('No members to award', '#cc4444'); return; }
+  if (typeof awardXpToCharacter === 'function') {
+    members.forEach(m => m.xp > 0 && awardXpToCharacter(m.name, m.xp));
+  }
+  members.forEach(m => m.xp > 0 && logEntry('note', `⭐ <strong>${escHtml(m.name)}</strong> earned <strong>${m.xp.toLocaleString()} XP</strong>`));
+  showToast(`XP awarded to ${members.length} members!`, '#c9a227');
+}
+
+// Add XP Splitter button
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'XP Split Calculator — divide experience among party members with absent/half-share support';
+    btn.style.cssText = 'border-color:#c9a227;color:#c9a227';
+    btn.textContent = '⭐ XP Split';
+    btn.onclick = openXpSplitter;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
