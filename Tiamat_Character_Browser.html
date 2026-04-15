@@ -9025,6 +9025,34 @@ function removeFromInitiative(name) {
   updateHeaderStats();
 }
 
+// ── MOVEMENT TRACKER ─────────────────────────────────────
+let moveState = {}; // charName -> remaining movement ft
+
+function getCharSpeed(char) {
+  if (!char || !char.speed) return 30;
+  const m = String(char.speed).match(/\d+/);
+  return m ? parseInt(m[0]) : 30;
+}
+
+function resetMoveState(name) {
+  const char = UNIQUE_CHARS.find(c => c.name === name);
+  moveState[name] = char ? getCharSpeed(char) : 30;
+}
+
+function useMove(name, ft, event) {
+  if (event) event.stopPropagation();
+  const cur = moveState[name] ?? 30;
+  moveState[name] = Math.max(0, cur - ft);
+  renderActiveTurnBar();
+}
+
+function restoreMove(name, event) {
+  if (event) event.stopPropagation();
+  resetMoveState(name);
+  renderActiveTurnBar();
+}
+// ─────────────────────────────────────────────────────────
+
 function nextTurn() {
   if (!initiativeList.length) return;
   // Clear action state for the character whose turn is ending
@@ -9043,7 +9071,10 @@ function nextTurn() {
     if (typeof resetLegendaryActions === 'function') resetLegendaryActions();
   }
   const active = initiativeList[currentTurnIdx];
-  if (active) logEntry('combat', `<strong>${active.name}</strong>'s turn (Init: ${active.initiative})`);
+  if (active) {
+    logEntry('combat', `<strong>${active.name}</strong>'s turn (Init: ${active.initiative})`);
+    resetMoveState(active.name);
+  }
   renderInitiative();
   updateHud();
   // Auto-reset & restart turn timer if it was running
@@ -10459,14 +10490,27 @@ function renderActiveTurnBar() {
 
   const chip = (label, val, col='#9098b8') => `<span style="font-size:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:2px 7px;color:${col}"><span style="color:#4a5272;font-size:9px">${label} </span>${val}</span>`;
 
+  const maxSpd = getCharSpeed(char);
+  if (moveState[char.name] === undefined) moveState[char.name] = maxSpd;
+  const moveRem = moveState[char.name];
+  const movePct = maxSpd > 0 ? moveRem / maxSpd : 0;
+  const moveCol = movePct > 0.5 ? '#44ccaa' : movePct > 0 ? '#c9a227' : '#cc3333';
+  const moveBtn = (ft) => `<button onclick="useMove(${JSON.stringify(char.name)},${ft},event)" style="background:none;border:1px solid rgba(68,204,170,.3);color:#44ccaa;border-radius:4px;padding:1px 4px;cursor:pointer;font-size:9px;line-height:1">-${ft}</button>`;
+
   let html = `<div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
     <span style="font-size:11px;color:#f0c060;font-weight:700;font-family:'Cinzel',serif;margin-right:4px">${escHtml(char.name.length>20?char.name.slice(0,19)+'…':char.name)}</span>
     ${chip('AC', ac, '#88aaff')}
     ${chip('HP', `${currHp}/${maxHp}`, currHp/maxHp < 0.25 ? '#ff6666' : currHp/maxHp < 0.5 ? '#dd8822' : '#44aa44')}
-    ${chip('Spd', speed, '#88ccff')}
     ${chip('PP', pp, '#aa88ff')}
     ${conc ? chip('⊙', escHtml(conc.length>10?conc.slice(0,9)+'…':conc), '#c9a227') : ''}
     ${conds.slice(0,3).map(c=>chip('', escHtml(c.slice(0,2)+c.slice(2,12)), '#dd8822')).join('')}
+  </div>
+  <div style="display:flex;gap:4px;align-items:center;margin-top:4px">
+    <span style="font-size:9px;color:#4a5272;letter-spacing:.5px">MOVE</span>
+    <span style="font-size:11px;font-weight:700;color:${moveCol};min-width:44px">${moveRem}/${maxSpd}ft</span>
+    <div style="flex:1;height:4px;background:#1e2040;border-radius:2px;overflow:hidden;max-width:80px"><div style="height:100%;width:${Math.round(movePct*100)}%;background:${moveCol};border-radius:2px;transition:width .2s"></div></div>
+    ${moveBtn(5)}${moveBtn(10)}${moveBtn(15)}${moveBtn(30)}
+    <button onclick="restoreMove(${JSON.stringify(char.name)},event)" style="background:none;border:1px solid rgba(68,204,170,.2);color:#3a8070;border-radius:4px;padding:1px 4px;cursor:pointer;font-size:9px;line-height:1" title="Restore full movement">↺</button>
   </div>`;
   bar.style.display = 'block';
   bar.innerHTML = html;
