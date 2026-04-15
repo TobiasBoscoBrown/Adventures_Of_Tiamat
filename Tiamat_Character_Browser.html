@@ -3566,9 +3566,10 @@
 <!-- Initiative Tracker Panel -->
 <div class="initiative-panel" id="initiativePanel">
   <div class="initiative-header">
-    <div>
+    <div style="display:flex;align-items:center;gap:8px">
       <span class="initiative-title">⚔ INITIATIVE</span>
       <span class="init-round-badge" id="initRoundBadge">Round 1</span>
+      <span id="encounterDiffBadge" style="display:none;font-size:9px;padding:2px 7px;border-radius:8px;border:1px solid;letter-spacing:0.5px;font-weight:700;cursor:pointer" onclick="openXpBudget()" title="Click to open XP Budget calculator"></span>
     </div>
     <div class="initiative-controls">
       <button class="init-ctrl-btn" onclick="rollAllInitiative()" title="Roll initiative for all NPCs">⚄ Roll All</button>
@@ -8272,6 +8273,57 @@ function renderInitiative() {
   }
 
   el.innerHTML = html;
+  updateEncounterDiffBadge();
+}
+
+function updateEncounterDiffBadge() {
+  const badge = document.getElementById('encounterDiffBadge');
+  if (!badge) return;
+  if (!initiativeList.length) { badge.style.display = 'none'; return; }
+
+  // Get monster/enemy XP from chars with CR
+  let totalXp = 0;
+  let monsterCount = 0;
+  let partySize = 0;
+  initiativeList.forEach(e => {
+    const char = UNIQUE_CHARS.find(c => c.name === e.name);
+    if (char && char.cr) {
+      const xp = XP_BY_CR[char.cr] || 0;
+      // Assume chars with no alignment or evil alignment are "monsters"
+      const isMonster = !char.alignment || /evil/i.test(char.alignment);
+      if (isMonster && xp > 0) { totalXp += xp; monsterCount++; }
+      else { partySize++; }
+    }
+  });
+
+  if (monsterCount === 0 || partySize === 0) { badge.style.display = 'none'; return; }
+
+  // Multiply by encounter multiplier
+  let mult = 1;
+  for (const [threshold, m] of MULT_BREAKPOINTS) {
+    if (monsterCount < threshold) { mult = m; break; }
+  }
+  const adjustedXp = Math.round(totalXp * mult);
+
+  // Estimate party level (use median CR-equivalent of party members)
+  const partyLevel = parseInt(document.getElementById('xpPartyLevel')?.value) || 5;
+  const thr = XP_THRESHOLDS[Math.min(partyLevel, 20)];
+  if (!thr) { badge.style.display = 'none'; return; }
+
+  const [easy, medium, hard, deadly] = thr.map(t => t * partySize);
+  let label, color, bg;
+  if (adjustedXp < easy)        { label='TRIVIAL'; color='#44aa44'; bg='rgba(68,170,68,0.12)'; }
+  else if (adjustedXp < medium) { label='EASY';    color='#44aa44'; bg='rgba(68,170,68,0.12)'; }
+  else if (adjustedXp < hard)   { label='MEDIUM';  color='#c9a227'; bg='rgba(201,162,39,0.12)'; }
+  else if (adjustedXp < deadly) { label='HARD';    color='#dd6622'; bg='rgba(221,102,34,0.12)'; }
+  else                           { label='DEADLY';  color='#cc3333'; bg='rgba(204,51,51,0.15)'; }
+
+  badge.textContent = label;
+  badge.style.color = color;
+  badge.style.borderColor = color;
+  badge.style.background = bg;
+  badge.title = `${adjustedXp.toLocaleString()} adj. XP · Deadly: ${deadly.toLocaleString()} · Click for full calculator`;
+  badge.style.display = '';
 }
 
 function showLairActionMenu() {
