@@ -1643,6 +1643,14 @@
   .cond-status  { background: rgba(201,162,39,0.2); border: 1px solid #c9a227; color: #c9a227; }
   .cond-movement{ background: rgba(34,153,187,0.2); border: 1px solid #2299bb; color: #2299bb; }
   .condition-badge:hover { opacity: 0.7; }
+  /* Character Tags */
+  .char-tag-badge {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 9px; padding: 1px 6px; border-radius: 8px;
+    background: rgba(255,170,68,.12); border: 1px solid rgba(255,170,68,.35);
+    color: #ffaa44; cursor: pointer; user-select: none; white-space: nowrap; transition: all .15s;
+  }
+  .char-tag-badge:hover { opacity: .7; }
   /* Concentration badge */
   .conc-badge {
     display: inline-flex;
@@ -3075,6 +3083,7 @@
   <button class="filter-btn" id="favFilterBtn" onclick="filterFavorites(this)" style="border-color:#c9a227;color:#9098b8;" title="Show only favorited characters">★ Favorites</button>
   <button class="filter-btn" onclick="openCompareModal()" style="border-color:#4488ff;color:#9098b8;" title="Compare characters side-by-side" id="compareBtn">⚖ Compare <span id="compareCount" style="color:#4488ff"></span></button>
   <button class="filter-btn" onclick="openNpcBuilder()" style="border-color:#44aa44;color:#9098b8;" title="Create a custom NPC">+ NPC</button>
+  <button class="filter-btn" onclick="openTagFilter(this)" id="tagFilterBtn" style="border-color:#ffaa44;color:#9098b8;" title="Filter by custom tag">🏷 Tags</button>
   <span style="color: #333; margin: 0 4px;">|</span>
   <span style="font-size:11px;color:#4a5272;margin-right:4px">View:</span>
   <button class="filter-btn view-btn active" id="viewGrid" onclick="setView('grid',this)" title="Grid view">⊞ Grid</button>
@@ -3099,6 +3108,7 @@
         <div style="min-width:0">
           <h2 id="modalName" style="font-size:20px;margin-bottom:2px"></h2>
           <div id="modalSubtitle" style="font-size:12px;color:var(--accent,#c9a227);opacity:0.85"></div>
+          <div id="modalTagsRow" style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;align-items:center"></div>
         </div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
@@ -4352,7 +4362,8 @@ function renderGrid() {
     const matchFav = !showOnlyFavorites || isFavorite(c.name);
     const matchCr = matchesCrFilter(c, crFilter);
     const matchAlign = matchesAlignFilter(c, alignFilter);
-    return matchGroup && matchTheme && matchSearch && matchFav && matchCr && matchAlign;
+    const matchTag = !tagFilterActive || getCharTags(c.name).includes(tagFilterActive);
+    return matchGroup && matchTheme && matchSearch && matchFav && matchCr && matchAlign && matchTag;
   });
   // Sort: favorites first, then by selected sort key
   filteredChars.sort((a, b) => {
@@ -4443,7 +4454,7 @@ function renderGrid() {
             </div>
           </div>
           ${c.quote ? `<div class="card-quote">"${c.quote}"</div>` : ''}
-          <div class="conditions-row" onclick="event.stopPropagation()">${getConditionBadgesHtml(c.name)}${getConcBadgeHtml(c.name)}</div>
+          <div class="conditions-row" onclick="event.stopPropagation()">${getConditionBadgesHtml(c.name)}${getConcBadgeHtml(c.name)}${getTagBadgesHtml(c.name)}</div>
           <div style="display:flex;gap:8px;align-items:center;margin-top:3px" onclick="event.stopPropagation()">
             <button class="card-cond-btn ${hasConditions(c.name)?'has-conds':''}" onclick="openCondPopup(${JSON.stringify(c.name)},event)">⚡ ${hasConditions(c.name)?'Conds':'Condition'}</button>
             <button class="card-enc-btn ${isInActiveEncounter(c.name)?'in-enc':''}" onclick="addCharToActiveEncounter(${JSON.stringify(c.name)},${maxHp})">☩ ${isInActiveEncounter(c.name)?'In Enc':'Encounter'}</button>
@@ -6012,6 +6023,7 @@ function openModal(idx) {
   const t = getTheme(c.theme);
   document.getElementById('modalName').textContent = c.name;
   document.getElementById('modalSubtitle').textContent = c.title;
+  if (typeof renderModalTags === 'function') renderModalTags(c.name);
   document.getElementById('modalPortrait').innerHTML = getPortraitSvg(c);
   document.getElementById('modalPortrait').style.setProperty('--accent', t.accent);
   document.getElementById('modalPortrait').style.border = `3px solid ${t.accent}`;
@@ -8457,6 +8469,115 @@ function renderQuestList() {
 }
 
 updateQuestBadge();
+// ────────────────────────────────────────────────────────
+
+// ── CHARACTER TAGS ────────────────────────────────────────
+const TAGS_KEY = 'tiamat_char_tags';
+let tagFilterActive = null; // null = no filter, string = filter by tag
+
+function loadAllTags() {
+  try { return JSON.parse(localStorage.getItem(TAGS_KEY)) || {}; } catch { return {}; }
+}
+function saveAllTags(data) { localStorage.setItem(TAGS_KEY, JSON.stringify(data)); }
+
+function getCharTags(name) { return loadAllTags()[name] || []; }
+
+function addTag(name, tag) {
+  const all = loadAllTags();
+  if (!all[name]) all[name] = [];
+  tag = tag.toLowerCase().trim();
+  if (tag && !all[name].includes(tag)) all[name].push(tag);
+  saveAllTags(all);
+  refreshTagDisplay(name);
+  renderGrid();
+}
+
+function removeTag(name, tag, event) {
+  if (event) event.stopPropagation();
+  const all = loadAllTags();
+  if (all[name]) {
+    all[name] = all[name].filter(t => t !== tag);
+    if (!all[name].length) delete all[name];
+  }
+  saveAllTags(all);
+  refreshTagDisplay(name);
+  renderGrid();
+}
+
+function getAllUniqueTags() {
+  const all = loadAllTags();
+  const set = new Set();
+  Object.values(all).forEach(tags => tags.forEach(t => set.add(t)));
+  return [...set].sort();
+}
+
+function getTagBadgesHtml(name) {
+  const tags = getCharTags(name);
+  if (!tags.length) return '';
+  return tags.map(t =>
+    `<span class="char-tag-badge" onclick="event.stopPropagation();removeTag(${JSON.stringify(name)},${JSON.stringify(t)},event)" title="Click to remove tag">🏷 ${t}</span>`
+  ).join('');
+}
+
+function refreshTagDisplay(name) {
+  const sid = safeId(name);
+  const card = document.querySelector(`[data-sid="${sid}"]`);
+  const condRow = card?.closest('.card-body')?.querySelector('.conditions-row');
+  if (condRow) condRow.innerHTML = getConditionBadgesHtml(name) + getConcBadgeHtml(name) + getTagBadgesHtml(name);
+  // Update modal tag row if open
+  const modalTagsRow = document.getElementById('modalTagsRow');
+  if (modalTagsRow && document.getElementById('modal').classList.contains('open')) {
+    const activeChar = filteredChars[currentModalIdx];
+    if (activeChar && activeChar.name === name) renderModalTags(name);
+  }
+}
+
+function renderModalTags(name) {
+  const el = document.getElementById('modalTagsRow');
+  if (!el) return;
+  const tags = getCharTags(name);
+  el.innerHTML = tags.map(t =>
+    `<span class="char-tag-badge" onclick="removeTag(${JSON.stringify(name)},${JSON.stringify(t)},event)" title="Click to remove">🏷 ${t}</span>`
+  ).join('') + `<button onclick="promptAddTag(${JSON.stringify(name)})" style="background:none;border:1px dashed #ffaa4444;border-radius:8px;color:#ffaa4488;font-size:9px;padding:1px 8px;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='#ffaa44';this.style.color='#ffaa44'" onmouseout="this.style.borderColor='#ffaa4444';this.style.color='#ffaa4488'">+ tag</button>`;
+}
+
+function promptAddTag(name) {
+  const tag = prompt(`Add tag to ${name} (e.g. ally, dead, quest-related):`);
+  if (tag) addTag(name, tag);
+}
+
+function openTagFilter(btn) {
+  const tags = getAllUniqueTags();
+  const existing = document.querySelector('.tag-picker-dropdown');
+  if (existing) { existing.remove(); tagFilterActive = null; btn.style.color = '#9098b8'; renderGrid(); return; }
+  if (!tags.length) { alert('No tags added yet. Open a character modal and click + tag under their name.'); return; }
+  const dropdown = document.createElement('div');
+  dropdown.className = 'tag-picker-dropdown';
+  dropdown.style.cssText = 'position:fixed;background:#0e0e24;border:1px solid rgba(255,170,68,.5);border-radius:10px;padding:8px;z-index:9000;box-shadow:0 8px 32px rgba(0,0,0,.8);min-width:160px';
+  dropdown.innerHTML = `<div style="font-size:10px;color:#ffaa44;letter-spacing:1px;padding:0 8px 6px;font-family:Cinzel,serif">🏷 FILTER BY TAG</div>
+    ${tags.map(t => `<div style="padding:4px 8px;cursor:pointer;font-size:12px;color:${t===tagFilterActive?'#ffaa44':'#9098b8'};border-radius:4px" onmouseover="this.style.background='#1e2040'" onmouseout="this.style.background=''" onclick="applyTagFilter('${t}',this.closest('.tag-picker-dropdown'))">${t===tagFilterActive?'✓ ':''} 🏷 ${t}</div>`).join('')}
+    <div style="padding:4px 8px;cursor:pointer;font-size:12px;color:#4a5272;border-radius:4px" onmouseover="this.style.background='#1e2040'" onmouseout="this.style.background=''" onclick="clearTagFilter(this.closest('.tag-picker-dropdown'))">✕ Clear filter</div>`;
+  const rect = btn.getBoundingClientRect();
+  dropdown.style.left = rect.left + 'px';
+  dropdown.style.top = (rect.bottom + 4) + 'px';
+  document.body.appendChild(dropdown);
+}
+
+function applyTagFilter(tag, dropdown) {
+  tagFilterActive = tag;
+  if (dropdown) dropdown.remove();
+  const btn = document.getElementById('tagFilterBtn');
+  if (btn) { btn.style.color = '#ffaa44'; btn.textContent = `🏷 ${tag}`; }
+  renderGrid();
+}
+
+function clearTagFilter(dropdown) {
+  tagFilterActive = null;
+  if (dropdown) dropdown.remove();
+  const btn = document.getElementById('tagFilterBtn');
+  if (btn) { btn.style.color = '#9098b8'; btn.textContent = '🏷 Tags'; }
+  renderGrid();
+}
 // ────────────────────────────────────────────────────────
 
 renderGrid();
