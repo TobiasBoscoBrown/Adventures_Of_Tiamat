@@ -1358,6 +1358,63 @@
     transition: all 0.15s;
   }
   .hp-popup-full:hover { background: #c9a227; color: #06061a; }
+
+  /* Death Saves */
+  .death-saves-section {
+    margin-top: 8px;
+    padding: 8px 10px;
+    background: rgba(204,51,51,0.08);
+    border: 1px solid rgba(204,51,51,0.3);
+    border-radius: 8px;
+    display: none;
+  }
+  .death-saves-section.visible { display: block; }
+  .death-saves-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #cc3333;
+    margin-bottom: 7px;
+    font-weight: 700;
+    text-align: center;
+  }
+  .death-saves-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 5px;
+  }
+  .death-saves-row-label {
+    font-size: 11px;
+    color: #9098b8;
+    width: 70px;
+  }
+  .death-save-pips {
+    display: flex;
+    gap: 6px;
+  }
+  .death-save-pip {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid #2a2a50;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: transparent;
+  }
+  .death-save-pip.success { border-color: #44aa44; background: #44aa44; }
+  .death-save-pip.failure { border-color: #cc3333; background: #cc3333; }
+  .death-save-pip:hover { border-color: #c9a227; transform: scale(1.1); }
+  .death-save-result {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 3px 0;
+    display: none;
+  }
+  .death-save-result.stable { color: #44aa44; display: block; }
+  .death-save-result.dead { color: #cc3333; display: block; }
   .hp-popup-bar {
     height: 5px;
     background: #1e2040;
@@ -3426,6 +3483,29 @@
     <button class="hp-popup-full" style="flex:1;font-size:11px" onclick="applyHpAction('full')">↺ Full HP</button>
   </div>
   <button class="hp-popup-full" style="background:rgba(68,136,255,.08);border-color:#336699;color:#6699cc;font-size:11px;margin-top:4px;width:100%" onclick="longRest()" title="Long Rest: full HP + all spell slots restored">☀ Long Rest (All Slots)</button>
+  <!-- Death Saves (shown only at 0 HP) -->
+  <div class="death-saves-section" id="deathSavesSection">
+    <div class="death-saves-label">💀 Death Saving Throws</div>
+    <div class="death-saves-row">
+      <span class="death-saves-row-label">Successes</span>
+      <div class="death-save-pips" id="dsPipsSuccess">
+        <div class="death-save-pip" data-idx="0" data-type="success" onclick="toggleDeathSave('success',0)" title="Success 1"></div>
+        <div class="death-save-pip" data-idx="1" data-type="success" onclick="toggleDeathSave('success',1)" title="Success 2"></div>
+        <div class="death-save-pip" data-idx="2" data-type="success" onclick="toggleDeathSave('success',2)" title="Success 3"></div>
+      </div>
+    </div>
+    <div class="death-saves-row">
+      <span class="death-saves-row-label">Failures</span>
+      <div class="death-save-pips" id="dsPipsFailure">
+        <div class="death-save-pip" data-idx="0" data-type="failure" onclick="toggleDeathSave('failure',0)" title="Failure 1"></div>
+        <div class="death-save-pip" data-idx="1" data-type="failure" onclick="toggleDeathSave('failure',1)" title="Failure 2"></div>
+        <div class="death-save-pip" data-idx="2" data-type="failure" onclick="toggleDeathSave('failure',2)" title="Failure 3"></div>
+      </div>
+    </div>
+    <div class="death-save-result" id="deathSaveResult"></div>
+    <button onclick="critFailDeathSave()" style="margin-top:6px;width:100%;background:rgba(204,51,51,0.1);border:1px solid rgba(204,51,51,0.4);color:#cc6666;border-radius:5px;padding:4px;cursor:pointer;font-size:10px" title="Critical hit counts as 2 death save failures">💥 Crit Hit (2 Failures)</button>
+    <button onclick="clearDeathSaves()" style="margin-top:4px;width:100%;background:none;border:1px solid #1e2040;color:#4a5272;border-radius:5px;padding:4px;cursor:pointer;font-size:10px">↺ Clear Saves</button>
+  </div>
 </div>
 
 <!-- Initiative Tracker Panel -->
@@ -4324,6 +4404,7 @@ function openHpPopup(name, maxHp, event) {
   popup.style.left = x + 'px';
   popup.style.top = y + 'px';
   popup.classList.add('open');
+  refreshDeathSavesUI(name, currHp);
   setTimeout(() => document.getElementById('hpDmgInput').focus(), 40);
 }
 
@@ -4391,6 +4472,10 @@ function applyHpAction(type) {
   document.getElementById('hpPopupBarFill').style.width = Math.round(pct * 100) + '%';
   document.getElementById('hpPopupBarFill').style.background = hpBarColor(pct);
   updateHpDisplay(popupCharName, maxHp, newHp);
+  // Show/hide death saves based on HP
+  refreshDeathSavesUI(popupCharName, newHp);
+  // Healing clears death saves
+  if ((type === 'heal' || type === 'full') && newHp > 0) clearDeathSavesFor(popupCharName);
   if (type === 'dmg') document.getElementById('hpDmgInput').focus();
   else if (type === 'heal') document.getElementById('hpHealInput').focus();
 }
@@ -7631,10 +7716,12 @@ function renderHealthPanel() {
     entries.forEach(({ c, maxHp, currHp, pct, isDown }) => {
       const color = isDown ? '#cc3333' : pct >= 0.5 ? '#44aa44' : pct >= 0.25 ? '#dd8822' : '#cc3333';
       const dispName = c.name.length > 20 ? c.name.slice(0, 19) + '…' : c.name;
-      html += `<div class="hp-row" onclick="openModal(UNIQUE_CHARS.findIndex(x=>x.name===${JSON.stringify(c.name)}))" title="${c.name} — click to open">
+      const dsSaveHtml = isDown && typeof getDeathSaveHtml === 'function' ? getDeathSaveHtml(c.name) : '';
+      html += `<div class="hp-row${dsSaveHtml ? ' has-ds' : ''}" onclick="openModal(UNIQUE_CHARS.findIndex(x=>x.name===${JSON.stringify(c.name)}))" title="${c.name} — click to open" style="${dsSaveHtml ? 'height:auto;padding-bottom:4px;flex-wrap:wrap' : ''}">
         <span class="hp-row-name${isDown ? ' down' : ''}">${dispName}</span>
         <div class="hp-row-bar-wrap"><div class="hp-row-bar" style="width:${Math.round(pct*100)}%;background:${color}"></div></div>
         <span class="hp-row-val${isDown ? ' down' : ''}">${currHp}/${maxHp}</span>
+        ${dsSaveHtml ? `<div style="width:100%;padding-left:0">${dsSaveHtml}</div>` : ''}
       </div>`;
     });
   });
@@ -9118,6 +9205,112 @@ function renderTheaterGrid() {
       ${conc ? `<div style="font-size:8px;color:#c9a227;margin-top:2px">🔮 ${conc.slice(0,16)}</div>` : ''}
     </div>`;
   }).join('');
+}
+// ────────────────────────────────────────────────────────
+
+// ── DEATH SAVE TRACKER ───────────────────────────────────
+const DS_KEY = 'tiamat_death_saves';
+
+function loadDeathSaves() {
+  try { return JSON.parse(localStorage.getItem(DS_KEY)) || {}; } catch { return {}; }
+}
+function saveDeathSaves(ds) { localStorage.setItem(DS_KEY, JSON.stringify(ds)); }
+
+function getDeathSaves(name) {
+  const ds = loadDeathSaves();
+  return ds[name] || { successes: [false, false, false], failures: [false, false, false] };
+}
+
+function setDeathSaves(name, data) {
+  const ds = loadDeathSaves();
+  ds[name] = data;
+  saveDeathSaves(ds);
+}
+
+function clearDeathSavesFor(name) {
+  const ds = loadDeathSaves();
+  delete ds[name];
+  saveDeathSaves(ds);
+}
+
+function toggleDeathSave(type, idx) {
+  if (!popupCharName) return;
+  const data = getDeathSaves(popupCharName);
+  data[type + 's'][idx] = !data[type + 's'][idx];
+  setDeathSaves(popupCharName, data);
+  const successCount = data.successes.filter(Boolean).length;
+  const failCount = data.failures.filter(Boolean).length;
+  if (successCount >= 3) {
+    logEntry('heal', `💚 <strong>${popupCharName}</strong> — Death Save SUCCESS × 3 → STABLE`);
+  } else if (failCount >= 3) {
+    logEntry('damage', `💀 <strong>${popupCharName}</strong> — Death Save FAILURE × 3 → DEAD`);
+    // Apply dead condition
+    if (typeof addCondition === 'function') addCondition(popupCharName, 'Unconscious');
+  }
+  renderDeathSavePips(popupCharName, data);
+}
+
+function critFailDeathSave() {
+  if (!popupCharName) return;
+  const data = getDeathSaves(popupCharName);
+  // Crit = 2 failures
+  let added = 0;
+  for (let i = 0; i < 3 && added < 2; i++) {
+    if (!data.failures[i]) { data.failures[i] = true; added++; }
+  }
+  setDeathSaves(popupCharName, data);
+  logEntry('damage', `💥 <strong>${popupCharName}</strong> — Critical hit! 2 death save failures`);
+  renderDeathSavePips(popupCharName, data);
+}
+
+function clearDeathSaves() {
+  if (!popupCharName) return;
+  clearDeathSavesFor(popupCharName);
+  renderDeathSavePips(popupCharName, { successes: [false,false,false], failures: [false,false,false] });
+}
+
+function refreshDeathSavesUI(name, currHp) {
+  const section = document.getElementById('deathSavesSection');
+  if (!section) return;
+  if (currHp <= 0) {
+    section.classList.add('visible');
+    renderDeathSavePips(name, getDeathSaves(name));
+  } else {
+    section.classList.remove('visible');
+  }
+}
+
+function renderDeathSavePips(name, data) {
+  ['success', 'failure'].forEach(type => {
+    const pips = document.querySelectorAll(`#dsPips${type.charAt(0).toUpperCase()+type.slice(1)} .death-save-pip`);
+    pips.forEach((pip, i) => {
+      pip.classList.toggle(type, !!data[type+'s'][i]);
+    });
+  });
+  const successCount = data.successes.filter(Boolean).length;
+  const failCount = data.failures.filter(Boolean).length;
+  const resultEl = document.getElementById('deathSaveResult');
+  if (resultEl) {
+    if (successCount >= 3) { resultEl.className = 'death-save-result stable'; resultEl.textContent = '✓ STABILIZED'; }
+    else if (failCount >= 3) { resultEl.className = 'death-save-result dead'; resultEl.textContent = '✕ DEAD'; }
+    else { resultEl.className = 'death-save-result'; resultEl.textContent = ''; }
+  }
+  // Update party health panel if open
+  if (typeof renderHealthPanel === 'function' && typeof healthPanelOpen !== 'undefined' && healthPanelOpen) {
+    renderHealthPanel();
+  }
+}
+
+// Show death save status in party health panel rows
+function getDeathSaveHtml(name) {
+  const ds = getDeathSaves(name);
+  const s = ds.successes.filter(Boolean).length;
+  const f = ds.failures.filter(Boolean).length;
+  if (s === 0 && f === 0) return '';
+  const sHtml = [0,1,2].map(i => `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;border:1.5px solid ${ds.successes[i]?'#44aa44':'#2a2a50'};background:${ds.successes[i]?'#44aa44':'transparent'};margin:0 1px"></span>`).join('');
+  const fHtml = [0,1,2].map(i => `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;border:1.5px solid ${ds.failures[i]?'#cc3333':'#2a2a50'};background:${ds.failures[i]?'#cc3333':'transparent'};margin:0 1px"></span>`).join('');
+  const result = s >= 3 ? '<span style="color:#44aa44;font-size:9px;margin-left:4px">STABLE</span>' : f >= 3 ? '<span style="color:#cc3333;font-size:9px;margin-left:4px">DEAD</span>' : '';
+  return `<div style="margin-top:4px;display:flex;gap:8px;align-items:center;font-size:9px;color:#4a5272"><span>S:</span>${sHtml}<span style="margin-left:2px">F:</span>${fHtml}${result}</div>`;
 }
 // ────────────────────────────────────────────────────────
 
