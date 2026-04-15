@@ -2,7 +2,7 @@
 
 ## Project Overview
 A single-file D&D campaign management web app for the "Tiamat" world.
-**File:** `Tiamat_Character_Browser.html` (30,000+ lines, self-contained)
+**File:** `Tiamat_Character_Browser.html` (31,000+ lines, self-contained)
 **Goal:** Make this the ultimate DM tool — better than DND Beyond, with full user control.
 
 ## Architecture
@@ -133,7 +133,19 @@ Core character browser, search/filter, dark theme, tooltips, view modes.
 - Iter 187: ASI & Feat History Log — log ability score improvements and feats by level
 - Iter 188: Magic Item Identifier & Attunement Dashboard — identify items, track 3-slot attunement
 - Iter 189: Party Concentration Tracker — one-spell limit enforced, tick-all rounds, auto-expire
-- Iter 190: Random Encounter Generator — 6 terrains × 10 encounters each with CR/XP ← CURRENT
+- Iter 190: Random Encounter Generator — 6 terrains × 10 encounters each with CR/XP
+
+### Iterations 191–200
+- Iter 191: Curse & Blessing Tracker — persistent magical effects (13 presets) per character
+- Iter 192: Session Zero Checklist — 5 category, 30+ item pre-campaign setup checklist
+- Iter 193: NPC Voice & Roleplay Sheet — accent, mood, quirks, opening lines per NPC
+- Iter 194: Active Spell Duration Tracker — tick rounds, concentration conflict auto-detect
+- Iter 195: Encounter Combat Journal — log encounters with outcome, XP, loot, rounds, notes
+- Iter 196: CR vs Party Threat Assessor — real-time DMG difficulty with visual threshold bars
+- Iter 197: Faction Reputation Tracker — 7-tier standing (Hostile→Exalted) for 6 factions
+- Iter 198: Party Prepared Spells Overview — tab per caster, toggle prep/unprep, prepare-all
+- Iter 199: Visual Initiative Board — sorted combat order, HP bars, draggable floating HUD
+- Iter 200: Campaign Milestone Tracker — record story beats by category with history log ← CURRENT
 
 ## Features Currently Implemented (What We Have)
 - Character browser: search, filter by category/theme, view modes (grid/compact/list)
