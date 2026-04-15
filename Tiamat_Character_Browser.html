@@ -3561,6 +3561,7 @@
     <button class="encounter-open-btn" onclick="toggleDmNotes()" style="border-color:#9b6dff;color:#9b6dff" id="dmNotesBtn" title="DM Session Notes">📝 DM Notes</button>
     <button class="encounter-open-btn" onclick="togglePassivePanel()" style="border-color:#23b478;color:#23b478" id="passiveBtn" title="Party Passive Skills — perception, investigation, insight at a glance">👁 Passives</button>
     <button class="encounter-open-btn" onclick="toggleAwardsPanel()" style="border-color:#c9a227;color:#c9a227" id="awardsBtn" title="Inspiration & Awards — grant inspiration, log heroic moments">⭐ Awards</button>
+    <button class="encounter-open-btn" onclick="openGroupCheckPanel()" style="border-color:#aa66ff;color:#aa66ff" title="Group Check Roller — roll Stealth, Perception, etc. for all party members at once">🎲 Group Roll</button>
     <div class="stat-badge"><strong id="totalCount">0</strong> Characters</div>
     <div class="stat-badge"><strong id="visibleCount">0</strong> Showing</div>
     <div class="stat-badge stat-live" id="statDown" onclick="filterToDown()" title="Click to show downed characters" style="display:none"><strong id="downCount">0</strong> ⚠ Down</div>
@@ -9207,6 +9208,124 @@ function removeAward(idx) {
   const awards = loadAwards();
   awards.splice(idx, 1);
   saveAwards(awards);
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 78: Party-Wide Group Check Roller — roll any
+//   skill/ability check for all visible characters at once.
+//   Shows individual results, group success/failure outcome.
+// ══════════════════════════════════════════════════════════
+const GROUP_CHECKS = [
+  { label:'Stealth', ab:'DEX', skill:'Stealth' },
+  { label:'Perception', ab:'WIS', skill:'Perception' },
+  { label:'Insight', ab:'WIS', skill:'Insight' },
+  { label:'Investigation', ab:'INT', skill:'Investigation' },
+  { label:'Persuasion', ab:'CHA', skill:'Persuasion' },
+  { label:'Deception', ab:'CHA', skill:'Deception' },
+  { label:'Intimidation', ab:'CHA', skill:'Intimidation' },
+  { label:'Athletics', ab:'STR', skill:'Athletics' },
+  { label:'Acrobatics', ab:'DEX', skill:'Acrobatics' },
+  { label:'Arcana', ab:'INT', skill:'Arcana' },
+  { label:'History', ab:'INT', skill:'History' },
+  { label:'Nature', ab:'INT', skill:'Nature' },
+  { label:'Religion', ab:'INT', skill:'Religion' },
+  { label:'Medicine', ab:'WIS', skill:'Medicine' },
+  { label:'Survival', ab:'WIS', skill:'Survival' },
+  { label:'Animal Handling', ab:'WIS', skill:'Animal Handling' },
+  { label:'STR Save', ab:'STR', skill:null },
+  { label:'DEX Save', ab:'DEX', skill:null },
+  { label:'CON Save', ab:'CON', skill:null },
+  { label:'INT Save', ab:'INT', skill:null },
+  { label:'WIS Save', ab:'WIS', skill:null },
+  { label:'CHA Save', ab:'CHA', skill:null },
+];
+function openGroupCheckPanel() {
+  const existing = document.getElementById('groupCheckOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'groupCheckOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:9600;display:flex;align-items:flex-start;justify-content:center;padding-top:6vh;overflow-y:auto';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  const btnGrid = GROUP_CHECKS.map(c =>
+    `<button onclick="runGroupCheck('${c.label}','${c.ab}')" style="background:#06061a;border:1px solid #2a2a50;color:#9098b8;border-radius:8px;padding:7px 12px;cursor:pointer;font-size:11px;transition:all .15s" onmouseover="this.style.borderColor='#aa66ff';this.style.color='#aa66ff'" onmouseout="this.style.borderColor='#2a2a50';this.style.color='#9098b8'">${c.label}</button>`
+  ).join('');
+  overlay.innerHTML = `
+    <div style="background:#0d0a1a;border:1px solid rgba(170,102,255,0.5);border-radius:14px;padding:24px;width:min(600px,95vw);box-shadow:0 8px 40px rgba(0,0,0,.9)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:700;color:#aa66ff">🎲 Party Group Check</div>
+        <button onclick="document.getElementById('groupCheckOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <div style="flex:1">
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">DC to Beat</div>
+          <input id="groupCheckDC" type="number" min="1" max="30" value="12" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:14px;box-sizing:border-box;font-family:'Cinzel',serif;outline:none">
+        </div>
+        <div style="flex:1">
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Roll For</div>
+          <select id="groupCheckTarget" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;cursor:pointer">
+            <option value="party">Party Members (non-evil)</option>
+            <option value="all">All Characters</option>
+            <option value="visible">Visible Cards</option>
+          </select>
+        </div>
+      </div>
+      <div style="font-size:10px;color:#4a5272;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Choose Check</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">${btnGrid}</div>
+      <div id="groupCheckResults" style="display:none;margin-top:12px;border-top:1px solid #1e2040;padding-top:12px"></div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+function runGroupCheck(skillName, abName) {
+  const dc = parseInt(document.getElementById('groupCheckDC')?.value) || 12;
+  const target = document.getElementById('groupCheckTarget')?.value || 'party';
+  const chars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+  let pool = chars;
+  if (target === 'party') {
+    // Heuristic: non-evil characters (no 'evil' in subtitle)
+    pool = chars.filter(c => !((c.subtitle||'').toLowerCase().includes('evil') || (c.title||'').toLowerCase().includes('villain')));
+  } else if (target === 'visible') {
+    pool = typeof filteredChars !== 'undefined' ? filteredChars : chars;
+  }
+  if (!pool.length) { showToast('No characters in pool', '#cc3333'); return; }
+
+  function getAbMod(c, ab) {
+    const a = (c.abilities||[]).find(([n]) => n === ab);
+    return a ? (parseInt(a[2])||0) : 0;
+  }
+  const prof = 3; // Average proficiency
+  const results = pool.map(c => {
+    const mod = getAbMod(c, abName);
+    const roll = Math.floor(Math.random()*20)+1;
+    const total = roll + mod;
+    const success = total >= dc;
+    const isCrit = roll === 20, isFumble = roll === 1;
+    return { name: c.name, roll, mod, total, success, isCrit, isFumble };
+  });
+  const successes = results.filter(r => r.success).length;
+  const groupSuccess = successes >= Math.ceil(pool.length / 2);
+
+  const resultHtml = results.map(r => {
+    const color = r.isCrit ? '#44ff88' : r.isFumble ? '#ff4444' : r.success ? '#4cdf88' : '#cc6666';
+    const icon = r.isCrit ? '★' : r.isFumble ? '☠' : r.success ? '✓' : '✗';
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 6px;border-radius:6px;background:${r.success?'rgba(68,200,100,.06)':'rgba(204,80,80,.05)'}">
+      <span style="font-size:12px;color:${color}">${icon}</span>
+      <span style="flex:1;font-size:11px;color:#dce0f0;padding:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name}</span>
+      <span style="font-size:11px;color:#4a5272">d20(${r.roll})${r.mod>=0?'+':''}${r.mod}</span>
+      <span style="font-size:13px;color:${color};font-weight:700;font-family:'Cinzel',serif;min-width:30px;text-align:right">${r.total}</span>
+    </div>`;
+  }).join('');
+
+  const resultEl = document.getElementById('groupCheckResults');
+  if (resultEl) {
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = `
+      <div style="text-align:center;padding:12px;margin-bottom:12px;border-radius:10px;background:${groupSuccess?'rgba(68,200,100,.1)':'rgba(204,80,80,.1)'};border:1px solid ${groupSuccess?'#4cdf88':'#cc4444'}">
+        <div style="font-size:20px;font-family:'Cinzel',serif;color:${groupSuccess?'#4cdf88':'#ff6666'};font-weight:700">${groupSuccess?'GROUP SUCCESS':'GROUP FAILURE'}</div>
+        <div style="font-size:12px;color:#9098b8;margin-top:4px">${skillName} (DC ${dc}) — ${successes}/${pool.length} succeeded</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px">${resultHtml}</div>`;
+    logEntry('roll', `🎲 <strong>Group ${skillName}</strong> DC ${dc} — ${successes}/${pool.length} succeeded → ${groupSuccess?'✓ SUCCESS':'✗ FAILURE'}`);
+  }
 }
 
 function toggleHealthPanel() {
