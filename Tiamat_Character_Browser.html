@@ -1794,6 +1794,19 @@
     border-radius: 10px; padding: 14px; z-index: 9000;
     box-shadow: 0 8px 32px rgba(0,0,0,.8); min-width: 220px;
   }
+  /* Iteration 35: Hit Dice Tracker */
+  .hd-pips { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0; }
+  .hd-pip {
+    width: 26px; height: 26px; border-radius: 4px;
+    border: 2px solid #4488ff; background: rgba(68,136,255,0.25);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700; color: #4488ff; transition: all .15s;
+    position: relative;
+  }
+  .hd-pip.spent { border-color: #1e2040; background: #0a0a1e; color: #2a2a50; }
+  .hd-pip:hover:not(.spent) { box-shadow: 0 0 8px rgba(68,136,255,0.5); }
+  .hd-pip:hover.spent { border-color: #4488ff; }
+  .hd-section { background:#0e0e24; border:1px solid rgba(68,136,255,0.25); border-radius:10px; padding:12px 14px; margin:8px 0; }
   /* Concentration modal button */
   .conc-set-btn {
     background: rgba(201,162,39,0.1);
@@ -4404,6 +4417,10 @@ function longRestAll() {
   tempHpState = {};
   deathSaveState = {};
   slotState = {};
+  // Restore half hit dice on long rest
+  if (typeof hitDiceState !== 'undefined') {
+    UNIQUE_CHARS.forEach(c => { if (typeof restoreHitDice === 'function') restoreHitDice(c.name, Math.ceil(getMaxHitDice(c)/2)); });
+  }
   saveHp();
   saveTempHp();
   saveDeathSaves();
@@ -4903,6 +4920,7 @@ function buildStatsPanel(c) {
       </div>
     </div>
     ${buildCurrencySection(c.name)}
+    ${buildHitDiceSection(c)}
     ${buildSpeedSection(c)}
     <div class="stats-section">
       <div class="stats-section-title">Ability Scores <span style="font-size:10px;color:#4a5272;font-weight:400;font-family:'Inter',sans-serif">— click to roll</span></div>
@@ -8727,6 +8745,97 @@ function clearTagFilter(dropdown) {
   renderGrid();
 }
 // ────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// ITERATION 35: Hit Dice Tracker — Track remaining hit dice
+//   for each character. Spend on short rest for healing.
+//   Long rest restores half total. Visual pip system.
+// ══════════════════════════════════════════════════════════
+let hitDiceState = {};
+try { hitDiceState = JSON.parse(localStorage.getItem('tiamat_hit_dice')) || {}; } catch { hitDiceState = {}; }
+function saveHitDice() { localStorage.setItem('tiamat_hit_dice', JSON.stringify(hitDiceState)); }
+function getHitDieType(c) {
+  const cr = parseFloat(c.cr || '1');
+  return cr >= 17 ? 12 : cr >= 9 ? 10 : cr >= 5 ? 8 : 6;
+}
+function getMaxHitDice(c) {
+  const cr = parseFloat(c.cr || '1');
+  return Math.max(1, Math.min(20, Math.ceil(cr)));
+}
+function getRemainingHD(name, max) {
+  if (hitDiceState[name] === undefined) return max;
+  return Math.max(0, Math.min(max, hitDiceState[name]));
+}
+function spendHitDie(name) {
+  const c = UNIQUE_CHARS.find(x => x.name === name);
+  if (!c) return;
+  const max = getMaxHitDice(c);
+  const rem = getRemainingHD(name, max);
+  if (rem <= 0) { showToast('No hit dice remaining! Take a long rest.', '#cc4444'); return; }
+  const die = getHitDieType(c);
+  const roll = Math.floor(Math.random() * die) + 1;
+  const conArr = (c.abilities || []).find(([n]) => n === 'CON');
+  const conMod = conArr ? parseInt(conArr[2]) || 0 : 0;
+  const healed = Math.max(1, roll + conMod);
+  const maxHp = parseInt(c.hp) || 1;
+  const currHp = getCharHP(name, maxHp);
+  const newHp = Math.min(maxHp, currHp + healed);
+  hpState[name] = newHp;
+  saveHp();
+  hitDiceState[name] = rem - 1;
+  saveHitDice();
+  showToast(`${name}: Spent 1d${die}+${conMod}=${healed} → ${newHp}/${maxHp} HP`, '#44aa44');
+  if (currentModalIdx >= 0 && filteredChars[currentModalIdx]?.name === name) {
+    document.getElementById('statsPanel').innerHTML = buildStatsPanel(filteredChars[currentModalIdx]);
+    document.getElementById('modalCombatBar').innerHTML = buildCombatBar(filteredChars[currentModalIdx]);
+  }
+  renderGrid();
+}
+function restoreHitDice(name, amount) {
+  const c = UNIQUE_CHARS.find(x => x.name === name);
+  if (!c) return;
+  const max = getMaxHitDice(c);
+  const rem = getRemainingHD(name, max);
+  hitDiceState[name] = Math.min(max, rem + amount);
+  saveHitDice();
+}
+function buildHitDiceSection(c) {
+  const max = getMaxHitDice(c);
+  const rem = getRemainingHD(c.name, max);
+  const die = getHitDieType(c);
+  const pips = Array.from({length: max}, (_, i) =>
+    `<div class="hd-pip${i >= rem ? ' spent' : ''}" onclick="spendHitDie(${JSON.stringify(c.name)})" title="${i < rem ? 'Click to spend 1 Hit Die' : 'Spent — recover on long rest'}">d${die}</div>`
+  ).join('');
+  return `<div class="stats-section">
+    <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>🎲 Hit Dice</span>
+      <span style="font-size:11px;color:#7a7aaa">${rem}/${max} d${die} remaining</span>
+    </div>
+    <div class="hd-section">
+      <div class="hd-pips">${pips}</div>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <button onclick="spendHitDie(${JSON.stringify(c.name)})" style="flex:1;background:rgba(68,136,255,0.1);border:1px solid rgba(68,136,255,0.4);color:#4488ff;border-radius:6px;padding:5px;cursor:pointer;font-size:11px${rem===0?';opacity:0.4;cursor:not-allowed':''}">☽ Spend 1 Hit Die</button>
+        <button onclick="restoreHitDice(${JSON.stringify(c.name)},${Math.ceil(max/2)});if(currentModalIdx>=0)document.getElementById('statsPanel').innerHTML=buildStatsPanel(filteredChars[currentModalIdx])" style="background:rgba(68,136,255,0.05);border:1px solid #1e2040;color:#4a5272;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px">↺ +${Math.ceil(max/2)} (½ Long Rest)</button>
+      </div>
+    </div>
+  </div>`;
+}
+function showToast(msg, color) {
+  let t = document.getElementById('toastMsg');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toastMsg';
+    t.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:99999;transition:all 0.3s;pointer-events:none;font-family:Cinzel,serif;text-align:center;max-width:400px';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.background = (color || '#44aa44') + '22';
+  t.style.border = '1px solid ' + (color || '#44aa44');
+  t.style.color = color || '#44aa44';
+  t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.style.opacity = '0', 3000);
+}
+
 // ══════════════════════════════════════════════════════════
 // ITERATION 33: Currency Tracker — GP/SP/CP/EP/PP per
 //   character. Click any coin to open input popup. Total
