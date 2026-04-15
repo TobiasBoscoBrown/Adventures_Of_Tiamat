@@ -3513,6 +3513,7 @@
     <button class="encounter-open-btn" onclick="openQuestTracker()" style="border-color:#ffaa44;color:#ffaa44" id="questBtn">📜 Quests</button>
     <button class="encounter-open-btn" onclick="openTheaterMode()" style="border-color:#44aacc;color:#44aacc" title="Theater mode — fullscreen battle board for second screen">🎭 Theater</button>
     <button class="encounter-open-btn" onclick="toggleXpPanel()" style="border-color:#c9a227;color:#c9a227" id="xpTrackerBtn" title="Party XP & Level Tracker — award XP, track level progress">⭐ XP</button>
+    <button class="encounter-open-btn" onclick="toggleSpellSearch()" style="border-color:#44aacc;color:#44aacc" id="spellSearchBtn" title="Search spells by name, school, or level">📖 Spells</button>
     <button class="encounter-open-btn" onclick="togglePassivesPanel()" style="border-color:#9b6dff;color:#9b6dff" id="passivesBtn" title="Passive Perception, Investigation & Insight for all characters">👁 Passives</button>
     <button class="encounter-open-btn" onclick="toggleGroupRoll()" style="border-color:#5588dd;color:#5588dd" id="groupRollBtn" title="Roll any skill/ability for all visible characters at once">🎲 Group Roll</button>
     <button class="encounter-open-btn" onclick="toggleRestPanel()" style="border-color:#23b478;color:#23b478" id="restBtn" title="Short Rest / Long Rest — spend hit dice or restore all resources">🌙 Rest</button>
@@ -4381,6 +4382,25 @@
 <div class="cond-tooltip" id="condTooltip"></div>
 
 <!-- XP & Level Tracker Panel -->
+<div id="spellSearchPanel" style="position:fixed;top:60px;right:20px;width:360px;max-height:82vh;background:linear-gradient(160deg,#030d14,#071828);border:1px solid rgba(68,170,204,0.4);border-radius:14px;z-index:351;display:none;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.9);overflow:hidden">
+  <div style="padding:10px 14px;border-bottom:1px solid rgba(68,170,204,0.25);display:flex;justify-content:space-between;align-items:center;background:rgba(68,170,204,0.04);flex-shrink:0">
+    <span style="font-family:'Cinzel',serif;color:#44aacc;font-size:13px;font-weight:700;letter-spacing:1px">📖 SPELL LOOKUP</span>
+    <button onclick="toggleSpellSearch()" style="background:none;border:1px solid #0a2030;color:#1a4060;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px">✕</button>
+  </div>
+  <div style="padding:8px 12px;border-bottom:1px solid rgba(68,170,204,0.15);flex-shrink:0;display:flex;gap:6px;align-items:center">
+    <input type="text" id="spellSearchInput" placeholder="Search spells…" oninput="doSpellSearch()" style="flex:1;background:#071828;border:1px solid rgba(68,170,204,0.3);color:#9098b8;border-radius:8px;padding:6px 10px;font-size:12px;outline:none" onfocus="this.style.borderColor='#44aacc'" onblur="this.style.borderColor='rgba(68,170,204,0.3)'">
+    <select id="spellLevelFilter" onchange="doSpellSearch()" style="background:#071828;border:1px solid rgba(68,170,204,0.3);color:#9098b8;border-radius:8px;padding:5px 6px;font-size:11px">
+      <option value="">All Levels</option>
+      <option value="0">Cantrip</option>
+      <option value="1">1st</option><option value="2">2nd</option><option value="3">3rd</option>
+      <option value="4">4th</option><option value="5">5th</option><option value="6">6th</option>
+      <option value="7">7th</option><option value="8">8th</option><option value="9">9th</option>
+    </select>
+  </div>
+  <div id="spellSearchResults" style="overflow-y:auto;flex:1;padding:4px 0">
+    <div style="text-align:center;color:#1a4060;font-size:12px;padding:24px">Type to search spells…</div>
+  </div>
+</div>
 <div id="passivesPanel" style="position:fixed;top:60px;right:20px;width:340px;max-height:80vh;background:linear-gradient(160deg,#080312,#0f0820);border:1px solid rgba(155,109,255,0.4);border-radius:14px;z-index:350;display:none;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.9);overflow:hidden">
   <div style="padding:10px 14px;border-bottom:1px solid rgba(155,109,255,0.25);display:flex;justify-content:space-between;align-items:center;background:rgba(155,109,255,0.04);flex-shrink:0">
     <span style="font-family:'Cinzel',serif;color:#9b6dff;font-size:13px;font-weight:700;letter-spacing:1px">👁 PASSIVE SCORES</span>
@@ -13211,6 +13231,61 @@ function renderPassivesPanel() {
   html += `</table>`;
   html += `<div style="padding:6px 14px;font-size:9px;color:#3a2a60;border-top:1px solid rgba(155,109,255,.08)">Passive = 10 + ability mod. Does not include proficiency bonus.</div>`;
   el.innerHTML = html;
+}
+
+// ── SPELL SEARCH PANEL ────────────────────────────────────
+let spellSearchOpen = false;
+function toggleSpellSearch() {
+  spellSearchOpen = !spellSearchOpen;
+  const panel = document.getElementById('spellSearchPanel');
+  panel.style.display = spellSearchOpen ? 'flex' : 'none';
+  const btn = document.getElementById('spellSearchBtn');
+  if (btn) { btn.style.background = spellSearchOpen ? 'rgba(68,170,204,.15)' : ''; btn.style.color = spellSearchOpen ? '#66ccee' : '#44aacc'; }
+  if (spellSearchOpen) { document.getElementById('spellSearchInput').focus(); doSpellSearch(); }
+}
+
+function doSpellSearch() {
+  const query = (document.getElementById('spellSearchInput').value || '').toLowerCase().trim();
+  const levelFilter = document.getElementById('spellLevelFilter').value;
+  const el = document.getElementById('spellSearchResults');
+  if (!el) return;
+
+  const schools = { Evocation:'#cc4444', Conjuration:'#44aa88', Enchantment:'#aa44cc', Illusion:'#4488dd',
+    Transmutation:'#dd8822', Abjuration:'#4488aa', Divination:'#88aadd', Necromancy:'#446633' };
+
+  const allSpells = Object.entries(SPELL_LIBRARY);
+  const filtered = allSpells.filter(([name, s]) => {
+    if (levelFilter !== '' && String(s.level || 0) !== levelFilter) return false;
+    if (!query) return true;
+    return name.toLowerCase().includes(query) ||
+      (s.school||'').toLowerCase().includes(query) ||
+      (s.desc||'').toLowerCase().includes(query);
+  }).sort((a,b) => (a[1].level||0) - (b[1].level||0) || a[0].localeCompare(b[0]));
+
+  if (!filtered.length) {
+    el.innerHTML = '<div style="text-align:center;color:#1a4060;font-size:12px;padding:24px">No spells found</div>';
+    return;
+  }
+
+  const isConc = s => /concentration/i.test(s.desc||'');
+  const html = filtered.slice(0, 60).map(([name, s]) => {
+    const lvlLabel = s.level === 0 ? 'Cantrip' : `Level ${s.level}`;
+    const schoolColor = schools[s.school] || '#4a5272';
+    const concBadge = isConc(s) ? `<span style="font-size:9px;background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.3);color:#c9a227;border-radius:6px;padding:1px 5px;margin-left:4px">⊙ Conc</span>` : '';
+    return `<div style="padding:7px 14px;border-bottom:1px solid rgba(68,170,204,.06);cursor:pointer" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" title="Click to expand">
+      <div style="display:flex;align-items:baseline;gap:6px">
+        <span style="font-size:12px;color:#9098b8;font-weight:600">${escHtml(name)}</span>
+        ${concBadge}
+        <span style="margin-left:auto;font-size:9px;color:${schoolColor};font-weight:600">${escHtml(s.school||'')}</span>
+        <span style="font-size:9px;color:#4a5272">${lvlLabel}</span>
+      </div>
+      <div style="font-size:10px;color:#4a5272;margin-top:1px">${escHtml((s.cast||'')+(s.range?' · '+s.range:''))}</div>
+    </div>
+    <div style="display:none;padding:6px 14px 10px;background:rgba(68,170,204,.03);border-bottom:1px solid rgba(68,170,204,.08)">
+      <div style="font-size:11px;color:#7888a8;line-height:1.5">${escHtml(s.desc||'No description.')}</div>
+    </div>`;
+  }).join('');
+  el.innerHTML = html + (filtered.length > 60 ? `<div style="text-align:center;color:#1a4060;font-size:11px;padding:8px">… ${filtered.length - 60} more results. Refine your search.</div>` : '');
 }
 
 function toggleRestPanel() {
