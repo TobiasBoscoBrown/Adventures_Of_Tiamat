@@ -8636,6 +8636,19 @@ function toggleLairAction() {
   renderInitiative();
 }
 
+// Initiative Notes
+const INIT_NOTES_KEY = 'tiamat_init_notes';
+function loadInitNotes() { try { return JSON.parse(localStorage.getItem(INIT_NOTES_KEY))||{}; } catch { return {}; } }
+function saveInitNotes(d) { localStorage.setItem(INIT_NOTES_KEY, JSON.stringify(d)); }
+function getInitNote(name) { return loadInitNotes()[name]||''; }
+function setInitNote(name,text) { const d=loadInitNotes(); if(text) d[name]=text; else delete d[name]; saveInitNotes(d); }
+function promptInitNote(name,event) {
+  if(event) event.stopPropagation();
+  const val=prompt(`Combat note for ${name}:`, getInitNote(name));
+  if(val===null) return;
+  setInitNote(name,val.trim()); renderInitiative();
+}
+
 function renderInitiative() {
   const el = document.getElementById('initiativeList');
   if (!initiativeList.length) {
@@ -8652,22 +8665,35 @@ function renderInitiative() {
     const hpText = currHp !== null ? `${currHp}/${e.maxHp}` : '';
     const isDefeated = currHp === 0;
     const ts = getTurnState(e.name);
+    const note = getInitNote(e.name);
     const actionBtn = (type, label, color) => {
       const used = ts[type];
       return `<button class="init-action-pip ${used?'used':''}" onclick="toggleTurnAction(${JSON.stringify(e.name)},'${type}',event)" title="${type} — click to toggle" style="border-color:${used?'#2a2a50':color};color:${used?'#2a2a50':color};background:${used?'transparent':'rgba(0,0,0,0)'};">${used?'○':label}</button>`;
     };
     return `<div class="init-entry ${isActive ? 'active-turn' : ''} ${isDefeated ? 'defeated' : ''}" title="${e.name}">
-      <div class="init-score">${e.initiative}</div>
-      <div class="init-name">${e.name}</div>
+      <div class="init-score" onclick="editInitScore(${JSON.stringify(e.name)},event)" title="Click to edit" style="cursor:pointer" onmouseover="this.style.color='#c9a227'" onmouseout="this.style.color=''">${e.initiative}</div>
+      <div style="flex:1;min-width:0">
+        <div class="init-name">${e.name}</div>
+        ${note?`<div style="font-size:9px;color:#6677aa;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px" onclick="promptInitNote(${JSON.stringify(e.name)},event)" title="${escHtml(note)}">${escHtml(note)}</div>`:''}
+      </div>
       <div style="display:flex;gap:3px;margin-left:auto;margin-right:4px">
         ${actionBtn('action','A','#4488ff')}
         ${actionBtn('bonus','B','#88aa22')}
         ${actionBtn('reaction','R','#dd6622')}
+        <button onclick="promptInitNote(${JSON.stringify(e.name)},event)" style="background:none;border:1px solid ${note?'#4455aa':'#2a2a50'};color:${note?'#6677aa':'#2a2a50'};border-radius:3px;padding:1px 3px;cursor:pointer;font-size:9px" title="${note?'Edit: '+note:'Add note'}">✎</button>
       </div>
       ${hpText ? `<div class="init-hp-mini">${hpText}</div>` : ''}
       <button class="init-remove-btn" onclick="removeFromInitiative(${JSON.stringify(e.name)})">✕</button>
     </div>`;
   };
+
+function editInitScore(name,event) {
+  if(event) event.stopPropagation();
+  const entry=initiativeList.find(e=>e.name===name); if(!entry) return;
+  const v=prompt(`Initiative for ${name}:`,entry.initiative);
+  const n=parseInt(v); if(isNaN(n)) return;
+  entry.initiative=n; initiativeList.sort((a,b)=>b.initiative-a.initiative); currentTurnIdx=0; renderInitiative();
+}
 
   let html = '';
   let lairInserted = false;
