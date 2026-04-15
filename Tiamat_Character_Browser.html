@@ -26673,6 +26673,166 @@ function _pcUpdate() {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 166: Villain Scheme Tracker — track antagonists' plans, progress, minions, locations
+// Better than DND Beyond: DM-first evil mastermind management.
+
+const VILLAIN_KEY = 'tiamat_villains';
+function _loadVillains() { try { return JSON.parse(localStorage.getItem(VILLAIN_KEY)||'[]'); } catch { return []; } }
+function _saveVillains(arr) { localStorage.setItem(VILLAIN_KEY, JSON.stringify(arr)); }
+
+function openVillainTracker() {
+  const ex = document.getElementById('villainOverlay');
+  if (ex) { ex.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'villainOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9200;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+  ov.innerHTML = `
+    <div style="width:720px;max-width:100%;color:#c8d0e8;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;position:sticky;top:0;background:rgba(6,6,26,0.97);padding:12px 0;border-bottom:1px solid rgba(204,68,68,0.3);backdrop-filter:blur(4px);z-index:10">
+        <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:700;color:#cc4444">🦹 Villain Scheme Tracker</div>
+        <div style="display:flex;gap:8px">
+          <button onclick="_villainNew()" style="background:rgba(204,68,68,0.15);border:1px solid rgba(204,68,68,0.5);color:#cc4444;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:700">+ New Villain</button>
+          <button onclick="document.getElementById('villainOverlay').remove()" style="background:none;border:1px solid #2a2040;color:#6a5aaa;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px">✕</button>
+        </div>
+      </div>
+      <div id="villainList" style="padding-bottom:40px"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _villainRender();
+}
+
+function _villainNew() {
+  const name = prompt('Villain name (or NPC name to track):');
+  if (!name || !name.trim()) return;
+  const villains = _loadVillains();
+  villains.push({
+    id: Date.now(),
+    name: name.trim(),
+    scheme: '',
+    progress: 0,
+    location: '',
+    minions: '',
+    weakness: '',
+    notes: '',
+    status: 'active', // active | dormant | defeated
+  });
+  _saveVillains(villains);
+  _villainRender();
+}
+
+function _villainDelete(id) {
+  if (!confirm('Remove this villain?')) return;
+  _saveVillains(_loadVillains().filter(v => v.id !== id));
+  _villainRender();
+}
+
+function _villainSave(id, field, value) {
+  const villains = _loadVillains();
+  const v = villains.find(v => v.id === id);
+  if (v) {
+    if (field === 'progress') v.progress = Math.max(0, Math.min(100, parseInt(value)||0));
+    else v[field] = value;
+    _saveVillains(villains);
+  }
+  if (field === 'progress') _villainRender();
+}
+
+function _villainRender() {
+  const el = document.getElementById('villainList');
+  if (!el) return;
+  const villains = _loadVillains();
+  if (!villains.length) {
+    el.innerHTML = '<div style="color:#4a5272;text-align:center;padding:30px;font-size:13px">No villains tracked. Click "+ New Villain" to start tracking an antagonist\'s schemes.</div>';
+    return;
+  }
+  el.innerHTML = villains.map(v => {
+    const statusColors = { active: '#cc4444', dormant: '#888', defeated: '#44aa44' };
+    const statusIcons = { active: '🔴', dormant: '💤', defeated: '✅' };
+    const sColor = statusColors[v.status] || '#888';
+    const progress = Math.max(0, Math.min(100, v.progress || 0));
+    const progColor = progress >= 75 ? '#cc4444' : progress >= 50 ? '#cc8822' : progress >= 25 ? '#c9a227' : '#44aa44';
+
+    // Look up char in CHARS for quick access
+    const char = (typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : []).find(c => c.name === v.name);
+    const crLabel = char ? ` (CR ${char.cr})` : '';
+
+    return `<div style="background:rgba(0,0,0,0.4);border:1px solid rgba(204,68,68,0.2);border-radius:12px;padding:16px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:15px;font-weight:700;font-family:'Cinzel',serif;color:#e0e0ff">${escHtml(v.name)}${crLabel}</div>
+          <div style="display:flex;gap:6px;margin-top:4px;align-items:center">
+            ${['active','dormant','defeated'].map(s =>
+              `<button onclick="_villainSave(${v.id},'status','${s}');_villainRender()" style="font-size:9px;padding:2px 6px;border-radius:4px;cursor:pointer;border:1px solid ${statusColors[s]}44;background:${v.status===s?statusColors[s]+'25':'transparent'};color:${v.status===s?statusColors[s]:'#4a5272'};font-weight:${v.status===s?'700':'400'}">${statusIcons[s]} ${s}</button>`
+            ).join('')}
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-start">
+          ${char ? `<button onclick="openModal(${(typeof UNIQUE_CHARS!=='undefined'?UNIQUE_CHARS:[]).indexOf(char)})" style="background:rgba(155,109,255,0.1);border:1px solid rgba(155,109,255,0.3);color:#9b6dff;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:10px">📋 Stats</button>` : ''}
+          <button onclick="_villainDelete(${v.id})" style="background:none;border:1px solid #2a2040;color:#4a5272;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:10px">🗑</button>
+        </div>
+      </div>
+      <!-- Scheme progress bar -->
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span style="font-size:10px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px">Scheme Progress</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <button onclick="var v=this;var val=Math.max(0,(parseInt(this.closest('[data-vid]').dataset.vid)||0)-10);_villainSave(${v.id},'progress',document.getElementById('vprog_${v.id}').value-10)" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:14px;padding:0" onclick="_villainAdjProg(${v.id},-10)">−</button>
+            <input id="vprog_${v.id}" type="number" value="${progress}" min="0" max="100" onchange="_villainSave(${v.id},'progress',this.value)" style="width:48px;background:#0c0c20;border:1px solid #2a2050;color:#e0e0ff;border-radius:4px;padding:2px 4px;font-size:12px;text-align:center">
+            <span style="font-size:11px;color:${progColor}">%</span>
+            <button onclick="_villainAdjProg(${v.id},10)" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:14px;padding:0">+</button>
+          </div>
+        </div>
+        <div style="background:#1a1a30;border-radius:6px;height:8px;overflow:hidden">
+          <div style="width:${progress}%;height:100%;background:${progColor};border-radius:6px;transition:width 0.3s"></div>
+        </div>
+      </div>
+      <!-- Fields -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        ${[
+          ['scheme','📜 Current Scheme','Their current plot or goal...'],
+          ['location','📍 Last Known Location','Where they were last seen...'],
+          ['minions','👥 Minions & Allies','Key lieutenants and forces...'],
+          ['weakness','⚠ Known Weaknesses','What could stop them...'],
+        ].map(([field,label,ph]) => `
+          <div style="grid-column:${field==='scheme'?'1/-1':'auto'}">
+            <div style="font-size:9px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">${label}</div>
+            <textarea onblur="_villainSave(${v.id},'${field}',this.value)" style="width:100%;background:#0c0c20;border:1px solid #2a2050;color:#c8d0e8;border-radius:6px;padding:6px 8px;font-size:11px;font-family:inherit;resize:vertical;min-height:${field==='scheme'?48:36}px;box-sizing:border-box" placeholder="${ph}">${escHtml(v[field]||'')}</textarea>
+          </div>`).join('')}
+        <div style="grid-column:1/-1">
+          <div style="font-size:9px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">📝 DM Notes</div>
+          <textarea onblur="_villainSave(${v.id},'notes',this.value)" style="width:100%;background:#0c0c20;border:1px solid #2a2050;color:#c8d0e8;border-radius:6px;padding:6px 8px;font-size:11px;font-family:inherit;resize:vertical;min-height:40px;box-sizing:border-box" placeholder="Additional notes...">${escHtml(v.notes||'')}</textarea>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function _villainAdjProg(id, delta) {
+  const inp = document.getElementById('vprog_' + id);
+  if (inp) {
+    const newVal = Math.max(0, Math.min(100, (parseInt(inp.value)||0) + delta));
+    inp.value = newVal;
+    _villainSave(id, 'progress', newVal);
+  }
+}
+
+// Add Villain Tracker button
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'Villain Scheme Tracker — track antagonist plans, progress, and locations';
+    btn.style.cssText = 'border-color:#cc4444;color:#cc4444';
+    btn.textContent = '🦹 Villains';
+    btn.onclick = openVillainTracker;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
