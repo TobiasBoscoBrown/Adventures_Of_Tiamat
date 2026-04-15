@@ -2036,6 +2036,26 @@
   .card-notes-btn:hover { color: #9b6dff; }
   .card-notes-btn.has-notes { color: #9b6dff; }
 
+  /* Exhaustion */
+  .exhaust-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 8px;
+    border: 1px solid rgba(201,162,39,0.5);
+    background: rgba(201,162,39,0.1);
+    color: #c9a227;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .exhaust-badge:hover { background: rgba(201,162,39,0.2); }
+  .exhaust-badge.lvl-4 { border-color: rgba(204,100,0,0.6); background: rgba(204,100,0,0.12); color: #dd7722; }
+  .exhaust-badge.lvl-5 { border-color: rgba(204,51,51,0.6); background: rgba(204,51,51,0.12); color: #ee5533; }
+  .exhaust-badge.lvl-6 { border-color: #cc3333; background: rgba(204,51,51,0.2); color: #ff3333; font-weight:700; }
+
   /* Inspiration */
   .insp-star {
     font-size: 14px;
@@ -4804,7 +4824,7 @@ function renderGrid() {
             </div>
           </div>
           ${c.quote ? `<div class="card-quote">"${c.quote}"</div>` : ''}
-          <div class="conditions-row" onclick="event.stopPropagation()">${getConditionBadgesHtml(c.name)}${getConcBadgeHtml(c.name)}${getTagBadgesHtml(c.name)}</div>
+          <div class="conditions-row" onclick="event.stopPropagation()">${getConditionBadgesHtml(c.name)}${getConcBadgeHtml(c.name)}${getTagBadgesHtml(c.name)}${getExhaustBadgeHtml(c.name)}</div>
           <div style="display:flex;gap:8px;align-items:center;margin-top:3px" onclick="event.stopPropagation()">
             <button class="card-cond-btn ${hasConditions(c.name)?'has-conds':''}" onclick="openCondPopup(${JSON.stringify(c.name)},event)">⚡ ${hasConditions(c.name)?'Conds':'Condition'}</button>
             <button class="card-enc-btn ${isInActiveEncounter(c.name)?'in-enc':''}" onclick="addCharToActiveEncounter(${JSON.stringify(c.name)},${maxHp})">☩ ${isInActiveEncounter(c.name)?'In Enc':'Encounter'}</button>
@@ -6622,7 +6642,16 @@ function openCondPopup(name, event) {
   condPopupChar = name;
   document.getElementById('condPopupName').textContent = name + ' — Conditions';
   const active = getCharConditions(name);
-  document.getElementById('condGrid').innerHTML = CONDITIONS.map(c => {
+  const exLvl = typeof getExhaustLevel === 'function' ? getExhaustLevel(name) : 0;
+  const exhaustRow = `<div style="grid-column:1/-1;background:rgba(201,162,39,0.06);border:1px solid rgba(201,162,39,0.2);border-radius:8px;padding:8px 10px;margin-bottom:6px">
+    <div style="font-size:10px;color:#c9a227;font-weight:700;margin-bottom:6px;letter-spacing:1px">💤 EXHAUSTION LEVEL: ${exLvl > 0 ? exLvl : 'None'}</div>
+    <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
+      ${[1,2,3,4,5,6].map(i => `<button onclick="changeExhaustion(${JSON.stringify(name)},${i-exLvl},event);openCondPopup(${JSON.stringify(name)},event)" style="padding:3px 8px;border-radius:5px;border:1px solid ${i===exLvl?'#c9a227':i>exLvl?'#1e2040':'rgba(201,162,39,0.3)'};background:${i===exLvl?'rgba(201,162,39,0.2)':'transparent'};color:${i<=exLvl?'#c9a227':'#4a5272'};cursor:pointer;font-size:10px" title="Level ${i}: ${EXHAUST_EFFECTS[i]}">${i}</button>`).join('')}
+      <button onclick="setExhaustLevel(${JSON.stringify(name)},0);openCondPopup(${JSON.stringify(name)},event)" style="padding:3px 8px;border-radius:5px;border:1px solid #2a2a50;background:transparent;color:#4a5272;cursor:pointer;font-size:10px;margin-left:4px">Clear</button>
+    </div>
+    ${exLvl > 0 ? `<div style="font-size:10px;color:#9098b8;margin-top:5px">${EXHAUST_EFFECTS[exLvl]}</div>` : ''}
+  </div>`;
+  document.getElementById('condGrid').innerHTML = exhaustRow + CONDITIONS.map(c => {
     const isActive = active.includes(c.name);
     const typeClass = {debuff:'cond-debuff',control:'cond-control',status:'cond-status',movement:'cond-movement'}[c.type]||'cond-debuff';
     const effectsHtml = (c.effects || []).map(e => `<li>${e}</li>`).join('');
@@ -9218,6 +9247,98 @@ function renderTheaterGrid() {
       ${conc ? `<div style="font-size:8px;color:#c9a227;margin-top:2px">🔮 ${conc.slice(0,16)}</div>` : ''}
     </div>`;
   }).join('');
+}
+// ────────────────────────────────────────────────────────
+
+// ── EXHAUSTION TRACKER ───────────────────────────────────
+const EXHAUST_KEY = 'tiamat_exhaustion';
+const EXHAUST_EFFECTS = [
+  '',
+  'Disadvantage on ability checks',
+  'Speed halved',
+  'Disadvantage on attack rolls & saving throws',
+  'Hit point maximum halved',
+  'Speed drops to 0',
+  'Death'
+];
+
+function loadExhaustion() {
+  try { return JSON.parse(localStorage.getItem(EXHAUST_KEY)) || {}; } catch { return {}; }
+}
+function saveExhaustion(data) { localStorage.setItem(EXHAUST_KEY, JSON.stringify(data)); }
+
+function getExhaustLevel(name) {
+  return loadExhaustion()[name] || 0;
+}
+
+function setExhaustLevel(name, level) {
+  const data = loadExhaustion();
+  if (level <= 0) delete data[name];
+  else data[name] = Math.min(6, Math.max(1, level));
+  saveExhaustion(data);
+  // Refresh card badge
+  const sid = typeof safeId === 'function' ? safeId(name) : name;
+  const badge = document.getElementById('exhaust_' + sid);
+  if (badge) {
+    const lvl = data[name] || 0;
+    if (lvl > 0) {
+      badge.textContent = `💤 Exhaustion ${lvl}`;
+      badge.className = `exhaust-badge${lvl >= 4 ? ' lvl-'+lvl : ''}`;
+      badge.title = EXHAUST_EFFECTS[lvl] || '';
+      badge.style.display = '';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+  if (typeof updateHeaderStats === 'function') updateHeaderStats();
+}
+
+function changeExhaustion(name, delta, event) {
+  if (event) event.stopPropagation();
+  const cur = getExhaustLevel(name);
+  const next = cur + delta;
+  if (next <= 0) {
+    setExhaustLevel(name, 0);
+    logEntry('heal', `💤 <strong>${name}</strong> exhaustion cleared`);
+  } else if (next > 6) {
+    return;
+  } else {
+    setExhaustLevel(name, next);
+    if (delta > 0) logEntry('damage', `💤 <strong>${name}</strong> gained exhaustion level <strong>${next}</strong> — ${EXHAUST_EFFECTS[next]}`);
+    else logEntry('heal', `💤 <strong>${name}</strong> exhaustion reduced to level <strong>${next}</strong>`);
+    if (next === 6) logEntry('damage', `💀 <strong>${name}</strong> — Exhaustion level 6: <strong>DEATH</strong>`);
+  }
+}
+
+function getExhaustBadgeHtml(name) {
+  const lvl = getExhaustLevel(name);
+  const sid = typeof safeId === 'function' ? safeId(name) : name;
+  const lvlClass = lvl >= 4 ? ` lvl-${lvl}` : '';
+  const display = lvl > 0 ? '' : 'display:none;';
+  return `<span id="exhaust_${sid}" class="exhaust-badge${lvlClass}" style="${display}" title="${EXHAUST_EFFECTS[lvl]||''}" onclick="showExhaustMenu(${JSON.stringify(name)},event)">${lvl > 0 ? `💤 Exhaustion ${lvl}` : ''}</span>`;
+}
+
+function showExhaustMenu(name, event) {
+  event.stopPropagation();
+  // Remove existing menu
+  document.querySelectorAll('.exhaust-menu').forEach(m => m.remove());
+  const lvl = getExhaustLevel(name);
+  const menu = document.createElement('div');
+  menu.className = 'exhaust-menu';
+  menu.style.cssText = 'position:fixed;background:#0c0c20;border:1px solid rgba(201,162,39,0.4);border-radius:8px;padding:8px;z-index:9999;font-size:11px;color:#9098b8;min-width:200px;box-shadow:0 4px 20px rgba(0,0,0,0.8)';
+  menu.innerHTML = `<div style="font-size:10px;color:#c9a227;font-weight:700;margin-bottom:6px;letter-spacing:1px">💤 EXHAUSTION — ${name.split(' ')[0]}</div>
+    ${[1,2,3,4,5,6].map(i => `
+    <div style="padding:3px 6px;border-radius:4px;cursor:pointer;display:flex;justify-content:space-between;${lvl===i?'background:rgba(201,162,39,0.15);color:#c9a227':''}" onmouseover="this.style.background='rgba(201,162,39,0.08)'" onmouseout="this.style.background='${lvl===i?'rgba(201,162,39,0.15)':'transparent'}'" onclick="changeExhaustion(${JSON.stringify(name)},${i-lvl},event);document.querySelectorAll('.exhaust-menu').forEach(m=>m.remove())">
+      <span>Level ${i}</span><span style="color:#4a5272;font-size:10px">${EXHAUST_EFFECTS[i]}</span>
+    </div>`).join('')}
+    <div style="border-top:1px solid #1e2040;margin-top:6px;padding-top:6px">
+      <div style="padding:3px 6px;cursor:pointer;color:#cc3333;border-radius:4px" onmouseover="this.style.background='rgba(204,51,51,0.1)'" onmouseout="this.style.background='transparent'" onclick="changeExhaustion(${JSON.stringify(name)},-lvl,event);setExhaustLevel(${JSON.stringify(name)},0);document.querySelectorAll('.exhaust-menu').forEach(m=>m.remove())">↺ Clear Exhaustion</div>
+    </div>`;
+  const rect = event.target.getBoundingClientRect();
+  menu.style.left = Math.min(rect.left, window.innerWidth - 230) + 'px';
+  menu.style.top = (rect.bottom + 4) + 'px';
+  document.body.appendChild(menu);
+  setTimeout(() => document.addEventListener('click', () => document.querySelectorAll('.exhaust-menu').forEach(m => m.remove()), { once: true }), 50);
 }
 // ────────────────────────────────────────────────────────
 
