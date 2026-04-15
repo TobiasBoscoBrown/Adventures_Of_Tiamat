@@ -10959,6 +10959,27 @@ function spendLegendaryAction(charName) {
   showToast(`${charName}: Used legendary action (${legendaryState[charName]} left)`, '#c9a227');
 }
 
+function spendLegendaryActionBar(charName, event) {
+  if (event) event.stopPropagation();
+  const charges = getLegendaryCharges(charName);
+  if (charges <= 0) { showToast?.(`No legendary actions remaining!`, '#cc4444'); return; }
+  legendaryState[charName] = charges - 1;
+  logEntry('roll', `<strong>${escHtml(charName)}</strong> used a Legendary Action (${legendaryState[charName]}/${getLegendaryMax(charName)} remaining)`);
+  renderActiveTurnBar();
+  renderInitiative();
+}
+
+function resetLegendaryActionsFor(charName, event) {
+  if (event) event.stopPropagation();
+  const max = getLegendaryMax(charName);
+  if (max > 0) {
+    legendaryState[charName] = max;
+    logEntry('roll', `<strong>${escHtml(charName)}</strong> legendary actions reset (${max}/${max})`);
+    renderActiveTurnBar();
+    renderInitiative();
+  }
+}
+
 function resetLegendaryActions() {
   // Called at end of each round (start of character's turn in the next round)
   Object.keys(legendaryState).forEach(name => {
@@ -12068,6 +12089,24 @@ function renderActiveTurnBar() {
       html += `<div style="display:flex;gap:3px;align-items:center;margin-top:3px">
         <span style="font-size:9px;color:#4a5272;letter-spacing:.5px;min-width:24px">SLOTS</span>
         ${slotBtns}
+      </div>`;
+    }
+  }
+
+  // Legendary Actions row (only for legendary creatures)
+  if (typeof getLegendaryMax === 'function') {
+    const legMax = getLegendaryMax(char.name);
+    if (legMax > 0) {
+      const legCur = typeof getLegendaryCharges === 'function' ? getLegendaryCharges(char.name) : legMax;
+      const pips = Array.from({length:legMax}, (_,i) => {
+        const active = i < legCur;
+        return `<span onclick="spendLegendaryActionBar(${JSON.stringify(char.name)},event)" title="${active?'Click to spend legendary action':'Spent'}" style="display:inline-block;width:12px;height:12px;border-radius:50%;border:1px solid #c9a227;background:${active?'#c9a227':'transparent'};cursor:${active?'pointer':'default'};transition:background .1s"></span>`;
+      }).join('');
+      html += `<div style="display:flex;gap:5px;align-items:center;margin-top:3px">
+        <span style="font-size:9px;color:#c9a227;letter-spacing:.5px;min-width:24px">LEG</span>
+        <span style="font-size:9px;color:${legCur>0?'#c9a227':'#3a3a50'}">${legCur}/${legMax}</span>
+        <div style="display:flex;gap:3px;align-items:center">${pips}</div>
+        ${legCur < legMax ? `<button onclick="resetLegendaryActionsFor(${JSON.stringify(char.name)},event)" style="background:none;border:1px solid rgba(201,162,39,.2);color:#6a5a20;border-radius:4px;padding:1px 4px;cursor:pointer;font-size:9px;margin-left:2px" title="Reset legendary actions to max">↺</button>` : ''}
       </div>`;
     }
   }
