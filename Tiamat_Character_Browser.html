@@ -3775,6 +3775,7 @@
   <button class="filter-btn" onclick="openTravelCalc()" style="border-color:#44cc88;color:#44cc88;" title="Overland Travel Calculator — distance, pace, terrain, rations, random encounters">🗺 Travel</button>
   <button class="filter-btn" onclick="openImprovNpc()" style="border-color:#c9a227;color:#c9a227;" title="Improv NPC Card — instant personality, appearance, motivation &amp; secret for unplanned NPCs">🎭 Improv NPC</button>
   <button class="filter-btn" onclick="openBulkCondPanel()" style="border-color:#9b6dff;color:#9b6dff;" title="Bulk Conditions — apply or remove conditions to multiple characters at once (AoE spells)">⚡ Bulk Cond</button>
+  <button class="filter-btn" onclick="openUpcastCalc()" style="border-color:#9b6dff;color:#9b6dff;" title="Spell Upcast Calculator — calculate scaled spell damage at higher slot levels">🔮 Upcast</button>
   <button class="filter-btn" onclick="printPartySheet()" style="border-color:#4488ff;color:#4488ff;" title="Print Party Sheet — all party members on one printable page">🖨 Party Sheet</button>
   <button class="filter-btn" onclick="openWorldMap()" style="border-color:#44cc88;color:#44cc88;" title="World Map — pin characters to the Tiamat campaign map (hotkey: M)">🗺 World Map</button>
   <span style="color: #333; margin: 0 4px;">|</span>
@@ -23952,6 +23953,206 @@ function _bulkCondApply(add) {
   logEntry('cond', `⚡ Bulk ${add?'applied':'removed'} <strong>${escHtml(_bulkCondActive)}</strong> ${add?'to':'from'} ${changed} character${changed!==1?'s':''}: ${checked.map(c=>escHtml(c.dataset.name)).join(', ')}`);
   showToast(`${_bulkCondActive} ${add?'applied to':'removed from'} ${changed} character${changed!==1?'s':''}`, '#9b6dff');
   _renderBulkCond(); // Refresh to show updated conditions
+}
+// Iter 147: Spell Upcast Calculator — quickly calculate and roll spell damage
+// at higher slot levels. Shows scaling for common spells and custom formulas.
+// Better than DND Beyond which requires looking up the spell page.
+
+const UPCAST_PRESETS = [
+  { name:'Fireball',         base:'8d6',  perLevel:'1d6',  baseLevel:3, type:'fire' },
+  { name:'Cure Wounds',      base:'1d8',  perLevel:'1d8',  baseLevel:1, type:'healing' },
+  { name:'Healing Word',     base:'1d4',  perLevel:'1d4',  baseLevel:1, type:'healing' },
+  { name:'Shatter',          base:'3d8',  perLevel:'1d8',  baseLevel:2, type:'thunder' },
+  { name:'Magic Missile',    base:'3d4+3',perLevel:'1d4+1',baseLevel:1, type:'force', note:'+1 dart per level above 1st (each 1d4+1 force)' },
+  { name:'Chromatic Orb',    base:'3d8',  perLevel:'1d8',  baseLevel:1, type:'elemental' },
+  { name:'Cone of Cold',     base:'8d8',  perLevel:'1d8',  baseLevel:5, type:'cold' },
+  { name:'Hold Person',      base:'—',    perLevel:null,   baseLevel:2, type:'control', note:'+1 extra target per slot level above 2nd' },
+  { name:'Invisibility',     base:'—',    perLevel:null,   baseLevel:2, type:'control', note:'+1 extra target per slot level above 2nd' },
+  { name:'Scorching Ray',    base:'2 rays',perLevel:null,  baseLevel:2, type:'fire', note:'+1 ray per slot level above 2nd (2d6 each)' },
+  { name:'Burning Hands',    base:'3d6',  perLevel:'1d6',  baseLevel:1, type:'fire' },
+  { name:'Thunderwave',      base:'2d8',  perLevel:'1d8',  baseLevel:1, type:'thunder' },
+  { name:'Ice Storm',        base:'2d8+4d6',perLevel:'1d8', baseLevel:4, type:'cold' },
+  { name:'Guiding Bolt',     base:'4d6',  perLevel:'1d6',  baseLevel:1, type:'radiant' },
+  { name:'Inflict Wounds',   base:'3d10', perLevel:'1d10', baseLevel:1, type:'necrotic' },
+  { name:'Toll the Dead',    base:'1d12', perLevel:'1d12', baseLevel:0, type:'necrotic' },
+  { name:'Disintegrate',     base:'10d6+40',perLevel:'3d6', baseLevel:6, type:'force' },
+  { name:'Chain Lightning',  base:'10d8', perLevel:'1d8',  baseLevel:6, type:'lightning' },
+  { name:'Sunburst',         base:'12d6', perLevel:'1d6',  baseLevel:8, type:'radiant' },
+];
+
+function openUpcastCalc() {
+  const existing = document.getElementById('upcastCalcOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'upcastCalcOverlay';
+  ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.72);z-index:9500;display:flex;align-items:flex-start;justify-content:center;padding-top:6vh;overflow-y:auto';
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+
+  const presetBtns = UPCAST_PRESETS.map(p =>
+    `<button onclick="_upcastLoadPreset(${JSON.stringify(p.name)})"
+      style="background:none;border:1px solid #2a2a50;color:#9098b8;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:10px;transition:all 0.1s"
+      onmouseover="this.style.borderColor='#9b6dff';this.style.color='#c8d0e8'" onmouseout="this.style.borderColor='#2a2a50';this.style.color='#9098b8'">${p.name}</button>`
+  ).join('');
+
+  ov.innerHTML = `
+    <div style="background:linear-gradient(160deg,#0a0618,#0d0d1a);border:1px solid rgba(155,109,255,0.5);border-radius:14px;padding:24px;width:500px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.9)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+        <div style="font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:#9b6dff">🔮 Spell Upcast Calculator</div>
+        <button onclick="document.getElementById('upcastCalcOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:20px">✕</button>
+      </div>
+
+      <!-- Preset spells -->
+      <div style="margin-bottom:14px">
+        <div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:6px">COMMON SPELLS</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">${presetBtns}</div>
+      </div>
+
+      <!-- Inputs -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+        <div>
+          <div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:5px">BASE DICE</div>
+          <input id="upcastBase" type="text" value="8d6" placeholder="8d6" style="width:100%;background:#06061a;border:1px solid #2a2040;color:#c8d0e8;border-radius:6px;padding:8px;font-size:14px;font-weight:700;outline:none;box-sizing:border-box"
+            onfocus="this.style.borderColor='#9b6dff'" onblur="this.style.borderColor='#2a2040'" oninput="_upcastCalc()">
+          <div style="font-size:10px;color:#4a5272;margin-top:3px">at base level</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:5px">+ PER LEVEL</div>
+          <input id="upcastPer" type="text" value="1d6" placeholder="1d6" style="width:100%;background:#06061a;border:1px solid #2a2040;color:#c8d0e8;border-radius:6px;padding:8px;font-size:14px;font-weight:700;outline:none;box-sizing:border-box"
+            onfocus="this.style.borderColor='#9b6dff'" onblur="this.style.borderColor='#2a2040'" oninput="_upcastCalc()">
+          <div style="font-size:10px;color:#4a5272;margin-top:3px">above base level</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:5px">BASE LEVEL</div>
+          <input id="upcastBaseLevel" type="number" value="3" min="0" max="9" style="width:100%;background:#06061a;border:1px solid #2a2040;color:#c8d0e8;border-radius:6px;padding:8px;font-size:14px;font-weight:700;outline:none;box-sizing:border-box;text-align:center"
+            onfocus="this.style.borderColor='#9b6dff'" onblur="this.style.borderColor='#2a2040'" oninput="_upcastCalc()">
+          <div style="font-size:10px;color:#4a5272;margin-top:3px">minimum level</div>
+        </div>
+      </div>
+
+      <!-- Slot level picker -->
+      <div style="margin-bottom:14px">
+        <div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:6px">CAST AT SLOT LEVEL</div>
+        <div style="display:flex;gap:6px">
+          ${Array.from({length:9},(_,i)=>i+1).map(l =>
+            `<button onclick="_upcastSetLevel(${l})" id="upcastLvl${l}"
+              style="flex:1;background:${l===3?'rgba(155,109,255,0.2)':'none'};border:1px solid ${l===3?'#9b6dff':'#2a2040'};color:${l===3?'#9b6dff':'#4a5272'};border-radius:6px;padding:7px 0;cursor:pointer;font-size:12px;font-weight:700;transition:all 0.1s">${l}</button>`
+          ).join('')}
+        </div>
+      </div>
+
+      <!-- Result -->
+      <div id="upcastResult" style="background:rgba(155,109,255,0.06);border:1px solid rgba(155,109,255,0.3);border-radius:10px;padding:16px;margin-bottom:14px;text-align:center">
+        <div id="upcastFormula" style="font-size:24px;font-weight:700;font-family:'Cinzel',serif;color:#9b6dff;margin-bottom:4px">8d6</div>
+        <div id="upcastNote" style="font-size:11px;color:#4a5272"></div>
+      </div>
+
+      <button onclick="_upcastRoll()" style="width:100%;background:rgba(155,109,255,0.15);border:1px solid rgba(155,109,255,0.5);color:#9b6dff;border-radius:8px;padding:12px;cursor:pointer;font-size:14px;font-weight:700">🎲 Roll This Spell</button>
+      <div id="upcastRollResult" style="margin-top:10px;font-size:20px;font-weight:700;text-align:center;font-family:'Cinzel',serif;min-height:28px"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  window._upcastLevel = 3;
+  _upcastCalc();
+}
+
+function _upcastLoadPreset(spellName) {
+  const p = UPCAST_PRESETS.find(x => x.name === spellName);
+  if (!p) return;
+  document.getElementById('upcastBase').value = p.base || '';
+  document.getElementById('upcastPer').value = p.perLevel || '';
+  document.getElementById('upcastBaseLevel').value = p.baseLevel || 1;
+  window._upcastLevel = Math.max(p.baseLevel || 1, window._upcastLevel || p.baseLevel);
+  // Update level buttons
+  Array.from({length:9},(_,i)=>i+1).forEach(l => {
+    const btn = document.getElementById('upcastLvl' + l);
+    if (!btn) return;
+    const active = l === window._upcastLevel;
+    btn.style.background = active ? 'rgba(155,109,255,0.2)' : 'none';
+    btn.style.borderColor = active ? '#9b6dff' : '#2a2040';
+    btn.style.color = active ? '#9b6dff' : '#4a5272';
+  });
+  const note = document.getElementById('upcastNote');
+  if (note && p.note) note.textContent = p.note;
+  _upcastCalc();
+}
+
+function _upcastSetLevel(lvl) {
+  window._upcastLevel = lvl;
+  Array.from({length:9},(_,i)=>i+1).forEach(l => {
+    const btn = document.getElementById('upcastLvl' + l);
+    if (!btn) return;
+    const active = l === lvl;
+    btn.style.background = active ? 'rgba(155,109,255,0.2)' : 'none';
+    btn.style.borderColor = active ? '#9b6dff' : '#2a2040';
+    btn.style.color = active ? '#9b6dff' : '#4a5272';
+  });
+  _upcastCalc();
+}
+
+function _upcastCalc() {
+  const base = (document.getElementById('upcastBase')?.value || '').trim();
+  const perLvl = (document.getElementById('upcastPer')?.value || '').trim();
+  const baseLvl = parseInt(document.getElementById('upcastBaseLevel')?.value) || 1;
+  const castLvl = window._upcastLevel || baseLvl;
+  const formulaEl = document.getElementById('upcastFormula');
+  if (!formulaEl) return;
+
+  const extraLevels = Math.max(0, castLvl - baseLvl);
+
+  let formula = base;
+  if (extraLevels > 0 && perLvl && perLvl !== '—' && perLvl !== 'null') {
+    // Combine: "8d6 + 2×(1d6)" → simplify to "10d6"
+    formula = _combineUpcastFormula(base, perLvl, extraLevels);
+  }
+
+  formulaEl.textContent = formula;
+  const noteEl = document.getElementById('upcastNote');
+  if (noteEl && !noteEl.textContent) {
+    noteEl.textContent = extraLevels > 0
+      ? `${base} base + ${extraLevels}×${perLvl} (${extraLevels} level${extraLevels!==1?'s':''} above ${baseLvl})`
+      : `Cast at base level ${baseLvl}`;
+  } else if (noteEl) {
+    noteEl.textContent = extraLevels > 0
+      ? `${base} base + ${extraLevels}×${perLvl} (${extraLevels} level${extraLevels!==1?'s':''} above ${baseLvl})`
+      : `Cast at base level ${baseLvl}`;
+  }
+  document.getElementById('upcastRollResult').textContent = '';
+}
+
+function _combineUpcastFormula(base, perLvl, times) {
+  // Try to simplify e.g. "8d6" + 2×"1d6" → "10d6"
+  const parseDice = s => { const m = s.match(/^(\d+)d(\d+)([+-]\d+)?$/); return m ? { n:parseInt(m[1]), d:parseInt(m[2]), plus:parseInt(m[3]||0) } : null; };
+  const b = parseDice(base.replace(/\s/g,''));
+  const p = parseDice(perLvl.replace(/\s/g,''));
+  if (b && p && b.d === p.d) {
+    const totalN = b.n + p.n * times;
+    const totalPlus = b.plus + p.plus * times;
+    return `${totalN}d${b.d}${totalPlus>0?'+'+totalPlus:totalPlus<0?totalPlus:''}`;
+  }
+  // Can't simplify — show additive
+  return times > 0 ? `${base} + ${times > 1 ? times + '×(' + perLvl + ')' : perLvl}` : base;
+}
+
+function _upcastRoll() {
+  const formula = document.getElementById('upcastFormula')?.textContent || '';
+  if (!formula || formula === '—') { showToast('No rollable formula', '#9b6dff'); return; }
+  // Use existing dice roller
+  if (typeof rollDice === 'function') {
+    const res = rollDice(formula);
+    if (res) {
+      const el = document.getElementById('upcastRollResult');
+      if (el) el.innerHTML = `<span style="color:#9b6dff">${formula}</span> = <span style="color:#c9a227">${res.total}</span>`;
+      logEntry('roll', `🔮 Upcast: ${formula} = <strong>${res.total}</strong>`);
+      return;
+    }
+  }
+  // Fallback: simple eval
+  try {
+    const simple = formula.replace(/(\d+)d(\d+)/g, (_, n, d) => Array.from({length:parseInt(n)}, () => Math.floor(Math.random()*parseInt(d))+1).reduce((a,b)=>a+b,0));
+    const total = Function('"use strict";return (' + simple + ')')();
+    const el = document.getElementById('upcastRollResult');
+    if (el) el.innerHTML = `<span style="color:#9b6dff">${formula}</span> = <span style="color:#c9a227">${total}</span>`;
+    logEntry('roll', `🔮 Upcast: ${formula} = <strong>${total}</strong>`);
+  } catch { showToast('Could not roll: ' + formula, '#cc3333'); }
 }
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
