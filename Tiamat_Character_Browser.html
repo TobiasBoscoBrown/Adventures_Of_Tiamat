@@ -24951,6 +24951,87 @@ function _addEncToInit(name, count) {
   document.getElementById('initiativePanel')?.classList.add('open');
 }
 // ─────────────────────────────────────────────────────────────────────────────
+// Iter 154: Character Appearance & Mannerisms Editor — structured physical
+//   description fields appended to the BG tab. Each field is editable and
+//   persisted in localStorage (tiamat_appearance). Extracts age/alignment
+//   hints from existing character data as smart defaults.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const APPEAR_KEY = 'tiamat_appearance';
+function loadAppear(name) { try { return JSON.parse(localStorage.getItem(APPEAR_KEY)||'{}')[name]||{}; } catch { return {}; } }
+function saveAppear(name, field, val) {
+  const all = (() => { try { return JSON.parse(localStorage.getItem(APPEAR_KEY)||'{}'); } catch { return {}; } })();
+  if (!all[name]) all[name] = {};
+  all[name][field] = val;
+  localStorage.setItem(APPEAR_KEY, JSON.stringify(all));
+}
+
+function _appearDefaults(c) {
+  const sub = c.subtitle || '';
+  const ageMatch = sub.match(/Age[^·]*(\d[\d,]*)/i);
+  const age = ageMatch ? ageMatch[0].replace(/Age[^·]*?/i,'').trim() : '';
+  // Derive appearance hints from theme
+  const themeHints = {
+    royal:   { hair:'Silver or dark', eyes:'Sharp, intelligent', skin:'Fair', voice:'Authoritative, measured' },
+    warrior: { hair:'Rough-cut', eyes:'Steel grey or brown', skin:'Weathered', voice:'Direct, forceful' },
+    arcane:  { hair:'Neat or wild depending on focus', eyes:'Bright, piercing', skin:'Pale', voice:'Precise, thoughtful' },
+    nature:  { hair:'Earthy tones, often braided', eyes:'Green or amber', skin:'Sun-touched', voice:'Calm, earthy' },
+    shadow:  { hair:'Dark', eyes:'Deep or glowing', skin:'Pale', voice:'Quiet, careful with words' },
+    fire:    { hair:'Red or auburn', eyes:'Amber or orange', skin:'Ruddy', voice:'Passionate, loud' },
+    ocean:   { hair:'Wind-blown, salt-bleached', eyes:'Sea-blue or grey', skin:'Tanned', voice:'Lilting, storytelling' },
+    stone:   { hair:'Brown or grey', eyes:'Stone grey', skin:'Earthy', voice:'Slow, deliberate' },
+    orc:     { hair:'Dark or bald', eyes:'Red or yellow', skin:'Green or grey', voice:'Guttural, commanding' },
+    pink:    { hair:'Blonde or light brown', eyes:'Warm, kind', skin:'Rosy', voice:'Soft, gentle' },
+  };
+  const th = themeHints[c.theme] || {};
+  return { age, height:'', build:'', hair: th.hair||'', eyes: th.eyes||'', skin: th.skin||'', features:'', voice: th.voice||'', mannerisms:'' };
+}
+
+function renderAppearSection(c) {
+  const saved = loadAppear(c.name);
+  const def = _appearDefaults(c);
+  const get = f => saved[f] !== undefined ? saved[f] : (def[f] || '');
+  const inp = (label, key, ph) => `
+    <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px">
+      <div style="font-size:10px;color:#4a5272;width:64px;flex-shrink:0;padding-top:6px;text-align:right">${label}</div>
+      <input type="text" value="${escHtml(get(key))}" placeholder="${ph}"
+        style="flex:1;background:rgba(0,0,0,0.25);border:1px solid #1e2040;color:#c8d0e8;border-radius:6px;padding:5px 9px;font-size:11px;outline:none;transition:border-color 0.15s"
+        onfocus="this.style.borderColor='#4488ff44'"
+        onblur="this.style.borderColor='#1e2040';saveAppear(${JSON.stringify(c.name)},${JSON.stringify(key)},this.value)"
+        onchange="saveAppear(${JSON.stringify(c.name)},${JSON.stringify(key)},this.value)">
+    </div>`;
+  const ta = (label, key, ph) => `
+    <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px">
+      <div style="font-size:10px;color:#4a5272;width:64px;flex-shrink:0;padding-top:6px;text-align:right">${label}</div>
+      <textarea rows="2" placeholder="${ph}"
+        style="flex:1;background:rgba(0,0,0,0.25);border:1px solid #1e2040;color:#c8d0e8;border-radius:6px;padding:5px 9px;font-size:11px;outline:none;resize:vertical;font-family:inherit;line-height:1.4;transition:border-color 0.15s"
+        onfocus="this.style.borderColor='#4488ff44'"
+        onblur="this.style.borderColor='#1e2040';saveAppear(${JSON.stringify(c.name)},${JSON.stringify(key)},this.value)"
+        onchange="saveAppear(${JSON.stringify(c.name)},${JSON.stringify(key)},this.value)">${escHtml(get(key))}</textarea>
+    </div>`;
+  const el = document.getElementById('bgPanel');
+  if (!el) return;
+  el.innerHTML += `
+    <div style="margin-top:14px;padding:10px 12px;background:rgba(68,136,255,0.04);border:1px solid rgba(68,136,255,0.2);border-radius:10px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#4488ff;text-transform:uppercase;margin-bottom:10px">👤 Appearance</div>
+      ${inp('Age', 'age', 'e.g. ~45 years, ageless')}
+      ${inp('Height', 'height', 'e.g. 6\'2", stocky')}
+      ${inp('Hair', 'hair', def.hair || 'hair color & style')}
+      ${inp('Eyes', 'eyes', def.eyes || 'eye color & expression')}
+      ${inp('Skin', 'skin', def.skin || 'skin tone & texture')}
+      ${ta('Features', 'features', 'Scars, tattoos, distinctive marks…')}
+      ${ta('Voice', 'voice', def.voice || 'How they speak — tone, accent, cadence')}
+      ${ta('Mannerisms', 'mannerisms', 'Habits, gestures, tics that make them memorable')}
+    </div>`;
+}
+
+// Hook into the BG panel render — append appearance after feats
+const _prevBgRender2 = renderBgPanel;
+function renderBgPanel(c) {
+  _prevBgRender2(c);
+  renderAppearSection(c);
+}
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
