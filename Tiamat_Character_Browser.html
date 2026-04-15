@@ -5855,6 +5855,7 @@ function buildStatsPanel(c) {
     ${buildExhaustionSection(c)}
     ${buildAlignmentSection(c)}
     ${buildProficienciesSection(c)}
+    ${buildPassiveBonusSection(c)}
     ${buildTraitsSection(c)}
     ${isSpellcaster(c) ? `
     <div class="stats-section">
@@ -15073,6 +15074,26 @@ function rollWildMagic() {
 // ────────────────────────────────────────────────────────
 
 // ── PASSIVE SKILLS PANEL ─────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// ITERATION 98: Passive Skill Bonus Editor — custom per-char
+//   bonuses to passive Perception, Investigation, Insight.
+//   Accounts for Observant feat (+5), Alertness, etc.
+//   Stored in tiamat_passive_bonuses.
+// ══════════════════════════════════════════════════════════
+const PASSIVE_BONUS_KEY = 'tiamat_passive_bonuses';
+
+function getPassiveBonuses(charName) {
+  try {
+    const all = JSON.parse(localStorage.getItem(PASSIVE_BONUS_KEY) || '{}');
+    return all[charName] || { perception: 0, investigation: 0, insight: 0 };
+  } catch { return { perception: 0, investigation: 0, insight: 0 }; }
+}
+function savePassiveBonuses(charName, bonuses) {
+  const all = JSON.parse(localStorage.getItem(PASSIVE_BONUS_KEY) || '{}');
+  all[charName] = bonuses;
+  localStorage.setItem(PASSIVE_BONUS_KEY, JSON.stringify(all));
+}
+
 function getPassiveSkills(char) {
   const ab = {};
   (char.abilities || []).forEach(([n,s,m,p]) => {
@@ -15095,11 +15116,76 @@ function getPassiveSkills(char) {
   const invProf = getSkillProf('Investigation', 'INT');
   const insightProf = getSkillProf('Insight', 'WIS');
 
+  // Apply custom bonuses (Observant feat, etc.)
+  const bonus = getPassiveBonuses(char.name);
+
   return {
-    perception: 10 + wisMod + (percProf ? prof : 0),
-    investigation: 10 + intMod + (invProf ? prof : 0),
-    insight: 10 + wisMod + (insightProf ? prof : 0),
+    perception: 10 + wisMod + (percProf ? prof : 0) + (bonus.perception || 0),
+    investigation: 10 + intMod + (invProf ? prof : 0) + (bonus.investigation || 0),
+    insight: 10 + wisMod + (insightProf ? prof : 0) + (bonus.insight || 0),
   };
+}
+
+function buildPassiveBonusSection(c) {
+  const bonus = getPassiveBonuses(c.name);
+  const ps = getPassiveSkills(c);
+  const FEATS = [
+    { label: 'Observant (+5 Perc/Inv)', perc: 5, inv: 5, ins: 0 },
+    { label: 'Alert (+5 Init, passive bonuses)', perc: 0, inv: 0, ins: 5 },
+    { label: 'Skilled (proficiency boost)', perc: 3, inv: 3, ins: 3 },
+    { label: 'None / Custom', perc: 0, inv: 0, ins: 0 },
+  ];
+  return `<div class="stats-section">
+    <div class="stats-section-title">👁 Passive Skill Bonuses</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;">
+      ${[['Perception','perception','#2299bb'],['Investigation','investigation','#4488ff'],['Insight','insight','#9b6dff']].map(([label,key,col]) =>
+        `<div style="text-align:center;background:#0e1422;border-radius:6px;padding:8px;">
+          <div style="font-size:18px;font-weight:700;color:${col};">${ps[key]}</div>
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;">${label}</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:4px;">
+            <button onclick="adjustPassiveBonus('${c.name.replace(/'/g,"\\'")}','${key}',-1)" style="background:#2a3358;border:none;color:#c8d0e8;border-radius:4px;width:22px;height:22px;cursor:pointer;font-size:13px;">−</button>
+            <span style="font-size:12px;color:${bonus[key]!==0?col:'#4a5272'};">${bonus[key]>0?'+':''}${bonus[key]}</span>
+            <button onclick="adjustPassiveBonus('${c.name.replace(/'/g,"\\'")}','${key}',+1)" style="background:#2a3358;border:none;color:#c8d0e8;border-radius:4px;width:22px;height:22px;cursor:pointer;font-size:13px;">+</button>
+          </div>
+        </div>`
+      ).join('')}
+    </div>
+    <div style="font-size:11px;color:#9098b8;margin-bottom:6px;">Quick feat presets:</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      ${FEATS.map(f => `<button onclick="applyPassiveFeat('${c.name.replace(/'/g,"\\'")}',${f.perc},${f.inv},${f.ins})" style="background:#0e1422;border:1px solid #2a3358;color:#9098b8;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;">${f.label}</button>`).join('')}
+    </div>
+  </div>`;
+}
+
+function adjustPassiveBonus(charName, key, delta) {
+  const bonus = getPassiveBonuses(charName);
+  bonus[key] = (bonus[key] || 0) + delta;
+  savePassiveBonuses(charName, bonus);
+  const c = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS.find(x => x.name === charName) : null;
+  if (!c) return;
+  const modal = document.querySelector('.modal-body');
+  if (modal) {
+    modal.querySelectorAll('.stats-section').forEach(sec => {
+      if (sec.querySelector('.stats-section-title')?.textContent?.includes('Passive Skill')) {
+        sec.outerHTML = buildPassiveBonusSection(c);
+      }
+    });
+  }
+}
+
+function applyPassiveFeat(charName, perc, inv, ins) {
+  savePassiveBonuses(charName, { perception: perc, investigation: inv, insight: ins });
+  const c = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS.find(x => x.name === charName) : null;
+  if (!c) return;
+  const modal = document.querySelector('.modal-body');
+  if (modal) {
+    modal.querySelectorAll('.stats-section').forEach(sec => {
+      if (sec.querySelector('.stats-section-title')?.textContent?.includes('Passive Skill')) {
+        sec.outerHTML = buildPassiveBonusSection(c);
+      }
+    });
+  }
+  if (typeof showToast === 'function') showToast(`${charName}: passive bonuses updated`, '#2299bb');
 }
 
 function showPassiveSkills() {
