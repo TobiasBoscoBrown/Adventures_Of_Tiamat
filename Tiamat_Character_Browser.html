@@ -2036,6 +2036,18 @@
   .card-notes-btn:hover { color: #9b6dff; }
   .card-notes-btn.has-notes { color: #9b6dff; }
 
+  /* Inspiration */
+  .insp-star {
+    font-size: 14px;
+    cursor: pointer;
+    color: #2a2a50;
+    transition: all 0.15s;
+    user-select: none;
+    padding: 0 1px;
+  }
+  .insp-star.active { color: #c9a227; filter: drop-shadow(0 0 4px rgba(201,162,39,0.6)); }
+  .insp-star:hover { color: #c9a227; transform: scale(1.2); }
+
   /* ── Initiative Tracker ── */
   .initiative-panel {
     position: fixed;
@@ -4797,6 +4809,7 @@ function renderGrid() {
             <button class="card-cond-btn ${hasConditions(c.name)?'has-conds':''}" onclick="openCondPopup(${JSON.stringify(c.name)},event)">⚡ ${hasConditions(c.name)?'Conds':'Condition'}</button>
             <button class="card-enc-btn ${isInActiveEncounter(c.name)?'in-enc':''}" onclick="addCharToActiveEncounter(${JSON.stringify(c.name)},${maxHp})">☩ ${isInActiveEncounter(c.name)?'In Enc':'Encounter'}</button>
             <button class="card-notes-btn ${hasNotes(c.name)?'has-notes':''}" onclick="openNotes(${JSON.stringify(c.name)},${JSON.stringify(c.title)})">${hasNotes(c.name)?'✎':'✎'}</button>
+            <span class="insp-star${hasInspiration(c.name)?' active':''}" onclick="event.stopPropagation();toggleInspiration(${JSON.stringify(c.name)})" title="${hasInspiration(c.name)?'Has Inspiration — click to remove':'Click to grant Inspiration'}" id="insp_${sid}">★</span>
           </div>
           <div class="hp-tracker" data-sid="${sid}" onclick="event.stopPropagation()">
             <div class="hp-row" onclick="openHpPopup(${JSON.stringify(c.name)},${maxHp},event)" title="Click to adjust HP">
@@ -4809,12 +4822,12 @@ function renderGrid() {
               <span class="hp-st ${hpStClass}">${hpStText}</span>
               <span class="temp-hp-badge" style="font-size:10px;color:#dd8822;${getTempHP(c.name)>0?'':'display:none'}">${getTempHP(c.name)>0?`⬡ +${getTempHP(c.name)}`:''}</span>
             </div>
-            ${currHp === 0 ? `<div class="death-saves-row" id="dsrow_${sid}">
-              <span style="font-size:9px;color:#44aa44;letter-spacing:0.5px">✓ Saves: </span>
-              ${[0,1,2].map(i => `<span class="ds-pip success${getDeathSaves(c.name).successes>i?' filled':''}" onclick="toggleDeathSave(${JSON.stringify(c.name)},'success',${i})"></span>`).join('')}
-              <span style="font-size:9px;color:#cc3333;letter-spacing:0.5px;margin-left:6px">✗ Fails: </span>
-              ${[0,1,2].map(i => `<span class="ds-pip failure${getDeathSaves(c.name).failures>i?' filled':''}" onclick="toggleDeathSave(${JSON.stringify(c.name)},'failure',${i})"></span>`).join('')}
-            </div>` : ''}
+            ${currHp === 0 ? (()=>{ const _ds = (typeof getDeathSaves==='function') ? getDeathSaves(c.name) : {successes:[false,false,false],failures:[false,false,false]}; return `<div class="death-saves-row" id="dsrow_${sid}" onclick="event.stopPropagation()">
+              <span style="font-size:9px;color:#44aa44;letter-spacing:0.5px">✓ </span>
+              ${[0,1,2].map(i => `<span class="ds-pip success${_ds.successes[i]?' filled':''}" onclick="toggleDeathSave(${JSON.stringify(c.name)},'success',${i},event)"></span>`).join('')}
+              <span style="font-size:9px;color:#cc3333;letter-spacing:0.5px;margin-left:6px">✗ </span>
+              ${[0,1,2].map(i => `<span class="ds-pip failure${_ds.failures[i]?' filled':''}" onclick="toggleDeathSave(${JSON.stringify(c.name)},'failure',${i},event)"></span>`).join('')}
+            </div>`; })() : ''}
           </div>
         </div>
       </div>
@@ -9208,6 +9221,40 @@ function renderTheaterGrid() {
 }
 // ────────────────────────────────────────────────────────
 
+// ── INSPIRATION TRACKER ──────────────────────────────────
+const INSP_KEY = 'tiamat_inspiration';
+
+function loadInspiration() {
+  try { return JSON.parse(localStorage.getItem(INSP_KEY)) || {}; } catch { return {}; }
+}
+function saveInspiration(data) { localStorage.setItem(INSP_KEY, JSON.stringify(data)); }
+
+function hasInspiration(name) {
+  return !!loadInspiration()[name];
+}
+
+function toggleInspiration(name) {
+  const data = loadInspiration();
+  if (data[name]) {
+    delete data[name];
+    logEntry('roll', `⭐ <strong>${name}</strong> spent Inspiration`);
+  } else {
+    data[name] = true;
+    logEntry('heal', `⭐ <strong>${name}</strong> gained Inspiration`);
+  }
+  saveInspiration(data);
+  // Update card star
+  const sid = typeof safeId === 'function' ? safeId(name) : name;
+  const star = document.getElementById('insp_' + sid);
+  if (star) {
+    star.classList.toggle('active', !!data[name]);
+    star.title = data[name] ? 'Has Inspiration — click to remove' : 'Click to grant Inspiration';
+  }
+  // Update header stats if needed
+  if (typeof updateHeaderStats === 'function') updateHeaderStats();
+}
+// ────────────────────────────────────────────────────────
+
 // ── DEATH SAVE TRACKER ───────────────────────────────────
 const DS_KEY = 'tiamat_death_saves';
 
@@ -9233,11 +9280,21 @@ function clearDeathSavesFor(name) {
   saveDeathSaves(ds);
 }
 
-function toggleDeathSave(type, idx) {
-  if (!popupCharName) return;
-  const data = getDeathSaves(popupCharName);
+function toggleDeathSave(nameOrType, typeOrIdx, idxOrEvent, evtArg) {
+  // Supports both: toggleDeathSave(name,type,idx,event) from card AND toggleDeathSave(type,idx) from popup
+  let name, type, idx;
+  if (typeof idxOrEvent === 'number') {
+    name = nameOrType; type = typeOrIdx; idx = idxOrEvent;
+    if (evtArg) evtArg.stopPropagation();
+  } else {
+    if (!popupCharName) return;
+    name = popupCharName; type = nameOrType; idx = typeOrIdx;
+  }
+  const data = getDeathSaves(name);
   data[type + 's'][idx] = !data[type + 's'][idx];
-  setDeathSaves(popupCharName, data);
+  setDeathSaves(name, data);
+  // Update popupCharName to enable renderDeathSavePips
+  const _prev = popupCharName; popupCharName = name;
   const successCount = data.successes.filter(Boolean).length;
   const failCount = data.failures.filter(Boolean).length;
   if (successCount >= 3) {
@@ -9247,7 +9304,19 @@ function toggleDeathSave(type, idx) {
     // Apply dead condition
     if (typeof addCondition === 'function') addCondition(popupCharName, 'Unconscious');
   }
-  renderDeathSavePips(popupCharName, data);
+  renderDeathSavePips(name, data);
+  popupCharName = _prev; // restore
+  // Also refresh the card mini-pips
+  const sid = typeof safeId === 'function' ? safeId(name) : name.replace(/\s+/g,'_');
+  const row = document.getElementById('dsrow_' + sid);
+  if (row) {
+    ['success','failure'].forEach(t => {
+      row.querySelectorAll(`.ds-pip.${t}`).forEach((pip, i) => {
+        pip.classList.toggle('filled', !!data[t+'s'][i]);
+      });
+    });
+  }
+  if (typeof renderHealthPanel === 'function' && typeof healthPanelOpen !== 'undefined' && healthPanelOpen) renderHealthPanel();
 }
 
 function critFailDeathSave() {
