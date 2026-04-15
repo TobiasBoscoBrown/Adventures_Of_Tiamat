@@ -6199,7 +6199,139 @@ function buildSpellBook(c) {
         </label>
       </div>
       <div id="spellBookContent_${safeId(c.name)}">${sections}</div>
+      ${buildHomebrewSpells(c, spellDC, spellAtk)}
     </div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 73: Homebrew Spell Manager — add custom spells
+//   per character with level, school, cast time, range,
+//   description, and concentration tracking.
+// ══════════════════════════════════════════════════════════
+const HOMEBREW_SPELLS_KEY = 'tiamat_homebrew_spells';
+function loadHomebrewSpells() {
+  try { return JSON.parse(localStorage.getItem(HOMEBREW_SPELLS_KEY)) || {}; } catch { return {}; }
+}
+function saveHomebrewSpells(d) { localStorage.setItem(HOMEBREW_SPELLS_KEY, JSON.stringify(d)); }
+function getCharHomebrewSpells(charName) { return loadHomebrewSpells()[charName] || []; }
+
+function buildHomebrewSpells(c, spellDC, spellAtk) {
+  const spells = getCharHomebrewSpells(c.name);
+  const nameJ = JSON.stringify(c.name);
+  const SCHOOLS = ['Abjuration','Conjuration','Divination','Enchantment','Evocation','Illusion','Necromancy','Transmutation','Universal'];
+  const rows = spells.map((s, i) => {
+    const isConc = /concentration/i.test(s.desc || '');
+    const castColor = (s.cast||'').includes('Reaction') ? '#aa66ff' : (s.cast||'').includes('Bonus') ? '#88aa22' : '#9098b8';
+    return `<div class="spell-entry" onclick="rollSpellAttack(${JSON.stringify(s.name)},${JSON.stringify(s.school||'Custom')},${JSON.stringify(spellAtk)},${spellDC})" style="border-color:rgba(155,109,255,0.2)">
+      <div class="spell-header">
+        <span class="spell-name">${s.name}</span>
+        <span class="spell-school" style="color:#9b6dff;background:rgba(155,109,255,0.1)">${s.school||'Custom'}</span>
+        <span style="font-size:9px;color:#4a5272;margin-left:auto">${s.level===0?'Cantrip':'Level '+s.level}</span>
+        ${isConc ? `<span style="font-size:9px;color:#c9a227;padding:1px 5px;border:1px solid rgba(201,162,39,.4);border-radius:8px;cursor:pointer" onclick="event.stopPropagation();setConc(${nameJ},${JSON.stringify(s.name)},event)">🔮</span>` : ''}
+        <button onclick="event.stopPropagation();removeHomebrewSpell(${nameJ},${i})" style="background:none;border:none;color:#cc3333;cursor:pointer;font-size:11px;padding:0 2px" title="Remove spell">✕</button>
+      </div>
+      <div class="spell-meta">
+        <span style="color:${castColor}">${s.cast||'1 Action'}</span>
+        <span style="color:#4a5272">·</span>
+        <span>${s.range||'Self'}</span>
+        <span style="color:#4a5272">·</span>
+        <span style="color:#9098b8">${s.duration||'Instantaneous'}</span>
+      </div>
+      <div class="spell-desc">${s.desc||''}</div>
+    </div>`;
+  }).join('');
+
+  return `<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(155,109,255,0.2)">
+    <div style="font-size:10px;color:#9b6dff;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">✦ Homebrew / Custom Spells</div>
+    <div id="homebrewSpells_${safeId(c.name)}">${rows || '<div style="font-size:11px;color:#2a2a50;font-style:italic">No custom spells added yet</div>'}</div>
+    <button class="feat-add-btn" style="border-color:rgba(155,109,255,0.3);color:#9b6dff" onclick="openAddHomebrewSpell(${nameJ})">✦ Add Custom Spell</button>
+  </div>`;
+}
+
+function openAddHomebrewSpell(charName) {
+  const existing = document.getElementById('homebrewSpellOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'homebrewSpellOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.75);z-index:9600;display:flex;align-items:center;justify-content:center';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  const SCHOOLS = ['Abjuration','Conjuration','Divination','Enchantment','Evocation','Illusion','Necromancy','Transmutation','Universal'];
+  overlay.innerHTML = `
+    <div style="background:#0d0d1a;border:1px solid rgba(155,109,255,0.5);border-radius:14px;padding:24px;width:460px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.8)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-size:15px;font-weight:700;color:#9b6dff">✦ Add Custom Spell — ${charName}</div>
+        <button onclick="document.getElementById('homebrewSpellOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div>
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Spell Name *</div>
+          <input id="hbSpellName" placeholder="Mage Hand" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;box-sizing:border-box;font-family:inherit;outline:none">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">School</div>
+          <select id="hbSpellSchool" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;cursor:pointer">
+            ${SCHOOLS.map(s => `<option value="${s}">${s}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Level (0=cantrip)</div>
+          <input id="hbSpellLevel" type="number" min="0" max="9" value="1" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;box-sizing:border-box;font-family:inherit;outline:none">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Casting Time</div>
+          <input id="hbSpellCast" placeholder="1 Action" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;box-sizing:border-box;font-family:inherit;outline:none">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Range</div>
+          <input id="hbSpellRange" placeholder="60 ft" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;box-sizing:border-box;font-family:inherit;outline:none">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Duration</div>
+          <input id="hbSpellDuration" placeholder="Instantaneous" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;box-sizing:border-box;font-family:inherit;outline:none">
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="font-size:10px;color:#4a5272;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Description</div>
+        <textarea id="hbSpellDesc" rows="3" placeholder="Describe the spell effects, damage, saves required… Add 'concentration' to enable concentration tracking." style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;box-sizing:border-box;font-family:inherit;resize:vertical;outline:none"></textarea>
+      </div>
+      <button onclick="saveHomebrewSpell(${JSON.stringify(charName)})" style="width:100%;background:rgba(155,109,255,.15);border:1px solid #9b6dff;color:#9b6dff;border-radius:8px;padding:10px;cursor:pointer;font-size:13px;font-weight:600">✦ Add Spell to Spellbook</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.getElementById('hbSpellName').focus();
+}
+
+function saveHomebrewSpell(charName) {
+  const name = (document.getElementById('hbSpellName').value || '').trim();
+  if (!name) { showToast('Spell name required', '#cc3333'); return; }
+  const spell = {
+    name,
+    school: document.getElementById('hbSpellSchool').value || 'Universal',
+    level: parseInt(document.getElementById('hbSpellLevel').value) || 0,
+    cast: document.getElementById('hbSpellCast').value || '1 Action',
+    range: document.getElementById('hbSpellRange').value || 'Self',
+    duration: document.getElementById('hbSpellDuration').value || 'Instantaneous',
+    desc: document.getElementById('hbSpellDesc').value || '',
+  };
+  const d = loadHomebrewSpells();
+  if (!d[charName]) d[charName] = [];
+  d[charName].push(spell);
+  saveHomebrewSpells(d);
+  document.getElementById('homebrewSpellOverlay').remove();
+  showToast(`✦ ${name} added to ${charName}'s spellbook`, '#9b6dff');
+  logEntry('combat', `✦ <strong>${charName}</strong> learned <em>${name}</em>`);
+  // Re-render stats panel
+  const c = filteredChars[currentModalIdx];
+  if (c) document.getElementById('statsPanel').innerHTML = buildStatsPanel(c);
+}
+
+function removeHomebrewSpell(charName, idx) {
+  const d = loadHomebrewSpells();
+  if (!d[charName]) return;
+  const removed = d[charName].splice(idx, 1)[0];
+  saveHomebrewSpells(d);
+  if (removed) showToast(`Removed ${removed.name}`, '#cc3333');
+  const c = filteredChars[currentModalIdx];
+  if (c) document.getElementById('statsPanel').innerHTML = buildStatsPanel(c);
 }
 
 function rollSpellAttack(name, school, atkBonus, dc) {
