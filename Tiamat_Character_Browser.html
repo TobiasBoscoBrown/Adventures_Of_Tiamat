@@ -5638,6 +5638,7 @@ function buildStatsPanel(c) {
         ).join('')}
       </div>
     </div>
+    ${buildMulticlassSection(c)}
     ${buildAlignmentSection(c)}
     ${buildProficienciesSection(c)}
     ${buildTraitsSection(c)}
@@ -8030,6 +8031,88 @@ function clearLog() {
   sessionLog = [];
   saveSessionLog();
   renderLog();
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 85: Multiclass Tracker — store and display per-character
+//   class levels (e.g. Fighter 3 / Rogue 2). Shown in modal.
+// ══════════════════════════════════════════════════════════
+const MULTICLASS_KEY = 'tiamat_multiclass';
+const DND_CLASSES = ['Artificer','Barbarian','Bard','Cleric','Druid','Fighter','Monk','Paladin','Ranger','Rogue','Sorcerer','Warlock','Wizard','Blood Hunter'];
+
+function loadMulticlass() {
+  try { return JSON.parse(localStorage.getItem(MULTICLASS_KEY)) || {}; }
+  catch(e) { return {}; }
+}
+function saveMulticlass(d) { localStorage.setItem(MULTICLASS_KEY, JSON.stringify(d)); }
+
+function getCharClasses(charName) {
+  return loadMulticlass()[charName] || [];
+}
+
+function inferCharClass(c) {
+  const text = ((c.traits||[]).join(' ') + ' ' + (c.lore||'') + ' ' + (c.title||'') + ' ' + (c.subtitle||'')).toLowerCase();
+  for (const cls of DND_CLASSES) {
+    if (text.includes(cls.toLowerCase())) return [{ cls, level: 1 }];
+  }
+  // Infer from theme
+  const themeClass = { fire:'Sorcerer', shadow:'Rogue', arcane:'Wizard', warrior:'Fighter', nature:'Druid', royal:'Paladin', stone:'Barbarian', orc:'Barbarian', ocean:'Ranger', pink:'Bard' };
+  const cls = themeClass[c.theme] || 'Fighter';
+  return [{ cls, level: 1 }];
+}
+
+function buildMulticlassSection(c) {
+  const stored = getCharClasses(c.name);
+  const classes = stored.length ? stored : inferCharClass(c);
+  const totalLevel = classes.reduce((s, e) => s + (e.level || 1), 0);
+  const classStr = classes.map(e => `${e.cls} ${e.level}`).join(' / ');
+  const t = getTheme(c.theme);
+  const classRows = classes.map((e, i) => `
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+      <select onchange="updateCharClass(${JSON.stringify(c.name)},${i},'cls',this.value)" style="flex:1;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:5px;padding:3px 6px;font-size:11px;cursor:pointer">
+        ${DND_CLASSES.map(cls => `<option value="${cls}"${cls===e.cls?' selected':''}>${cls}</option>`).join('')}
+      </select>
+      <span style="font-size:11px;color:#4a5272">Lv</span>
+      <input type="number" value="${e.level||1}" min="1" max="20" onchange="updateCharClass(${JSON.stringify(c.name)},${i},'level',parseInt(this.value)||1)" style="width:40px;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:5px;padding:3px 6px;font-size:11px;text-align:center">
+      <button onclick="removeCharClass(${JSON.stringify(c.name)},${i})" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:11px;padding:0">✕</button>
+    </div>`).join('');
+  return `<div class="stats-section">
+    <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>⚔ Class Levels <span style="font-size:10px;color:#4a5272;font-weight:400">${classStr} (Total ${totalLevel})</span></span>
+      <button onclick="addCharClass(${JSON.stringify(c.name)})" style="background:none;border:1px solid #2a2a50;color:#4a5272;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:10px">+ Add</button>
+    </div>
+    <div style="margin-top:6px">${classRows}</div>
+    ${!stored.length ? `<div style="font-size:10px;color:#2a2a50;margin-top:4px">Inferred — click class/level to customize</div>` : ''}
+  </div>`;
+}
+
+function updateCharClass(charName, idx, field, value) {
+  const mc = loadMulticlass();
+  if (!mc[charName]) mc[charName] = inferCharClass(UNIQUE_CHARS.find(c=>c.name===charName) || {});
+  mc[charName][idx][field] = value;
+  saveMulticlass(mc);
+  if (currentModalIdx >= 0 && filteredChars[currentModalIdx]?.name === charName) {
+    document.getElementById('statsPanel').innerHTML = buildStatsPanel(filteredChars[currentModalIdx]);
+  }
+}
+
+function addCharClass(charName) {
+  const mc = loadMulticlass();
+  const c = UNIQUE_CHARS.find(ch=>ch.name===charName);
+  if (!mc[charName]) mc[charName] = inferCharClass(c || {});
+  mc[charName].push({ cls: 'Fighter', level: 1 });
+  saveMulticlass(mc);
+  if (currentModalIdx >= 0 && filteredChars[currentModalIdx]?.name === charName) {
+    document.getElementById('statsPanel').innerHTML = buildStatsPanel(filteredChars[currentModalIdx]);
+  }
+}
+
+function removeCharClass(charName, idx) {
+  const mc = loadMulticlass();
+  if (mc[charName]) { mc[charName].splice(idx, 1); saveMulticlass(mc); }
+  if (currentModalIdx >= 0 && filteredChars[currentModalIdx]?.name === charName) {
+    document.getElementById('statsPanel').innerHTML = buildStatsPanel(filteredChars[currentModalIdx]);
+  }
 }
 
 // ── ITERATION 84: Combat Log Export ──
