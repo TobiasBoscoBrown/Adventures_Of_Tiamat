@@ -3811,6 +3811,16 @@
     <button class="init-add-btn" onclick="addCustomToInitiative()">+ Add</button>
   </div>
   <div style="padding:4px 10px 6px;font-size:10px;color:#4a5272">Tip: set × to add multiple (e.g. 5× Goblin with separate HP tracking)</div>
+  <!-- Iteration 56: Round Log Panel (collapsible) -->
+  <div style="border-top:1px solid #1e2040">
+    <div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="padding:5px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:10px;color:#4a5272;letter-spacing:1px">📋 ROUND LOG</span>
+      <span style="font-size:10px;color:#4a5272">▾</span>
+    </div>
+    <div id="roundLogPanel" style="display:none;max-height:160px;overflow-y:auto;padding:6px 12px 8px;font-size:11px;color:#7a7aaa">
+      <div style="text-align:center;color:#4a5272;font-size:11px;padding:10px">Combat log will appear here</div>
+    </div>
+  </div>
 </div>
 
 <!-- Party Health Panel -->
@@ -9832,6 +9842,48 @@ function clearTagFilter(dropdown) {
   renderGrid();
 }
 // ────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// ITERATION 56: Initiative Round Log — per-round combat log
+//   with auto-entries when rounds change. DMs can annotate
+//   each round with custom notes.
+// ══════════════════════════════════════════════════════════
+let roundLog = []; // [{ round, entries: [{time, text}] }]
+function getRoundLog(round) {
+  let rl = roundLog.find(r => r.round === round);
+  if (!rl) { rl = { round, entries: [] }; roundLog.push(rl); }
+  return rl;
+}
+function addRoundLogEntry(round, text) {
+  const rl = getRoundLog(round);
+  rl.entries.push({ time: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}), text });
+  renderRoundLogPanel();
+}
+function renderRoundLogPanel() {
+  const el = document.getElementById('roundLogPanel');
+  if (!el) return;
+  if (!roundLog.length) { el.innerHTML = '<div style="text-align:center;color:#4a5272;font-size:11px;padding:10px">Combat log will appear here</div>'; return; }
+  const sorted = [...roundLog].sort((a,b) => b.round - a.round);
+  el.innerHTML = sorted.map(rl =>
+    `<div style="margin-bottom:8px">
+      <div style="font-size:10px;color:#dd6622;font-weight:700;margin-bottom:3px;font-family:'Cinzel',serif">— Round ${rl.round} —</div>
+      ${rl.entries.map(e => `<div style="font-size:10px;color:#7a7aaa;padding:1px 0"><span style="color:#4a5272">${e.time}</span> ${e.text}</div>`).join('')}
+    </div>`
+  ).join('');
+}
+// Patch nextTurn to add round log entries
+(function() {
+  const orig = window.nextTurn;
+  if (!orig) return;
+  window.nextTurn = function() {
+    const prevRound = currentRound;
+    const prevChar = initiativeList[currentTurnIdx];
+    orig();
+    if (prevChar) addRoundLogEntry(prevRound, `${prevChar.name}'s turn ended`);
+    const newChar = initiativeList[currentTurnIdx];
+    if (newChar) addRoundLogEntry(currentRound, `${newChar.name}'s turn`);
+  };
+})();
+
 // ══════════════════════════════════════════════════════════
 // ITERATION 55: Compact Stat Block Popup — right-click or
 //   long-press on any character card to show a formatted
