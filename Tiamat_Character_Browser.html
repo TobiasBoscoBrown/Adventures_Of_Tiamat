@@ -3659,7 +3659,7 @@
     <div class="stat-badge"><strong id="visibleCount">0</strong> Showing</div>
     <div class="stat-badge stat-live" id="statDown" onclick="filterToDown()" title="Click to show downed characters" style="display:none"><strong id="downCount">0</strong> ⚠ Down</div>
     <div class="stat-badge stat-live" id="statConds" onclick="filterToConditions()" title="Click to show characters with conditions" style="display:none"><strong id="condsCount">0</strong> ⚡ Conditions</div>
-    <div class="stat-badge stat-live" id="statCombat" onclick="openInitiativePanel()" title="Click to open initiative tracker" style="display:none"><strong id="combatCount">0</strong> ⚔ In Combat</div>
+    <div class="stat-badge stat-live" id="statCombat" onclick="openInitiativePanel()" title="Click to open initiative tracker" style="display:none"><strong id="combatCount">0</strong> ⚔ R<span id="combatRound">1</span><span id="combatActiveTag" style="color:#f0c060;font-weight:700"></span></div>
   </div>
 </header>
 
@@ -5755,6 +5755,22 @@ function updateHeaderStats() {
   document.getElementById('downCount').textContent = downCount;
   document.getElementById('condsCount').textContent = condsCount;
   document.getElementById('combatCount').textContent = combatCount;
+  // Show current round and active combatant name in header
+  if (combatCount > 0 && typeof currentRound !== 'undefined') {
+    const activeName = (typeof initiativeList !== 'undefined' && initiativeList.length > 0 && currentTurnIdx >= 0) ? initiativeList[currentTurnIdx]?.name : null;
+    const roundEl = document.getElementById('combatRound');
+    if (roundEl) roundEl.textContent = currentRound;
+    const activeSpan = document.getElementById('combatActiveTag');
+    if (activeSpan) {
+      activeSpan.textContent = activeName ? ` · ${activeName.length > 12 ? activeName.slice(0,11)+'…' : activeName}` : '';
+    }
+    elCombat.title = `Round ${currentRound} — ${activeName||'?'} is active. Click to open initiative tracker.`;
+  } else {
+    const roundEl = document.getElementById('combatRound');
+    if (roundEl) roundEl.textContent = '1';
+    const activeSpan = document.getElementById('combatActiveTag');
+    if (activeSpan) activeSpan.textContent = '';
+  }
 
   elDown.style.display = downCount > 0 ? '' : 'none';
   elDown.classList.toggle('stat-pulse', downCount > 0);
