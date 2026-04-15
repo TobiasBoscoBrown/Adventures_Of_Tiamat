@@ -1264,11 +1264,21 @@
     background: #1e2040;
     border-radius: 3px;
     overflow: hidden;
+    position: relative;
   }
   .hp-fill {
     height: 100%;
     border-radius: 3px;
     transition: width 0.4s ease, background 0.4s ease;
+  }
+  .temp-hp-fill {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    background: rgba(221,136,34,0.75);
+    border-radius: 0 3px 3px 0;
+    transition: width 0.4s, left 0.4s;
+    pointer-events: none;
   }
   .hp-lbl {
     font-size: 10px;
@@ -4746,6 +4756,24 @@ function updateTempHpDisplay(name) {
     badge.textContent = tempHp > 0 ? `⬡ +${tempHp}` : '';
     badge.style.display = tempHp > 0 ? '' : 'none';
   }
+  // Update visual bar overlay
+  const barBg = document.querySelector(`[data-sid="${sid}"] .hp-bar-bg`);
+  if (barBg) {
+    let fill = barBg.querySelector('.temp-hp-fill');
+    const char = UNIQUE_CHARS.find(c => c.name === name);
+    const maxHp = parseInt(char?.hp || '1');
+    const currHp = getCharHP(name, maxHp);
+    const hpPct = maxHp > 0 ? currHp / maxHp : 0;
+    if (tempHp > 0) {
+      const tPct = Math.min(100 - Math.round(hpPct * 100), Math.round(tempHp / maxHp * 100));
+      if (!fill) { fill = document.createElement('div'); fill.className = 'temp-hp-fill'; barBg.appendChild(fill); }
+      fill.style.left = Math.round(hpPct * 100) + '%';
+      fill.style.width = tPct + '%';
+      fill.style.display = '';
+    } else if (fill) {
+      fill.style.display = 'none';
+    }
+  }
 }
 
 function toggleDeathSave(name, type, idx) {
@@ -5050,6 +5078,7 @@ function renderGrid() {
             <div class="hp-row" onclick="openHpPopup(${JSON.stringify(c.name)},${maxHp},event)" title="Click to adjust HP">
               <div class="hp-bar-bg">
                 <div class="hp-fill" style="width:${Math.round(hpPct*100)}%;background:${hpFill}"></div>
+                ${(()=>{ const tmp=getTempHP(c.name); const tPct=tmp>0?Math.min(100-Math.round(hpPct*100), Math.round(tmp/maxHp*100)):0; return tmp>0?`<div class="temp-hp-fill" style="left:${Math.round(hpPct*100)}%;width:${tPct}%"></div>`:''; })()}
               </div>
               <span class="hp-lbl">${currHp}/${maxHp}</span>
             </div>
