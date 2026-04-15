@@ -8066,7 +8066,75 @@ function buildCombatBar(c) {
     </div>`;
   }
 
-  return mainBar + passiveRow + spellRow;
+  // Weapon Attacks row — parse from traits text
+  const weaponAttackRow = (() => {
+    const strMod = ab['STR'] ? ab['STR'].mod : 0;
+    const dexMd = ab['DEX'] ? ab['DEX'].mod : 0;
+    const crNum = parseFloat(c.cr) || 1;
+    const wepDie = crNum >= 21 ? 12 : crNum >= 13 ? 10 : crNum >= 7 ? 8 : crNum >= 3 ? 6 : 4;
+    // Try to parse weapon attacks from traits like "Longsword: +5 to hit, 1d8+3 slashing"
+    const traitsText = Array.isArray(c.traits) ? c.traits.join('\n') : (c.traits || '');
+    const weaponPattern = /([A-Z][a-zA-Z\s]+):\s*\+?(\d+)\s*to\s*hit[^.]*?(\d+d\d+[+-]?\d*)\s*(slashing|piercing|bludgeoning|fire|cold|lightning|poison|necrotic|radiant|psychic|thunder|force)/gi;
+    const parsedWeapons = [];
+    let wm;
+    while ((wm = weaponPattern.exec(traitsText)) !== null && parsedWeapons.length < 4) {
+      parsedWeapons.push({ name: wm[1].trim(), atkBonus: parseInt(wm[2]), dmgExpr: wm[3], dmgType: wm[4] });
+    }
+    // If no parsed weapons, infer generic attacks
+    const weapons = parsedWeapons.length > 0 ? parsedWeapons : (() => {
+      const melBonus = prof + Math.max(strMod, dexMd);
+      const rngBonus = prof + dexMd;
+      const dmgMod = Math.max(strMod, dexMd);
+      const dmgStr = dmgMod !== 0 ? (dmgMod > 0 ? `+${dmgMod}` : `${dmgMod}`) : '';
+      const atks = [{ name: 'Melee', atkBonus: melBonus, dmgExpr: `1d${wepDie}${dmgStr}`, dmgType: 'bludgeoning' }];
+      if (dexMd > 0) atks.push({ name: 'Ranged', atkBonus: rngBonus, dmgExpr: `1d${Math.max(4,wepDie-2)}${dexMd>0?'+'+dexMd:dexMd<0?dexMd:''}`, dmgType: 'piercing' });
+      return atks;
+    })();
+    const dmgIcons = { slashing:'⚔', piercing:'🗡', bludgeoning:'🪨', fire:'🔥', cold:'❄', lightning:'⚡', poison:'☠', necrotic:'💀', radiant:'✨', psychic:'🔮', thunder:'💥', force:'🌀' };
+    const weaponChips = weapons.map(w => {
+      const atkStr = w.atkBonus >= 0 ? `+${w.atkBonus}` : `${w.atkBonus}`;
+      const icon = dmgIcons[w.dmgType.toLowerCase()] || '⚔';
+      return `<div onclick="rollWeaponAttack(${JSON.stringify(c.name)},${JSON.stringify(w.name)},${w.atkBonus},${JSON.stringify(w.dmgExpr)},${JSON.stringify(w.dmgType)},event)" style="display:flex;align-items:center;gap:5px;padding:3px 10px;background:#0a0a1e;border:1px solid rgba(255,255,255,.08);border-radius:8px;cursor:pointer" title="${w.name}: ${atkStr} to hit, ${w.dmgExpr} ${w.dmgType} — click to roll">
+        <span style="font-size:10px;color:#4a5272">${icon} ${escHtml(w.name.length>12?w.name.slice(0,11)+'…':w.name)}</span>
+        <span style="font-size:12px;font-weight:700;color:#9098b8">${atkStr}</span>
+        <span style="font-size:9px;color:#4a5272">| ${w.dmgExpr}</span>
+      </div>`;
+    }).join('');
+    return `<div style="display:flex;gap:6px;padding:4px 12px 6px;background:#06061a;border-top:1px solid #0a0a20;flex-wrap:wrap">
+      <span style="font-size:9px;color:#3a4050;letter-spacing:1px;align-self:center">⚔ ATTACKS</span>
+      ${weaponChips}
+    </div>`;
+  })();
+
+  return mainBar + passiveRow + spellRow + weaponAttackRow;
+}
+
+function rollWeaponAttack(charName, weaponName, atkBonus, dmgExpr, dmgType, event) {
+  if (event) event.stopPropagation();
+  const char = UNIQUE_CHARS.find(c => c.name === charName);
+  const bStr = atkBonus >= 0 ? `+${atkBonus}` : `${atkBonus}`;
+  // Roll attack
+  const atkRoll = Math.floor(Math.random() * 20) + 1;
+  const atkTotal = atkRoll + atkBonus;
+  const isCrit = atkRoll === 20, isFumble = atkRoll === 1;
+  // Roll damage
+  const match = dmgExpr.match(/^(\d+)d(\d+)([+-]\d+)?$/);
+  let dmgResult = '';
+  if (match && !isFumble) {
+    const dCount = isCrit ? parseInt(match[1]) * 2 : parseInt(match[1]);
+    const dSides = parseInt(match[2]);
+    const dMod = parseInt(match[3] || '0');
+    const rolls = Array.from({length:dCount}, () => Math.floor(Math.random() * dSides) + 1);
+    const dmgTotal = rolls.reduce((a,b)=>a+b, 0) + dMod;
+    const modStr = dMod !== 0 ? (dMod > 0 ? `+${dMod}` : `${dMod}`) : '';
+    dmgResult = ` → <strong style="color:#cc5555">${dmgTotal} ${dmgType}</strong>[${rolls.join('+')}]${modStr}${isCrit?' 💥':''}`;
+  } else if (isFumble) {
+    dmgResult = ` → <span style="color:#cc3333">☠ Miss</span>`;
+  }
+  const dc = typeof getActiveDC === 'function' ? getActiveDC() : null;
+  const dcStr = dc ? ` vs AC${dc}: <strong style="color:${atkTotal>=dc?'#44aa44':'#cc3333'}">${atkTotal>=dc?'✓ HIT':'✗ MISS'}</strong>` : '';
+  logEntry('roll', `<strong>${escHtml(charName)}</strong> ${escHtml(weaponName)}: d20(${atkRoll})${bStr}=<strong>${atkTotal}</strong>${isCrit?' ★':isFumble?' ☠':''}${dcStr}${dmgResult}`);
+  playSound?.(isCrit ? 'crit' : isFumble ? 'damage' : 'roll');
 }
 
 function rollSpellAttack(charName, bonus) {
