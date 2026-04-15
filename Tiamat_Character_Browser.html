@@ -8031,42 +8031,55 @@ function useSlot(charName, level, event) {
   used[level] = (used[level] || 0) + 1;
   slotState[charName] = used;
   saveSlots();
-  // Show quick spell cast picker
+  // Show quick spell cast picker — include spells at this level AND upcasts from lower levels
   const char = UNIQUE_CHARS.find(c => c.name === charName);
-  const knownAtLevel = char ? (inferSpells(char)||[]).filter(n => { const s=SPELL_LIBRARY[n]; return s&&s.level===level; }) : [];
-  if (knownAtLevel.length > 0) {
-    showSpellCastPicker(charName, level, knownAtLevel, event);
+  const knownSpells = char ? (inferSpells(char)||[]) : [];
+  const knownAtLevel = knownSpells.filter(n => { const s=SPELL_LIBRARY[n]; return s&&s.level===level; });
+  const knownUpcast = knownSpells.filter(n => { const s=SPELL_LIBRARY[n]; return s&&s.level>0&&s.level<level; });
+  if (knownAtLevel.length > 0 || knownUpcast.length > 0) {
+    showSpellCastPicker(charName, level, knownAtLevel, knownUpcast, event);
   } else {
     logEntry('roll', `<strong>${escHtml(charName)}</strong> cast a level ${level} spell`);
   }
   refreshSpellSlots(charName);
   if (typeof renderInitiative === 'function') renderInitiative();
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
 }
 
-function showSpellCastPicker(charName, level, spells, sourceEvent) {
+function showSpellCastPicker(charName, level, spells, upcastSpells, sourceEvent) {
   document.querySelectorAll('.spell-cast-picker').forEach(e => e.remove());
   const ordinals = ['','1st','2nd','3rd','4th','5th','6th','7th','8th','9th'];
   const picker = document.createElement('div');
   picker.className = 'spell-cast-picker';
-  picker.style.cssText = 'position:fixed;z-index:950;background:#0a0a1a;border:1px solid #2a2a50;border-radius:10px;padding:10px 12px;width:220px;box-shadow:0 8px 30px rgba(0,0,0,0.9);max-height:300px;overflow-y:auto';
+  picker.style.cssText = 'position:fixed;z-index:950;background:#0a0a1a;border:1px solid #2a2a50;border-radius:10px;padding:10px 12px;width:240px;box-shadow:0 8px 30px rgba(0,0,0,0.9);max-height:360px;overflow-y:auto';
   const el = document.getElementById('spellSlotsFor_' + safeId(charName));
-  if (el) { const r=el.getBoundingClientRect(); picker.style.left=Math.min(r.left,window.innerWidth-240)+'px'; picker.style.top=(r.bottom+4)+'px'; }
+  if (el) { const r=el.getBoundingClientRect(); picker.style.left=Math.min(r.left,window.innerWidth-260)+'px'; picker.style.top=(r.bottom+4)+'px'; }
   else { picker.style.left='50%'; picker.style.top='40%'; picker.style.transform='translate(-50%,-50%)'; }
-  picker.innerHTML = `<div style="font-size:11px;color:#9b6dff;font-weight:700;margin-bottom:8px">🔮 ${escHtml(charName)} — ${ordinals[level]||'Lv'+level} Slot Used</div>
-  ${spells.map(n=>{ const s=SPELL_LIBRARY[n]; const ic=s&&/concentration/i.test(s.desc||'');
-    return `<button onclick="logSpellCast(${JSON.stringify(charName)},${JSON.stringify(n)},${JSON.stringify(level)},${ic});this.closest('.spell-cast-picker').remove()" style="width:100%;text-align:left;background:rgba(155,109,255,0.06);border:1px solid #2a2a50;color:#c8d8ff;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;margin-bottom:3px">${escHtml(n)}${ic?' 🔮':''}</button>`;
-  }).join('')}
-  <button onclick="logSpellCast(${JSON.stringify(charName)},null,${JSON.stringify(level)},false);this.closest('.spell-cast-picker').remove()" style="width:100%;text-align:left;background:transparent;border:1px dashed #2a2a50;color:#4a5272;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:10px;margin-top:2px">— Other spell / dismiss</button>`;
+  const spellBtn = (n, castLevel, isUpcast) => {
+    const s = SPELL_LIBRARY[n];
+    const ic = s && /concentration/i.test(s.desc||'');
+    const lvlTag = isUpcast ? `<span style="font-size:8px;background:rgba(255,150,50,.15);color:#ff9632;border:1px solid rgba(255,150,50,.3);border-radius:3px;padding:0 3px;margin-left:3px">⬆ UPCAST lv${s.level}→${castLevel}</span>` : '';
+    const title = s ? escHtml(`${s.desc||''}${isUpcast?' | Originally level '+s.level:''}`) : '';
+    return `<button onclick="logSpellCast(${JSON.stringify(charName)},${JSON.stringify(n)},${JSON.stringify(castLevel)},${ic},${isUpcast});this.closest('.spell-cast-picker').remove()" style="width:100%;text-align:left;background:rgba(${isUpcast?'255,150,50':'155,109,255'},0.05);border:1px solid #2a2a50;color:#c8d8ff;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;margin-bottom:3px" title="${title}">${escHtml(n)}${ic?' 🔮':''}${lvlTag}</button>`;
+  };
+  const upcastList = (upcastSpells||[]).sort((a,b) => (SPELL_LIBRARY[b]?.level||0) - (SPELL_LIBRARY[a]?.level||0));
+  const upcastSection = upcastList.length ? `<div style="font-size:9px;color:#4a5272;letter-spacing:1px;margin:6px 0 3px">UPCAST OPTIONS</div>${upcastList.map(n=>spellBtn(n,level,true)).join('')}` : '';
+  picker.innerHTML = `<div style="font-size:11px;color:#9b6dff;font-weight:700;margin-bottom:8px">🔮 ${escHtml(charName)} — ${ordinals[level]||'Lv'+level} Slot</div>
+  ${spells.map(n=>spellBtn(n,level,false)).join('')}
+  ${upcastSection}
+  <button onclick="logSpellCast(${JSON.stringify(charName)},null,${JSON.stringify(level)},false,false);this.closest('.spell-cast-picker').remove()" style="width:100%;text-align:left;background:transparent;border:1px dashed #2a2a50;color:#4a5272;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:10px;margin-top:4px">— Other spell / dismiss</button>`;
   document.body.appendChild(picker);
   const close = ev => { if (!picker.contains(ev.target)) { picker.remove(); document.removeEventListener('mousedown', close); } };
   setTimeout(() => document.addEventListener('mousedown', close), 80);
 }
 
-function logSpellCast(charName, spellName, level, isConc) {
+function logSpellCast(charName, spellName, level, isConc, isUpcast) {
   const ordinals = ['','1st','2nd','3rd','4th','5th','6th','7th','8th','9th'];
   const lvlStr = ordinals[level]||`level ${level}`;
+  const baseLevel = spellName ? (SPELL_LIBRARY[spellName]?.level||level) : level;
+  const upcastNote = isUpcast && baseLevel < level ? ` <span style="color:#ff9632;font-size:10px">⬆ upcast from ${ordinals[baseLevel]||baseLevel}</span>` : '';
   if (spellName) {
-    logEntry('roll', `<strong>${escHtml(charName)}</strong> cast <strong>${escHtml(spellName)}</strong> (${lvlStr})${isConc?' 🔮 <em>Concentration</em>':''}`);
+    logEntry('roll', `<strong>${escHtml(charName)}</strong> cast <strong>${escHtml(spellName)}</strong> (${lvlStr})${upcastNote}${isConc?' 🔮 <em>Concentration</em>':''}`);
     if (isConc && typeof setConc === 'function') setConc(charName, spellName, null);
   } else {
     logEntry('roll', `<strong>${escHtml(charName)}</strong> cast a ${lvlStr} spell`);
