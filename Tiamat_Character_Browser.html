@@ -1807,6 +1807,17 @@
   .hd-pip:hover:not(.spent) { box-shadow: 0 0 8px rgba(68,136,255,0.5); }
   .hd-pip:hover.spent { border-color: #4488ff; }
   .hd-section { background:#0e0e24; border:1px solid rgba(68,136,255,0.25); border-radius:10px; padding:12px 14px; margin:8px 0; }
+  /* Iteration 36: Proficiency & Languages */
+  .prof-chip {
+    display:inline-block; font-size:11px; padding:3px 9px; border-radius:12px;
+    border:1px solid #1e2040; background:#0a0a1e; color:#9098b8; margin:2px;
+    transition:all .15s;
+  }
+  .prof-chip.armor  { border-color:rgba(201,162,39,0.3); color:#c9a227; }
+  .prof-chip.weapon { border-color:rgba(204,51,51,0.3);  color:#cc4444; }
+  .prof-chip.tool   { border-color:rgba(68,200,120,0.3); color:#44cc88; }
+  .prof-chip.lang   { border-color:rgba(68,136,255,0.3); color:#4488ff; }
+  .prof-chip.save   { border-color:rgba(136,68,255,0.3); color:#8844ff; }
   /* Concentration modal button */
   .conc-set-btn {
     background: rgba(201,162,39,0.1);
@@ -4967,6 +4978,7 @@ function buildStatsPanel(c) {
         ).join('')}
       </div>
     </div>
+    ${buildProficienciesSection(c)}
     ${buildTraitsSection(c)}
     ${isSpellcaster(c) ? `
     <div class="stats-section">
@@ -8745,6 +8757,92 @@ function clearTagFilter(dropdown) {
   renderGrid();
 }
 // ────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// ITERATION 36: Proficiency & Languages Panel — auto-infer
+//   armor/weapon/tool/language proficiencies from theme,
+//   traits, and lore. Displays as colored chips in modal.
+// ══════════════════════════════════════════════════════════
+function inferProficiencies(c) {
+  const trait = (c.traits || []).join(' ').toLowerCase();
+  const lore  = (c.lore || '').toLowerCase();
+  const theme = c.theme || '';
+  const all = trait + ' ' + lore;
+
+  const armor = [];
+  const weapons = [];
+  const tools = [];
+  const languages = [];
+  const saves = [];
+
+  // Armor proficiency inference
+  if (theme === 'warrior' || all.includes('heavy armor') || all.includes('plate') || all.includes('full armor')) armor.push('Heavy Armor');
+  else if (theme === 'royal' || all.includes('chain mail') || all.includes('medium armor')) armor.push('Medium Armor');
+  if (all.includes('shield')) armor.push('Shields');
+  if (theme === 'arcane' && !armor.length) armor.push('No Armor (robes)');
+  if (theme === 'shadow' || theme === 'nature') armor.push('Light Armor');
+  if (!armor.length) armor.push('Light Armor', 'Medium Armor');
+
+  // Weapon proficiency
+  if (theme === 'warrior' || all.includes('martial weapon') || all.includes('greatsword') || all.includes('longsword')) weapons.push('Martial Weapons');
+  if (theme === 'arcane' || all.includes('staff') || all.includes('dagger')) weapons.push('Simple Weapons');
+  if (all.includes('bow') || all.includes('crossbow')) weapons.push('Ranged Weapons');
+  if (all.includes('rapier') || theme === 'shadow') weapons.push('Finesse Weapons');
+  if (!weapons.length) weapons.push('Simple Weapons');
+
+  // Tools
+  if (all.includes('thief') || all.includes('thieves') || theme === 'shadow') tools.push("Thieves' Tools");
+  if (all.includes('herbalism') || all.includes('alchemy') || theme === 'nature') tools.push('Herbalism Kit');
+  if (all.includes('smith') || all.includes('forge') || theme === 'stone') tools.push("Smith's Tools");
+  if (all.includes('navigator') || all.includes('sailing') || theme === 'ocean') tools.push("Navigator's Tools");
+  if (all.includes('disguise')) tools.push('Disguise Kit');
+  if (all.includes('music') || all.includes('instrument')) tools.push('Musical Instrument');
+
+  // Languages (inferred from group/theme/lore)
+  languages.push('Common');
+  if (theme === 'arcane' || all.includes('elven') || all.includes('elvish') || c.group?.toLowerCase().includes('elf')) languages.push('Elvish');
+  if (theme === 'stone' || all.includes('dwarvish') || all.includes('dwarven')) languages.push('Dwarvish');
+  if (theme === 'orc' || all.includes('orcish') || c.group?.toLowerCase().includes('orc')) languages.push('Orcish');
+  if (all.includes('draconic') || all.includes('dragon')) languages.push('Draconic');
+  if (all.includes('infernal') || all.includes('demon') || all.includes('devil')) languages.push('Infernal');
+  if (all.includes('celestial') || all.includes('angel') || all.includes('divine')) languages.push('Celestial');
+  if (all.includes('primordial') || all.includes('elemental')) languages.push('Primordial');
+  if (theme === 'shadow' || all.includes('undercommon') || all.includes('underdark')) languages.push('Undercommon');
+  if (all.includes('sylvan') || all.includes('fey') || all.includes('fairy')) languages.push('Sylvan');
+
+  // Saving throw proficiencies from highlighted abilities
+  const highlightedAbs = (c.abilities || []).filter(([,,,hl]) => hl).map(([n]) => n);
+  saves.push(...highlightedAbs);
+
+  return { armor, weapons, tools, languages, saves };
+}
+function buildProficienciesSection(c) {
+  const { armor, weapons, tools, languages, saves } = inferProficiencies(c);
+  const chips = (arr, cls) => arr.map(x => `<span class="prof-chip ${cls}">${x}</span>`).join('');
+  return `<div class="stats-section">
+    <div class="stats-section-title">Proficiencies & Languages</div>
+    <div style="margin-bottom:6px">
+      <div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:4px">🛡 ARMOR</div>
+      ${chips(armor, 'armor')}
+    </div>
+    <div style="margin-bottom:6px">
+      <div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:4px">⚔ WEAPONS</div>
+      ${chips(weapons, 'weapon')}
+    </div>
+    ${tools.length ? `<div style="margin-bottom:6px">
+      <div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:4px">🔧 TOOLS</div>
+      ${chips(tools, 'tool')}
+    </div>` : ''}
+    <div style="margin-bottom:6px">
+      <div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:4px">💬 LANGUAGES</div>
+      ${chips(languages, 'lang')}
+    </div>
+    ${saves.length ? `<div>
+      <div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:4px">🎯 SAVING THROW PROF</div>
+      ${chips(saves, 'save')}
+    </div>` : ''}
+  </div>`;
+}
+
 // ══════════════════════════════════════════════════════════
 // ITERATION 35: Hit Dice Tracker — Track remaining hit dice
 //   for each character. Spend on short rest for healing.
