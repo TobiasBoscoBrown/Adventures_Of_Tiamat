@@ -9249,6 +9249,25 @@ function removeFromInitiative(name) {
   updateHeaderStats();
 }
 
+// ── ADVANTAGE/DISADVANTAGE STATE ─────────────────────────
+let advState = {}; // charName -> 'adv' | 'dis' | null
+
+function setAdvState(charName, val) {
+  advState[charName] = advState[charName] === val ? null : val; // toggle off if same
+  renderActiveTurnBar();
+}
+
+function rollWithAdv(charName, bonus) {
+  const adv = advState[charName] || null;
+  function d20() { return Math.floor(Math.random()*20)+1; }
+  let die, detail;
+  if (adv === 'adv') { const r1=d20(),r2=d20(); die=Math.max(r1,r2); detail=`(${r1},${r2})↑`; }
+  else if (adv === 'dis') { const r1=d20(),r2=d20(); die=Math.min(r1,r2); detail=`(${r1},${r2})↓`; }
+  else { die=d20(); detail=null; }
+  return { die, detail };
+}
+// ─────────────────────────────────────────────────────────
+
 // ── MOVEMENT TRACKER ─────────────────────────────────────
 let moveState = {}; // charName -> remaining movement ft
 
@@ -10848,6 +10867,7 @@ function renderActiveTurnBar() {
   const moveCol = movePct > 0.5 ? '#44ccaa' : movePct > 0 ? '#c9a227' : '#cc3333';
   const moveBtn = (ft) => `<button onclick="useMove(${JSON.stringify(char.name)},${ft},event)" style="background:none;border:1px solid rgba(68,204,170,.3);color:#44ccaa;border-radius:4px;padding:1px 4px;cursor:pointer;font-size:9px;line-height:1">-${ft}</button>`;
 
+  const curAdv = advState[char.name] || null;
   let html = `<div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
     <span style="font-size:11px;color:#f0c060;font-weight:700;font-family:'Cinzel',serif;margin-right:4px">${escHtml(char.name.length>20?char.name.slice(0,19)+'…':char.name)}</span>
     ${chip('AC', ac, '#88aaff')}
@@ -10855,6 +10875,8 @@ function renderActiveTurnBar() {
     ${chip('PP', pp, '#aa88ff')}
     ${conc ? chip('⊙', escHtml(conc.length>10?conc.slice(0,9)+'…':conc), '#c9a227') : ''}
     ${conds.slice(0,3).map(c=>chip('', escHtml(c.slice(0,2)+c.slice(2,12)), '#dd8822')).join('')}
+    <button onclick="setAdvState(${JSON.stringify(char.name)},'adv')" style="background:${curAdv==='adv'?'rgba(68,170,68,.3)':'rgba(68,170,68,.07)'};border:1px solid ${curAdv==='adv'?'#44aa44':'rgba(68,170,68,.3)'};color:${curAdv==='adv'?'#44ff44':'#44aa44'};border-radius:4px;padding:1px 6px;cursor:pointer;font-size:10px;font-weight:700" title="Toggle Advantage on all rolls">↑ Adv</button>
+    <button onclick="setAdvState(${JSON.stringify(char.name)},'dis')" style="background:${curAdv==='dis'?'rgba(204,51,51,.3)':'rgba(204,51,51,.07)'};border:1px solid ${curAdv==='dis'?'#cc3333':'rgba(204,51,51,.3)'};color:${curAdv==='dis'?'#ff4444':'#cc3333'};border-radius:4px;padding:1px 6px;cursor:pointer;font-size:10px;font-weight:700" title="Toggle Disadvantage on all rolls">↓ Dis</button>
   </div>
   <div style="display:flex;gap:4px;align-items:center;margin-top:4px">
     <span style="font-size:9px;color:#4a5272;letter-spacing:.5px">MOVE</span>
@@ -10907,21 +10929,25 @@ function renderActiveTurnBar() {
 
 function rollInitAttack(charName, type, bonus, event) {
   if (event) event.stopPropagation();
-  const roll = Math.floor(Math.random() * 20) + 1;
-  const total = roll + bonus;
-  const isCrit = roll === 20, isFumble = roll === 1;
+  const { die, detail } = rollWithAdv(charName, bonus);
+  const total = die + bonus;
+  const isCrit = die === 20, isFumble = die === 1;
   const bStr = bonus >= 0 ? `+${bonus}` : `${bonus}`;
-  logEntry('roll', `<strong>${escHtml(charName)}</strong> ${type} Attack: d20(${roll})${bStr} = <strong>${total}</strong>${isCrit?' ★ CRIT!':isFumble?' ☠ MISS':''}`);
+  const advLabel = advState[charName] ? ` (${advState[charName]})` : '';
+  const dieStr = detail ? detail : `(${die})`;
+  logEntry('roll', `<strong>${escHtml(charName)}</strong> ${type} Attack${advLabel}: d20${dieStr}${bStr} = <strong>${total}</strong>${isCrit?' ★ CRIT!':isFumble?' ☠ MISS':''}`);
   playSound?.(isCrit ? 'crit' : 'roll');
 }
 
 function rollInitSave(charName, ab, bonus, event) {
   if (event) event.stopPropagation();
-  const roll = Math.floor(Math.random() * 20) + 1;
-  const total = roll + bonus;
-  const isCrit = roll === 20, isFumble = roll === 1;
+  const { die, detail } = rollWithAdv(charName, bonus);
+  const total = die + bonus;
+  const isCrit = die === 20, isFumble = die === 1;
   const bStr = bonus >= 0 ? `+${bonus}` : `${bonus}`;
-  logEntry('roll', `<strong>${escHtml(charName)}</strong> ${ab} Save: d20(${roll})${bStr} = <strong>${total}</strong>${isCrit?' ★':isFumble?' ☠ auto-fail':''}`);
+  const advLabel = advState[charName] ? ` (${advState[charName]})` : '';
+  const dieStr2 = detail ? detail : `(${die})`;
+  logEntry('roll', `<strong>${escHtml(charName)}</strong> ${ab} Save${advLabel}: d20${dieStr2}${bStr} = <strong>${total}</strong>${isCrit?' ★':isFumble?' ☠ auto-fail':''}`);
   playSound?.('roll');
 }
 
