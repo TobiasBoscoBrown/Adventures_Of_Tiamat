@@ -6120,6 +6120,7 @@ function buildStatsPanel(c) {
     ${buildHitDiceSection(c)}
     ${buildDamageDefenseSection(c)}
     ${buildHpSparkline(c)}
+    ${typeof buildWoundsSection === 'function' ? buildWoundsSection(c.name) : ''}
     ${buildConcentrationSection(c)}
     ${buildSpeedSection(c)}
     <div class="stats-section">
@@ -22710,6 +22711,100 @@ function _runCmd(idx) {
   const res = document.getElementById('cmdRes');
   const list = res?._list;
   if (list && list[idx]) { _closeCmd(); list[idx].fn(); }
+}
+// Iter 135: Wounds & Injuries Tracker — optional gritty injury system
+// DMs can record lasting wounds on characters after severe damage.
+// Wounds persist until the DM marks them healed. Better than DND Beyond.
+const WOUNDS_KEY_PFX = 'tiamat_wounds_';
+const WOUND_SEVERITIES = [
+  { key:'minor',    label:'Minor',    color:'#c9a227', desc:'Superficial wound — cosmetic or minor penalty' },
+  { key:'moderate', label:'Moderate', color:'#dd7733', desc:'Significant wound — impairs function' },
+  { key:'severe',   label:'Severe',   color:'#cc3333', desc:'Dangerous wound — major mechanical effect' },
+  { key:'critical', label:'Critical', color:'#aa2288', desc:'Life-threatening — immediate danger' },
+];
+
+function loadWounds(name) {
+  try { return JSON.parse(localStorage.getItem(WOUNDS_KEY_PFX + name)) || []; }
+  catch { return []; }
+}
+function saveWounds(name, wounds) { localStorage.setItem(WOUNDS_KEY_PFX + name, JSON.stringify(wounds)); }
+function addWound(name, desc, severity) {
+  const wounds = loadWounds(name);
+  wounds.push({ id: Date.now(), desc, severity: severity || 'moderate', healed: false, date: new Date().toLocaleDateString() });
+  saveWounds(name, wounds);
+  _refreshWoundsSection(name);
+}
+function toggleWoundHealed(name, id) {
+  const wounds = loadWounds(name);
+  const w = wounds.find(x => x.id === id);
+  if (w) w.healed = !w.healed;
+  saveWounds(name, wounds);
+  _refreshWoundsSection(name);
+}
+function removeWound(name, id) {
+  const wounds = loadWounds(name).filter(x => x.id !== id);
+  saveWounds(name, wounds);
+  _refreshWoundsSection(name);
+}
+function _refreshWoundsSection(name) {
+  const el = document.getElementById('woundsSection_' + safeId(name));
+  if (el) el.outerHTML = buildWoundsSection(name);
+}
+
+function buildWoundsSection(name) {
+  const wounds = loadWounds(name);
+  const active = wounds.filter(w => !w.healed);
+  const healed = wounds.filter(w => w.healed);
+  const nameJ = JSON.stringify(name);
+  const sid = safeId(name);
+
+  const woundRow = (w) => {
+    const sev = WOUND_SEVERITIES.find(s => s.key === w.severity) || WOUND_SEVERITIES[1];
+    return `<div style="display:flex;align-items:flex-start;gap:8px;padding:6px 8px;border-radius:6px;background:${w.healed?'#06061a':'rgba(' + (w.severity==='critical'?'170,34,136':'204,51,51') + ',0.06)'};border:1px solid ${w.healed?'#1e2040':sev.color+'33'};margin-bottom:4px;opacity:${w.healed?'0.5':'1'}">
+      <span style="font-size:9px;font-weight:700;letter-spacing:0.8px;color:${sev.color};border:1px solid ${sev.color}44;border-radius:4px;padding:1px 5px;white-space:nowrap;margin-top:1px">${sev.label.toUpperCase()}</span>
+      <div style="flex:1;font-size:12px;color:${w.healed?'#3a3a5a':'#c8d0e8'};line-height:1.4;${w.healed?'text-decoration:line-through':''}">${escHtml(w.desc)}<span style="font-size:10px;color:#2a2a50;margin-left:6px">${w.date}</span></div>
+      <div style="display:flex;gap:4px;flex-shrink:0">
+        <button onclick="toggleWoundHealed(${nameJ},${w.id})" title="${w.healed?'Mark active':'Mark healed'}"
+          style="background:none;border:1px solid ${w.healed?'#2a5040':'#1e4030'};color:${w.healed?'#4a7a5a':'#2a5040'};border-radius:4px;padding:1px 6px;cursor:pointer;font-size:10px">
+          ${w.healed?'↺':'✓'}</button>
+        <button onclick="removeWound(${nameJ},${w.id})" title="Remove"
+          style="background:none;border:1px solid #2a2040;color:#3a2a4a;border-radius:4px;padding:1px 5px;cursor:pointer;font-size:10px">✕</button>
+      </div>
+    </div>`;
+  };
+
+  const addForm = `
+    <div id="woundAddForm_${sid}" style="display:none;margin-top:6px;padding:8px;background:#06061a;border:1px solid #1e2040;border-radius:8px">
+      <div style="display:flex;gap:6px;margin-bottom:6px">
+        <select id="woundSev_${sid}" style="background:#06061a;border:1px solid #1e2040;color:#9098b8;border-radius:6px;padding:4px 6px;font-size:11px;cursor:pointer">
+          ${WOUND_SEVERITIES.map(s => `<option value="${s.key}" style="color:${s.color}">${s.label}</option>`).join('')}
+        </select>
+      </div>
+      <div style="display:flex;gap:6px">
+        <input id="woundDesc_${sid}" type="text" placeholder="Describe the wound (e.g. 'Broken left arm', 'Deep chest gash')"
+          style="flex:1;background:#06061a;border:1px solid #1e2040;color:#e0e0ff;border-radius:6px;padding:5px 8px;font-size:12px;outline:none"
+          onfocus="this.style.borderColor='#cc3333'" onblur="this.style.borderColor='#1e2040'"
+          onkeydown="if(event.key==='Enter'){const d=this.value.trim();const s=document.getElementById('woundSev_${sid}').value;if(d){addWound(${nameJ},d,s);document.getElementById('woundAddForm_${sid}').style.display='none';}}">
+        <button onclick="(()=>{const d=document.getElementById('woundDesc_${sid}').value.trim();const s=document.getElementById('woundSev_${sid}').value;if(d){addWound(${nameJ},d,s);document.getElementById('woundAddForm_${sid}').style.display='none';}})()"
+          style="background:rgba(204,51,51,0.15);border:1px solid rgba(204,51,51,0.4);color:#cc6666;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px">
+          Add</button>
+        <button onclick="document.getElementById('woundAddForm_${sid}').style.display='none'"
+          style="background:none;border:1px solid #1e2040;color:#3a3a5a;border-radius:6px;padding:5px 8px;cursor:pointer;font-size:12px">
+          Cancel</button>
+      </div>
+    </div>`;
+
+  return `<div class="stats-section" id="woundsSection_${sid}">
+    <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
+      🩸 Wounds & Injuries
+      <button onclick="document.getElementById('woundAddForm_${sid}').style.display='block';document.getElementById('woundDesc_${sid}').focus()"
+        style="background:rgba(204,51,51,0.1);border:1px solid rgba(204,51,51,0.3);color:#cc6666;border-radius:5px;padding:2px 10px;cursor:pointer;font-size:11px">
+        + Wound</button>
+    </div>
+    ${active.length ? active.map(woundRow).join('') : '<div style="font-size:11px;color:#2a2a50;font-style:italic;padding:4px 0">No active wounds</div>'}
+    ${healed.length ? `<details style="margin-top:4px"><summary style="font-size:10px;color:#2a2a50;cursor:pointer;user-select:none">${healed.length} healed wound${healed.length!==1?'s':''}</summary><div style="margin-top:4px">${healed.map(woundRow).join('')}</div></details>` : ''}
+    ${addForm}
+  </div>`;
 }
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
