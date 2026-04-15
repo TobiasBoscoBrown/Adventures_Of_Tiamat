@@ -5782,14 +5782,32 @@ function buildSpellBook(c) {
        </div>`
     : '';
 
+  const safeCharName = JSON.stringify(c.name);
   return `
     <div class="stats-section">
       <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
         <span>Spell Book <span style="font-size:10px;color:#4a5272;font-weight:400;font-family:'Inter',sans-serif"> · DC ${spellDC} · Atk ${spellAtk} · click to roll</span></span>
-        <button class="conc-set-btn ${concSpell?'active':''}" onclick="openConcPicker(${JSON.stringify(c.name)},event)">🔮 ${concSpell||'Concentrate'}</button>
+        <button class="conc-set-btn ${concSpell?'active':''}" onclick="openConcPicker(${safeCharName},event)">🔮 ${concSpell||'Concentrate'}</button>
       </div>
       ${concSection}
-      ${sections}
+      <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center">
+        <input type="text" id="spellSearch_${safeId(c.name)}" placeholder="🔍 Filter spells..." style="flex:1;background:#06061a;border:1px solid #2a2a50;border-radius:6px;padding:5px 10px;color:#e0e0ff;font-size:11px;font-family:inherit;outline:none" oninput="filterSpellBook(this,${safeCharName})" onfocus="this.style.borderColor='#9b6dff'" onblur="this.style.borderColor='#2a2a50'">
+        <select id="spellSchoolFilter_${safeId(c.name)}" style="background:#06061a;border:1px solid #2a2a50;border-radius:6px;padding:5px 8px;color:#e0e0ff;font-size:11px;cursor:pointer" onchange="filterSpellBook(document.getElementById('spellSearch_${safeId(c.name)}'),${safeCharName})">
+          <option value="">All Schools</option>
+          <option value="Evocation">Evocation</option>
+          <option value="Conjuration">Conjuration</option>
+          <option value="Abjuration">Abjuration</option>
+          <option value="Illusion">Illusion</option>
+          <option value="Divination">Divination</option>
+          <option value="Enchantment">Enchantment</option>
+          <option value="Transmutation">Transmutation</option>
+          <option value="Necromancy">Necromancy</option>
+        </select>
+        <label style="font-size:10px;color:#4a5272;white-space:nowrap;cursor:pointer;display:flex;align-items:center;gap:3px">
+          <input type="checkbox" id="spellPrepFilter_${safeId(c.name)}" onchange="filterSpellBook(document.getElementById('spellSearch_${safeId(c.name)}'),${safeCharName})" style="cursor:pointer"> Prepared only
+        </label>
+      </div>
+      <div id="spellBookContent_${safeId(c.name)}">${sections}</div>
     </div>`;
 }
 
@@ -9410,6 +9428,40 @@ function renderTheaterGrid() {
       ${conc ? `<div style="font-size:8px;color:#c9a227;margin-top:2px">🔮 ${conc.slice(0,16)}</div>` : ''}
     </div>`;
   }).join('');
+}
+// ────────────────────────────────────────────────────────
+
+// ── SPELL BOOK FILTER ────────────────────────────────────
+function filterSpellBook(inputEl, charName) {
+  const sid = typeof safeId === 'function' ? safeId(charName) : charName;
+  const query = (inputEl?.value || '').toLowerCase().trim();
+  const schoolFilter = document.getElementById('spellSchoolFilter_' + sid)?.value || '';
+  const prepOnly = document.getElementById('spellPrepFilter_' + sid)?.checked || false;
+
+  const container = document.getElementById('spellBookContent_' + sid);
+  if (!container) return;
+
+  container.querySelectorAll('.spell-entry').forEach(entry => {
+    const nameEl = entry.querySelector('.spell-name');
+    const schoolEl = entry.querySelector('.spell-school');
+    const name = (nameEl?.textContent || '').toLowerCase();
+    const school = schoolEl?.textContent || '';
+    const desc = (entry.querySelector('.spell-desc')?.textContent || '').toLowerCase();
+    const isPrepared = entry.querySelector('.spell-prep-btn')?.classList.contains('prepared') !== false
+      || !entry.querySelector('.spell-prep-btn'); // cantrips have no prep btn
+
+    const matchQuery = !query || name.includes(query) || desc.includes(query);
+    const matchSchool = !schoolFilter || school === schoolFilter;
+    const matchPrep = !prepOnly || isPrepared || !entry.querySelector('.spell-prep-btn');
+
+    entry.style.display = (matchQuery && matchSchool && matchPrep) ? '' : 'none';
+  });
+
+  // Show/hide level section headers if all their spells are hidden
+  container.querySelectorAll('[style*="margin-bottom:12px"]').forEach(section => {
+    const visible = Array.from(section.querySelectorAll('.spell-entry')).some(e => e.style.display !== 'none');
+    section.style.display = visible ? '' : 'none';
+  });
 }
 // ────────────────────────────────────────────────────────
 
