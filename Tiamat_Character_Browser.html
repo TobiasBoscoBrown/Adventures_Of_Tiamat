@@ -5302,7 +5302,12 @@ function buildSeeAlso(c) {
 
   const sections = [];
   if (relBtns.length) sections.push(`<div style="margin-bottom:8px"><div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:6px">LINKED BY RELATIONSHIPS</div><div style="display:flex;flex-wrap:wrap;gap:6px">${relBtns.join('')}</div></div>`);
-  if (groupBtns.length) sections.push(`<div><div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:6px">SAME GROUP · ${c.group?.toUpperCase()}</div><div style="display:flex;flex-wrap:wrap;gap:6px">${groupBtns.join('')}</div></div>`);
+  if (groupBtns.length) sections.push(`<div style="margin-bottom:8px"><div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:6px">SAME GROUP · ${c.group?.toUpperCase()}</div><div style="display:flex;flex-wrap:wrap;gap:6px">${groupBtns.join('')}</div></div>`);
+
+  const hasAnyRels = mentionedBy.length > 0 || (allRels[c.name] && allRels[c.name].length > 0);
+  if (hasAnyRels || sameGroup.length > 0) {
+    sections.push(`<div><button onclick="openRelationshipMap(${JSON.stringify(c.name)})" style="background:rgba(155,109,255,0.08);border:1px solid rgba(155,109,255,0.3);color:#9b6dff;border-radius:8px;padding:5px 12px;cursor:pointer;font-size:11px;transition:all .15s" onmouseover="this.style.background='rgba(155,109,255,0.15)'" onmouseout="this.style.background='rgba(155,109,255,0.08)'">🕸 View Relationship Map</button></div>`);
+  }
 
   return sections.length ? `<div class="stats-section">${sections.join('')}</div>` : '';
 }
@@ -6517,7 +6522,7 @@ document.getElementById('searchBox').addEventListener('input', (e) => {
 
 document.addEventListener('keydown', (e) => {
   const isTyping = document.activeElement && ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName);
-  if (e.key === 'Escape') { closeModal(); closeHpPopup(); closeAoeDmg?.(); closeQuestTracker?.(); }
+  if (e.key === 'Escape') { closeModal(); closeHpPopup(); closeAoeDmg?.(); closeQuestTracker?.(); document.querySelectorAll('.rel-map-overlay,.session-stats-overlay,.exhaust-menu').forEach(e=>e.remove()); }
   if (e.key === 'ArrowLeft' && currentModalIdx >= 0) navChar(-1);
   if (e.key === 'ArrowRight' && currentModalIdx >= 0) navChar(1);
   if (e.key === '/' && currentModalIdx < 0 && !isTyping) {
@@ -9391,6 +9396,106 @@ function renderTheaterGrid() {
       ${conc ? `<div style="font-size:8px;color:#c9a227;margin-top:2px">🔮 ${conc.slice(0,16)}</div>` : ''}
     </div>`;
   }).join('');
+}
+// ────────────────────────────────────────────────────────
+
+// ── RELATIONSHIP MAP ─────────────────────────────────────
+function openRelationshipMap(centerName) {
+  document.querySelectorAll('.rel-map-overlay').forEach(e => e.remove());
+
+  const REL_COLORS = { ally:'#44aa44', enemy:'#cc3333', rival:'#dd8822', neutral:'#4a5272', family:'#ff88cc', mentor:'#9b6dff', student:'#4488ff' };
+  const REL_ICONS  = { ally:'✦', enemy:'☠', rival:'⚡', neutral:'○', family:'♥', mentor:'◆', student:'◇' };
+
+  // Gather all connections involving centerName
+  const allRels = (typeof relState !== 'undefined') ? relState : {};
+  const outgoing = (allRels[centerName] || []).map(r => ({ source: centerName, target: r.target, type: r.type, dir: 'out' }));
+  const incoming = [];
+  Object.entries(allRels).forEach(([src, rels]) => {
+    if (src === centerName) return;
+    (rels || []).forEach(r => { if (r.target === centerName) incoming.push({ source: src, target: centerName, type: r.type, dir: 'in' }); });
+  });
+
+  const centerChar = UNIQUE_CHARS.find(c => c.name === centerName);
+  const sameGroup = UNIQUE_CHARS.filter(c => c.name !== centerName && c.group === centerChar?.group).slice(0,8);
+
+  // Build unique nodes
+  const nodeNames = new Set([centerName]);
+  outgoing.forEach(r => nodeNames.add(r.target));
+  incoming.forEach(r => nodeNames.add(r.source));
+  sameGroup.forEach(c => nodeNames.add(c.name));
+  const nodes = Array.from(nodeNames);
+
+  const W = Math.min(window.innerWidth * 0.88, 700);
+  const H = Math.min(window.innerHeight * 0.78, 520);
+  const cx = W / 2, cy = H / 2;
+  const radius = Math.min(cx, cy) * 0.68;
+
+  // Position nodes: center + ring
+  const others = nodes.filter(n => n !== centerName);
+  const positions = { [centerName]: { x: cx, y: cy } };
+  others.forEach((name, i) => {
+    const angle = (2 * Math.PI * i / others.length) - Math.PI / 2;
+    positions[name] = { x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) };
+  });
+
+  // Draw edges
+  const allEdges = [...outgoing, ...incoming, ...sameGroup.map(c => ({ source: centerName, target: c.name, type: 'group', dir: 'group' }))];
+  // Deduplicate edges
+  const seenEdges = new Set();
+  const uniqueEdges = allEdges.filter(e => {
+    const key = [e.source, e.target].sort().join('|') + e.type;
+    if (seenEdges.has(key)) return false;
+    seenEdges.add(key); return true;
+  });
+
+  const edgeSvg = uniqueEdges.map(e => {
+    const s = positions[e.source] || positions[centerName];
+    const t = positions[e.target] || positions[centerName];
+    if (!s || !t) return '';
+    const color = REL_COLORS[e.type] || '#2a2a50';
+    const midX = (s.x + t.x) / 2, midY = (s.y + t.y) / 2;
+    const label = e.type !== 'group' ? (REL_ICONS[e.type] || '') : '';
+    return `<line x1="${s.x}" y1="${s.y}" x2="${t.x}" y2="${t.y}" stroke="${color}" stroke-width="1.5" stroke-opacity="0.5"/>
+            ${label ? `<text x="${midX}" y="${midY}" text-anchor="middle" dominant-baseline="middle" fill="${color}" font-size="10" opacity="0.7">${label}</text>` : ''}`;
+  }).join('');
+
+  // Draw nodes
+  const nodeSvg = nodes.map(name => {
+    const pos = positions[name];
+    if (!pos) return '';
+    const char = UNIQUE_CHARS.find(c => c.name === name);
+    const t = char ? getTheme(char.theme) : { accent: '#4a5272' };
+    const isCenter = name === centerName;
+    const r = isCenter ? 28 : 20;
+    const label = name.split(' ')[0];
+    const currHp = char ? getCharHP(name, parseInt(char.hp)||1) : null;
+    const isDown = char && currHp === 0;
+    return `<g class="rel-node" onclick="navToChar(${JSON.stringify(name)});document.querySelectorAll('.rel-map-overlay').forEach(e=>e.remove())" style="cursor:pointer">
+      <circle cx="${pos.x}" cy="${pos.y}" r="${r}" fill="${isCenter?t.accent+'22':'#06061a'}" stroke="${isCenter?t.accent:isDown?'#cc3333':t.accent+'88'}" stroke-width="${isCenter?2.5:1.5}" opacity="${isDown?0.6:1}"/>
+      ${isCenter ? `<circle cx="${pos.x}" cy="${pos.y}" r="${r+4}" fill="none" stroke="${t.accent}" stroke-width="0.5" stroke-opacity="0.3"/>` : ''}
+      <text x="${pos.x}" y="${pos.y}" text-anchor="middle" dominant-baseline="middle" fill="${isCenter?t.accent:'#9098b8'}" font-size="${isCenter?10:9}" font-weight="${isCenter?700:400}" font-family="Cinzel, serif">${label}</text>
+      ${isDown ? `<text x="${pos.x}" y="${pos.y+r+10}" text-anchor="middle" fill="#cc3333" font-size="7">⚠</text>` : ''}
+    </g>`;
+  }).join('');
+
+  const overlay = document.createElement('div');
+  overlay.className = 'rel-map-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center';
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `<div style="background:linear-gradient(160deg,#07101a,#0a1520);border:1px solid rgba(155,109,255,0.3);border-radius:14px;padding:16px;max-width:${W+40}px;width:95%">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-family:'Cinzel',serif;color:#9b6dff;font-size:13px;font-weight:700;letter-spacing:1px">🕸 ${centerName} — Relationship Map</div>
+      <button onclick="this.closest('.rel-map-overlay').remove()" style="background:none;border:1px solid #2a2a50;color:#4a5272;border-radius:6px;padding:4px 10px;cursor:pointer">✕</button>
+    </div>
+    <svg width="${W}" height="${H}" style="display:block;margin:0 auto;background:#04060e;border-radius:10px;border:1px solid #1e2040">
+      <defs><radialGradient id="mapBg" cx="50%" cy="50%"><stop offset="0%" stop-color="#0a0a2a" stop-opacity="1"/><stop offset="100%" stop-color="#04060e" stop-opacity="1"/></radialGradient></defs>
+      <rect width="${W}" height="${H}" fill="url(#mapBg)" rx="10"/>
+      ${edgeSvg}
+      ${nodeSvg}
+    </svg>
+    <div style="text-align:center;font-size:10px;color:#2a2a50;margin-top:8px">Click any node to navigate · ESC to close</div>
+  </div>`;
+  document.body.appendChild(overlay);
 }
 // ────────────────────────────────────────────────────────
 
