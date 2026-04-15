@@ -27536,6 +27536,123 @@ function openRangeRef() {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 172: Quick Proficiency Checker — who in the party has this skill/tool?
+// Infers proficiency from character class/title/traits. Quick "who can do X?" lookup.
+
+const PROF_BY_CLASS = {
+  // Format: className_fragment → [skills]
+  'rogue':      ['Stealth','Sleight of Hand','Deception','Perception','Athletics','Acrobatics','Thieves\' Tools','Disguise Kit'],
+  'bard':       ['Performance','Persuasion','Deception','Perception','Insight','History','Arcana'],
+  'ranger':     ['Perception','Stealth','Survival','Nature','Athletics','Animal Handling'],
+  'druid':      ['Perception','Nature','Survival','Animal Handling','Medicine','Arcana'],
+  'cleric':     ['Religion','Medicine','History','Persuasion','Insight'],
+  'paladin':    ['Religion','Persuasion','Athletics','Insight','Medicine'],
+  'wizard':     ['Arcana','History','Investigation','Nature','Religion'],
+  'sorcerer':   ['Arcana','Persuasion','Deception','Intimidation'],
+  'warlock':    ['Arcana','Deception','Persuasion','Intimidation','History'],
+  'fighter':    ['Athletics','Intimidation','Perception','History','Acrobatics'],
+  'barbarian':  ['Athletics','Intimidation','Nature','Perception','Survival','Animal Handling'],
+  'monk':       ['Acrobatics','Athletics','Stealth','History','Insight','Religion'],
+  'artificer':  ['Arcana','History','Investigation','Perception','Tinker\'s Tools','Thieves\' Tools'],
+  'assassin':   ['Stealth','Deception','Sleight of Hand','Disguise Kit','Poisoner\'s Kit'],
+  'spy':        ['Stealth','Deception','Perception','Persuasion'],
+  'captain':    ['Athletics','Intimidation','Perception','Navigation Tools','Vehicle (Water)'],
+  'merchant':   ['Persuasion','Insight','Deception','History'],
+  'noble':      ['Persuasion','History','Insight','Deception'],
+  'scholar':    ['History','Arcana','Nature','Religion','Investigation'],
+  'blacksmith': ['Smith\'s Tools','Athletics','Intimidation'],
+  'healer':     ['Medicine','Insight','Perception','Persuasion'],
+  'hunter':     ['Perception','Survival','Stealth','Nature','Animal Handling'],
+};
+
+const SKILL_LIST = ['Acrobatics','Animal Handling','Arcana','Athletics','Deception','History','Insight','Intimidation','Investigation','Medicine','Nature','Perception','Performance','Persuasion','Religion','Sleight of Hand','Stealth','Survival','Thieves\' Tools','Disguise Kit','Poisoner\'s Kit','Smith\'s Tools','Herbalism Kit','Navigator\'s Tools','Vehicle (Water)'];
+
+function openProfChecker() {
+  const ex = document.getElementById('profCheckerOverlay');
+  if (ex) { ex.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'profCheckerOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9200;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML = `
+    <div style="width:540px;max-width:100%;background:linear-gradient(160deg,#0e0820,#180e30);border:2px solid rgba(68,170,68,0.4);border-radius:16px;padding:24px;color:#c8d0e8;font-family:'Inter',sans-serif;box-shadow:0 0 40px rgba(68,170,68,0.15)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+        <div style="font-family:'Cinzel',serif;font-size:17px;font-weight:700;color:#44aa44">🎓 Proficiency Checker</div>
+        <button onclick="document.getElementById('profCheckerOverlay').remove()" style="background:none;border:1px solid #2a2040;color:#6a5aaa;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px">✕</button>
+      </div>
+      <div style="margin-bottom:14px">
+        <div style="font-size:10px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Skill or Tool to Check</div>
+        <div style="display:flex;gap:8px">
+          <input id="profSkillInput" type="text" placeholder="Type skill name or select…" oninput="_profUpdate()" list="profSkillList" style="flex:1;background:#0c0c20;border:1px solid #2a2050;color:#e0e0ff;border-radius:6px;padding:8px;font-size:13px">
+          <datalist id="profSkillList">${SKILL_LIST.map(s=>`<option value="${s}">`).join('')}</datalist>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">
+          ${['Perception','Stealth','Arcana','Athletics','Persuasion','Deception','Insight','History','Medicine','Investigation'].map(s =>
+            `<button onclick="document.getElementById('profSkillInput').value='${s}';_profUpdate()" style="background:rgba(68,170,68,0.1);border:1px solid rgba(68,170,68,0.2);color:#44aa44;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:10px">${s}</button>`
+          ).join('')}
+        </div>
+      </div>
+      <div id="profResults" style="min-height:100px;background:rgba(0,0,0,0.3);border:1px solid rgba(68,170,68,0.15);border-radius:10px;padding:14px">
+        <div style="color:#4a5272;font-size:12px;text-align:center">Type or select a skill to see who's proficient</div>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+function _profUpdate() {
+  const skill = (document.getElementById('profSkillInput')?.value||'').trim();
+  const el = document.getElementById('profResults');
+  if (!el) return;
+  if (!skill) { el.innerHTML = '<div style="color:#4a5272;font-size:12px;text-align:center">Type or select a skill</div>'; return; }
+
+  const skillLower = skill.toLowerCase();
+  const chars = (typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : []);
+  const proficient = [], notProf = [];
+
+  chars.forEach(c => {
+    const titleLower = (c.title||'').toLowerCase();
+    const traits = ((c.traits||[]).join(' ')).toLowerCase();
+    let hasProf = false;
+
+    // Check each class's proficiency list
+    Object.entries(PROF_BY_CLASS).forEach(([cls, profs]) => {
+      if (titleLower.includes(cls)) {
+        if (profs.some(p => p.toLowerCase() === skillLower || p.toLowerCase().includes(skillLower))) hasProf = true;
+      }
+    });
+    // Also check traits
+    if (traits.includes('proficient in '+skillLower) || traits.includes(skillLower+' proficiency')) hasProf = true;
+
+    (hasProf ? proficient : notProf).push(c);
+  });
+
+  if (!proficient.length && !notProf.length) { el.innerHTML = '<div style="color:#4a5272;font-size:12px;text-align:center">No characters found</div>'; return; }
+
+  el.innerHTML = `
+    ${proficient.length ? `
+      <div style="font-size:10px;color:#44aa44;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">✓ Likely Proficient (${proficient.length})</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
+        ${proficient.map(c => `<span style="background:rgba(68,170,68,0.12);border:1px solid rgba(68,170,68,0.3);color:#44aa44;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer" onclick="openModal(${chars.indexOf(c)})" title="CR ${c.cr} — click to open">${escHtml(c.name)}</span>`).join('')}
+      </div>` : '<div style="color:#cc4444;font-size:11px;margin-bottom:12px">⚠ No characters likely proficient in '+escHtml(skill)+'</div>'}
+    <div style="font-size:9px;color:#4a5272;font-style:italic;margin-top:4px">⚠ Inferred from class/title. Open character sheet for exact proficiencies.</div>`;
+}
+
+// Add Proficiency Checker button
+(function() {
+  const allBtns = document.querySelectorAll('.filter-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.title = 'Proficiency Checker — who in the party has proficiency in a skill or tool?';
+    btn.style.cssText = 'border-color:#44aa44;color:#44aa44';
+    btn.textContent = '🎓 Prof Check';
+    btn.onclick = openProfChecker;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
