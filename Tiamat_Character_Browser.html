@@ -3513,6 +3513,7 @@
     <button class="encounter-open-btn" onclick="openQuestTracker()" style="border-color:#ffaa44;color:#ffaa44" id="questBtn">📜 Quests</button>
     <button class="encounter-open-btn" onclick="openTheaterMode()" style="border-color:#44aacc;color:#44aacc" title="Theater mode — fullscreen battle board for second screen">🎭 Theater</button>
     <button class="encounter-open-btn" onclick="toggleXpPanel()" style="border-color:#c9a227;color:#c9a227" id="xpTrackerBtn" title="Party XP & Level Tracker — award XP, track level progress">⭐ XP</button>
+    <button class="encounter-open-btn" onclick="toggleGroupRoll()" style="border-color:#5588dd;color:#5588dd" id="groupRollBtn" title="Roll any skill/ability for all visible characters at once">🎲 Group Roll</button>
     <button class="encounter-open-btn" onclick="toggleRestPanel()" style="border-color:#23b478;color:#23b478" id="restBtn" title="Short Rest / Long Rest — spend hit dice or restore all resources">🌙 Rest</button>
     <button class="encounter-open-btn" onclick="toggleLootPanel()" style="border-color:#c9a227;color:#c9a227" id="lootBtn" title="Party Loot & Treasury">💰 Loot</button>
     <button class="encounter-open-btn" onclick="toggleDmNotes()" style="border-color:#9b6dff;color:#9b6dff" id="dmNotesBtn" title="DM Session Notes">📝 DM Notes</button>
@@ -4377,6 +4378,61 @@
 <div class="cond-tooltip" id="condTooltip"></div>
 
 <!-- XP & Level Tracker Panel -->
+<div id="groupRollPanel" style="position:fixed;top:60px;right:20px;width:340px;max-height:80vh;background:linear-gradient(160deg,#050a18,#0a1128);border:1px solid rgba(85,136,221,0.4);border-radius:14px;z-index:349;display:none;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.9);overflow:hidden">
+  <div style="padding:10px 14px;border-bottom:1px solid rgba(85,136,221,0.25);display:flex;justify-content:space-between;align-items:center;background:rgba(85,136,221,0.04);flex-shrink:0">
+    <span style="font-family:'Cinzel',serif;color:#5588dd;font-size:13px;font-weight:700;letter-spacing:1px">🎲 GROUP SKILL CHECK</span>
+    <button onclick="toggleGroupRoll()" style="background:none;border:1px solid #1a2a40;color:#3a5080;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px">✕</button>
+  </div>
+  <div style="padding:10px 14px;border-bottom:1px solid rgba(85,136,221,0.15);flex-shrink:0">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select id="groupRollSkill" style="flex:1;background:#0d1525;border:1px solid rgba(85,136,221,0.3);color:#9098b8;border-radius:8px;padding:5px 8px;font-size:12px">
+        <optgroup label="Ability Checks">
+          <option value="STR|STR">Strength</option>
+          <option value="DEX|DEX">Dexterity</option>
+          <option value="CON|CON">Constitution</option>
+          <option value="INT|INT">Intelligence</option>
+          <option value="WIS|WIS">Wisdom</option>
+          <option value="CHA|CHA">Charisma</option>
+        </optgroup>
+        <optgroup label="Skills">
+          <option value="Athletics|STR">Athletics (STR)</option>
+          <option value="Acrobatics|DEX">Acrobatics (DEX)</option>
+          <option value="Sleight of Hand|DEX">Sleight of Hand (DEX)</option>
+          <option value="Stealth|DEX">Stealth (DEX)</option>
+          <option value="Arcana|INT">Arcana (INT)</option>
+          <option value="History|INT">History (INT)</option>
+          <option value="Investigation|INT">Investigation (INT)</option>
+          <option value="Nature|INT">Nature (INT)</option>
+          <option value="Religion|INT">Religion (INT)</option>
+          <option value="Animal Handling|WIS">Animal Handling (WIS)</option>
+          <option value="Insight|WIS">Insight (WIS)</option>
+          <option value="Medicine|WIS">Medicine (WIS)</option>
+          <option value="Perception|WIS" selected>Perception (WIS)</option>
+          <option value="Survival|WIS">Survival (WIS)</option>
+          <option value="Deception|CHA">Deception (CHA)</option>
+          <option value="Intimidation|CHA">Intimidation (CHA)</option>
+          <option value="Performance|CHA">Performance (CHA)</option>
+          <option value="Persuasion|CHA">Persuasion (CHA)</option>
+        </optgroup>
+      </select>
+      <select id="groupRollAdv" style="background:#0d1525;border:1px solid rgba(85,136,221,0.3);color:#9098b8;border-radius:8px;padding:5px 8px;font-size:12px">
+        <option value="normal">Normal</option>
+        <option value="adv">Advantage</option>
+        <option value="dis">Disadvantage</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:8px;align-items:center">
+      <label style="font-size:11px;color:#4a5272">Scope:</label>
+      <select id="groupRollScope" style="background:#0d1525;border:1px solid rgba(85,136,221,0.3);color:#9098b8;border-radius:8px;padding:4px 8px;font-size:11px">
+        <option value="visible">Visible characters</option>
+        <option value="party">Party members only</option>
+        <option value="all">All characters</option>
+      </select>
+      <button onclick="doGroupRoll()" style="margin-left:auto;background:rgba(85,136,221,.15);border:1px solid rgba(85,136,221,.4);color:#5588dd;border-radius:8px;padding:5px 14px;cursor:pointer;font-size:12px;font-weight:700">Roll!</button>
+    </div>
+  </div>
+  <div id="groupRollResults" style="overflow-y:auto;flex:1;padding:8px 0"></div>
+</div>
 <div id="xpTrackerPanel" style="position:fixed;top:60px;right:20px;width:300px;max-height:70vh;background:linear-gradient(160deg,#0d0b00,#1a1400);border:1px solid rgba(201,162,39,0.4);border-radius:14px;z-index:348;display:none;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.9);overflow:hidden">
   <div style="padding:10px 14px;border-bottom:1px solid rgba(201,162,39,0.25);display:flex;justify-content:space-between;align-items:center;background:rgba(201,162,39,0.04);flex-shrink:0">
     <span style="font-family:'Cinzel',serif;color:#c9a227;font-size:13px;font-weight:700;letter-spacing:1px">⭐ PARTY XP & LEVEL</span>
@@ -12955,6 +13011,77 @@ function getHitDiceType(name) { try { return parseInt(JSON.parse(localStorage.ge
 function setHitDiceType(name,val) { try { const d=JSON.parse(localStorage.getItem(REST_DICE_KEY)||'{}'); d[name]=parseInt(val); localStorage.setItem(REST_DICE_KEY,JSON.stringify(d)); renderRestShortTab(); } catch {} }
 function getConModForRest(char) { const con=(char.abilities||[]).find(a=>a[0]==='CON'); return con?parseInt(con[2])||0:0; }
 function getPartyChars() { return UNIQUE_CHARS.filter(c=>c.alignment&&/good|neutral/i.test(c.alignment)&&!/evil/i.test(c.alignment)); }
+
+// ── GROUP SKILL CHECK ──────────────────────────────────────
+let groupRollOpen = false;
+function toggleGroupRoll() {
+  groupRollOpen = !groupRollOpen;
+  const panel = document.getElementById('groupRollPanel');
+  panel.style.display = groupRollOpen ? 'flex' : 'none';
+  const btn = document.getElementById('groupRollBtn');
+  if (btn) { btn.style.background = groupRollOpen ? 'rgba(85,136,221,.15)' : ''; btn.style.color = groupRollOpen ? '#88aaff' : '#5588dd'; }
+  if (groupRollOpen) document.getElementById('groupRollResults').innerHTML = '<div style="text-align:center;color:#3a4060;font-size:12px;padding:20px">Select a skill and click Roll!</div>';
+}
+
+function getAbilMod(char, ab) {
+  if (!char.abilities) return 0;
+  const entry = char.abilities.find(a => a[0] === ab);
+  return entry ? (parseInt(entry[2]) || 0) : 0;
+}
+
+function doGroupRoll() {
+  const [skillName, ab] = (document.getElementById('groupRollSkill').value || 'Perception|WIS').split('|');
+  const advMode = document.getElementById('groupRollAdv').value;
+  const scope = document.getElementById('groupRollScope').value;
+
+  let chars;
+  if (scope === 'party') chars = getPartyChars();
+  else if (scope === 'visible') chars = UNIQUE_CHARS.filter(c => { const card = document.querySelector(`[data-name="${CSS.escape(c.name)}"]`); return !card || card.style.display !== 'none'; });
+  else chars = UNIQUE_CHARS;
+
+  if (!chars.length) {
+    document.getElementById('groupRollResults').innerHTML = '<div style="text-align:center;color:#cc3333;font-size:12px;padding:20px">No characters in scope</div>';
+    return;
+  }
+
+  function rollD20() { return Math.floor(Math.random() * 20) + 1; }
+
+  const results = chars.map(c => {
+    const mod = getAbilMod(c, ab);
+    let die;
+    if (advMode === 'adv') { const r1 = rollD20(), r2 = rollD20(); die = Math.max(r1, r2); }
+    else if (advMode === 'dis') { const r1 = rollD20(), r2 = rollD20(); die = Math.min(r1, r2); }
+    else die = rollD20();
+    return { name: c.name, die, mod, total: die + mod };
+  }).sort((a, b) => b.total - a.total);
+
+  const advLabel = advMode === 'adv' ? ' (Adv)' : advMode === 'dis' ? ' (Dis)' : '';
+  const highest = results[0].total;
+  const lowest = results[results.length - 1].total;
+
+  let html = `<div style="padding:6px 14px 2px;font-size:10px;color:#4a5272;font-weight:600;letter-spacing:.5px">${skillName.toUpperCase()}${advLabel} — ${results.length} CHARACTERS</div>`;
+  html += `<table style="width:100%;border-collapse:collapse;font-size:11px">`;
+  html += `<tr style="color:#3a4060;font-size:10px"><th style="padding:2px 14px;text-align:left">NAME</th><th style="padding:2px 8px;text-align:center">d20</th><th style="padding:2px 8px;text-align:center">MOD</th><th style="padding:2px 14px;text-align:right">TOTAL</th></tr>`;
+  results.forEach(r => {
+    const isCrit = r.die === 20, isFail = r.die === 1;
+    const isHigh = r.total === highest, isLow = r.total === lowest && results.length > 1;
+    const rowBg = isHigh ? 'rgba(68,170,68,.08)' : isLow ? 'rgba(204,51,51,.06)' : '';
+    const dieColor = isCrit ? '#44aa44' : isFail ? '#cc3333' : '#9098b8';
+    const totColor = isHigh ? '#44aa44' : isLow ? '#cc5555' : '#c0c8e8';
+    const modStr = r.mod >= 0 ? `+${r.mod}` : `${r.mod}`;
+    html += `<tr style="border-top:1px solid rgba(255,255,255,.03);background:${rowBg}">
+      <td style="padding:4px 14px;color:#9098b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px">${escHtml(r.name.length > 18 ? r.name.slice(0,17)+'…' : r.name)}</td>
+      <td style="padding:4px 8px;text-align:center;color:${dieColor};font-weight:${isCrit||isFail?700:400}">${r.die}${isCrit?' ★':isFail?' ☠':''}</td>
+      <td style="padding:4px 8px;text-align:center;color:#6a7098">${modStr}</td>
+      <td style="padding:4px 14px;text-align:right;color:${totColor};font-weight:700">${r.total}${isHigh?' ↑':isLow?' ↓':''}</td>
+    </tr>`;
+  });
+  html += `</table>`;
+
+  document.getElementById('groupRollResults').innerHTML = html;
+  logEntry('roll', `🎲 <strong>Group ${skillName}${advLabel}</strong> check — ${results.length} characters. High: <strong>${results[0].name} (${results[0].total})</strong>`);
+  playSound?.('roll');
+}
 
 function toggleRestPanel() {
   restPanelOpen = !restPanelOpen;
