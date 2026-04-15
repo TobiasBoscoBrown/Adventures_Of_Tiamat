@@ -11719,6 +11719,17 @@ function toggleTurnAction(name, type, event) {
   turnActionState[name][type] = !turnActionState[name][type];
   renderInitiative();
 }
+function toggleTurnActionEcon(name, type, event) {
+  if (event) event.stopPropagation();
+  if (!turnActionState[name]) turnActionState[name] = {};
+  turnActionState[name][type] = !turnActionState[name][type];
+  renderActiveTurnBar();
+}
+function resetTurnActions(name, event) {
+  if (event) event.stopPropagation();
+  delete turnActionState[name];
+  renderActiveTurnBar();
+}
 function clearTurnActions() { turnActionState = {}; }
 
 let lairActionEnabled = false;
@@ -11916,6 +11927,23 @@ function renderActiveTurnBar() {
     <div style="flex:1;height:4px;background:#1e2040;border-radius:2px;overflow:hidden;max-width:80px"><div style="height:100%;width:${Math.round(movePct*100)}%;background:${moveCol};border-radius:2px;transition:width .2s"></div></div>
     ${moveBtn(5)}${moveBtn(10)}${moveBtn(15)}${moveBtn(30)}
     <button onclick="restoreMove(${JSON.stringify(char.name)},event)" style="background:none;border:1px solid rgba(68,204,170,.2);color:#3a8070;border-radius:4px;padding:1px 4px;cursor:pointer;font-size:9px;line-height:1" title="Restore full movement">↺</button>
+  </div>`;
+  // Action Economy row
+  const ts = typeof getTurnState === 'function' ? getTurnState(char.name) : {};
+  const econTypes = [
+    { key:'action',  label:'⚔ Action',  shortLabel:'Action',  col:'#44aaff' },
+    { key:'bonus',   label:'✦ Bonus',   shortLabel:'Bonus',   col:'#ff9944' },
+    { key:'reaction',label:'⚡ React',   shortLabel:'Reaction',col:'#cc66ff' },
+    { key:'object',  label:'✋ Object',  shortLabel:'Object',  col:'#44cc88' },
+  ];
+  const econBtns = econTypes.map(({ key, label, shortLabel, col }) => {
+    const used = ts[key];
+    return `<button onclick="toggleTurnActionEcon(${JSON.stringify(char.name)},${JSON.stringify(key)},event)" style="background:${used?`rgba(${col.slice(1).match(/../g).map(h=>parseInt(h,16)).join(',')},0.08)`:'rgba(255,255,255,.03)'};border:1px solid ${used?col+'55':'rgba(255,255,255,.06)'};color:${used?col:'#3a3a5a'};border-radius:4px;padding:2px 6px;cursor:pointer;font-size:9px;line-height:1.4;${used?'text-decoration:line-through;opacity:.5':''}" title="${shortLabel} (click to toggle used)">${label}</button>`;
+  }).join('');
+  html += `<div style="display:flex;gap:3px;align-items:center;margin-top:3px;flex-wrap:wrap">
+    <span style="font-size:9px;color:#4a5272;letter-spacing:.5px;min-width:24px">ACT</span>
+    ${econBtns}
+    <button onclick="resetTurnActions(${JSON.stringify(char.name)},event)" style="background:none;border:1px solid rgba(255,255,255,.06);color:#3a3a5a;border-radius:4px;padding:1px 4px;cursor:pointer;font-size:9px;line-height:1;margin-left:2px" title="Reset all action economy for this turn">↺</button>
   </div>`;
   // Attack roll buttons row
   const strMod = (char.abilities||[]).find(a=>a[0]==='STR'); const sM = strMod ? (parseInt(strMod[2])||0) : 0;
