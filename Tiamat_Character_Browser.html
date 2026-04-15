@@ -3714,6 +3714,7 @@
   <button class="filter-btn" onclick="openMerchantGen()" style="border-color:#aa8833;color:#aa8833;" title="Merchant Generator — random shop with inventory and prices">🏪 Shop</button>
   <button class="filter-btn" onclick="openPotionPanel()" style="border-color:#cc4488;color:#cc4488;" title="Potion Quick-Use — drink potions, roll healing dice, track quantities">🧪 Potions</button>
   <button class="filter-btn" onclick="openAmmoPanel('',event)" style="border-color:#aa8833;color:#aa8833;" title="Ammunition Tracker — track arrows, bolts and ranged ammo per character">🏹 Ammo</button>
+  <button class="filter-btn" onclick="openFeatBrowser()" style="border-color:#44cc88;color:#44cc88;" title="Feat Browser — searchable PHB feat reference with prerequisites and descriptions">📖 Feats</button>
   <button class="filter-btn" onclick="openRandomEncTable()" style="border-color:#cc8844;color:#cc8844;" title="Random Encounter Table — roll by terrain">🎲 Enc Table</button>
   <button class="filter-btn" onclick="openCampaignTimeline()" style="border-color:#44cc88;color:#44cc88;" title="Campaign timeline — track key events">📅 Timeline</button>
   <button class="filter-btn" onclick="openWeatherPanel()" style="border-color:#2299bb;color:#2299bb;" title="Weather &amp; Environment — ambient conditions affecting gameplay">🌤 Weather</button>
@@ -21316,6 +21317,107 @@ function apRestock(charName, key, max) {
   saveAmmoData(charName, data);
   refreshAmmoSection(charName);
   renderAmmoPanelList();
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 117: Feat Browser — searchable PHB feat reference
+//   panel. Shows all 40+ major 5e feats with prerequisites,
+//   ability score improvements, and full descriptions.
+//   Toolbar: 📖 Feats
+// ══════════════════════════════════════════════════════════
+const FEAT_LIST = [
+  { name:'Alert', prereq:'None', asi:null, desc:'Always surprised. +5 to initiative. Creatures you don\'t see don\'t gain advantage vs you.' },
+  { name:'Athlete', prereq:'None', asi:'STR or DEX +1', desc:'+1 STR or DEX. Stand from prone costs 5ft. Climbing no extra cost. Running long/high jump with 5ft run-up.' },
+  { name:'Actor', prereq:'None', asi:'CHA +1', desc:'+1 CHA. Advantage on Deception and Performance when impersonating. Mimic sounds of person/creature heard ≥1 min. Insight vs CHA (Insight) to detect.' },
+  { name:'Charger', prereq:'None', asi:null, desc:'Dash + melee attack/shove: +5 damage or push 10ft.' },
+  { name:'Crossbow Expert', prereq:'None', asi:null, desc:'Ignore loading on crossbows. No disadvantage shooting in melee. Bonus action hand crossbow shot.' },
+  { name:'Defensive Duelist', prereq:'DEX 13', asi:null, desc:'Reaction: +proficiency to AC vs one melee attack when holding a finesse weapon.' },
+  { name:'Dual Wielder', prereq:'None', asi:null, desc:'+1 AC while dual wielding. Two-weapon fight with non-light weapons. Draw/stow two weapons at once.' },
+  { name:'Dungeon Delver', prereq:'None', asi:null, desc:'Advantage on Perception/Investigation for secret doors. Advantage on saves vs traps. Resistance to trap damage. Search for traps at normal pace.' },
+  { name:'Durable', prereq:'CON 13', asi:'CON +1', desc:'+1 CON. Minimum regain on Hit Dice = 2 × CON modifier.' },
+  { name:'Elemental Adept', prereq:'Spellcaster', asi:null, desc:'Choose element: treat 1s as 2s on damage rolls. Ignore resistance to that type.' },
+  { name:'Grappler', prereq:'STR 13', asi:null, desc:'Advantage on attack rolls vs grappled creature. Restrain grappled creature (both restrained) as action.' },
+  { name:'Great Weapon Master', prereq:'None', asi:null, desc:'Crit or kill: bonus action melee attack. Before attack: take -5 to hit for +10 damage.' },
+  { name:'Healer', prereq:'None', asi:null, desc:'Stabilize with 1 HP. Use healer\'s kit: restore 1d6+4+max HD HP (once per creature per rest).' },
+  { name:'Heavily Armored', prereq:'Medium Armor Prof', asi:'STR +1', desc:'Gain Heavy Armor Proficiency. +1 STR.' },
+  { name:'Heavy Armor Master', prereq:'Heavy Armor Prof', asi:'STR +1', desc:'+1 STR. In heavy armor: reduce bludgeoning/piercing/slashing from non-magical attacks by 3.' },
+  { name:'Inspiring Leader', prereq:'CHA 13', asi:null, desc:'10-min speech: up to 6 creatures gain temp HP = level + CHA mod. Once per short rest.' },
+  { name:'Keen Mind', prereq:'None', asi:'INT +1', desc:'+1 INT. Always know which way is north. Know how many hours to next sunrise/sunset. Recall anything seen/heard within past month.' },
+  { name:'Lightly Armored', prereq:'None', asi:'STR or DEX +1', desc:'Gain Light Armor Proficiency. +1 STR or DEX.' },
+  { name:'Linguist', prereq:'None', asi:'INT +1', desc:'+1 INT. Learn 3 additional languages. Create written ciphers; others need INT vs 15 to crack.' },
+  { name:'Lucky', prereq:'None', asi:null, desc:'3 luck points per long rest. Spend to reroll attack/ability/saving throw (yours or against you), take either result.' },
+  { name:'Mage Slayer', prereq:'None', asi:null, desc:'Reaction: attack caster casting within 5ft. Target has disadvantage on concentration save. Advantage on saves vs spells from creatures within 5ft.' },
+  { name:'Magic Initiate', prereq:'None', asi:null, desc:'Choose class: learn 2 cantrips and one 1st-level spell (cast once per long rest). Spellcasting ability = chosen class.' },
+  { name:'Martial Adept', prereq:'None', asi:null, desc:'Learn 2 maneuvers (Battle Master). 1 superiority die (d6). Regain on short/long rest.' },
+  { name:'Medium Armor Master', prereq:'Medium Armor Prof', asi:null, desc:'No stealth disadvantage in medium armor. DEX bonus to AC up to +3 (was +2).' },
+  { name:'Mobile', prereq:'None', asi:null, desc:'+10ft speed. Difficult terrain no movement penalty when Dashing. Melee attack (hit or miss): no opportunity attack from that creature this turn.' },
+  { name:'Moderately Armored', prereq:'Light Armor Prof', asi:'STR or DEX +1', desc:'Gain Medium Armor and Shield Proficiency. +1 STR or DEX.' },
+  { name:'Mounted Combatant', prereq:'None', asi:null, desc:'Advantage vs unmounted creatures smaller than mount. Force attacks to target you not mount. Mount takes half on Dex saves (none on success).' },
+  { name:'Observant', prereq:'None', asi:'INT or WIS +1', desc:'+1 INT or WIS. +5 to passive Perception and passive Investigation. Lip reading.' },
+  { name:'Polearm Master', prereq:'None', asi:null, desc:'Bonus action attack with polearm butt (1d4). Opportunity attack when creature enters reach.' },
+  { name:'Resilient', prereq:'None', asi:'+1 to chosen ability', desc:'+1 to chosen ability score. Gain proficiency in saving throws for that ability.' },
+  { name:'Ritual Caster', prereq:'INT or WIS 13', asi:null, desc:'Acquire a ritual book with 2 rituals of chosen class. Add rituals found in adventures. Cast as rituals only.' },
+  { name:'Savage Attacker', prereq:'None', asi:null, desc:'Once per turn when making melee attack: reroll weapon damage dice, use either result.' },
+  { name:'Sentinel', prereq:'None', asi:null, desc:'Opportunity attack: target speed → 0. Creatures can\'t Disengage from you. Reaction: melee attack vs creature attacking ally within 5ft of you.' },
+  { name:'Sharpshooter', prereq:'None', asi:null, desc:'No disadvantage on ranged attacks at long range. Ignore half/3-quarters cover. -5 to hit for +10 damage on ranged attacks.' },
+  { name:'Shield Master', prereq:'None', asi:null, desc:'Shove as bonus action after Attack action. Add shield AC to Dex saves you\'re proficient in. Bonus to Dex saves that normally half → 0.' },
+  { name:'Skilled', prereq:'None', asi:null, desc:'Gain proficiency in 3 skills or tools of your choice.' },
+  { name:'Skulker', prereq:'DEX 13', asi:null, desc:'Hide when lightly obscured. Missing ranged attack doesn\'t reveal location. Dim light not a disadvantage to Perception.' },
+  { name:'Spell Sniper', prereq:'Spellcaster', asi:null, desc:'Double range of attack-roll spells. Ignore half/3-quarters cover. Learn 1 attack-roll cantrip from any class.' },
+  { name:'Tavern Brawler', prereq:'None', asi:'STR or CON +1', desc:'+1 STR or CON. Proficiency with improvised weapons and unarmed strike. Unarmed/improvised hit: bonus action to grapple.' },
+  { name:'Tough', prereq:'None', asi:null, desc:'HP max increases by 2 per level (past and future).' },
+  { name:'War Caster', prereq:'Spellcaster', asi:null, desc:'Advantage on concentration saves. Cast spells with components while holding shield/weapon. Opportunity attack: cast spell with 1-target casting time of 1 action.' },
+  { name:'Weapon Master', prereq:'None', asi:'STR or DEX +1', desc:'+1 STR or DEX. Gain proficiency in 4 weapons of your choice.' },
+];
+
+function openFeatBrowser() {
+  const existing = document.getElementById('featBrowserOv');
+  if (existing) { existing.remove(); return; }
+
+  const ov = document.createElement('div');
+  ov.id = 'featBrowserOv';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:3000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick = e => { if(e.target===ov) ov.remove(); };
+  ov.innerHTML = `<div style="background:#0d0d1a;border:1px solid #2a2a5a;border-radius:12px;padding:20px;max-width:600px;width:100%;max-height:88vh;display:flex;flex-direction:column;position:relative">
+    <button onclick="document.getElementById('featBrowserOv').remove()" style="position:absolute;top:10px;right:14px;background:none;border:none;color:#7a7aaa;font-size:20px;cursor:pointer">✕</button>
+    <div style="font-size:18px;font-weight:700;color:#44cc88;margin-bottom:4px">📖 Feat Browser</div>
+    <div style="font-size:11px;color:#7a7aaa;margin-bottom:10px">${FEAT_LIST.length} PHB feats — click any feat for full description</div>
+    <input id="featSearchInp" type="text" placeholder="Search feats or prerequisites…" oninput="renderFeatList()"
+      style="background:#0a0a18;border:1px solid #2a2a50;color:#e8e8f8;border-radius:5px;padding:7px 10px;font-size:12px;margin-bottom:12px;outline:none">
+    <div id="featListScroll" style="overflow-y:auto;flex:1"></div>
+  </div>`;
+  document.body.appendChild(ov);
+  renderFeatList();
+  ov.querySelector('#featSearchInp').focus();
+}
+
+function renderFeatList() {
+  const q = (document.getElementById('featSearchInp')?.value || '').toLowerCase();
+  const container = document.getElementById('featListScroll');
+  if (!container) return;
+
+  const feats = FEAT_LIST.filter(f =>
+    !q || f.name.toLowerCase().includes(q) || f.desc.toLowerCase().includes(q) || f.prereq.toLowerCase().includes(q) || (f.asi||'').toLowerCase().includes(q)
+  );
+
+  if (!feats.length) {
+    container.innerHTML = '<div style="color:#4a5272;text-align:center;padding:20px">No feats match your search</div>';
+    return;
+  }
+
+  container.innerHTML = feats.map(f => {
+    const hasAsi = !!f.asi;
+    const prereqColor = f.prereq === 'None' ? '#4a5272' : '#c9a227';
+    return `<details style="border:1px solid #1a1a3a;border-radius:6px;margin-bottom:5px;background:rgba(20,20,40,0.3)">
+      <summary style="padding:8px 12px;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;user-select:none">
+        <span style="font-size:13px;font-weight:600;color:#e8e8f8;flex:1">${escHtml(f.name)}</span>
+        ${hasAsi ? `<span style="font-size:10px;color:#44aacc;border:1px solid #44aacc33;border-radius:3px;padding:1px 5px;flex-shrink:0">${escHtml(f.asi)}</span>` : ''}
+        <span style="font-size:10px;color:${prereqColor};flex-shrink:0">Req: ${escHtml(f.prereq)}</span>
+        <span style="color:#4a5272;font-size:12px;flex-shrink:0">▾</span>
+      </summary>
+      <div style="padding:8px 12px 10px;font-size:12px;color:#b0b8d8;border-top:1px solid #1a1a3a;line-height:1.5">${escHtml(f.desc)}</div>
+    </details>`;
+  }).join('');
 }
 // ────────────────────────────────────────────────────────
 </script>
