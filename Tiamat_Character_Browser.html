@@ -1719,7 +1719,49 @@
   .cond-control { background: rgba(136,68,187,0.2); border: 1px solid #8844bb; color: #aa66dd; }
   .cond-status  { background: rgba(201,162,39,0.2); border: 1px solid #c9a227; color: #c9a227; }
   .cond-movement{ background: rgba(34,153,187,0.2); border: 1px solid #2299bb; color: #2299bb; }
-  .condition-badge:hover { opacity: 0.7; }
+  .condition-badge:hover { opacity: 0.9; transform: scale(1.05); }
+
+  /* Crit/Fumble flash overlay */
+  @keyframes critFlash {
+    0% { opacity:0; transform:scale(0.8); }
+    20% { opacity:1; transform:scale(1.1); }
+    80% { opacity:1; transform:scale(1.05); }
+    100% { opacity:0; transform:scale(1); }
+  }
+  .crit-flash-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: critFlash 1.2s ease forwards;
+  }
+  .crit-flash-text {
+    font-family: 'Cinzel', serif;
+    font-size: min(10vw, 80px);
+    font-weight: 900;
+    letter-spacing: 4px;
+    text-shadow: 0 0 30px currentColor, 0 0 60px currentColor;
+  }
+
+  /* Condition tooltip */
+  .cond-tooltip {
+    position: fixed;
+    background: #0a0a1e;
+    border: 1px solid rgba(201,162,39,0.4);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 11px;
+    color: #9098b8;
+    max-width: 260px;
+    z-index: 9998;
+    pointer-events: none;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+    line-height: 1.5;
+    display: none;
+  }
   /* Character Tags */
   .char-tag-badge {
     display: inline-flex; align-items: center; gap: 3px;
@@ -4111,6 +4153,9 @@
     <div id="questList" style="max-height:440px;overflow-y:auto"></div>
   </div>
 </div>
+
+<!-- Condition Tooltip -->
+<div class="cond-tooltip" id="condTooltip"></div>
 
 <!-- Party Loot & Treasury Panel -->
 <div class="loot-panel" id="lootPanel">
@@ -8439,7 +8484,49 @@ function showDiceResult(total, detail, isCrit, isFumble) {
   void mainEl.offsetWidth; // force reflow
   mainEl.style.animation = 'diceRoll 0.3s ease';
   document.getElementById('diceResultDetail').textContent = detail;
+  if (isCrit) showCritFlash(true);
+  else if (isFumble) showCritFlash(false);
 }
+
+function showCritFlash(isCrit) {
+  document.querySelectorAll('.crit-flash-overlay').forEach(e => e.remove());
+  const el = document.createElement('div');
+  el.className = 'crit-flash-overlay';
+  el.style.background = isCrit ? 'radial-gradient(ellipse,rgba(201,162,39,0.15) 0%,transparent 70%)' : 'radial-gradient(ellipse,rgba(204,51,51,0.15) 0%,transparent 70%)';
+  el.innerHTML = `<div class="crit-flash-text" style="color:${isCrit?'#c9a227':'#cc3333'}">${isCrit ? '★ NAT 20!' : '☠ NAT 1'}</div>`;
+  document.body.appendChild(el);
+  el.addEventListener('animationend', () => el.remove());
+}
+
+// Condition tooltip on hover
+document.addEventListener('mouseover', (e) => {
+  const badge = e.target.closest('.condition-badge');
+  if (!badge) return;
+  const condName = badge.textContent.trim().replace(/[⚡◆]/g,'').trim();
+  const cond = (typeof CONDITIONS !== 'undefined') ? CONDITIONS.find(c => c.name === condName) : null;
+  if (!cond || !cond.effects) return;
+  const tooltip = document.getElementById('condTooltip');
+  if (!tooltip) return;
+  tooltip.innerHTML = `<strong style="color:${cond.color||'#e0e0ff'}">${cond.icon||''} ${cond.name}</strong><br>${cond.effects.map(e => `• ${e}`).join('<br>')}`;
+  tooltip.style.display = 'block';
+  const updatePos = (ev) => {
+    const x = Math.min(ev.clientX + 12, window.innerWidth - 270);
+    const y = Math.min(ev.clientY - 10, window.innerHeight - 150);
+    tooltip.style.left = x + 'px';
+    tooltip.style.top = y + 'px';
+  };
+  updatePos(e);
+  badge._tooltipMove = updatePos;
+  badge.addEventListener('mousemove', updatePos);
+});
+
+document.addEventListener('mouseout', (e) => {
+  const badge = e.target.closest('.condition-badge');
+  if (!badge) return;
+  const tooltip = document.getElementById('condTooltip');
+  if (tooltip) tooltip.style.display = 'none';
+  if (badge._tooltipMove) { badge.removeEventListener('mousemove', badge._tooltipMove); delete badge._tooltipMove; }
+});
 
 function updateDiceStats() {
   const el = document.getElementById('diceStats');
