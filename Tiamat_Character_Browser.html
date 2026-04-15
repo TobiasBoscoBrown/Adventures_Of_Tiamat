@@ -3268,8 +3268,32 @@
     <div class="initiative-controls">
       <button class="init-ctrl-btn" onclick="rollAllInitiative()" title="Roll initiative for all NPCs">⚄ Roll All</button>
       <button class="init-ctrl-btn next-btn" onclick="nextTurn()" title="Next turn">Next ▶</button>
+      <button class="init-ctrl-btn" onclick="toggleGroupRoll()" title="Group saving throw / ability check" style="border-color:#aa66dd;color:#aa66dd">⚔ Save</button>
       <button class="init-ctrl-btn" onclick="clearInitiative()" title="Clear initiative">✕</button>
     </div>
+  </div>
+  <!-- Group Roll Panel (collapsible) -->
+  <div id="groupRollArea" style="display:none;padding:8px 10px;border-bottom:1px solid #1e2040;background:rgba(170,102,221,.05)">
+    <div style="font-size:10px;color:#aa66dd;letter-spacing:1px;margin-bottom:6px;font-family:'Cinzel',serif">⚔ GROUP CHECK / SAVE</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+      <select id="groupRollAbility" style="background:#06061a;border:1px solid #2a2a50;border-radius:6px;padding:4px 8px;color:#e0e0ff;font-size:11px;cursor:pointer">
+        <option value="STR">STR Save</option>
+        <option value="DEX">DEX Save</option>
+        <option value="CON">CON Save</option>
+        <option value="INT">INT Save</option>
+        <option value="WIS" selected>WIS Save</option>
+        <option value="CHA">CHA Save</option>
+        <option value="CHECK_STR">STR Check</option>
+        <option value="CHECK_DEX">DEX Check</option>
+        <option value="CHECK_CON">CON Check</option>
+        <option value="CHECK_INT">INT Check</option>
+        <option value="CHECK_WIS">WIS Check</option>
+        <option value="CHECK_CHA">CHA Check</option>
+      </select>
+      <input type="number" id="groupRollDC" placeholder="DC" style="width:50px;background:#06061a;border:1px solid #2a2a50;border-radius:6px;padding:4px 6px;color:#e0e0ff;font-size:11px" value="14">
+      <button onclick="rollGroupSave()" style="background:rgba(170,102,221,.15);border:1px solid #aa66dd;color:#aa66dd;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">Roll All</button>
+    </div>
+    <div id="groupRollResults" style="font-size:11px;line-height:1.6"></div>
   </div>
   <div class="initiative-list" id="initiativeList">
     <div style="text-align:center;color:#4a5272;font-size:12px;padding:20px">
@@ -7281,6 +7305,51 @@ function renderHealthPanel() {
 }
 
 // Health panel is refreshed via updateHeaderStats hook in saveHp
+
+function toggleGroupRoll() {
+  const el = document.getElementById('groupRollArea');
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+  document.getElementById('groupRollResults').innerHTML = '';
+}
+
+function rollGroupSave() {
+  const abilityKey = document.getElementById('groupRollAbility').value;
+  const dc = parseInt(document.getElementById('groupRollDC').value) || 10;
+  const isCheck = abilityKey.startsWith('CHECK_');
+  const ab = isCheck ? abilityKey.replace('CHECK_', '') : abilityKey;
+  const label = isCheck ? `${ab} Check` : `${ab} Save`;
+
+  // Collect participants: initiative list + all characters if no initiative
+  const targets = initiativeList.length > 0
+    ? initiativeList.map(e => UNIQUE_CHARS.find(c => c.name === e.name)).filter(Boolean)
+    : UNIQUE_CHARS;
+
+  const results = targets.map(char => {
+    const abData = (char.abilities || []).find(([n]) => n === ab);
+    const mod = abData ? parseInt(abData[2]) || 0 : 0;
+    const isProficient = abData ? abData[3] : 0;
+    const crNum = parseFloat(char.cr || 0);
+    const prof = crNum >= 17 ? 6 : crNum >= 13 ? 5 : crNum >= 9 ? 4 : crNum >= 5 ? 3 : 2;
+    const bonus = isProficient && !isCheck ? mod + prof : mod;
+    const roll = Math.floor(Math.random() * 20) + 1;
+    const total = roll + bonus;
+    const passed = total >= dc;
+    const isCrit = roll === 20;
+    const isFumble = roll === 1;
+    return { name: char.name, roll, bonus, total, passed, isCrit, isFumble };
+  });
+
+  const passed = results.filter(r => r.passed);
+  const failed = results.filter(r => !r.passed);
+
+  const el = document.getElementById('groupRollResults');
+  el.innerHTML = `
+    <div style="margin-bottom:6px;color:#aa66dd;font-size:11px">DC ${dc} ${label} — ${passed.length} pass, ${failed.length} fail</div>
+    ${passed.map(r => `<div style="color:#44aa44;font-size:10px">✓ ${r.name} ${r.total} (d20:${r.roll}${r.bonus>=0?'+':''}${r.bonus})${r.isCrit?' ★':''}</div>`).join('')}
+    ${failed.map(r => `<div style="color:#cc3333;font-size:10px">✕ ${r.name} ${r.total} (d20:${r.roll}${r.bonus>=0?'+':''}${r.bonus})${r.isFumble?' ☠':''}</div>`).join('')}
+  `;
+  logEntry('roll', `<strong>DC ${dc} ${label}</strong>: ${passed.length} pass (${passed.map(r=>r.name).join(', ')||'none'}) · ${failed.length} fail (${failed.map(r=>r.name).join(', ')||'none'})`);
+}
 
 function rollAllInitiative() {
   initiativeList.forEach(e => {
