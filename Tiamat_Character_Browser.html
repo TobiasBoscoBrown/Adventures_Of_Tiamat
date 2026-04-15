@@ -4985,12 +4985,12 @@
 
 <div id="sessionHud" style="position:fixed;bottom:0;left:0;right:0;background:#06061a;border-top:1px solid #1e2040;padding:6px 20px;display:flex;align-items:center;gap:20px;z-index:49;font-size:11px;flex-wrap:wrap">
   <div class="keyboard-hint" style="position:static;background:none;border:none;padding:0;margin:0;font-size:11px;flex-shrink:0">
-    <kbd>&#8592;</kbd><kbd>&#8594;</kbd> Nav &nbsp; <kbd>Esc</kbd> Close &nbsp; <kbd>/</kbd> Search &nbsp; <kbd>D</kbd> Dice &nbsp; <kbd>L</kbd> Log
+    <kbd>&#8592;</kbd><kbd>&#8594;</kbd> Nav &nbsp; <kbd>Esc</kbd> Close &nbsp; <kbd>/</kbd> Search &nbsp; <kbd>D</kbd> Dice &nbsp; <kbd>L</kbd> Log &nbsp; <kbd onclick="_openCmd()" style="cursor:pointer;background:rgba(155,109,255,0.15);border-color:rgba(155,109,255,0.4);color:#9b6dff" title="Command Palette — search all features">Ctrl+K</kbd>
   </div>
   <div style="flex:1;display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:flex-end">
     <span id="hudDate" style="color:#c9a22788;cursor:pointer" onclick="openCalendar()" title="Open Calendar">📅 —</span>
     <span id="hudWeather" style="color:#4488ff88;cursor:pointer" onclick="openWeather()" title="Open Weather">☁ —</span>
-    <span id="hudCombat" style="color:#cc333388" title="Combat status">⚔ —</span>
+    <span id="hudCombat" style="color:#cc333388;cursor:pointer" onclick="document.getElementById('initiativePanel').classList.toggle('open')" title="Combat status — click to toggle initiative tracker">⚔ —</span>
     <span id="hudEncounter" style="color:#44aa4488" title="Active encounter">☩ —</span>
   </div>
 </div>
@@ -12463,7 +12463,17 @@ function showCombatSummary(combatants, rounds) {
       ${xpEarned ? `<div style="text-align:center"><div style="font-size:24px;font-weight:700;color:#44aa44;font-family:'Cinzel',serif">${xpEarned.toLocaleString()}</div><div style="font-size:10px;color:#4a5272">XP</div></div>` : ''}
     </div>
     ${downed.length ? `<div style="margin-bottom:8px;font-size:11px;color:#cc5555">⚠ Down: ${downed.map(e=>escHtml(e.name)).join(', ')}</div>` : ''}
-    ${xpEarned ? `<div style="font-size:10px;color:#3a5030;margin-bottom:8px">Award XP: click ⭐ XP button → Award Encounter XP</div>` : ''}
+    ${xpEarned ? `
+    <div style="background:rgba(68,170,68,0.06);border:1px solid rgba(68,170,68,0.25);border-radius:8px;padding:10px 12px;margin-bottom:10px;text-align:center">
+      <div style="font-size:11px;color:#4a5272;margin-bottom:6px">Award ${xpEarned.toLocaleString()} XP to party?</div>
+      <div style="display:flex;gap:8px;justify-content:center">
+        <button onclick="_combatAwardXp(${xpEarned});this.closest('#combatSummaryPopup').remove()"
+          style="background:rgba(68,170,68,0.2);border:1px solid #44aa44;color:#44aa44;border-radius:7px;padding:6px 16px;cursor:pointer;font-size:12px;font-weight:600">
+          ⭐ Award to Party</button>
+        <button onclick="this.closest('[style*=rgba(68,170,68]').style.display='none'"
+          style="background:none;border:1px solid #1e2040;color:#3a3a5a;border-radius:7px;padding:6px 12px;cursor:pointer;font-size:11px">Skip</button>
+      </div>
+    </div>` : ''}
     <button onclick="this.closest('#combatSummaryPopup').remove()" style="width:100%;background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.4);color:#c9a227;border-radius:8px;padding:8px;cursor:pointer;font-size:12px;font-family:'Cinzel',serif">Dismiss</button>`;
   document.body.appendChild(popup);
   logEntry('combat', `⚔ <strong>Combat ended</strong>: ${rounds} rounds, ${combatants.length} combatants${downed.length?`, ${downed.length} downed`:''}${xpEarned?`, ${xpEarned.toLocaleString()} XP available`:''}`);
@@ -22805,6 +22815,22 @@ function buildWoundsSection(name) {
     ${healed.length ? `<details style="margin-top:4px"><summary style="font-size:10px;color:#2a2a50;cursor:pointer;user-select:none">${healed.length} healed wound${healed.length!==1?'s':''}</summary><div style="margin-top:4px">${healed.map(woundRow).join('')}</div></details>` : ''}
     ${addForm}
   </div>`;
+}
+// Iter 136: Combat UX improvements
+// 1. Combat summary now shows a one-click "Award to Party" XP button
+// 2. HUD combat indicator is clickable → toggles initiative panel
+// 3. Ctrl+K hint added to HUD keyboard shortcuts bar
+
+function _combatAwardXp(amount) {
+  if (!amount || amount <= 0) return;
+  const prev = getPartyXp(), newXp = prev + amount;
+  const prevLvl = getPartyLevelFromXp(prev), newLvl = getPartyLevelFromXp(newXp);
+  savePartyXp(newXp);
+  const levelUp = newLvl > prevLvl;
+  showToast(`⭐ +${amount.toLocaleString()} XP awarded to party${levelUp ? ` 🎉 LEVEL UP → Lv ${newLvl}!` : ''}`, '#c9a227');
+  if (typeof logEntry === 'function') logEntry('roll', `⭐ <strong>+${amount.toLocaleString()} XP</strong> awarded (combat) — Party at ${newXp.toLocaleString()} XP${levelUp ? ` 🎉 <strong>LEVEL UP → Lv ${newLvl}</strong>` : ''}`);
+  if (levelUp && typeof playSound === 'function') playSound('crit');
+  if (typeof renderXpPanel === 'function') renderXpPanel();
 }
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
