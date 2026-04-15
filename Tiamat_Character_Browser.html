@@ -3558,6 +3558,7 @@
   <button class="filter-btn" onclick="showPassiveSkills()" style="border-color:#2299bb;color:#2299bb;" title="Party passive Perception, Investigation & Insight">👁 Passives</button>
   <button class="filter-btn" onclick="openTreasureGenerator()" style="border-color:#c9a227;color:#c9a227;" title="Random treasure generator by CR">💎 Treasure</button>
   <button class="filter-btn" onclick="openCampaignTimeline()" style="border-color:#44cc88;color:#44cc88;" title="Campaign timeline — track key events">📅 Timeline</button>
+  <button class="filter-btn" onclick="openWeatherPanel()" style="border-color:#2299bb;color:#2299bb;" title="Weather &amp; Environment — ambient conditions affecting gameplay">🌤 Weather</button>
   <button class="filter-btn" onclick="openGraveyardPanel()" style="border-color:#555;color:#888;" title="Character graveyard — fallen heroes and villains">💀 Graveyard</button>
   <button class="filter-btn" onclick="openShortcutsHelp()" style="border-color:#4488ff;color:#4488ff;" title="Keyboard shortcuts — press ? anytime">⌨ ?</button>
   <button class="filter-btn" onclick="openGlobalSearch()" style="border-color:#c9a227;color:#9098b8;" title="Global search — Ctrl+K">🔍 Search All</button>
@@ -8651,6 +8652,133 @@ function clearInitiative() {
   renderInitiative();
   renderGrid();
   updateHud();
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 69: Weather & Environment Panel — track ambient
+//   conditions (weather, time, lighting, terrain) that affect
+//   gameplay mechanics. Stored in localStorage.
+// ══════════════════════════════════════════════════════════
+const WEATHER_KEY = 'tiamat_weather';
+const WEATHER_PRESETS = {
+  Clear:       { icon: '☀', sky: '#1a3a5a', desc: 'Bright light, no penalties.', mechanical: '' },
+  Cloudy:      { icon: '☁', sky: '#2a3040', desc: 'Overcast, dim light outdoors.', mechanical: 'Dim light outdoors.' },
+  Rain:        { icon: '🌧', sky: '#1a2030', desc: 'Heavy rain. Perception checks at disadvantage outdoors.', mechanical: 'Perception (hearing) -5. Ranged attacks disadvantage.' },
+  Thunderstorm:{ icon: '⛈', sky: '#111820', desc: 'Storm. Flying dangerous, loud environments.', mechanical: 'Flying DC 12 Str save or drop 10ft. Loud shouts needed to communicate.' },
+  Fog:         { icon: '🌫', sky: '#1e2030', desc: 'Heavily obscured beyond 30ft. Ranged attacks at disadvantage.', mechanical: 'Lightly obscured 15ft, heavily obscured 30ft+.' },
+  Snow:        { icon: '❄', sky: '#1a2040', desc: 'Difficult terrain outdoors. Tracks easily visible.', mechanical: 'Difficult terrain (outdoors). Tracks last 24h.' },
+  Blizzard:    { icon: '🌨', sky: '#0d1020', desc: 'Heavily obscured. Extreme cold. Constitution saves hourly.', mechanical: 'CON save DC 10+1/hr or exhaustion (without cold gear).' },
+  Desert_Heat: { icon: '🏜', sky: '#3a2010', desc: 'Extreme heat. Constitution saves hourly without water.', mechanical: 'CON save DC 5+1/hr or exhaustion (without water/shade).' },
+  Magic_Storm: { icon: '🌀', sky: '#1a0a3a', desc: 'Wild magic surges possible. Concentration DC +5.', mechanical: 'Wild magic surge on nat 1 spellcasting. Concentration DC 15.' },
+};
+const TIME_OPTS = ['Dawn','Morning','Midday','Afternoon','Dusk','Evening','Midnight','Deep Night'];
+const LIGHT_OPTS = ['Bright','Dim','Darkness','Magical Darkness'];
+const TERRAIN_OPTS = ['Open Ground','Forest','Dungeon','Swamp','Mountain','City','Underwater','Planar'];
+
+function loadWeatherState() {
+  try { return JSON.parse(localStorage.getItem(WEATHER_KEY)) || { weather:'Clear', time:'Morning', light:'Bright', terrain:'Open Ground', notes:'' }; }
+  catch(e) { return { weather:'Clear', time:'Morning', light:'Bright', terrain:'Open Ground', notes:'' }; }
+}
+function saveWeatherState(s) { localStorage.setItem(WEATHER_KEY, JSON.stringify(s)); }
+
+function getWeatherBanner() {
+  const s = loadWeatherState();
+  const p = WEATHER_PRESETS[s.weather] || WEATHER_PRESETS.Clear;
+  return `${p.icon} ${s.weather} · ${s.time} · ${s.light} · ${s.terrain}`;
+}
+
+function openWeatherPanel() {
+  const existing = document.getElementById('weatherPanelOverlay');
+  if (existing) { existing.remove(); return; }
+  const s = loadWeatherState();
+  const overlay = document.createElement('div');
+  overlay.id = 'weatherPanelOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.65);z-index:9500;display:flex;align-items:flex-start;justify-content:center;padding-top:6vh';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  const weatherBtns = Object.entries(WEATHER_PRESETS).map(([name, p]) =>
+    `<button onclick="setWeatherPreset('${name}')" style="background:${s.weather===name?'rgba(34,153,187,0.2)':'none'};border:1px solid ${s.weather===name?'#2299bb':'#1e2040'};color:${s.weather===name?'#2299bb':'#9098b8'};border-radius:8px;padding:6px 8px;cursor:pointer;font-size:11px;text-align:center" id="wbtn_${name}">
+      <div style="font-size:18px">${p.icon}</div>
+      <div style="font-size:9px;margin-top:2px">${name.replace('_',' ')}</div>
+    </button>`
+  ).join('');
+
+  const curPreset = WEATHER_PRESETS[s.weather] || WEATHER_PRESETS.Clear;
+
+  overlay.innerHTML = `
+    <div style="background:#0d0d1a;border:1px solid rgba(34,153,187,0.4);border-radius:14px;padding:24px;width:540px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.7)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:700;color:#2299bb">🌤 Weather &amp; Environment</div>
+        <button onclick="document.getElementById('weatherPanelOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+
+      <!-- Weather grid -->
+      <div style="font-size:10px;color:#4a5272;letter-spacing:.5px;margin-bottom:6px">WEATHER</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:14px">${weatherBtns}</div>
+
+      <!-- Mechanical note -->
+      <div id="weatherMech" style="font-size:11px;color:#9098b8;background:#06061a;border:1px solid #1e2040;border-radius:8px;padding:8px 12px;margin-bottom:14px">${curPreset.mechanical || curPreset.desc}</div>
+
+      <!-- Time, Light, Terrain -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+        <div>
+          <div style="font-size:10px;color:#4a5272;letter-spacing:.5px;margin-bottom:4px">TIME OF DAY</div>
+          <select id="wTime" onchange="applyWeatherSettings()" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:6px 8px;font-size:11px;cursor:pointer">
+            ${TIME_OPTS.map(t => `<option value="${t}"${s.time===t?' selected':''}>${t}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#4a5272;letter-spacing:.5px;margin-bottom:4px">LIGHTING</div>
+          <select id="wLight" onchange="applyWeatherSettings()" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:6px 8px;font-size:11px;cursor:pointer">
+            ${LIGHT_OPTS.map(l => `<option value="${l}"${s.light===l?' selected':''}>${l}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#4a5272;letter-spacing:.5px;margin-bottom:4px">TERRAIN</div>
+          <select id="wTerrain" onchange="applyWeatherSettings()" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:6px 8px;font-size:11px;cursor:pointer">
+            ${TERRAIN_OPTS.map(t => `<option value="${t}"${s.terrain===t?' selected':''}>${t}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+
+      <!-- DM Notes -->
+      <div style="font-size:10px;color:#4a5272;letter-spacing:.5px;margin-bottom:4px">SCENE NOTES</div>
+      <textarea id="wNotes" placeholder="Add scene description, ambient sounds, NPC presence..." style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:8px 10px;font-size:11px;resize:vertical;min-height:60px;font-family:inherit;box-sizing:border-box" oninput="applyWeatherSettings()">${s.notes||''}</textarea>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function setWeatherPreset(name) {
+  const s = loadWeatherState();
+  s.weather = name;
+  // Auto-adjust light based on time
+  const time = s.time;
+  if (['Midnight','Deep Night'].includes(time)) s.light = 'Darkness';
+  else if (['Dusk','Dawn','Evening'].includes(time)) s.light = 'Dim';
+  else if (['Morning','Midday','Afternoon'].includes(time)) s.light = ['Fog','Blizzard','Thunderstorm','Rain','Cloudy'].includes(name) ? 'Dim' : 'Bright';
+  saveWeatherState(s);
+  const p = WEATHER_PRESETS[name];
+  document.getElementById('weatherMech').textContent = p.mechanical || p.desc;
+  // Update button styles
+  Object.keys(WEATHER_PRESETS).forEach(n => {
+    const btn = document.getElementById('wbtn_' + n);
+    if (btn) {
+      btn.style.background = n === name ? 'rgba(34,153,187,0.2)' : 'none';
+      btn.style.borderColor = n === name ? '#2299bb' : '#1e2040';
+      btn.style.color = n === name ? '#2299bb' : '#9098b8';
+    }
+  });
+  document.getElementById('wLight').value = s.light;
+  showToast(`🌤 Weather: ${name.replace('_',' ')} · ${s.light}`, '#2299bb');
+}
+
+function applyWeatherSettings() {
+  const s = loadWeatherState();
+  s.time    = document.getElementById('wTime')?.value    || s.time;
+  s.light   = document.getElementById('wLight')?.value   || s.light;
+  s.terrain = document.getElementById('wTerrain')?.value || s.terrain;
+  s.notes   = document.getElementById('wNotes')?.value   || s.notes;
+  saveWeatherState(s);
 }
 
 // ══════════════════════════════════════════════════════════
