@@ -1795,6 +1795,20 @@
     0%,100% { box-shadow: 0 0 4px rgba(201,162,39,0.3); }
     50% { box-shadow: 0 0 10px rgba(201,162,39,0.6); }
   }
+  /* Damage Type Badges */
+  .dmg-badge { display:inline-flex;align-items:center;gap:2px;font-size:9px;padding:1px 5px;border-radius:8px;cursor:default;border:1px solid;letter-spacing:0.2px;margin:1px; }
+  .dmg-badge.immune  { background:rgba(60,60,80,0.5); border-color:#555; color:#aaa; }
+  .dmg-badge.resist  { background:rgba(30,80,120,0.4); border-color:#2299bb; color:#66ccee; }
+  .dmg-badge.vuln    { background:rgba(160,40,30,0.3); border-color:#cc3333; color:#ff6666; }
+  .dmg-type-picker { position:fixed;z-index:900;background:#0a0a1a;border:1px solid #2a2a50;border-radius:12px;padding:12px 14px;width:280px;box-shadow:0 8px 40px rgba(0,0,0,0.9);max-height:70vh;overflow-y:auto; }
+  .dmg-type-picker h4 { font-family:'Cinzel',serif;color:#9b6dff;font-size:11px;margin:0 0 8px;letter-spacing:1px; }
+  .dmg-type-row { display:grid;grid-template-columns:80px 1fr;align-items:center;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04); }
+  .dmg-type-name { font-size:11px;color:#8888aa;text-transform:capitalize; }
+  .dmg-type-btns { display:flex;gap:4px; }
+  .dmg-type-btn { padding:2px 7px;border-radius:10px;border:1px solid #2a2a50;background:transparent;color:#4a5272;cursor:pointer;font-size:10px;transition:all .15s; }
+  .dmg-type-btn.active-immune { background:rgba(60,60,80,0.7);border-color:#555;color:#bbb; }
+  .dmg-type-btn.active-resist { background:rgba(30,80,120,0.6);border-color:#2299bb;color:#66ccee; }
+  .dmg-type-btn.active-vuln  { background:rgba(160,40,30,0.5);border-color:#cc3333;color:#ff6666; }
   /* Concentration modal button */
   .conc-set-btn {
     background: rgba(201,162,39,0.1);
@@ -5001,11 +5015,12 @@ function renderGrid() {
             </div>
           </div>
           ${c.quote ? `<div class="card-quote">"${c.quote}"</div>` : ''}
-          <div class="conditions-row" onclick="event.stopPropagation()">${getConditionBadgesHtml(c.name)}${getConcBadgeHtml(c.name)}${getTagBadgesHtml(c.name)}${getExhaustBadgeHtml(c.name)}</div>
+          <div class="conditions-row" onclick="event.stopPropagation()" data-char-name="${c.name}">${getConditionBadgesHtml(c.name)}${getConcBadgeHtml(c.name)}${getTagBadgesHtml(c.name)}${getExhaustBadgeHtml(c.name)}${getDmgTypeBadgesHtml(c.name)}</div>
           <div style="display:flex;gap:8px;align-items:center;margin-top:3px" onclick="event.stopPropagation()">
             <button class="card-cond-btn ${hasConditions(c.name)?'has-conds':''}" onclick="openCondPopup(${JSON.stringify(c.name)},event)">⚡ ${hasConditions(c.name)?'Conds':'Condition'}</button>
             <button class="card-enc-btn ${isInActiveEncounter(c.name)?'in-enc':''}" onclick="addCharToActiveEncounter(${JSON.stringify(c.name)},${maxHp})">☩ ${isInActiveEncounter(c.name)?'In Enc':'Encounter'}</button>
             <button class="card-notes-btn ${hasNotes(c.name)?'has-notes':''}" onclick="openNotes(${JSON.stringify(c.name)},${JSON.stringify(c.title)})">${hasNotes(c.name)?'✎':'✎'}</button>
+            <button onclick="openDmgTypePicker(${JSON.stringify(c.name)},this,event)" title="Set damage immunities, resistances, vulnerabilities" style="background:none;border:1px solid #2a2a50;color:#4a5272;border-radius:4px;padding:1px 5px;cursor:pointer;font-size:10px;line-height:1.4" onmouseover="this.style.borderColor='#6688bb';this.style.color='#88aacc'" onmouseout="this.style.borderColor='#2a2a50';this.style.color='#4a5272'">⚔DR</button>
             <span class="insp-star${hasInspiration(c.name)?' active':''}" onclick="event.stopPropagation();toggleInspiration(${JSON.stringify(c.name)})" title="${hasInspiration(c.name)?'Has Inspiration — click to remove':'Click to grant Inspiration'}" id="insp_${sid}">★</span>
           </div>
           <div class="hp-tracker" data-sid="${sid}" onclick="event.stopPropagation()">
@@ -10366,6 +10381,120 @@ function toggleInspiration(name) {
   if (typeof updateHeaderStats === 'function') updateHeaderStats();
 }
 // ────────────────────────────────────────────────────────
+
+// ── DAMAGE TYPE TRACKER ──────────────────────────────────
+const DMG_TYPES_KEY = 'tiamat_damage_types';
+const DMG_TYPE_LIST = ['acid','bludgeoning','cold','fire','force','lightning','necrotic','piercing','poison','psychic','radiant','slashing','thunder'];
+const DMG_TYPE_ICONS = { acid:'🧪',bludgeoning:'🔨',cold:'❄',fire:'🔥',force:'💥',lightning:'⚡',necrotic:'💀',piercing:'🗡',poison:'☠',psychic:'🌀',radiant:'✨',slashing:'⚔',thunder:'🌩' };
+
+function loadDmgTypes() { try { return JSON.parse(localStorage.getItem(DMG_TYPES_KEY)) || {}; } catch { return {}; } }
+function saveDmgTypes(d) { localStorage.setItem(DMG_TYPES_KEY, JSON.stringify(d)); }
+
+function getDmgType(name, dtype) {
+  const all = loadDmgTypes();
+  return (all[name] || {})[dtype] || null; // null | 'immune' | 'resist' | 'vuln'
+}
+function setDmgType(name, dtype, state) {
+  const all = loadDmgTypes();
+  if (!all[name]) all[name] = {};
+  if (!state) delete all[name][dtype];
+  else all[name][dtype] = state;
+  if (all[name] && !Object.keys(all[name]).length) delete all[name];
+  saveDmgTypes(all);
+  refreshDmgBadges(name);
+}
+function cycleDmgType(name, dtype, event) {
+  if (event) event.stopPropagation();
+  const cur = getDmgType(name, dtype);
+  const next = cur === null ? 'immune' : cur === 'immune' ? 'resist' : cur === 'resist' ? 'vuln' : null;
+  setDmgType(name, dtype, next);
+  // Update picker button
+  const btn = document.getElementById(`dmgbtn_${safeId(name)}_${dtype}`);
+  if (btn) {
+    btn.classList.remove('active-immune','active-resist','active-vuln');
+    if (next) btn.classList.add(`active-${next}`);
+    btn.textContent = next ? next.charAt(0).toUpperCase()+next.slice(1) : 'None';
+  }
+}
+
+function getDmgTypeBadgesHtml(name) {
+  const data = (loadDmgTypes()[name]) || {};
+  const types = Object.keys(data);
+  if (!types.length) return '';
+  return types.map(dtype => {
+    const state = data[dtype];
+    const icon = DMG_TYPE_ICONS[dtype] || '◆';
+    const label = state === 'immune' ? '◆' : state === 'resist' ? '½' : '2×';
+    return `<span class="dmg-badge ${state}" title="${state.toUpperCase()}: ${dtype}">${icon} ${label}</span>`;
+  }).join('');
+}
+
+function refreshDmgBadges(name) {
+  const condRow = [...document.querySelectorAll('.conditions-row')].find(el => el.dataset.charName === name);
+  if (condRow) {
+    // Rebuild entire conditions row
+    const badges = getConditionBadgesHtml(name) + getConcBadgeHtml(name) + getTagBadgesHtml(name) + getExhaustBadgeHtml(name) + getDmgTypeBadgesHtml(name);
+    condRow.innerHTML = badges;
+  }
+}
+
+function openDmgTypePicker(charName, anchorEl, event) {
+  if (event) event.stopPropagation();
+  document.querySelectorAll('.dmg-type-picker').forEach(e => e.remove());
+  const data = loadDmgTypes()[charName] || {};
+  const sid = safeId(charName);
+  const rows = DMG_TYPE_LIST.map(dtype => {
+    const cur = data[dtype] || null;
+    const mkBtn = (state, label) => `<button id="dmgbtn_${sid}_${dtype}_${state}" class="dmg-type-btn${cur===state?` active-${state}`:''}" onclick="setDmgTypeFull(${JSON.stringify(charName)},${JSON.stringify(dtype)},${JSON.stringify(state)},event)">${label}</button>`;
+    return `<div class="dmg-type-row">
+      <div class="dmg-type-name">${DMG_TYPE_ICONS[dtype]||''} ${dtype}</div>
+      <div class="dmg-type-btns">
+        <button class="dmg-type-btn${!cur?' active-immune':''}" style="${!cur?'background:rgba(255,255,255,0.06);color:#8888aa;border-color:#3a3a5a':''}" onclick="setDmgTypeFull(${JSON.stringify(charName)},${JSON.stringify(dtype)},null,event)">—</button>
+        ${mkBtn('immune','Immune')}
+        ${mkBtn('resist','Resist')}
+        ${mkBtn('vuln','Vuln')}
+      </div>
+    </div>`;
+  }).join('');
+  const rect = anchorEl ? anchorEl.getBoundingClientRect() : { left:200, bottom:200 };
+  const picker = document.createElement('div');
+  picker.className = 'dmg-type-picker';
+  picker.style.left = Math.min(rect.left, window.innerWidth - 300) + 'px';
+  picker.style.top = (rect.bottom + 4) + 'px';
+  picker.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <h4>⚔ DAMAGE TYPES — ${escHtml(charName)}</h4>
+    <button onclick="this.closest('.dmg-type-picker').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:14px">✕</button>
+  </div>
+  <div style="font-size:10px;color:#4a5272;margin-bottom:8px">Set immunity, resistance, or vulnerability for each damage type.</div>
+  ${rows}`;
+  document.body.appendChild(picker);
+  const close = e => { if (!picker.contains(e.target)) { picker.remove(); document.removeEventListener('mousedown', close); } };
+  setTimeout(() => document.addEventListener('mousedown', close), 100);
+}
+
+function setDmgTypeFull(name, dtype, state, event) {
+  if (event) event.stopPropagation();
+  const all = loadDmgTypes();
+  if (!all[name]) all[name] = {};
+  if (!state) delete all[name][dtype];
+  else all[name][dtype] = state;
+  if (!Object.keys(all[name]).length) delete all[name];
+  saveDmgTypes(all);
+  // Refresh all buttons in picker
+  const sid = safeId(name);
+  const states = ['immune','resist','vuln'];
+  ['immune','resist','vuln',null].forEach(s => {
+    const btn = document.getElementById(`dmgbtn_${sid}_${dtype}_${s}`);
+    if (btn) { btn.classList.remove('active-immune','active-resist','active-vuln'); btn.style.background=''; btn.style.color=''; btn.style.borderColor=''; }
+  });
+  const nullBtn = document.querySelector(`.dmg-type-picker [onclick*="${CSS.escape(dtype)}"][onclick*="null,event"]`);
+  if (!state && nullBtn) { nullBtn.style.background='rgba(255,255,255,0.06)'; nullBtn.style.color='#8888aa'; nullBtn.style.borderColor='#3a3a5a'; }
+  if (state) {
+    const activeBtn = document.getElementById(`dmgbtn_${sid}_${dtype}_${state}`);
+    if (activeBtn) activeBtn.classList.add(`active-${state}`);
+  }
+  refreshDmgBadges(name);
+}
 
 // ── DEATH SAVE TRACKER ───────────────────────────────────
 const DS_KEY = 'tiamat_death_saves';
