@@ -28241,6 +28241,88 @@ function _xpsAward() {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 177: Encounter Hook Generator — full narrative hooks with motive, complication, twist
+// Combines setting + villain motive + complication + twist for rich impromptu encounters.
+
+const HOOK_SETTINGS = ['A crowded marketplace','A dark forest path','An inn at midnight','Ruins of a temple','A noble\'s manor','A harbor district','Underground sewers','A mountain pass','A wizard\'s tower','A graveyard at dusk','A riverboat crossing','A prison or dungeon','An abandoned mine','A festival crowd','A border checkpoint'];
+const HOOK_MOTIVES = ['Trying to steal something valuable','Covering up a crime','Seeking revenge for a past wrong','Protecting a dangerous secret','Desperate for money','Serving a more powerful master','Deluded into thinking they\'re righteous','Under a magical compulsion','Seeking forbidden knowledge','Protecting someone they love','Acting out of fear of being discovered','Pursuing political power at any cost'];
+const HOOK_COMPLICATIONS = ['An innocent bystander is caught in the middle','The situation is not what it first appears','A third faction arrives with their own agenda','The party learns they share a common enemy','Time is running out — consequences imminent','The opposition knows the party is coming','Someone in the party has a personal connection','Resources are limited (low HP, no spells, etc.)','The environment becomes dangerous','An ally unexpectedly betrays the party','The target has already moved on','Magic is being suppressed in the area'];
+const HOOK_TWISTS = ['The villain turns out to be a victim of circumstances','The real mastermind is still hidden','The object of the quest is not what it seemed','An NPC the party trusted is working against them','Completing the goal creates a new problem','The party discovers they\'ve been played by both sides','The "villain" will become a future ally','A secret door/path/clue changes everything','The stakes are far higher than originally understood','Time flows differently here — consequences already occurred','The person they sought is dead or imprisoned','The solution requires a sacrifice the party wasn\'t expecting'];
+
+function openHookGen() {
+  const ex = document.getElementById('hookGenOverlay');
+  if (ex) { ex.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'hookGenOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.90);z-index:9200;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML = `
+    <div style="width:560px;max-width:100%;background:linear-gradient(160deg,#0e0820,#180e30);border:2px solid rgba(201,162,39,0.35);border-radius:16px;padding:24px;color:#c8d0e8;font-family:'Inter',sans-serif;box-shadow:0 0 40px rgba(201,162,39,0.12)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div style="font-family:'Cinzel',serif;font-size:17px;font-weight:700;color:#c9a227">📜 Encounter Hook Generator</div>
+        <button onclick="document.getElementById('hookGenOverlay').remove()" style="background:none;border:1px solid #2a2040;color:#6a5aaa;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px">✕</button>
+      </div>
+      <div style="text-align:center;margin-bottom:16px">
+        <button onclick="_hookRoll()" style="background:rgba(201,162,39,0.15);border:2px solid rgba(201,162,39,0.5);color:#c9a227;border-radius:10px;padding:12px 28px;cursor:pointer;font-size:15px;font-weight:700" onmouseover="this.style.background='rgba(201,162,39,0.25)'" onmouseout="this.style.background='rgba(201,162,39,0.15)'">🎲 Generate Hook</button>
+      </div>
+      <div id="hookResult" style="min-height:180px;background:rgba(0,0,0,0.35);border:1px solid rgba(201,162,39,0.15);border-radius:12px;padding:16px">
+        <div style="color:#4a5272;font-size:12px;text-align:center;padding:20px">Click Generate Hook for a complete encounter premise</div>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+function _hookRoll() {
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+  const setting = pick(HOOK_SETTINGS);
+  const motive = pick(HOOK_MOTIVES);
+  const comp = pick(HOOK_COMPLICATIONS);
+  const twist = pick(HOOK_TWISTS);
+
+  // Generate a short opening line
+  const openers = [
+    `In ${setting}, trouble is already brewing.`,
+    `The party arrives at ${setting} to find things are not as expected.`,
+    `${setting} — and someone here has something to hide.`,
+    `It starts in ${setting}, but nothing is as simple as it seems.`,
+  ];
+  const opener = pick(openers);
+
+  const el = document.getElementById('hookResult');
+  if (el) el.innerHTML = `
+    <div style="font-size:13px;font-style:italic;color:#c9a227;line-height:1.5;margin-bottom:16px;border-bottom:1px solid rgba(201,162,39,0.2);padding-bottom:10px">${escHtml(opener)}</div>
+    ${[
+      ['📍 Setting', setting, '#4488ff'],
+      ['🎭 Antagonist Motive', motive, '#cc4444'],
+      ['⚠ Complication', comp, '#cc8822'],
+      ['🌀 Twist', twist, '#9b6dff'],
+    ].map(([label, text, color]) => `
+      <div style="margin-bottom:12px">
+        <div style="font-size:9px;color:${color};text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:4px">${label}</div>
+        <div style="font-size:12px;color:#c8d0e8;line-height:1.5">${escHtml(text)}</div>
+      </div>`).join('')}
+    <div style="display:flex;gap:8px;margin-top:12px;border-top:1px solid rgba(255,255,255,0.05);padding-top:10px">
+      <button onclick="_hookRoll()" style="flex:1;background:rgba(201,162,39,0.1);border:1px solid rgba(201,162,39,0.3);color:#c9a22799;border-radius:6px;padding:5px;cursor:pointer;font-size:11px">🎲 New Hook</button>
+      <button onclick="logEntry('note','📜 Hook: ${escHtml(setting)} — ${escHtml(motive.replace(/'/g,\\'\\'')).substring(0,40)}… Twist: ${escHtml(twist.replace(/'/g,\\'\\'')).substring(0,40)}…');showToast('Hook logged','#c9a227')" style="flex:1;background:rgba(68,136,255,0.08);border:1px solid rgba(68,136,255,0.25);color:#4488ff88;border-radius:6px;padding:5px;cursor:pointer;font-size:11px">📋 Log</button>
+    </div>`;
+}
+
+// Add Hook Generator button
+(function() {
+  const allBtns = document.querySelectorAll('.filter-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.title = 'Encounter Hook Generator — full narrative hook with motive, complication, twist';
+    btn.style.cssText = 'border-color:#c9a227;color:#c9a227';
+    btn.textContent = '📜 Hook Gen';
+    btn.onclick = openHookGen;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
