@@ -3857,6 +3857,15 @@
   </div>
   <!-- Active Turn Stats Bar -->
   <div id="activeTurnBar" style="display:none;padding:6px 12px;border-bottom:1px solid #1e2040;background:rgba(240,192,96,.04)"></div>
+  <!-- DC Tracker -->
+  <div id="dcTrackerArea" style="padding:4px 10px;border-bottom:1px solid rgba(221,68,68,.15);background:rgba(221,68,68,.03);display:flex;align-items:center;gap:8px">
+    <span style="font-size:10px;color:#cc3333;letter-spacing:.5px;font-weight:600">DC</span>
+    <input type="number" id="activeDcInput" value="" placeholder="—" min="1" max="30" style="width:40px;background:#0a0a1e;border:1px solid rgba(204,51,51,.3);color:#e08888;border-radius:5px;padding:2px 6px;font-size:12px;font-weight:700;text-align:center;outline:none" oninput="updateDcDisplay()" onfocus="this.style.borderColor='#cc3333'" onblur="this.style.borderColor='rgba(204,51,51,.3)'" title="Set target DC — saves will auto-show pass/fail">
+    <span id="dcLabel" style="font-size:9px;color:#4a3030">for saves & checks</span>
+    <span style="font-size:9px;color:#4a5272;margin-left:auto">Quick:
+      ${[8,10,12,14,15,17,18,20].map(d=>`<button onclick="document.getElementById('activeDcInput').value=${d};updateDcDisplay()" style="background:none;border:1px solid #2a2a50;color:#6a7098;border-radius:3px;padding:0 4px;cursor:pointer;font-size:9px;margin:0 1px">${d}</button>`).join('')}
+    </span>
+  </div>
   <!-- Encounter Notes -->
   <div id="encounterNotesArea" style="display:none;padding:5px 10px;border-bottom:1px solid rgba(201,162,39,.15);background:rgba(201,162,39,.03)">
     <div style="display:flex;gap:5px;align-items:flex-start">
@@ -10896,6 +10905,15 @@ function initDrop(event, targetName) {
   _initDragName = null;
 }
 
+// ── DC TRACKER ──────────────────────────────────────────
+function getActiveDC() { return parseInt(document.getElementById('activeDcInput')?.value) || null; }
+function updateDcDisplay() {
+  const dc = getActiveDC();
+  const lbl = document.getElementById('dcLabel');
+  if (lbl) lbl.textContent = dc ? `target DC — saves auto-compare` : 'for saves & checks';
+}
+// ─────────────────────────────────────────────────────────
+
 // ── ENCOUNTER NOTES ──────────────────────────────────────
 let _encounterNotesVisible = false;
 function toggleEncounterNotes(show) {
@@ -11114,7 +11132,13 @@ function rollInitSave(charName, ab, bonus, event) {
   const bStr = bonus >= 0 ? `+${bonus}` : `${bonus}`;
   const advLabel = advState[charName] ? ` (${advState[charName]})` : '';
   const dieStr2 = detail ? detail : `(${die})`;
-  logEntry('roll', `<strong>${escHtml(charName)}</strong> ${ab} Save${advLabel}: d20${dieStr2}${bStr} = <strong>${total}</strong>${isCrit?' ★':isFumble?' ☠ auto-fail':''}`);
+  const dc = getActiveDC ? getActiveDC() : null;
+  let dcResult = '';
+  if (dc) {
+    const passed = total >= dc;
+    dcResult = ` vs DC${dc}: <strong style="color:${passed?'#44aa44':'#cc3333'}">${passed?'✓ PASS':'✗ FAIL'}</strong>`;
+  }
+  logEntry('roll', `<strong>${escHtml(charName)}</strong> ${ab} Save${advLabel}: d20${dieStr2}${bStr} = <strong>${total}</strong>${isCrit?' ★':isFumble?' ☠ auto-fail':''}${dcResult}`);
   playSound?.('roll');
 }
 
