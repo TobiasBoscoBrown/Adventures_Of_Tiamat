@@ -3708,6 +3708,7 @@
   <button class="filter-btn" onclick="openRestPanel()" style="border-color:#88bbff;color:#88bbff;" title="Rest Panel — short or long rest for party or individual characters">💤 Rest</button>
   <button class="filter-btn" onclick="openTempHpPanel()" style="border-color:#ddaa22;color:#ddaa22;" title="Temp HP Panel — manage temporary HP for all characters">⬡ Temp HP</button>
   <button class="filter-btn" onclick="openTreasureGenerator()" style="border-color:#c9a227;color:#c9a227;" title="Random treasure generator by CR">💎 Treasure</button>
+  <button class="filter-btn" onclick="openMagicItemGen()" style="border-color:#cc44cc;color:#cc44cc;" title="Magic Item Generator — random items by rarity">✨ Magic Items</button>
   <button class="filter-btn" onclick="openRandomEncTable()" style="border-color:#cc8844;color:#cc8844;" title="Random Encounter Table — roll by terrain">🎲 Enc Table</button>
   <button class="filter-btn" onclick="openCampaignTimeline()" style="border-color:#44cc88;color:#44cc88;" title="Campaign timeline — track key events">📅 Timeline</button>
   <button class="filter-btn" onclick="openWeatherPanel()" style="border-color:#2299bb;color:#2299bb;" title="Weather &amp; Environment — ambient conditions affecting gameplay">🌤 Weather</button>
@@ -17199,6 +17200,168 @@ function genTreasure(cr) {
 
   return { gp, sp, cp, gems, magicItems, tier };
 }
+// ══════════════════════════════════════════════════════════
+// ITERATION 104: Magic Item Generator — DMG-style random items
+//   by rarity with descriptions, attunement, and save ability.
+//   Toolbar: ✨ Magic Items
+// ══════════════════════════════════════════════════════════
+const MAGIC_ITEMS = {
+  Common: [
+    {name:'Candle of the Deep',desc:'Flame unaffected by water/wind for 1hr. Harmless.',attune:false},
+    {name:'Cloak of Billowing',desc:'As a bonus action you can make your cloak billow dramatically.',attune:false},
+    {name:'Cloak of Many Fashions',desc:'Change the appearance of a non-magical outfit at will.',attune:false},
+    {name:'Clockwork Amulet',desc:'Once per day, replace one attack roll with exactly 10.',attune:false},
+    {name:'Dread Helm',desc:'Eyes appear like lit coals. Intimidating but harmless.',attune:false},
+    {name:'Hat of Vermin',desc:'3 charges. Produce a harmless bat, frog, or rat.',attune:false},
+    {name:'Instrument of Illusions',desc:'While playing, you can create visual illusions in range.',attune:true},
+    {name:'Moon-Touched Sword',desc:'Unsheathed sword sheds moonlight (dim light, 15ft).',attune:false},
+    {name:'Pipe of Smoke Monsters',desc:'Puff smoke into creature shapes that last 1 round.',attune:false},
+    {name:'Smoldering Armor',desc:'Wisps of harmless smoke rise from the armor.',attune:false},
+  ],
+  Uncommon: [
+    {name:'+1 Weapon',desc:'You have +1 to attack and damage rolls.',attune:false},
+    {name:'+1 Shield',desc:'+1 bonus to AC (in addition to shield\'s normal bonus).',attune:false},
+    {name:'Bag of Holding',desc:'Interior much larger than exterior. Holds 500lbs/64 cu ft.',attune:false},
+    {name:'Boots of Elvenkind',desc:'Advantage on Stealth checks involving movement.',attune:false},
+    {name:'Broom of Flying',desc:'Fly speed 50ft. Command word to fly.',attune:false},
+    {name:'Cloak of Protection',desc:'+1 to AC and saving throws.',attune:true},
+    {name:'Eyes of Minute Seeing',desc:'Advantage on Investigation checks within 1ft.',attune:false},
+    {name:'Goggles of Night',desc:'Darkvision 60ft (or extend by 60ft).',attune:false},
+    {name:'Javelin of Lightning',desc:'Thrown as lightning bolt for 4d6 lightning damage.',attune:false},
+    {name:'Lantern of Revealing',desc:'Reveals invisible creatures within 30ft.',attune:false},
+    {name:'Rope of Climbing',desc:'60ft rope, animate and tie itself on command.',attune:false},
+    {name:'Sending Stones',desc:'Send short messages between the two stones once/day.',attune:false},
+    {name:'Wand of Magic Missiles',desc:'7 charges, expend 1-3 to cast Magic Missile at 1st-3rd level.',attune:false},
+  ],
+  Rare: [
+    {name:'+2 Weapon',desc:'+2 to attack and damage rolls.',attune:false},
+    {name:'+2 Shield',desc:'+2 bonus to AC.',attune:false},
+    {name:'Belt of Giant Strength (Hill)',desc:'STR becomes 21 while worn.',attune:true},
+    {name:'Cape of the Mountebank',desc:'Cast Dimension Door once/day.',attune:false},
+    {name:'Cloak of Displacement',desc:'Attackers have disadvantage until you take damage.',attune:true},
+    {name:'Flame Tongue',desc:'Command word ignites blade: +2d6 fire damage.',attune:true},
+    {name:'Ioun Stone (Sustenance)',desc:'No need to eat or drink.',attune:true},
+    {name:'Necklace of Fireballs',desc:'Beads, each casts Fireball. 1d6+3 beads.',attune:false},
+    {name:'Ring of Evasion',desc:'3 charges. Pass a Dex save you would have failed.',attune:true},
+    {name:'Ring of Feather Falling',desc:'Feather Fall automatically when you fall.',attune:true},
+    {name:'Staff of the Python',desc:'Transform to giant constrictor snake on command.',attune:true},
+    {name:'Sword of Life Stealing',desc:'Crit heals you for 10 HP.',attune:true},
+  ],
+  VeryRare: [
+    {name:'+3 Weapon',desc:'+3 to attack and damage rolls.',attune:false},
+    {name:'Amulet of Health',desc:'CON becomes 19.',attune:true},
+    {name:'Belt of Storm Giant Strength',desc:'STR becomes 29.',attune:true},
+    {name:'Cloak of Invisibility',desc:'Become invisible, requires attunement.',attune:true},
+    {name:'Manual of Bodily Health',desc:'Read over 48hrs to permanently increase CON by 2.',attune:false},
+    {name:'Ring of Regeneration',desc:'Regain 1d6 HP every 10 min (as long as > 0 HP).',attune:true},
+    {name:'Ring of Spell Storing',desc:'Store up to 5 levels of spells, release as your own.',attune:true},
+    {name:'Rod of Security',desc:'Teleport to paradise, rest safely for up to 200 days.',attune:false},
+    {name:'Spellguard Shield',desc:'Advantage on saves vs spells, spells have disadv to hit you.',attune:true},
+    {name:'Staff of Fire',desc:'10 charges. Burning Hands, Fireball, Wall of Fire.',attune:true},
+  ],
+  Legendary: [
+    {name:'Apparatus of Kwalish',desc:'10-person submarine with claws. Immune to pressure.',attune:false},
+    {name:'Armor of Invulnerability',desc:'Resistance to non-magical damage. 1/day immunity for 10 min.',attune:true},
+    {name:'Belt of Cloud Giant Strength',desc:'STR becomes 27.',attune:true},
+    {name:'Cloak of Invisibility',desc:'At will invisibility, doesn\'t break until you attack/cast.',attune:true},
+    {name:'Cubic Gate',desc:'6-sided die. Each face opens a portal to a different plane.',attune:false},
+    {name:'Deck of Many Things',desc:'Draw cards, roll on wild effects. Wildly powerful/deadly.',attune:false},
+    {name:'Holy Avenger',desc:'+3 sword. +2d10 radiant vs undead/fiends, antimagic aura.',attune:true},
+    {name:'Ring of Three Wishes',desc:'Cast Wish up to 3 times.',attune:true},
+    {name:'Staff of the Magi',desc:'50 charges. Absorb spells. Spell list + fireball burst.',attune:true},
+    {name:'Sword of Answering',desc:'Reaction attack when a creature damages you.',attune:true},
+  ],
+};
+
+const RARITY_COLORS = {Common:'#c8d0e8',Uncommon:'#44cc44',Rare:'#4488ff',VeryRare:'#aa44ff',Legendary:'#cc8833'};
+
+function openMagicItemGen() {
+  const existing = document.getElementById('magicItemGenOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'magicItemGenOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto;';
+  ov.innerHTML = `
+    <div style="background:#151c2e;border:1px solid #cc44cc;border-radius:12px;width:660px;max-width:100%;padding:24px;color:#c8d0e8;font-family:'Inter',sans-serif;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-size:18px;font-weight:700;color:#cc44cc;">✨ Magic Item Generator</div>
+        <button onclick="document.getElementById('magicItemGenOverlay').remove()" style="background:#2a3358;border:none;color:#c8d0e8;border-radius:6px;padding:6px 14px;cursor:pointer;">✕ Close</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;">
+        <select id="magicItemRarity" style="background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:8px;color:#c8d0e8;font-size:13px;">
+          <option value="any">Any Rarity</option>
+          <option>Common</option><option>Uncommon</option><option>Rare</option><option value="VeryRare">Very Rare</option><option>Legendary</option>
+        </select>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:#9098b8;cursor:pointer;">
+          <input type="checkbox" id="magicItemAttune"> Attunement required only
+        </label>
+        <button onclick="rollMagicItems()" style="background:#cc44cc;border:none;color:#fff;border-radius:6px;padding:8px 18px;cursor:pointer;font-weight:700;">🎲 Roll Items</button>
+        <input id="magicItemCount" type="number" value="3" min="1" max="10" style="width:60px;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:8px;color:#c8d0e8;font-size:13px;text-align:center;">
+      </div>
+      <div id="magicItemResults" style="display:flex;flex-direction:column;gap:8px;max-height:55vh;overflow-y:auto;"></div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  rollMagicItems();
+}
+
+function rollMagicItems() {
+  const results = document.getElementById('magicItemResults');
+  if (!results) return;
+  const rarityFilter = document.getElementById('magicItemRarity')?.value || 'any';
+  const attuneOnly = document.getElementById('magicItemAttune')?.checked;
+  const count = parseInt(document.getElementById('magicItemCount')?.value) || 3;
+
+  const allRarities = rarityFilter === 'any' ? Object.keys(MAGIC_ITEMS) : [rarityFilter === 'Very Rare' ? 'VeryRare' : rarityFilter];
+  let pool = [];
+  allRarities.forEach(r => {
+    (MAGIC_ITEMS[r] || []).forEach(item => {
+      if (!attuneOnly || item.attune) pool.push({ ...item, rarity: r });
+    });
+  });
+  if (!pool.length) { results.innerHTML = '<div style="color:#4a5272;font-size:12px;font-style:italic;">No items match filter.</div>'; return; }
+
+  const picks = [];
+  for (let i = 0; i < count; i++) picks.push(pool[Math.floor(Math.random() * pool.length)]);
+
+  results.innerHTML = picks.map(item => {
+    const col = RARITY_COLORS[item.rarity] || '#c8d0e8';
+    const rarityLabel = item.rarity === 'VeryRare' ? 'Very Rare' : item.rarity;
+    return `<div style="background:#0e1422;border:1px solid ${col}44;border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:4px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:14px;font-weight:700;color:${col};">${item.name}</span>
+        <span style="font-size:10px;background:${col}22;color:${col};border-radius:4px;padding:2px 7px;">${rarityLabel}</span>
+        ${item.attune ? '<span style="font-size:10px;color:#c9a227;background:#c9a22722;border-radius:4px;padding:2px 7px;">Attunement</span>' : ''}
+        <button onclick="addMagicItemToHbSpells('${item.name.replace(/'/g,"\\'")}','${item.rarity}',event)" style="margin-left:auto;background:#2a3358;border:none;color:#9098b8;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;">+ Add to Loot</button>
+      </div>
+      <div style="font-size:12px;color:#9098b8;">${item.desc}</div>
+    </div>`;
+  }).join('');
+}
+
+function addMagicItemToHbSpells(name, rarity, evt) {
+  evt && evt.stopPropagation();
+  // Add to homebrew spells as "all" so it appears everywhere, or add to world state as loot
+  const arr = getHomebrewSpells ? getHomebrewSpells() : [];
+  arr.push({
+    id: 'mi_' + Date.now(),
+    name,
+    level: 'Magic Item',
+    school: rarity === 'VeryRare' ? 'Very Rare' : rarity,
+    castingTime: '',
+    range: '',
+    duration: '',
+    damage: '',
+    damageType: '',
+    description: (MAGIC_ITEMS[rarity] || []).find(i => i.name === name)?.desc || '',
+    assignedTo: 'all',
+    createdAt: Date.now(),
+  });
+  if (typeof saveHomebrewSpells === 'function') saveHomebrewSpells(arr);
+  if (typeof showToast === 'function') showToast(`${name} added to item records`, '#cc44cc');
+}
+
 function openTreasureGenerator() {
   const existing = document.querySelector('.treasure-modal');
   if (existing) { existing.remove(); return; }
