@@ -3540,6 +3540,7 @@
   <button class="filter-btn" onclick="openAoeDmg()" style="border-color:#cc3333;color:#cc3333;" title="AoE damage/heal — apply to multiple characters at once">💥 AoE</button>
   <button class="filter-btn" onclick="showPassiveSkills()" style="border-color:#2299bb;color:#2299bb;" title="Party passive Perception, Investigation & Insight">👁 Passives</button>
   <button class="filter-btn" onclick="openTreasureGenerator()" style="border-color:#c9a227;color:#c9a227;" title="Random treasure generator by CR">💎 Treasure</button>
+  <button class="filter-btn" onclick="openCampaignTimeline()" style="border-color:#44cc88;color:#44cc88;" title="Campaign timeline — track key events">📅 Timeline</button>
   <span style="color: #333; margin: 0 4px;">|</span>
   <span style="font-size:11px;color:#4a5272;margin-right:4px">View:</span>
   <button class="filter-btn view-btn active" id="viewGrid" onclick="setView('grid',this)" title="Grid view">⊞ Grid</button>
@@ -9831,6 +9832,94 @@ function clearTagFilter(dropdown) {
   renderGrid();
 }
 // ────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// ITERATION 54: Campaign Timeline — Visual milestone tracker
+//   with campaign dates. Add/remove/edit events. Shows
+//   chronological campaign history. Better than DnD Beyond.
+// ══════════════════════════════════════════════════════════
+let timelineEvents = [];
+try { timelineEvents = JSON.parse(localStorage.getItem('tiamat_timeline')) || []; } catch { timelineEvents = []; }
+function saveTimeline() { localStorage.setItem('tiamat_timeline', JSON.stringify(timelineEvents)); }
+const TIMELINE_TYPES = {
+  battle:  { icon: '⚔', color: '#cc4444', label: 'Battle' },
+  story:   { icon: '📖', color: '#4488ff', label: 'Story Event' },
+  death:   { icon: '💀', color: '#777',    label: 'Death' },
+  reveal:  { icon: '💡', color: '#c9a227', label: 'Revelation' },
+  travel:  { icon: '🗺', color: '#44cc88', label: 'Travel' },
+  session: { icon: '🎲', color: '#aa66dd', label: 'Session' },
+  quest:   { icon: '📜', color: '#ff8844', label: 'Quest' },
+};
+function openCampaignTimeline() {
+  const existing = document.getElementById('timelineModal');
+  if (existing) { existing.remove(); return; }
+  const modal = document.createElement('div');
+  modal.id = 'timelineModal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);z-index:9400;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box';
+  modal.innerHTML = `
+    <div style="background:#0a0a1e;border:1px solid rgba(201,162,39,.4);border-radius:14px;width:100%;max-width:700px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #1e2040">
+        <span style="font-size:16px;font-weight:700;color:#c9a227;font-family:'Cinzel',serif">📅 Campaign Timeline</span>
+        <button onclick="document.getElementById('timelineModal').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <div style="padding:14px 20px;border-bottom:1px solid #0e0e24;background:#06061a">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input id="tlDate" placeholder="Date (e.g. Day 142)" style="background:#0a0a1e;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:5px 8px;font-size:12px;flex:1;min-width:100px">
+          <input id="tlTitle" placeholder="Event title..." style="background:#0a0a1e;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:5px 8px;font-size:12px;flex:2;min-width:150px">
+          <select id="tlType" style="background:#0a0a1e;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:5px 8px;font-size:12px;cursor:pointer">
+            ${Object.entries(TIMELINE_TYPES).map(([k,v]) => `<option value="${k}">${v.icon} ${v.label}</option>`).join('')}
+          </select>
+          <button onclick="addTimelineEvent()" style="background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.5);color:#c9a227;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px">+ Add</button>
+        </div>
+        <input id="tlDesc" placeholder="Description (optional)..." style="background:#0a0a1e;border:1px solid #1e2040;color:#9098b8;border-radius:6px;padding:4px 8px;font-size:11px;width:100%;margin-top:6px;box-sizing:border-box">
+      </div>
+      <div id="timelineList" style="flex:1;overflow-y:auto;padding:14px 20px">
+        ${renderTimelineList()}
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+function renderTimelineList() {
+  if (!timelineEvents.length) return '<div style="text-align:center;color:#4a5272;padding:30px;font-size:12px">No events yet. Add the first milestone above.</div>';
+  const sorted = [...timelineEvents].reverse();
+  return sorted.map((ev, ridx) => {
+    const idx = timelineEvents.length - 1 - ridx;
+    const tt = TIMELINE_TYPES[ev.type] || TIMELINE_TYPES.story;
+    return `<div style="display:flex;gap:10px;margin-bottom:10px;padding:8px 10px;background:#06061a;border-left:3px solid ${tt.color};border-radius:6px">
+      <div style="font-size:20px;flex-shrink:0;margin-top:2px">${tt.icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span style="font-size:13px;font-weight:600;color:#e0e0ff">${ev.title}</span>
+          <span style="font-size:10px;color:#4a5272;flex-shrink:0;margin-left:8px">${ev.date || '—'}</span>
+        </div>
+        ${ev.desc ? `<div style="font-size:11px;color:#7a7aaa;margin-top:2px">${ev.desc}</div>` : ''}
+        <span style="font-size:9px;color:${tt.color}">${tt.label}</span>
+      </div>
+      <button onclick="removeTimelineEvent(${idx})" style="background:none;border:none;color:#2a2a50;cursor:pointer;font-size:12px;flex-shrink:0" onmouseover="this.style.color='#cc4444'" onmouseout="this.style.color='#2a2a50'">✕</button>
+    </div>`;
+  }).join('');
+}
+function addTimelineEvent() {
+  const date  = document.getElementById('tlDate').value.trim();
+  const title = document.getElementById('tlTitle').value.trim();
+  const type  = document.getElementById('tlType').value;
+  const desc  = document.getElementById('tlDesc').value.trim();
+  if (!title) return;
+  timelineEvents.push({ date, title, type, desc, addedAt: Date.now() });
+  saveTimeline();
+  document.getElementById('tlDate').value = '';
+  document.getElementById('tlTitle').value = '';
+  document.getElementById('tlDesc').value = '';
+  const list = document.getElementById('timelineList');
+  if (list) list.innerHTML = renderTimelineList();
+}
+function removeTimelineEvent(idx) {
+  timelineEvents.splice(idx, 1);
+  saveTimeline();
+  const list = document.getElementById('timelineList');
+  if (list) list.innerHTML = renderTimelineList();
+}
+
 // ══════════════════════════════════════════════════════════
 // ITERATION 53: Monster Tactics Notes — DM-facing combat
 //   behavior editor. Threat priority, opening move, retreat
