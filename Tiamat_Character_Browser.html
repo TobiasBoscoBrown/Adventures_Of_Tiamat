@@ -3628,6 +3628,18 @@
   /* ── Iter 91: Rich roll overlay animation ── */
   @keyframes fadeIn { from { opacity:0; transform:scale(0.95); } to { opacity:1; transform:scale(1); } }
 
+  /* ── Iter 205: Bloodied & Critical HP card alerts ── */
+  @keyframes bloodiedPulse {
+    0%,100% { border-color:#882200; box-shadow:0 0 8px rgba(204,68,0,0.2); }
+    50% { border-color:#cc4400; box-shadow:0 0 18px rgba(204,68,0,0.45); }
+  }
+  @keyframes criticalPulse {
+    0%,100% { border-color:#660000; box-shadow:0 0 10px rgba(204,0,0,0.3); }
+    50% { border-color:#ff2222; box-shadow:0 0 28px rgba(255,0,0,0.6); }
+  }
+  .card.hp-bloodied { animation: bloodiedPulse 2.5s ease-in-out infinite; }
+  .card.hp-critical { animation: criticalPulse 1.2s ease-in-out infinite !important; }
+
   /* ── Iter 93: Personality traits in story panel ── */
   .trait-field-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
   .trait-field { background:#06061a; border:1px solid #1e2040; border-radius:8px; padding:10px; }
@@ -5439,6 +5451,12 @@ function updateHpDisplay(name, maxHp, currHp) {
   if (lbl) lbl.textContent = `${currHp}/${maxHp}`;
   const st = document.querySelector(`[data-sid="${sid}"] .hp-st`);
   if (st) { const [cls, txt] = hpStatusInfo(pct); st.className = `hp-st ${cls}`; st.textContent = txt; }
+  // Iter 205: Apply bloodied/critical visual alert to card
+  const card = document.querySelector(`[data-sid="${sid}"]`)?.closest('.card');
+  if (card) {
+    card.classList.toggle('hp-critical', currHp > 0 && pct <= 0.25);
+    card.classList.toggle('hp-bloodied', currHp > 0 && pct > 0.25 && pct <= 0.5);
+  }
   updateTempHpDisplay(name);
 }
 
@@ -6922,6 +6940,7 @@ function buildSpellBook(c) {
           <span class="spell-name">${s.name}</span>
           <span class="spell-school">${s.school}</span>
           ${isConc ? `<span style="font-size:9px;color:#c9a227;padding:1px 5px;border:1px solid rgba(201,162,39,.4);border-radius:8px;cursor:pointer;margin-left:auto" onclick="event.stopPropagation();setConc(${JSON.stringify(c.name)},${JSON.stringify(s.name)},event)" title="Set concentration on this spell">🔮</span>` : ''}
+          <span onclick="event.stopPropagation();showSpellCard(${JSON.stringify(s.name)},event)" title="View full spell description" style="font-size:10px;color:#4a5272;cursor:pointer;padding:1px 4px;border-radius:4px;margin-left:auto" onmouseover="this.style.color='#9b6dff'" onmouseout="this.style.color='#4a5272'">📖</span>
         </div>
         <div class="spell-meta">
           <span style="color:${castColor}">${s.cast}</span>
@@ -8435,12 +8454,56 @@ function navToChar(name) {
   if (newIdx >= 0) openModal(newIdx);
 }
 
+// Iter 209: Search History — remember last 10 searches for quick recall
+const SEARCH_HIST_KEY = 'tiamat_search_history';
+function _searchGetHistory() { try { return JSON.parse(localStorage.getItem(SEARCH_HIST_KEY)||'[]'); } catch { return []; } }
+function _searchAddHistory(term) {
+  if (!term || term.startsWith('_')) return;
+  const h = _searchGetHistory().filter(t => t !== term);
+  h.unshift(term);
+  localStorage.setItem(SEARCH_HIST_KEY, JSON.stringify(h.slice(0, 12)));
+}
+function _searchShowHistory(box) {
+  document.getElementById('searchHistoryDrop')?.remove();
+  const h = _searchGetHistory();
+  if (!h.length) return;
+  const drop = document.createElement('div');
+  drop.id = 'searchHistoryDrop';
+  drop.style.cssText = 'position:absolute;background:#0e0e24;border:1px solid #2a2050;border-radius:8px;z-index:9999;min-width:280px;box-shadow:0 8px 24px rgba(0,0,0,0.7);overflow:hidden';
+  const rect = box.getBoundingClientRect();
+  drop.style.left = rect.left + 'px';
+  drop.style.top = (rect.bottom + 4) + 'px';
+  drop.innerHTML = `
+    <div style="padding:6px 10px;font-size:0.68rem;color:#4a5272;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #1a1a3a">Recent Searches</div>
+    ${h.map(t=>`<div onclick="_searchApply('${t.replace(/'/g,"\\'")}');document.getElementById('searchHistoryDrop')?.remove()" style="padding:7px 12px;cursor:pointer;font-size:0.82rem;color:#9098b8;display:flex;justify-content:space-between;align-items:center" onmouseover="this.style.background='#1a1a3a'" onmouseout="this.style.background=''">
+      <span>🕐 ${escHtml(t)}</span>
+    </div>`).join('')}
+    <div style="border-top:1px solid #1a1a3a;padding:6px 10px;display:flex;justify-content:flex-end">
+      <button onclick="localStorage.removeItem('${SEARCH_HIST_KEY}');document.getElementById('searchHistoryDrop')?.remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:0.72rem;padding:0">Clear history</button>
+    </div>`;
+  document.body.appendChild(drop);
+  setTimeout(() => document.addEventListener('click', function rem(e) {
+    if (!drop.contains(e.target) && e.target !== box) { drop.remove(); document.removeEventListener('click', rem); }
+  }), 50);
+}
+function _searchApply(term) {
+  const box = document.getElementById('searchBox');
+  if (!box) return;
+  box.value = term;
+  currentSearch = term.toLowerCase();
+  renderGrid();
+}
+
 document.getElementById('searchBox').addEventListener('input', (e) => {
   currentSearch = e.target.value.toLowerCase().trim();
   // Clear special dashboard filters if user types normally
   if (currentSearch !== '_down_') { _prevSearchForDown = null; e.target.removeAttribute('data-down-filter'); }
   if (currentSearch !== '_conds_') { _prevSearchForConds = null; e.target.removeAttribute('data-conds-filter'); }
   renderGrid();
+});
+document.getElementById('searchBox').addEventListener('focus', (e) => { if (!e.target.value) _searchShowHistory(e.target); });
+document.getElementById('searchBox').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && currentSearch) { _searchAddHistory(currentSearch); document.getElementById('searchHistoryDrop')?.remove(); }
 });
 
 document.addEventListener('keydown', (e) => {
@@ -31333,6 +31396,1125 @@ function _mileRender(filter) {
     btn.style.cssText = 'border-color:#c9a227;color:#c9a227';
     btn.textContent = '🏆 Milestones';
     btn.onclick = openMilestoneTracker;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 210: Post-Combat Cleanup — one-click reset of temp HP, conditions, concentration
+// Huge time-saver: clear all temporary combat effects across the party after a fight
+function openPostCombatCleanup() {
+  const cleanupItems = [];
+
+  // Count temp HP
+  const tempHpChars = UNIQUE_CHARS?.filter(c => getTempHP(c.name) > 0) || [];
+  if (tempHpChars.length) cleanupItems.push({ id:'tempHp', label:'Temp HP', desc:`${tempHpChars.length} character(s) have temp HP`, chars:tempHpChars.map(c=>c.name), color:'#dd8822' });
+
+  // Count active conditions
+  const condChars = UNIQUE_CHARS?.filter(c => {
+    const conds = typeof getCharConditions === 'function' ? getCharConditions(c.name) : [];
+    return conds.length > 0;
+  }) || [];
+  if (condChars.length) cleanupItems.push({ id:'conditions', label:'Conditions', desc:`${condChars.length} character(s) have active conditions`, chars:condChars.map(c=>c.name), color:'#cc4444' });
+
+  // Count concentration
+  const concChars = UNIQUE_CHARS?.filter(c => {
+    const d = typeof localStorage !== 'undefined' ? JSON.parse(localStorage.getItem('tiamat_concentration')||'{}') : {};
+    return d[c.name];
+  }) || [];
+  if (concChars.length) cleanupItems.push({ id:'concentration', label:'Concentration', desc:`${concChars.length} character(s) are concentrating`, chars:concChars.map(c=>c.name), color:'#c9a227' });
+
+  if (!cleanupItems.length) {
+    showToast('Nothing to clean up — no temp HP, conditions, or concentration active', '#44bb88');
+    return;
+  }
+
+  const existing = document.getElementById('cleanupOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'cleanupOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9400;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `
+  <div style="background:#10102a;border:1px solid #44bb88;border-radius:12px;padding:22px;max-width:500px;width:95%;font-family:'Inter',sans-serif;color:#c8d0e8">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:#44bb88">⚔ Post-Combat Cleanup</div>
+      <button onclick="document.getElementById('cleanupOverlay').remove()" style="background:none;border:none;color:#666;cursor:pointer;font-size:1.2rem">✕</button>
+    </div>
+    <p style="font-size:0.82rem;color:#888;margin:0 0 14px">Select what to clear for all party members:</p>
+    ${cleanupItems.map(item => `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(${item.color.replace('#','').match(/.{2}/g).map(h=>parseInt(h,16)).join(',')},0.08);border:1px solid ${item.color}44;border-radius:8px;margin-bottom:8px">
+      <input type="checkbox" id="cleanup_${item.id}" checked style="accent-color:${item.color};width:16px;height:16px">
+      <div style="flex:1">
+        <div style="font-weight:700;color:${item.color};font-size:0.88rem">${item.label}</div>
+        <div style="font-size:0.75rem;color:#777">${item.desc}: ${item.chars.slice(0,4).join(', ')}${item.chars.length>4?'...':''}</div>
+      </div>
+    </div>`).join('')}
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button onclick="_doCleanup()" style="flex:1;padding:10px;background:rgba(68,187,136,0.15);border:1px solid #44bb88;border-radius:8px;color:#44bb88;cursor:pointer;font-weight:700;font-size:0.9rem">✓ Apply Cleanup</button>
+      <button onclick="document.getElementById('cleanupOverlay').remove()" style="padding:10px 16px;background:transparent;border:1px solid #333;border-radius:8px;color:#666;cursor:pointer;font-size:0.9rem">Cancel</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  window._cleanupItems = cleanupItems;
+}
+
+function _doCleanup() {
+  const items = window._cleanupItems || [];
+  let cleared = [];
+
+  items.forEach(item => {
+    if (!document.getElementById('cleanup_'+item.id)?.checked) return;
+    if (item.id === 'tempHp') {
+      item.chars.forEach(name => { if(tempHpState) { tempHpState[name]=0; } });
+      saveTempHp?.();
+      cleared.push('Temp HP');
+    }
+    if (item.id === 'conditions') {
+      const allConds = loadAllConditions ? loadAllConditions() : {};
+      item.chars.forEach(name => { delete allConds[name]; });
+      saveAllConditions?.(allConds);
+      cleared.push('Conditions');
+    }
+    if (item.id === 'concentration') {
+      const concKey = 'tiamat_concentration';
+      const d = JSON.parse(localStorage.getItem(concKey)||'{}');
+      item.chars.forEach(name => { delete d[name]; });
+      localStorage.setItem(concKey, JSON.stringify(d));
+      cleared.push('Concentration');
+    }
+  });
+
+  document.getElementById('cleanupOverlay')?.remove();
+  renderGrid?.();
+  logEntry('story', `⚔ Post-combat cleanup: cleared ${cleared.join(', ')} for party`);
+  showToast('Post-combat cleanup complete! Cleared: ' + cleared.join(', '), '#44bb88');
+}
+
+// Add Post-Combat Cleanup button
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'Post-Combat Cleanup — clear temp HP, conditions, and concentration for all party members after a fight';
+    btn.style.cssText = 'border-color:#44bb88;color:#44bb88';
+    btn.textContent = '⚔ Combat End';
+    btn.onclick = openPostCombatCleanup;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 208: Treasure & Loot Generator — DMG individual and hoard treasure tables
+// Simplified but accurate — generates gold, gems, art objects, and magic items by CR
+const LOOT_GEMS = {
+  gp10: ['Azurite','Blue quartz','Hematite','Lapis lazuli','Malachite','Obsidian','Tiger eye','Turquoise'],
+  gp50: ['Bloodstone','Carnelian','Chalcedony','Chrysoprase','Citrine','Jasper','Moonstone','Onyx','Zircon'],
+  gp100: ['Amber','Amethyst','Chrysoberyl','Coral','Garnet','Jade','Jet','Pearl','Spinel','Tourmaline'],
+  gp500: ['Alexandrite','Aquamarine','Black pearl','Blue spinel','Peridot','Topaz'],
+  gp1000: ['Black opal','Blue sapphire','Emerald','Fire opal','Opal','Star ruby','Star sapphire','Yellow sapphire'],
+  gp5000: ['Black sapphire','Diamond','Jacinth','Ruby'],
+};
+const LOOT_ART = {
+  gp25: ['Silver ewer','Carved bone statuette','Silver bracelet','Embossed leather boots','Painted portrait'],
+  gp250: ['Gold ring set with bloodstones','Carved ivory statuette','Gold idol','Carved bone cup','Bronze crown'],
+  gp750: ['Silver chalice set with moonstones','Carved ruby pendant','Embossed gold plate','Silver mask'],
+  gp2500: ['Fine gold chain set with a fire opal','Old masterpiece painting','Tapestry, silk-embroidered','Gold and ivory statuette'],
+  gp7500: ['Jeweled gold crown','Jeweled platinum ring','Silk robe with gold embroidery','Ancient silver box']
+};
+const MAGIC_ITEMS_MINOR = [
+  'Potion of healing','Spell scroll (cantrip)','Potion of climbing','Spell scroll (1st level)',
+  'Potion of greater healing','Bag of holding','Driftglobe','Goggles of night',
+  '+1 weapon','+1 shield','Boots of elvenkind','Cloak of elvenkind',
+  'Amulet of proof against detection and location','Hat of disguise','Slippers of spider climbing',
+];
+const MAGIC_ITEMS_MAJOR = [
+  '+2 weapon','Ring of protection','Bracers of defense','Ring of spell storing',
+  'Belt of hill giant strength','Staff of healing','Wand of fireballs',
+  'Cloak of displacement','Necklace of fireballs','Rod of absorption',
+  '+3 weapon','Holy avenger','Ring of regeneration','Ring of invisibility',
+  'Staff of power','Sphere of annihilation','Talisman of ultimate evil',
+];
+
+function rollDie(max) { return Math.floor(Math.random() * max) + 1; }
+function rollDice(count, max) { let s=0; for(let i=0;i<count;i++) s+=rollDie(max); return s; }
+
+function openLootGenerator() {
+  document.getElementById('lootOverlay')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'lootOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9400;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `
+  <div style="background:#10102a;border:1px solid #c9a227;border-radius:12px;padding:22px;max-width:600px;width:95%;font-family:'Inter',sans-serif;color:#c8d0e8">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:#c9a227">💰 Treasure Generator</div>
+      <button onclick="document.getElementById('lootOverlay').remove()" style="background:none;border:none;color:#666;cursor:pointer;font-size:1.2rem">✕</button>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;background:rgba(201,162,39,0.07);border:1px solid rgba(201,162,39,0.2);border-radius:8px;padding:12px">
+      <div>
+        <label style="font-size:0.72rem;color:#888;display:block;margin-bottom:3px">Monster CR Range</label>
+        <select id="lootCR" style="padding:6px 10px;background:#0c0c20;border:1px solid #2a2050;border-radius:6px;color:#fff;font-size:0.85rem">
+          <option value="low">CR 0–4 (low)</option>
+          <option value="mid" selected>CR 5–10 (medium)</option>
+          <option value="high">CR 11–16 (high)</option>
+          <option value="epic">CR 17+ (epic)</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:0.72rem;color:#888;display:block;margin-bottom:3px">Type</label>
+        <select id="lootType" style="padding:6px 10px;background:#0c0c20;border:1px solid #2a2050;border-radius:6px;color:#fff;font-size:0.85rem">
+          <option value="individual">Individual (per monster)</option>
+          <option value="hoard">Treasure Hoard</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:0.72rem;color:#888;display:block;margin-bottom:3px">Count</label>
+        <input id="lootCount" type="number" value="1" min="1" max="20" style="width:60px;padding:6px;background:#0c0c20;border:1px solid #2a2050;border-radius:6px;color:#fff;text-align:center;font-size:0.85rem">
+      </div>
+      <button onclick="_lootRoll()" style="margin-top:12px;padding:8px 18px;background:rgba(201,162,39,0.15);border:1px solid #c9a227;border-radius:8px;color:#c9a227;cursor:pointer;font-weight:700;font-size:0.9rem;align-self:flex-end">💰 Generate!</button>
+    </div>
+    <div id="lootResults"></div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+function _lootRoll() {
+  const cr = document.getElementById('lootCR')?.value || 'mid';
+  const type = document.getElementById('lootType')?.value || 'individual';
+  const count = Math.max(1, Math.min(20, parseInt(document.getElementById('lootCount')?.value)||1));
+  const results = document.getElementById('lootResults');
+  if (!results) return;
+
+  let totalGP = 0, totalSP = 0, totalCP = 0;
+  const gemsList = [], artList = [], magicList = [];
+
+  for (let i = 0; i < count; i++) {
+    if (type === 'individual') {
+      // Individual treasure by CR tier
+      if (cr === 'low') {
+        totalCP += rollDice(5,6)*10; totalSP += rollDice(4,6)*10; totalGP += rollDice(3,6);
+        if (rollDie(100) >= 75) gemsList.push(LOOT_GEMS.gp10[rollDie(LOOT_GEMS.gp10.length)-1] + ' (10gp)');
+      } else if (cr === 'mid') {
+        totalSP += rollDice(4,6)*10; totalGP += rollDice(2,6)*10;
+        if (rollDie(100) >= 60) gemsList.push(LOOT_GEMS.gp50[rollDie(LOOT_GEMS.gp50.length)-1] + ' (50gp)');
+        if (rollDie(100) >= 85) magicList.push(MAGIC_ITEMS_MINOR[rollDie(MAGIC_ITEMS_MINOR.length)-1]);
+      } else if (cr === 'high') {
+        totalGP += rollDice(4,6)*100 + (rollDice(1,6)*10);
+        if (rollDie(100) >= 40) gemsList.push(LOOT_GEMS.gp100[rollDie(LOOT_GEMS.gp100.length)-1] + ' (100gp)');
+        if (rollDie(100) >= 65) artList.push(LOOT_ART.gp250[rollDie(LOOT_ART.gp250.length)-1] + ' (250gp)');
+        if (rollDie(100) >= 75) magicList.push(MAGIC_ITEMS_MINOR[rollDie(MAGIC_ITEMS_MINOR.length)-1]);
+      } else { // epic
+        totalGP += rollDice(12,6)*1000;
+        if (rollDie(100) >= 25) gemsList.push(LOOT_GEMS.gp1000[rollDie(LOOT_GEMS.gp1000.length)-1] + ' (1000gp)');
+        if (rollDie(100) >= 45) artList.push(LOOT_ART.gp7500[rollDie(LOOT_ART.gp7500.length)-1] + ' (7500gp)');
+        if (rollDie(100) >= 55) magicList.push(MAGIC_ITEMS_MAJOR[rollDie(MAGIC_ITEMS_MAJOR.length)-1]);
+      }
+    } else {
+      // Hoard
+      if (cr === 'low') {
+        totalCP += rollDice(6,6)*100; totalSP += rollDice(3,6)*100; totalGP += rollDice(2,6)*10;
+        const r = rollDie(100);
+        if (r >= 60 && r < 85) { const n=rollDice(2,6); for(let j=0;j<n;j++) gemsList.push(LOOT_GEMS.gp10[rollDie(LOOT_GEMS.gp10.length)-1]+' (10gp)'); }
+        if (r >= 85) { if(rollDie(2)===1) magicList.push(MAGIC_ITEMS_MINOR[rollDie(MAGIC_ITEMS_MINOR.length)-1]); }
+      } else if (cr === 'mid') {
+        totalCP += rollDice(2,6)*100; totalSP += rollDice(2,6)*1000; totalGP += rollDice(6,6)*100;
+        for(let j=0;j<rollDie(4);j++) gemsList.push(LOOT_GEMS.gp50[rollDie(LOOT_GEMS.gp50.length)-1]+' (50gp)');
+        if (rollDie(100)>=65) magicList.push(MAGIC_ITEMS_MINOR[rollDie(MAGIC_ITEMS_MINOR.length)-1]);
+        if (rollDie(100)>=85) magicList.push(MAGIC_ITEMS_MAJOR[rollDie(MAGIC_ITEMS_MAJOR.length)-1]);
+      } else if (cr === 'high') {
+        totalGP += rollDice(4,6)*1000;
+        for(let j=0;j<rollDice(2,6);j++) gemsList.push(LOOT_GEMS.gp500[rollDie(LOOT_GEMS.gp500.length)-1]+' (500gp)');
+        for(let j=0;j<rollDie(4);j++) artList.push(LOOT_ART.gp2500[rollDie(LOOT_ART.gp2500.length)-1]+' (2500gp)');
+        if (rollDie(100)>=70) magicList.push(MAGIC_ITEMS_MAJOR[rollDie(MAGIC_ITEMS_MAJOR.length)-1]);
+        if (rollDie(100)>=90) magicList.push(MAGIC_ITEMS_MAJOR[rollDie(MAGIC_ITEMS_MAJOR.length)-1]);
+      } else {
+        totalGP += rollDice(12,6)*5000;
+        for(let j=0;j<rollDice(3,6);j++) gemsList.push(LOOT_GEMS.gp5000[rollDie(LOOT_GEMS.gp5000.length)-1]+' (5000gp)');
+        for(let j=0;j<rollDice(1,10);j++) artList.push(LOOT_ART.gp7500[rollDie(LOOT_ART.gp7500.length)-1]+' (7500gp)');
+        for(let j=0;j<rollDice(1,3);j++) magicList.push(MAGIC_ITEMS_MAJOR[rollDie(MAGIC_ITEMS_MAJOR.length)-1]);
+      }
+    }
+  }
+
+  const totalGPValue = (totalCP/100) + (totalSP/10) + totalGP;
+  const currencyHtml = [
+    totalCP > 0 ? `<span style="color:#aaa">${totalCP.toLocaleString()} cp</span>` : '',
+    totalSP > 0 ? `<span style="color:#bbb">${totalSP.toLocaleString()} sp</span>` : '',
+    totalGP > 0 ? `<span style="color:#c9a227">${totalGP.toLocaleString()} gp</span>` : '',
+  ].filter(Boolean).join(' + ');
+
+  results.innerHTML = `
+    <div style="background:rgba(201,162,39,0.05);border:1px solid rgba(201,162,39,0.2);border-radius:8px;padding:14px">
+      <div style="font-size:0.78rem;color:#888;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">${type === 'individual' ? count+'× Individual Loot' : 'Treasure Hoard'} — CR ${cr.toUpperCase()}</div>
+      ${currencyHtml ? `<div style="font-size:1.1rem;font-weight:700;margin-bottom:10px">${currencyHtml} <span style="color:#6a6a8a;font-size:0.75rem">(≈ ${Math.round(totalGPValue).toLocaleString()} gp total)</span></div>` : ''}
+      ${gemsList.length ? `<div style="margin-bottom:8px"><div style="font-size:0.72rem;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">💎 Gems (${gemsList.length})</div><div style="display:flex;flex-wrap:wrap;gap:4px">${gemsList.map(g=>`<span style="background:rgba(100,150,255,0.1);border:1px solid rgba(100,150,255,0.3);border-radius:10px;padding:2px 8px;font-size:0.75rem;color:#8ab0ff">${g}</span>`).join('')}</div></div>` : ''}
+      ${artList.length ? `<div style="margin-bottom:8px"><div style="font-size:0.72rem;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">🎨 Art Objects (${artList.length})</div><div style="display:flex;flex-wrap:wrap;gap:4px">${artList.map(a=>`<span style="background:rgba(255,180,100,0.08);border:1px solid rgba(255,180,100,0.3);border-radius:10px;padding:2px 8px;font-size:0.75rem;color:#ffcc88">${a}</span>`).join('')}</div></div>` : ''}
+      ${magicList.length ? `<div style="margin-bottom:8px"><div style="font-size:0.72rem;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">✨ Magic Items (${magicList.length})</div><div style="display:flex;flex-wrap:wrap;gap:4px">${magicList.map(m=>`<span style="background:rgba(155,109,255,0.1);border:1px solid rgba(155,109,255,0.3);border-radius:10px;padding:2px 8px;font-size:0.75rem;color:#c8a0ff">${m}</span>`).join('')}</div></div>` : ''}
+      <div style="display:flex;gap:6px;margin-top:10px">
+        <button onclick="_lootRoll()" style="flex:1;padding:6px;background:rgba(201,162,39,0.1);border:1px solid #c9a22755;border-radius:6px;color:#c9a227;cursor:pointer;font-size:0.78rem">🎲 Roll Again</button>
+        <button onclick="_lootCopyToClipboard()" style="flex:1;padding:6px;background:rgba(68,187,136,0.08);border:1px solid #44bb8855;border-radius:6px;color:#44bb88;cursor:pointer;font-size:0.78rem">📋 Copy to Clipboard</button>
+      </div>
+    </div>`;
+
+  // Store for clipboard
+  window._lastLoot = { currencyHtml, gemsList, artList, magicList };
+}
+
+function _lootCopyToClipboard() {
+  const l = window._lastLoot;
+  if (!l) return;
+  const parts = ['💰 TREASURE:'];
+  if (l.currencyHtml) parts.push('Currency: ' + l.currencyHtml.replace(/<[^>]+>/g,''));
+  if (l.gemsList.length) parts.push('Gems: ' + l.gemsList.join(', '));
+  if (l.artList.length) parts.push('Art: ' + l.artList.join(', '));
+  if (l.magicList.length) parts.push('Magic Items: ' + l.magicList.join(', '));
+  navigator.clipboard.writeText(parts.join('\n')).then(()=>showToast('Loot copied!','#c9a227'));
+}
+
+// Add Loot Generator button
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'Loot Generator — generate DMG-based treasure for encounters by CR tier';
+    btn.style.cssText = 'border-color:#c9a227;color:#c9a227';
+    btn.textContent = '💰 Loot';
+    btn.onclick = openLootGenerator;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 207: Random Tables Roller — DM improv tools for weather, NPC traits, shops, events
+const RAND_TABLES = {
+  weather: {
+    label:'🌤 Weather', die:'d12',
+    entries:['Clear and sunny','Partly cloudy, mild breeze','Overcast, no rain','Light rain','Heavy rain','Thunderstorm','Dense fog','Blistering heat','Bitter cold','Light snow','Blizzard','Magical weather (choose effect)']
+  },
+  npc_trait: {
+    label:'🗣 NPC Trait', die:'d20',
+    entries:['Speaks in riddles or metaphors','Constantly eating or snacking','Deeply superstitious','Obsessively clean','Tells terrible jokes','Former soldier, all military metaphors','Extremely forgetful','Suspicious of everyone','Enthusiastically loud','Very soft-spoken','Never makes eye contact','Refers to self in third person','Laughs at own jokes','Always mentions a dead spouse','Extremely gullible','Paranoid about magic','Compulsive liar','Name-dropper','Picks pockets reflexively','Talks to objects']
+  },
+  npc_motivation: {
+    label:'💭 NPC Want', die:'d10',
+    entries:['Wants money or treasure','Seeks revenge against someone','Desperately needs protection','Trying to find a missing person','Running from a dark past','Wants fame or recognition','Protecting a secret','Needs a specific rare item','Seeking redemption','Power — wants more of it']
+  },
+  shop_name: {
+    label:'🏪 Shop Name', die:'d12',
+    entries:['The Golden Anvil','Murky Waters Apothecary','The Broken Staff','Twice-Handed Wares','Nimble Fingers Sundries','The Jade Serpent','Grimshaw\'s Relics','The Lantern & Lore','Old Bones Curios','Whistling Crow Emporium','The Crossed Keys','Silver Moon Trading Co.']
+  },
+  tavern_event: {
+    label:'🍺 Tavern Event', die:'d12',
+    entries:['Bar fight breaks out','Traveling bard starts a sing-along','Shady deal in the corner booth','Someone passes out drunk in the hall','A crying noble in disguise','Bounty notice just posted on the board','Kitchen fire scare — smells awful','Card game, high stakes','Merchant brags about cargo (targeting them later)','Rowdy guards, off duty','Local celebrity arrives mob forms','Mysterious hooded figure pays in gold coins']
+  },
+  dungeon_room: {
+    label:'🏚 Dungeon Event', die:'d10',
+    entries:['Collapsed section — alternate route needed','Recent signs of combat — blood, bodies','Evidence of habitation — fire pit, bedrolls','Strange smell — sulfur, blood, flowers','Eerie sound — dripping, screaming, singing','Secret door obvious to one PC only','Treasure chest — locked, trapped, or empty','Prior adventurers\' graffiti with warning','Magic residue — recent powerful spell','Voices through the wall — just out of reach']
+  },
+  complication: {
+    label:'⚡ Plot Twist', die:'d8',
+    entries:['An NPC ally is secretly working against them','The item they sought is already gone','A third faction wants the same thing','The villain has a point — a good one','Someone is lying about their identity','The map they have is wrong','An innocent is caught in the crossfire','The job is done, but consequences loom']
+  },
+};
+
+let _rtCurrentTable = 'weather';
+let _rtLastRoll = null;
+
+function openRandomTables() {
+  document.getElementById('rtOverlay')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'rtOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9400;display:flex;align-items:center;justify-content:center';
+
+  const tabBtns = Object.entries(RAND_TABLES).map(([k,t]) =>
+    `<button onclick="_rtSwitch('${k}')" id="rtTab_${k}" style="padding:5px 10px;background:${k===_rtCurrentTable?'rgba(201,162,39,0.15)':'transparent'};border:1px solid ${k===_rtCurrentTable?'#c9a227':'#2a2050'};border-radius:6px;color:${k===_rtCurrentTable?'#c9a227':'#7a7aaa'};cursor:pointer;font-size:0.75rem;white-space:nowrap;transition:all .15s">${t.label}</button>`
+  ).join('');
+
+  ov.innerHTML = `
+  <div style="background:#10102a;border:1px solid #c9a227;border-radius:12px;padding:22px;max-width:580px;width:95%;font-family:'Inter',sans-serif;color:#c8d0e8">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div style="font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:#c9a227">🎲 Random Tables</div>
+      <button onclick="document.getElementById('rtOverlay').remove()" style="background:none;border:none;color:#666;cursor:pointer;font-size:1.2rem">✕</button>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:16px">${tabBtns}</div>
+    <div id="rtTableArea"></div>
+    <div id="rtResultArea" style="margin-top:12px;min-height:80px"></div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _rtRender();
+}
+
+function _rtSwitch(key) {
+  _rtCurrentTable = key;
+  Object.keys(RAND_TABLES).forEach(k => {
+    const btn = document.getElementById('rtTab_'+k);
+    if (!btn) return;
+    const active = k === key;
+    btn.style.background = active?'rgba(201,162,39,0.15)':'transparent';
+    btn.style.borderColor = active?'#c9a227':'#2a2050';
+    btn.style.color = active?'#c9a227':'#7a7aaa';
+  });
+  _rtLastRoll = null;
+  document.getElementById('rtResultArea').innerHTML = '';
+  _rtRender();
+}
+
+function _rtRender() {
+  const area = document.getElementById('rtTableArea');
+  if (!area) return;
+  const t = RAND_TABLES[_rtCurrentTable];
+  if (!t) return;
+  const rows = t.entries.map((e, i) =>
+    `<div style="display:flex;gap:8px;align-items:start;padding:4px 0;border-bottom:1px solid #0e0e20;cursor:pointer" onclick="_rtRollSpecific(${i})" onmouseover="this.style.background='rgba(201,162,39,0.05)'" onmouseout="this.style.background=''">
+      <span style="color:#c9a227;font-size:0.75rem;min-width:22px;text-align:right;padding-top:2px;font-family:'Cinzel',serif">${i+1}</span>
+      <span style="font-size:0.82rem;color:#b0b8d0">${escHtml(e)}</span>
+    </div>`
+  ).join('');
+
+  area.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="color:#888;font-size:0.78rem">${t.entries.length} entries (${t.die})</span>
+      <button onclick="_rtRollRandom()" style="padding:7px 18px;background:rgba(201,162,39,0.15);border:1px solid #c9a227;border-radius:8px;color:#c9a227;cursor:pointer;font-weight:700;font-size:0.85rem">🎲 Roll ${t.die}!</button>
+    </div>
+    <div style="max-height:200px;overflow-y:auto;border:1px solid #1a1a3a;border-radius:6px;padding:4px 8px">${rows}</div>`;
+}
+
+function _rtRollRandom() {
+  const t = RAND_TABLES[_rtCurrentTable];
+  const idx = Math.floor(Math.random() * t.entries.length);
+  _rtRollSpecific(idx);
+}
+
+function _rtRollSpecific(idx) {
+  const t = RAND_TABLES[_rtCurrentTable];
+  const result = t.entries[idx];
+  const area = document.getElementById('rtResultArea');
+  if (!area) return;
+  _rtLastRoll = result;
+  area.innerHTML = `
+    <div style="background:rgba(201,162,39,0.08);border:1px solid rgba(201,162,39,0.3);border-radius:8px;padding:14px;text-align:center">
+      <div style="color:#c9a227;font-size:0.7rem;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Result — ${t.label} #${idx+1}</div>
+      <div style="color:#fff;font-size:1rem;font-weight:700">${escHtml(result)}</div>
+      <button onclick="_rtRollRandom()" style="margin-top:10px;padding:5px 14px;background:rgba(201,162,39,0.1);border:1px solid #c9a22755;border-radius:6px;color:#c9a227;cursor:pointer;font-size:0.78rem">🎲 Roll Again</button>
+    </div>`;
+  logEntry('story', `🎲 Random ${t.label}: <strong>${result}</strong>`);
+  showToast(result, '#c9a227');
+}
+
+// Add Random Tables button
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'Random Tables — weather, NPC traits, shop names, tavern events, plot twists';
+    btn.style.cssText = 'border-color:#c9a227;color:#c9a227';
+    btn.textContent = '🎲 Random Tables';
+    btn.onclick = openRandomTables;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 206: Party Saving Throw Roller — roll the same save for ALL party members at once
+// Perfect for Fireball, Hold Person, etc. — better than DND Beyond (click one, not each)
+const SAVE_ABILITIES = ['STR','DEX','CON','INT','WIS','CHA'];
+
+function openPartySaveRoller() {
+  document.getElementById('partySaveOverlay')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'partySaveOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9400;display:flex;align-items:center;justify-content:center';
+
+  const abilityBtns = SAVE_ABILITIES.map(ab =>
+    `<button onclick="_psSetAb('${ab}')" id="psab_${ab}" style="padding:5px 10px;background:transparent;border:1px solid #2a2050;border-radius:6px;color:#7a7aaa;cursor:pointer;font-size:0.82rem;font-weight:700;transition:all .15s" onmouseover="this.style.borderColor='#9b6dff'" onmouseout="if(_psCurrentAb!=='${ab}')this.style.borderColor='#2a2050'">${ab}</button>`
+  ).join('');
+
+  ov.innerHTML = `
+  <div style="background:#10102a;border:1px solid #9b6dff;border-radius:12px;padding:22px;max-width:620px;width:95%;font-family:'Inter',sans-serif;color:#c8d0e8">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:#9b6dff">🎯 Party Save Roller</div>
+      <button onclick="document.getElementById('partySaveOverlay').remove()" style="background:none;border:none;color:#666;cursor:pointer;font-size:1.2rem">✕</button>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
+      <div style="display:flex;gap:5px;">${abilityBtns}</div>
+      <div style="display:flex;align-items:center;gap:8px;background:rgba(155,109,255,0.08);border:1px solid rgba(155,109,255,0.2);border-radius:8px;padding:6px 12px">
+        <label style="font-size:0.75rem;color:#7a7aaa">DC</label>
+        <input id="psDC" type="number" value="15" min="1" max="30" style="width:50px;background:#0c0c20;border:1px solid #2a2050;border-radius:4px;color:#fff;padding:4px;font-size:0.95rem;font-weight:700;text-align:center">
+      </div>
+      <label style="display:flex;align-items:center;gap:5px;font-size:0.8rem;color:#888;cursor:pointer">
+        <input type="checkbox" id="psAdvantage" style="accent-color:#9b6dff"> Advantage
+      </label>
+      <label style="display:flex;align-items:center;gap:5px;font-size:0.8rem;color:#888;cursor:pointer">
+        <input type="checkbox" id="psDisadvantage" style="accent-color:#cc4444"> Disadvantage
+      </label>
+    </div>
+    <div style="margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap">
+      <button onclick="_psSelectGroup('party')" id="psGroupParty" style="padding:4px 10px;background:rgba(68,187,136,0.15);border:1px solid #44bb88;border-radius:12px;color:#44bb88;cursor:pointer;font-size:0.75rem">Party Only</button>
+      <button onclick="_psSelectGroup('all')" id="psGroupAll" style="padding:4px 10px;background:transparent;border:1px solid #444;border-radius:12px;color:#888;cursor:pointer;font-size:0.75rem">All Characters</button>
+      <button onclick="_psSelectGroup('encounter')" id="psGroupEnc" style="padding:4px 10px;background:transparent;border:1px solid #444;border-radius:12px;color:#888;cursor:pointer;font-size:0.75rem">In Encounter</button>
+    </div>
+    <div id="psCharList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;max-height:120px;overflow-y:auto"></div>
+    <button onclick="_psRollAll()" style="width:100%;padding:10px;background:rgba(155,109,255,0.15);border:1px solid #9b6dff;border-radius:8px;color:#9b6dff;cursor:pointer;font-weight:700;font-size:1rem;margin-bottom:12px">🎲 Roll Save for Selected</button>
+    <div id="psSaveResults"></div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _psSetAb('DEX');
+  _psSelectGroup('party');
+}
+
+let _psCurrentAb = 'DEX';
+let _psSelected = new Set();
+
+function _psSetAb(ab) {
+  _psCurrentAb = ab;
+  SAVE_ABILITIES.forEach(a => {
+    const btn = document.getElementById('psab_'+a);
+    if (!btn) return;
+    if (a === ab) { btn.style.background='rgba(155,109,255,0.2)'; btn.style.borderColor='#9b6dff'; btn.style.color='#c8b0ff'; }
+    else { btn.style.background='transparent'; btn.style.borderColor='#2a2050'; btn.style.color='#7a7aaa'; }
+  });
+}
+
+function _psSelectGroup(group) {
+  ['party','all','encounter'].forEach(g => {
+    const btn = document.getElementById('psGroup'+g.charAt(0).toUpperCase()+g.slice(1));
+    if (btn) { btn.style.background = g===group?'rgba(155,109,255,0.15)':'transparent'; btn.style.borderColor = g===group?'#9b6dff':'#444'; btn.style.color = g===group?'#9b6dff':'#888'; }
+  });
+  let chars = UNIQUE_CHARS || [];
+  if (group === 'party') chars = chars.filter(c => ['royals','colorful','kubi','gondor'].includes(c.group) || c.group === 'party');
+  else if (group === 'encounter') {
+    const initList = _vibLoad ? _vibLoad().map(e=>e.name) : [];
+    chars = chars.filter(c => initList.includes(c.name));
+  }
+  _psSelected = new Set(chars.map(c=>c.name));
+  _psRenderCharList(chars);
+}
+
+function _psRenderCharList(chars) {
+  const list = document.getElementById('psCharList');
+  if (!list) return;
+  list.innerHTML = (chars || []).map(c =>
+    `<label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:3px 8px;border:1px solid ${_psSelected.has(c.name)?'#9b6dff44':'#2a2050'};border-radius:12px;font-size:0.75rem;color:${_psSelected.has(c.name)?'#c8b0ff':'#7a7aaa'};transition:all .1s">
+      <input type="checkbox" ${_psSelected.has(c.name)?'checked':''} onchange="_psToggle('${c.name.replace(/'/g,"\\'")}',this.checked)" style="accent-color:#9b6dff">
+      ${escHtml(c.name)}
+    </label>`
+  ).join('');
+}
+
+function _psToggle(name, checked) {
+  if (checked) _psSelected.add(name); else _psSelected.delete(name);
+  const lbl = document.querySelector(`#psCharList label input[onchange*="${name.replace(/'/g,"\\'")}"]`)?.closest('label');
+  if (lbl) { lbl.style.borderColor = checked?'#9b6dff44':'#2a2050'; lbl.style.color = checked?'#c8b0ff':'#7a7aaa'; }
+}
+
+function _psRollAll() {
+  const dc = parseInt(document.getElementById('psDC')?.value) || 15;
+  const adv = document.getElementById('psAdvantage')?.checked;
+  const dis = document.getElementById('psDisadvantage')?.checked;
+  const ab = _psCurrentAb;
+  const results = document.getElementById('psSaveResults');
+  if (!results) return;
+
+  const chars = (UNIQUE_CHARS||[]).filter(c => _psSelected.has(c.name));
+  if (!chars.length) { results.innerHTML='<p style="color:#666;text-align:center;font-size:0.85rem">No characters selected.</p>'; return; }
+
+  const rows = chars.map(c => {
+    const absData = {};
+    (c.abilities||[]).forEach(([n,s,m,hl]) => absData[n] = {mod:parseInt(m)||0, hl:!!hl});
+    const mod = absData[ab]?.mod || 0;
+    const hasProfSave = absData[ab]?.hl || false;
+    const crNum = parseFloat(c.cr==='1/8'?0.125:c.cr==='1/4'?0.25:c.cr==='1/2'?0.5:c.cr||0);
+    const prof = crNum>=17?6:crNum>=13?5:crNum>=9?4:crNum>=5?3:2;
+    const saveBonus = mod + (hasProfSave ? prof : 0);
+    const saveBonusStr = saveBonus>=0?`+${saveBonus}`:`${saveBonus}`;
+
+    const roll1 = Math.floor(Math.random()*20)+1;
+    let roll2 = null, chosenRoll;
+    if (adv || dis) { roll2 = Math.floor(Math.random()*20)+1; chosenRoll = adv ? Math.max(roll1,roll2) : Math.min(roll1,roll2); }
+    else chosenRoll = roll1;
+    const total = chosenRoll + saveBonus;
+    const passed = total >= dc;
+    const isNat20 = chosenRoll === 20, isNat1 = chosenRoll === 1;
+    const rollStr = adv||dis ? `(${roll1},${roll2})→${chosenRoll}` : `${chosenRoll}`;
+
+    logEntry('roll', `<strong>${escHtml(c.name)}</strong> ${ab} save (DC ${dc}): ${rollStr}${saveBonusStr} = <strong>${total}</strong> — ${passed?'✅ PASS':'❌ FAIL'}`);
+
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-radius:6px;background:${passed?'rgba(68,187,136,0.08)':'rgba(204,68,68,0.08)'};border:1px solid ${passed?'rgba(68,187,136,0.3)':'rgba(204,68,68,0.3)'};margin-bottom:4px">
+      <div>
+        <span style="font-weight:700;color:${passed?'#44bb88':'#cc4444'};font-size:0.9rem">${passed?'✅':'❌'} ${escHtml(c.name)}</span>
+        <span style="font-size:0.72rem;color:#6a6a8a;margin-left:6px">${ab} save (${saveBonusStr})</span>
+        ${isNat20?'<span style="color:#c9a227;font-size:0.7rem;margin-left:6px">★ NAT 20</span>':''}${isNat1?'<span style="color:#cc4444;font-size:0.7rem;margin-left:6px">☠ NAT 1</span>':''}
+      </div>
+      <div style="text-align:right">
+        <span style="font-size:1rem;font-weight:700;color:${passed?'#44bb88':'#cc4444'}">${total}</span>
+        <span style="font-size:0.7rem;color:#4a5272;display:block">${rollStr}${saveBonusStr}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  const passCount = chars.filter(c => {
+    const absData = {};
+    (c.abilities||[]).forEach(([n,s,m,hl]) => absData[n] = {mod:parseInt(m)||0, hl:!!hl});
+    const mod = absData[ab]?.mod || 0;
+    const hasProfSave = absData[ab]?.hl || false;
+    const crNum = parseFloat(c.cr==='1/8'?0.125:c.cr==='1/4'?0.25:c.cr==='1/2'?0.5:c.cr||0);
+    const prof = crNum>=17?6:crNum>=13?5:crNum>=9?4:crNum>=5?3:2;
+    const saveBonus = mod + (hasProfSave ? prof : 0);
+    // Re-roll to check pass isn't right - just count from rendered, approximate
+    return true; // Will count from rows
+  }).length;
+
+  results.innerHTML = `
+    <div style="display:flex;gap:10px;margin-bottom:10px;font-size:0.8rem;color:#888">
+      <span><strong style="color:#9b6dff">${ab} Save vs DC ${dc}</strong>${adv?' (Adv)':dis?' (Dis)':''}</span>
+      <span style="margin-left:auto">${chars.length} rolled</span>
+    </div>
+    ${rows}`;
+}
+
+// Add Party Save Roller button
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'Party Save Roller — roll a saving throw for all party members at once (great for Fireball, Hold Person, etc.)';
+    btn.style.cssText = 'border-color:#9b6dff;color:#9b6dff';
+    btn.textContent = '🎯 Party Saves';
+    btn.onclick = openPartySaveRoller;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 204: Combat State Export — copy current encounter to clipboard as formatted text
+// Perfect for sharing to Discord, text channels, or pasting into notes
+function exportCombatState() {
+  const initData = _vibLoad ? _vibLoad() : [];
+  const lines = [];
+  const now = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  lines.push(`⚔️ COMBAT STATE — Round ${typeof _vibRound !== 'undefined' ? _vibRound : '?'} — ${now}`);
+  lines.push('━'.repeat(40));
+
+  if (initData.length > 0) {
+    lines.push('📋 INITIATIVE ORDER:');
+    initData.forEach((e, i) => {
+      const isCur = i === (typeof _vibCurrentIdx !== 'undefined' ? _vibCurrentIdx : -1);
+      const c = UNIQUE_CHARS?.find(x => x.name === e.name);
+      const maxHp = c ? parseInt(c.hp) || 100 : 100;
+      const currHp = getCharHP(e.name, maxHp);
+      const hpPct = Math.round(currHp / maxHp * 100);
+      const hpBar = '█'.repeat(Math.round(hpPct / 10)) + '░'.repeat(10 - Math.round(hpPct / 10));
+      const typeIcon = e.type === 'pc' ? '🟢' : e.type === 'ally' ? '🔵' : '🔴';
+      const condsList = getAllConditions ? getAllConditions().filter(cn=>(typeof condState!=='undefined'&&(condState[e.name]||{})[cn.name])).map(cn=>cn.name) : [];
+      const condStr = condsList.length ? ` [${condsList.join(', ')}]` : '';
+      lines.push(`${isCur ? '▶ ' : '  '}${e.init.toString().padStart(2)} ${typeIcon} ${e.name} — HP ${currHp}/${maxHp} ${hpBar} ${hpPct}%${condStr}`);
+    });
+  } else {
+    // Fallback: show all party members with current HP
+    lines.push('📋 PARTY STATUS:');
+    UNIQUE_CHARS?.filter(c => c.group !== 'misc').slice(0, 20).forEach(c => {
+      const maxHp = parseInt(c.hp) || 1;
+      const currHp = getCharHP(c.name, maxHp);
+      const hpPct = Math.round(currHp / maxHp * 100);
+      const condsList2 = getAllConditions ? getAllConditions().filter(cn=>(typeof condState!=='undefined'&&(condState[c.name]||{})[cn.name])).map(cn=>cn.name) : [];
+      const condStr = condsList2.length ? ` [${condsList2.join(', ')}]` : '';
+      if (currHp < maxHp || conds.length) {  // Only show if modified
+        lines.push(`  ${c.name} — ${currHp}/${maxHp} HP (${hpPct}%)${condStr}`);
+      }
+    });
+  }
+
+  // Add scratch pad notes if any
+  const scratch = localStorage.getItem(SCRATCH_KEY);
+  if (scratch && scratch.trim()) {
+    lines.push('━'.repeat(40));
+    lines.push('📝 DM NOTES:');
+    scratch.trim().split('\n').slice(0, 10).forEach(l => lines.push('  ' + l));
+  }
+
+  lines.push('━'.repeat(40));
+  lines.push('📊 Generated by Adventures of Tiamat');
+
+  const text = lines.join('\n');
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('Combat state copied to clipboard! 📋', '#44bb88');
+  }).catch(() => {
+    // Fallback: show in a modal
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:9999;display:flex;align-items:center;justify-content:center';
+    ov.innerHTML = `<div style="background:#0c0c22;border:1px solid #44bb88;border-radius:10px;padding:20px;max-width:600px;width:95%">
+      <div style="color:#44bb88;font-weight:700;margin-bottom:10px">📋 Copy Combat State:</div>
+      <textarea style="width:100%;height:300px;background:#06061a;border:1px solid #1a1a3a;color:#c8d0e8;padding:10px;font-family:monospace;font-size:12px;box-sizing:border-box">${escHtml(text)}</textarea>
+      <button onclick="this.closest('div').parentElement.remove()" style="margin-top:8px;width:100%;padding:8px;background:rgba(68,187,136,0.15);border:1px solid #44bb88;border-radius:6px;color:#44bb88;cursor:pointer">Close</button>
+    </div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+    ov.querySelector('textarea').select();
+  });
+}
+
+// Add Combat Export button to toolbar
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'Export Combat State — copy current initiative/HP/conditions as text for Discord or notes';
+    btn.style.cssText = 'border-color:#44bb88;color:#44bb88';
+    btn.textContent = '📋 Export Combat';
+    btn.onclick = exportCombatState;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 203: DM Scratch Pad — persistent floating notepad for quick notes during play
+// Better than DND Beyond: persistent sticky note always accessible, no modal needed
+const SCRATCH_KEY = 'tiamat_scratch_pad';
+let _scratchVisible = false;
+
+function toggleScratchPad() {
+  const existing = document.getElementById('scratchPad');
+  if (existing) {
+    existing.remove();
+    _scratchVisible = false;
+    return;
+  }
+  _scratchVisible = true;
+  const saved = localStorage.getItem(SCRATCH_KEY) || '';
+  const pad = document.createElement('div');
+  pad.id = 'scratchPad';
+  pad.style.cssText = 'position:fixed;bottom:80px;right:20px;width:260px;background:#0c0c22;border:1px solid #c9a227;border-radius:10px;z-index:9100;box-shadow:0 8px 32px rgba(0,0,0,0.8);font-family:"Inter",sans-serif;user-select:none';
+
+  pad.innerHTML = `
+    <div id="scratchHeader" style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:rgba(201,162,39,0.12);border-radius:9px 9px 0 0;cursor:move">
+      <span style="color:#c9a227;font-size:0.78rem;font-weight:700;letter-spacing:.5px">📝 DM Scratch Pad</span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button onclick="_scratchClear()" title="Clear" style="background:none;border:none;color:#555;cursor:pointer;font-size:0.8rem;padding:0" onmouseover="this.style.color='#cc4444'" onmouseout="this.style.color='#555'">🗑</button>
+        <button onclick="document.getElementById('scratchPad').remove();_scratchVisible=false" style="background:none;border:none;color:#555;cursor:pointer;font-size:0.85rem;padding:0" onmouseover="this.style.color='#aaa'" onmouseout="this.style.color='#555'">✕</button>
+      </div>
+    </div>
+    <textarea id="scratchText" placeholder="Quick notes... HP changes, clues, NPC names, anything.
+Persists across sessions.
+Tab = 4 spaces" style="width:100%;height:220px;background:#06061a;border:none;border-top:1px solid #1a1a3a;color:#c8d0e8;padding:10px;font-size:0.8rem;resize:none;outline:none;box-sizing:border-box;border-radius:0 0 9px 9px;line-height:1.5;font-family:'Consolas','Courier New',monospace">${escHtml(saved)}</textarea>`;
+
+  document.body.appendChild(pad);
+
+  // Save on input
+  document.getElementById('scratchText').addEventListener('input', function() {
+    localStorage.setItem(SCRATCH_KEY, this.value);
+  });
+  // Tab support
+  document.getElementById('scratchText').addEventListener('keydown', function(e) {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const s = this.selectionStart, end = this.selectionEnd;
+      this.value = this.value.substring(0, s) + '    ' + this.value.substring(end);
+      this.selectionStart = this.selectionEnd = s + 4;
+      localStorage.setItem(SCRATCH_KEY, this.value);
+    }
+  });
+
+  // Make draggable
+  const header = document.getElementById('scratchHeader');
+  let ox = 0, oy = 0;
+  header.addEventListener('mousedown', e => {
+    if (e.target.tagName === 'BUTTON') return;
+    ox = e.clientX - pad.offsetLeft;
+    oy = e.clientY - (window.innerHeight - pad.offsetBottom - pad.offsetHeight);
+    const mm = ev => {
+      pad.style.right = 'auto';
+      pad.style.bottom = 'auto';
+      pad.style.left = Math.max(0, Math.min(ev.clientX - ox, window.innerWidth - 270)) + 'px';
+      pad.style.top  = Math.max(0, Math.min(ev.clientY - (oy - (window.innerHeight - parseInt(pad.style.bottom||'80') - pad.offsetHeight)), window.innerHeight - 320)) + 'px';
+    };
+    const mu = () => { document.removeEventListener('mousemove', mm); document.removeEventListener('mouseup', mu); };
+    document.addEventListener('mousemove', mm);
+    document.addEventListener('mouseup', mu);
+  });
+}
+
+function _scratchClear() {
+  const ta = document.getElementById('scratchText');
+  if (!ta) return;
+  if (!ta.value || confirm('Clear scratch pad?')) {
+    ta.value = '';
+    localStorage.setItem(SCRATCH_KEY, '');
+  }
+}
+
+// Add Scratch Pad button to toolbar
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.id = 'scratchBtn';
+    btn.className = 'encounter-open-btn';
+    btn.title = 'DM Scratch Pad — quick floating notepad (persists across sessions)';
+    btn.style.cssText = 'border-color:#c9a227;color:#c9a227';
+    btn.textContent = '📝 Notes';
+    btn.onclick = toggleScratchPad;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 202: Spell Card Popup — click 📖 on any spell to see full description
+// Bridges SPELL_LIBRARY (character sheets) with FULL_SPELLS (compendium)
+function showSpellCard(spellName, evt) {
+  if (evt) evt.stopPropagation();
+  document.querySelectorAll('.spell-card-popup').forEach(p => p.remove());
+
+  // Look up in FULL_SPELLS first, fall back to SPELL_LIBRARY
+  const full = (typeof FULL_SPELLS !== 'undefined') ? FULL_SPELLS.find(s => s.name.toLowerCase() === spellName.toLowerCase()) : null;
+  const lib  = (typeof SPELL_LIBRARY !== 'undefined') ? SPELL_LIBRARY[spellName] : null;
+
+  if (!full && !lib) { showToast('Spell not found in compendium', '#cc4444'); return; }
+
+  const s = full || {};
+  const l = lib  || {};
+  const name     = spellName;
+  const level    = s.level !== undefined ? s.level : (l.level || 0);
+  const school   = s.school || l.school || 'Unknown';
+  const cast     = s.cast || l.cast || '1 action';
+  const range    = s.range || l.range || '—';
+  const comp     = s.comp || l.comp || '—';
+  const duration = s.duration || l.duration || '—';
+  const conc     = s.conc || /concentration/i.test(l.desc||'');
+  const classes  = s.classes ? s.classes.join(', ') : '';
+  const desc     = s.desc || l.desc || 'No description available.';
+  const levelStr = level === 0 ? 'Cantrip' : `${level}${['','st','nd','rd'][level]||'th'}-level`;
+  const schoolColors = {Evocation:'#cc4444',Abjuration:'#4488ff',Conjuration:'#44bb88',Divination:'#c9a227',
+    Enchantment:'#9b6dff',Illusion:'#aa88ff',Necromancy:'#668844',Transmutation:'#dd8844'};
+  const col = schoolColors[school] || '#9b6dff';
+
+  const popup = document.createElement('div');
+  popup.className = 'spell-card-popup';
+  popup.style.cssText = `position:fixed;background:#0c0c22;border:2px solid ${col};border-radius:10px;padding:16px;z-index:9999;box-shadow:0 8px 48px rgba(0,0,0,.95);width:320px;max-width:95vw;font-family:'Inter',sans-serif;font-size:12px;color:#c8d0e8`;
+
+  popup.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px">
+      <div>
+        <div style="font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:${col}">${escHtml(name)}</div>
+        <div style="font-size:0.72rem;color:#7a7aaa;font-style:italic">${levelStr} ${school}${conc ? ' · <span style="color:#c9a227">Concentration</span>' : ''}</div>
+      </div>
+      <button onclick="this.closest('.spell-card-popup').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:1rem;padding:0 0 0 8px">✕</button>
+    </div>
+    <div style="border-top:1px solid rgba(255,255,255,0.07);padding-top:8px;margin-bottom:8px;display:grid;grid-template-columns:1fr 1fr;gap:4px">
+      <div><span style="color:#4a5272;font-size:0.68rem;text-transform:uppercase;letter-spacing:.5px">Casting Time</span><div style="color:#fff;font-size:0.82rem">${escHtml(cast)}</div></div>
+      <div><span style="color:#4a5272;font-size:0.68rem;text-transform:uppercase;letter-spacing:.5px">Range</span><div style="color:#fff;font-size:0.82rem">${escHtml(range)}</div></div>
+      <div><span style="color:#4a5272;font-size:0.68rem;text-transform:uppercase;letter-spacing:.5px">Components</span><div style="color:#fff;font-size:0.82rem">${escHtml(comp)}</div></div>
+      <div><span style="color:#4a5272;font-size:0.68rem;text-transform:uppercase;letter-spacing:.5px">Duration</span><div style="color:#fff;font-size:0.82rem">${escHtml(duration)}</div></div>
+    </div>
+    <div style="border-top:1px solid rgba(255,255,255,0.07);padding-top:8px;font-size:0.8rem;color:#b0b8d0;line-height:1.5">${escHtml(desc)}</div>
+    ${classes ? `<div style="border-top:1px solid rgba(255,255,255,0.07);padding-top:6px;margin-top:8px;font-size:0.68rem;color:#4a5272"><span style="color:#6a5aaa">Classes: </span>${escHtml(classes)}</div>` : ''}
+    <button onclick="this.closest('.spell-card-popup').remove();openSpellCompendium()" style="margin-top:8px;width:100%;padding:5px;background:rgba(155,109,255,0.08);border:1px solid rgba(155,109,255,0.3);color:#9b6dff;border-radius:6px;cursor:pointer;font-size:0.75rem">Open Full Compendium →</button>`;
+
+  document.body.appendChild(popup);
+
+  // Position near click or center-screen
+  if (evt) {
+    const x = Math.min(evt.clientX, window.innerWidth - 340);
+    const y = Math.min(evt.clientY + 10, window.innerHeight - 450);
+    popup.style.left = x + 'px';
+    popup.style.top  = y + 'px';
+  } else {
+    popup.style.left = '50%';
+    popup.style.top  = '50%';
+    popup.style.transform = 'translate(-50%,-50%)';
+  }
+
+  // Close on outside click
+  setTimeout(() => document.addEventListener('click', function rem(e) {
+    if (!popup.contains(e.target)) { popup.remove(); document.removeEventListener('click', rem); }
+  }, { once: false }), 60);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 201: Monster Quick-Builder — generate DMG-compliant stat blocks from CR
+// Pick CR + type, auto-fill stats, customize, save, add to encounter.
+const MQB_KEY = 'tiamat_custom_monsters';
+function _mqbLoad() { try { return JSON.parse(localStorage.getItem(MQB_KEY)||'[]'); } catch(e){return[];} }
+function _mqbSave(d) { localStorage.setItem(MQB_KEY, JSON.stringify(d)); }
+
+// DMG Monster Stats by CR: [prof, typAC, typHP, atkBonus, saveDC, xp]
+const MQB_CR_TABLE = {
+  '0':    [2,13,3,3,13,10],   '1/8': [2,13,21,3,13,25],
+  '1/4':  [2,13,42,3,13,50],  '1/2': [2,13,60,3,13,100],
+  '1':    [2,13,78,3,13,200], '2':   [2,13,93,3,13,450],
+  '3':    [2,13,108,4,13,700],'4':   [2,14,123,5,14,1100],
+  '5':    [3,15,138,6,15,1800],'6':  [3,15,153,6,15,2300],
+  '7':    [3,15,168,6,15,2900],'8':  [3,16,183,7,16,3900],
+  '9':    [4,16,198,7,16,5000],'10': [4,17,213,7,16,5900],
+  '11':   [4,17,228,8,17,7200],'12': [4,17,243,8,17,8400],
+  '13':   [5,18,258,8,18,10000],'14':[5,18,273,8,18,11500],
+  '15':   [5,18,288,8,18,13000],'16':[5,18,303,9,18,15000],
+  '17':   [6,19,318,10,19,18000],'18':[6,19,333,10,19,20000],
+  '19':   [6,19,348,10,19,22000],'20':[6,19,378,10,19,25000],
+  '21':   [7,19,423,11,20,33000],'22':[7,19,468,11,20,41000],
+  '23':   [7,19,513,11,20,50000],'24':[7,19,558,12,21,62000],
+  '25':   [8,19,603,12,21,75000],'26':[8,19,648,13,21,90000],
+  '27':   [8,19,693,13,22,105000],'28':[8,19,738,13,22,120000],
+  '29':   [9,19,783,14,22,135000],'30':[9,19,828,14,23,155000],
+};
+// Default ability scores by type (scaled with CR)
+const MQB_TYPE_DEFAULTS = {
+  beast:      [16,12,14,3,12,5,  'Non-magical physical','None'],
+  undead:     [14,10,16,9,8,12,  'Necrotic','Poison, Exhaustion'],
+  dragon:     [20,10,18,14,12,16,'Fire (varies by dragon type)','None'],
+  fiend:      [16,14,16,12,10,14,'Fire, Cold, Lightning','Poison'],
+  humanoid:   [14,12,14,12,12,10,'None','None'],
+  construct:  [16,8,18,6,8,4,   'Non-magical physical, Poison, Psychic','Poison, Psychic'],
+  elemental:  [14,14,16,6,10,6, 'Non-magical physical, their element','Poison, Exhaustion'],
+  celestial:  [14,12,14,14,16,16,'Radiant, Bludgeoning/Piercing/Slashing from non-magical','Disease'],
+  aberration: [12,10,14,16,12,10,'Psychic (varies)','None'],
+  fey:        [10,16,12,14,14,18,'None','None'],
+  giant:      [22,8,20,8,10,8,  'None','None'],
+  monstrosity:[18,12,16,6,10,6, 'None','None'],
+  ooze:       [12,6,18,2,6,1,   'Acid, Non-magical physical','Blinded, Charmed, Deafened, Exhaustion, Frightened, Prone'],
+  plant:      [14,8,16,6,10,3,  'None','Blinded, Deafened, Frightened'],
+  swarm:      [10,14,10,4,10,2, 'Bludgeoning, Piercing, Slashing','Charmed, Frightened, Grappled, Paralyzed, Petrified, Prone, Restrained, Stunned'],
+};
+const MQB_TYPES = Object.keys(MQB_TYPE_DEFAULTS);
+const MQB_SIZES = ['Tiny','Small','Medium','Large','Huge','Gargantuan'];
+const MQB_CR_LIST = ['0','1/8','1/4','1/2','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25','26','27','28','29','30'];
+
+let _mqbMonster = null;
+
+function openMonsterBuilder() {
+  document.getElementById('mqbOverlay')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'mqbOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:9400;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto';
+
+  const crOpts = MQB_CR_LIST.map(c=>`<option value="${c}"${c==='5'?' selected':''}>${c==='0'?'0 (Trivial)':c==='1/8'?'1/8':c==='1/4'?'1/4':c==='1/2'?'1/2':'CR '+c}</option>`).join('');
+  const typeOpts = MQB_TYPES.map(t=>`<option value="${t}">${t.charAt(0).toUpperCase()+t.slice(1)}</option>`).join('');
+  const sizeOpts = MQB_SIZES.map(s=>`<option value="${s}"${s==='Large'?' selected':''}>${s}</option>`).join('');
+  const saved = _mqbLoad();
+
+  ov.innerHTML = `
+  <div style="width:900px;max-width:100%;font-family:'Inter',sans-serif;color:#c8d0e8">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;position:sticky;top:0;background:rgba(6,6,26,0.97);padding:10px 0;border-bottom:1px solid rgba(204,68,68,0.3);z-index:10">
+      <div style="font-family:'Cinzel',serif;font-size:1.2rem;font-weight:700;color:#cc4444">🐉 Monster Quick-Builder</div>
+      <button onclick="document.getElementById('mqbOverlay').remove()" style="background:none;border:1px solid #333;color:#666;border-radius:6px;padding:5px 12px;cursor:pointer">✕ Close</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <!-- Builder Form -->
+      <div style="background:rgba(204,68,68,0.05);border:1px solid rgba(204,68,68,0.2);border-radius:10px;padding:16px">
+        <h3 style="margin:0 0 12px;color:#cc4444;font-size:0.95rem">Build Monster</h3>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <input id="mqbName" placeholder="Monster Name (e.g. Shadow Drake)" style="padding:7px 10px;background:#0e0e24;border:1px solid #2a2050;border-radius:6px;color:#fff;font-size:0.9rem" value="Shadow Drake">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+            <div><label style="font-size:0.72rem;color:#888;display:block;margin-bottom:3px">CR</label>
+              <select id="mqbCr" onchange="_mqbAutoFill()" style="width:100%;padding:6px;background:#0e0e24;border:1px solid #2a2050;border-radius:6px;color:#fff;font-size:0.85rem">${crOpts}</select></div>
+            <div><label style="font-size:0.72rem;color:#888;display:block;margin-bottom:3px">Type</label>
+              <select id="mqbType" onchange="_mqbAutoFill()" style="width:100%;padding:6px;background:#0e0e24;border:1px solid #2a2050;border-radius:6px;color:#fff;font-size:0.85rem">${typeOpts}</select></div>
+            <div><label style="font-size:0.72rem;color:#888;display:block;margin-bottom:3px">Size</label>
+              <select id="mqbSize" style="width:100%;padding:6px;background:#0e0e24;border:1px solid #2a2050;border-radius:6px;color:#fff;font-size:0.85rem">${sizeOpts}</select></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+            <div><label style="font-size:0.72rem;color:#888;display:block;margin-bottom:3px">HP</label><input id="mqbHp" type="number" style="width:100%;padding:6px;background:#0e0e24;border:1px solid #2a2050;border-radius:6px;color:#fff;box-sizing:border-box"></div>
+            <div><label style="font-size:0.72rem;color:#888;display:block;margin-bottom:3px">AC</label><input id="mqbAc" type="number" style="width:100%;padding:6px;background:#0e0e24;border:1px solid #2a2050;border-radius:6px;color:#fff;box-sizing:border-box"></div>
+            <div><label style="font-size:0.72rem;color:#888;display:block;margin-bottom:3px">Speed</label><input id="mqbSpeed" placeholder="30 ft" style="width:100%;padding:6px;background:#0e0e24;border:1px solid #2a2050;border-radius:6px;color:#fff;box-sizing:border-box"></div>
+          </div>
+          <div style="font-size:0.72rem;color:#888;margin-top:4px;margin-bottom:2px">Ability Scores</div>
+          <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px" id="mqbAbilityGrid">
+            ${['STR','DEX','CON','INT','WIS','CHA'].map(a=>`<div style="text-align:center"><label style="font-size:0.65rem;color:#666;display:block">${a}</label><input id="mqbAb${a}" type="number" min="1" max="30" style="width:100%;padding:4px;background:#0e0e24;border:1px solid #2a2050;border-radius:4px;color:#fff;text-align:center;font-size:0.85rem;box-sizing:border-box"></div>`).join('')}
+          </div>
+          <input id="mqbTraits" placeholder="Special traits (comma-separated, e.g. Darkvision 60 ft, Pack Tactics)" style="padding:6px 10px;background:#0e0e24;border:1px solid #2a2050;border-radius:6px;color:#fff;font-size:0.82rem">
+          <input id="mqbActions" placeholder="Actions (e.g. Multiattack: Two attacks, Bite: +7 to hit 2d8+5 piercing)" style="padding:6px 10px;background:#0e0e24;border:1px solid #2a2050;border-radius:6px;color:#fff;font-size:0.82rem">
+          <div style="display:flex;gap:6px;margin-top:4px">
+            <button onclick="_mqbGenerate()" style="flex:1;padding:8px;background:rgba(204,68,68,0.15);border:1px solid #cc4444;border-radius:6px;color:#cc4444;cursor:pointer;font-weight:700;font-size:0.85rem">⚡ Generate Stat Block</button>
+            <button onclick="_mqbAutoFill()" style="padding:8px 12px;background:rgba(100,100,200,0.1);border:1px solid #5566aa;border-radius:6px;color:#8899dd;cursor:pointer;font-size:0.8rem">↻ Auto-fill</button>
+          </div>
+        </div>
+      </div>
+      <!-- Stat Block Preview -->
+      <div id="mqbPreview" style="background:rgba(0,0,0,0.3);border:1px solid #1a1a3a;border-radius:10px;padding:16px;min-height:300px">
+        <div style="color:#4a5272;text-align:center;padding:40px 0;font-size:0.85rem">⚙ Set values and click Generate to see the stat block</div>
+      </div>
+    </div>
+    <!-- Saved Monsters -->
+    <div style="margin-top:14px;background:rgba(0,0,0,0.2);border:1px solid #1a1a3a;border-radius:10px;padding:14px">
+      <h3 style="margin:0 0 10px;color:#c9a227;font-size:0.9rem">📦 Saved Monsters (${saved.length})</h3>
+      <div id="mqbSavedList" style="display:flex;flex-wrap:wrap;gap:6px">${_mqbRenderSavedList(saved)}</div>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _mqbAutoFill();
+}
+
+function _mqbMod(score) {
+  const m = Math.floor((score - 10) / 2);
+  return (m >= 0 ? '+' : '') + m;
+}
+
+function _mqbAutoFill() {
+  const cr = document.getElementById('mqbCr')?.value || '5';
+  const type = document.getElementById('mqbType')?.value || 'beast';
+  const table = MQB_CR_TABLE[cr] || MQB_CR_TABLE['5'];
+  const [prof, typAC, typHP] = table;
+  const defaults = MQB_TYPE_DEFAULTS[type] || MQB_TYPE_DEFAULTS['beast'];
+  const crNum = parseFloat(cr==='1/8'?0.125:cr==='1/4'?0.25:cr==='1/2'?0.5:cr);
+  const scale = Math.min(1 + crNum / 15, 2.2);
+
+  if(document.getElementById('mqbHp')) document.getElementById('mqbHp').value = typHP;
+  if(document.getElementById('mqbAc')) document.getElementById('mqbAc').value = typAC;
+  if(document.getElementById('mqbSpeed')) document.getElementById('mqbSpeed').value = type==='elemental'?'30 ft, fly 30 ft':type==='beast'&&crNum>=5?'40 ft':type==='dragon'?'40 ft, fly 80 ft':'30 ft';
+  ['STR','DEX','CON','INT','WIS','CHA'].forEach((ab, i) => {
+    const base = defaults[i] || 10;
+    const scaled = Math.min(30, Math.round(base + (crNum >= 5 ? (crNum-5)*0.4 : 0)));
+    const el = document.getElementById('mqbAb'+ab);
+    if(el) el.value = scaled;
+  });
+}
+
+function _mqbGenerate() {
+  const name = document.getElementById('mqbName')?.value?.trim() || 'Unknown Monster';
+  const cr = document.getElementById('mqbCr')?.value || '5';
+  const type = document.getElementById('mqbType')?.value || 'beast';
+  const size = document.getElementById('mqbSize')?.value || 'Large';
+  const hp = parseInt(document.getElementById('mqbHp')?.value) || 100;
+  const ac = parseInt(document.getElementById('mqbAc')?.value) || 15;
+  const speed = document.getElementById('mqbSpeed')?.value || '30 ft';
+  const traits = document.getElementById('mqbTraits')?.value?.trim() || '';
+  const actions = document.getElementById('mqbActions')?.value?.trim() || '';
+  const table = MQB_CR_TABLE[cr] || [3,15,100,6,15,1800];
+  const [prof, , , atkBonus, saveDC, xp] = table;
+  const abs = {};
+  ['STR','DEX','CON','INT','WIS','CHA'].forEach(ab => {
+    abs[ab] = parseInt(document.getElementById('mqbAb'+ab)?.value) || 10;
+  });
+  const typeInfo = MQB_TYPE_DEFAULTS[type] || MQB_TYPE_DEFAULTS['beast'];
+  const resists = typeInfo[6] || 'None';
+  const immunes = typeInfo[7] || 'None';
+
+  _mqbMonster = { name, cr, type, size, hp, ac, speed, abs, prof, atkBonus, saveDC, xp, traits, actions, resists, immunes, ts: new Date().toLocaleDateString() };
+  _mqbRenderPreview(_mqbMonster);
+}
+
+function _mqbRenderPreview(m) {
+  const preview = document.getElementById('mqbPreview');
+  if (!preview) return;
+  const abOrder = ['STR','DEX','CON','INT','WIS','CHA'];
+  const abRow = abOrder.map(ab => {
+    const s = m.abs[ab] || 10;
+    const mod = _mqbMod(s);
+    return `<div style="text-align:center;flex:1"><div style="font-size:0.65rem;color:#8a6040;font-weight:700;letter-spacing:.5px">${ab}</div><div style="font-size:1rem;font-weight:700;color:#2a1a0a">${s}</div><div style="font-size:0.75rem;color:#5a3820">${mod}</div></div>`;
+  }).join('');
+  const saveRow = abOrder.map(ab => {
+    const mod = Math.floor((m.abs[ab]-10)/2);
+    return `${ab} ${mod>=0?'+':''}${mod}`;
+  }).join(', ');
+  const crFrac = m.cr === '0' ? '0' : m.cr;
+  const traitList = m.traits ? m.traits.split(',').filter(t=>t.trim()).map(t=>`<p style="margin:4px 0"><strong>${t.split(':')[0].trim()}</strong>${t.includes(':')?'. '+t.split(':').slice(1).join(':').trim():'.'}</p>`).join('') : '';
+  const actionList = m.actions ? m.actions.split(',').filter(a=>a.trim()).map(a=>`<p style="margin:4px 0"><strong>${a.split(':')[0].trim()}</strong>${a.includes(':')?'. '+a.split(':').slice(1).join(':').trim():'.'}</p>`).join('') : `<p style="margin:4px 0"><strong>Attack.</strong> +${m.atkBonus} to hit, one target. Hit: varies.</p>`;
+
+  preview.innerHTML = `
+    <div style="background:#f5e6c8;border:2px solid #8a6040;border-radius:8px;padding:14px;color:#2a1a0a;font-family:'Georgia',serif;font-size:0.82rem;line-height:1.5">
+      <div style="font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:#5a0808;margin-bottom:2px">${escHtml(m.name)}</div>
+      <div style="font-style:italic;color:#5a3820;margin-bottom:8px;font-size:0.8rem">${m.size} ${m.type.charAt(0).toUpperCase()+m.type.slice(1)}, typically neutral</div>
+      <hr style="border-color:#8a6040;margin:6px 0">
+      <p style="margin:3px 0"><strong>Armor Class</strong> ${m.ac}</p>
+      <p style="margin:3px 0"><strong>Hit Points</strong> ${m.hp}</p>
+      <p style="margin:3px 0"><strong>Speed</strong> ${escHtml(m.speed)}</p>
+      <hr style="border-color:#8a6040;margin:8px 0">
+      <div style="display:flex;gap:4px;padding:6px 0;border-top:1px solid #8a6040;border-bottom:1px solid #8a6040;margin-bottom:8px">${abRow}</div>
+      <p style="margin:3px 0"><strong>Saving Throws</strong> ${saveRow}</p>
+      <p style="margin:3px 0"><strong>Proficiency Bonus</strong> +${m.prof}</p>
+      ${m.resists!=='None'?`<p style="margin:3px 0"><strong>Damage Resistances</strong> ${escHtml(m.resists)}</p>`:''}
+      ${m.immunes!=='None'?`<p style="margin:3px 0"><strong>Condition Immunities</strong> ${escHtml(m.immunes)}</p>`:''}
+      <p style="margin:3px 0"><strong>Senses</strong> passive Perception ${10 + Math.floor((m.abs.WIS-10)/2)}</p>
+      <p style="margin:3px 0"><strong>Challenge</strong> ${crFrac} (${m.xp.toLocaleString()} XP)</p>
+      <hr style="border-color:#8a6040;margin:8px 0">
+      ${traitList ? `<div style="margin-bottom:8px">${traitList}</div><hr style="border-color:#8a6040;margin:8px 0">` : ''}
+      <div style="font-weight:700;font-size:0.85rem;margin-bottom:4px;letter-spacing:.5px">ACTIONS</div>
+      ${actionList}
+    </div>
+    <div style="display:flex;gap:6px;margin-top:10px">
+      <button onclick="_mqbSaveCurrent()" style="flex:1;padding:7px;background:rgba(201,162,39,0.15);border:1px solid #c9a227;border-radius:6px;color:#c9a227;cursor:pointer;font-size:0.8rem;font-weight:700">💾 Save Monster</button>
+      <button onclick="_mqbAddToEncounter()" style="flex:1;padding:7px;background:rgba(204,68,68,0.1);border:1px solid #cc4444;border-radius:6px;color:#cc4444;cursor:pointer;font-size:0.8rem;font-weight:700">⚔ Add to Encounter</button>
+    </div>`;
+}
+
+function _mqbSaveCurrent() {
+  if (!_mqbMonster) { showToast('Generate a stat block first','#cc4444'); return; }
+  const d = _mqbLoad();
+  const existing = d.findIndex(m => m.name === _mqbMonster.name);
+  if (existing >= 0) d[existing] = _mqbMonster; else d.unshift(_mqbMonster);
+  _mqbSave(d);
+  showToast(_mqbMonster.name + ' saved!', '#c9a227');
+  const list = document.getElementById('mqbSavedList');
+  if (list) list.innerHTML = _mqbRenderSavedList(_mqbLoad());
+}
+
+function _mqbAddToEncounter() {
+  if (!_mqbMonster) { showToast('Generate a stat block first','#cc4444'); return; }
+  // Add to encounter builder if it exists
+  if (typeof encounterMonsters !== 'undefined') {
+    encounterMonsters.push({ name: _mqbMonster.name, cr: _mqbMonster.cr, count: 1 });
+    showToast(_mqbMonster.name + ' added to encounter!', '#cc4444');
+  } else {
+    showToast('Open Encounter Builder to add this monster', '#cc8844');
+  }
+}
+
+function _mqbRenderSavedList(saved) {
+  if (!saved.length) return '<span style="color:#4a5272;font-size:0.82rem">No saved monsters yet. Build and save one above.</span>';
+  return saved.map(m => `
+    <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(204,68,68,0.07);border:1px solid rgba(204,68,68,0.25);border-radius:20px;padding:3px 10px;cursor:pointer" onclick="_mqbLoadSaved('${escHtml(m.name).replace(/'/g,"\\'")}')">
+      <span style="color:#cc7744;font-size:0.72rem">CR ${m.cr}</span>
+      <span style="color:#c8d0e8;font-size:0.8rem">${escHtml(m.name)}</span>
+      <button onclick="event.stopPropagation();_mqbDeleteSaved('${escHtml(m.name).replace(/'/g,"\\'")}');this.closest('div').remove()" style="background:none;border:none;color:#555;cursor:pointer;font-size:0.75rem;padding:0 2px">✕</button>
+    </div>`).join('');
+}
+
+function _mqbLoadSaved(name) {
+  const d = _mqbLoad();
+  const m = d.find(x => x.name === name);
+  if (!m) return;
+  _mqbMonster = m;
+  document.getElementById('mqbName').value = m.name;
+  ['STR','DEX','CON','INT','WIS','CHA'].forEach(ab => {
+    const el = document.getElementById('mqbAb'+ab);
+    if (el) el.value = m.abs[ab] || 10;
+  });
+  document.getElementById('mqbHp').value = m.hp;
+  document.getElementById('mqbAc').value = m.ac;
+  document.getElementById('mqbSpeed').value = m.speed;
+  _mqbRenderPreview(m);
+}
+
+function _mqbDeleteSaved(name) {
+  const d = _mqbLoad().filter(m => m.name !== name);
+  _mqbSave(d);
+}
+
+// Add Monster Builder button to toolbar
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'Monster Quick-Builder — generate DMG-compliant stat blocks from CR';
+    btn.style.cssText = 'border-color:#cc4444;color:#cc4444';
+    btn.textContent = '🐉 Monster Builder';
+    btn.onclick = openMonsterBuilder;
     lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
   }
 })();
