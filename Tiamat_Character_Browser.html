@@ -3565,6 +3565,7 @@
     <button class="encounter-open-btn" onclick="openConcDashboard()" style="border-color:#c9a227;color:#c9a227" title="Concentration Dashboard — who is concentrating, quick break concentration saves">🔮 Conc</button>
     <button class="encounter-open-btn" onclick="toggleSlotDashboard()" style="border-color:#4488ff;color:#4488ff" id="slotDashBtn" title="Party Spell Slot Dashboard — all casters' slots at a glance">✦ Slots</button>
     <button class="encounter-open-btn" onclick="openCondPicker()" style="border-color:#aa66dd;color:#aa66dd" title="Quick Condition Picker — search & apply conditions to any character">⚡ Cond</button>
+    <button class="encounter-open-btn" onclick="openCampaignDashboard()" style="border-color:#9b6dff;color:#9b6dff" title="Campaign Dashboard — full campaign state at a glance">📊 Dashboard</button>
     <div class="stat-badge"><strong id="totalCount">0</strong> Characters</div>
     <div class="stat-badge"><strong id="visibleCount">0</strong> Showing</div>
     <div class="stat-badge stat-live" id="statDown" onclick="filterToDown()" title="Click to show downed characters" style="display:none"><strong id="downCount">0</strong> ⚠ Down</div>
@@ -9576,6 +9577,137 @@ function removeAward(idx) {
   const awards = loadAwards();
   awards.splice(idx, 1);
   saveAwards(awards);
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 86: Campaign Status Dashboard — one-page overview
+//   of the entire campaign state: HP, conditions, concentration,
+//   inspiration, XP/level, loot, session stats.
+// ══════════════════════════════════════════════════════════
+function openCampaignDashboard() {
+  const existing = document.getElementById('campaignDashOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'campaignDashOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.8);z-index:9800;display:flex;align-items:flex-start;justify-content:center;padding:4vh 10px;overflow-y:auto';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  const content = buildCampaignDashboard();
+  overlay.innerHTML = `
+    <div style="background:#08060e;border:1px solid rgba(155,109,255,0.5);border-radius:14px;padding:24px;width:min(800px,98vw);box-shadow:0 8px 40px rgba(0,0,0,.9)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:900;color:#9b6dff;letter-spacing:2px">📊 Campaign Dashboard</div>
+        <div style="display:flex;gap:8px">
+          <button onclick="openCampaignDashboard()" style="background:rgba(155,109,255,.1);border:1px solid rgba(155,109,255,.4);color:#9b6dff;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:11px">↺ Refresh</button>
+          <button onclick="document.getElementById('campaignDashOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:20px">✕</button>
+        </div>
+      </div>
+      ${content}
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function buildCampaignDashboard() {
+  const chars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+  if (!chars.length) return '<div style="color:#4a5272;font-style:italic">No characters loaded.</div>';
+
+  // ── Party Health Overview ──
+  const healthRows = chars.map(c => {
+    const max = parseInt(c.hp) || 1;
+    const curr = typeof getCharHP === 'function' ? getCharHP(c.name, max) : max;
+    const pct = curr / max;
+    const barColor = pct >= 0.75 ? '#44aa44' : pct >= 0.5 ? '#c9a227' : pct >= 0.25 ? '#dd6622' : '#cc3333';
+    const conds = typeof getCharConditions === 'function' ? getCharConditions(c.name) : [];
+    const insp = typeof hasInspiration === 'function' ? hasInspiration(c.name) : false;
+    const conc = typeof getConcSpell === 'function' ? getConcSpell(c.name) : null;
+    const custom = typeof getCustomPortrait === 'function' ? getCustomPortrait(c.name) : null;
+    const portIcon = custom && !custom.startsWith('http') ? `<span style="font-size:18px">${custom}</span>` : `<span style="font-size:10px;color:#4a5272">${c.name.slice(0,2)}</span>`;
+    return `<div style="background:#06060a;border:1px solid #1e2040;border-radius:8px;padding:10px 12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="font-size:12px;color:${curr===0?'#cc4444':'#dce0f0'};font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">${curr===0?'💀 ':insp?'⭐ ':''}<span>${c.name}</span></div>
+        <div style="font-size:11px;color:${barColor};font-weight:700;font-family:'Cinzel',serif">${curr}/${max}</div>
+      </div>
+      <div style="background:#0a0a14;border-radius:4px;height:6px;overflow:hidden;margin-bottom:6px">
+        <div style="height:100%;background:${barColor};width:${Math.round(pct*100)}%;border-radius:4px;transition:width .3s"></div>
+      </div>
+      ${conc ? `<div style="font-size:9px;color:#c9a227;margin-bottom:3px">🔮 ${conc}</div>` : ''}
+      ${conds.length ? `<div style="display:flex;flex-wrap:wrap;gap:3px">${conds.map(cn => `<span style="font-size:9px;padding:1px 5px;background:rgba(170,102,221,.1);border:1px solid rgba(170,102,221,.3);border-radius:4px;color:#aa66dd">${cn}</span>`).join('')}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  // ── Loot Summary ──
+  const loot = (() => { try { return JSON.parse(localStorage.getItem('tiamat_loot')) || {}; } catch { return {}; } })();
+  const totalGp = ((loot.pp||0) * 10) + (loot.gp||0) + ((loot.sp||0) / 10) + ((loot.cp||0) / 100);
+  const lootItems = (loot.items || []).length;
+
+  // ── XP/Level ──
+  const xpState = (() => { try { return JSON.parse(localStorage.getItem('tiamat_xp')) || {}; } catch { return {}; } })();
+  const partyXP = xpState.totalXp || 0;
+  const partyLevel = xpState.level || 1;
+
+  // ── Active Inspiration Count ──
+  const inspirData = typeof loadInspiration === 'function' ? loadInspiration() : {};
+  const inspiredChars = Object.keys(inspirData).filter(k => inspirData[k]);
+
+  // ── Active Conditions Count ──
+  const allCondData = (() => { try { return JSON.parse(localStorage.getItem('tiamat_conditions')) || {}; } catch { return {}; } })();
+  const totalConds = Object.values(allCondData).flat().length;
+
+  // ── Session Log Stats ──
+  const logCount = typeof sessionLog !== 'undefined' ? sessionLog.length : 0;
+  const dmgEvents = typeof sessionLog !== 'undefined' ? sessionLog.filter(e => e.type === 'damage').length : 0;
+  const healEvents = typeof sessionLog !== 'undefined' ? sessionLog.filter(e => e.type === 'heal').length : 0;
+
+  // ── Awards ──
+  const awardsData = (() => { try { return JSON.parse(localStorage.getItem('tiamat_awards')) || []; } catch { return []; } })();
+
+  const statCards = [
+    { label:'Characters', val:chars.length, color:'#9b6dff', icon:'👥' },
+    { label:'Inspired', val:inspiredChars.length, color:'#c9a227', icon:'⭐' },
+    { label:'Conditions', val:totalConds, color:'#aa66dd', icon:'⚡' },
+    { label:'In Combat', val:typeof initiativeList!=='undefined'?initiativeList.length:0, color:'#cc6666', icon:'⚔' },
+    { label:'Party GP', val:totalGp.toFixed(0), color:'#c9a227', icon:'💰' },
+    { label:'Party Level', val:partyLevel, color:'#4488ff', icon:'⭐' },
+    { label:'Log Events', val:logCount, color:'#9098b8', icon:'📋' },
+    { label:'Heroic Moments', val:awardsData.length, color:'#23b478', icon:'🏆' },
+  ].map(s => `<div style="background:#06060e;border:1px solid rgba(155,109,255,0.15);border-radius:10px;padding:14px;text-align:center">
+    <div style="font-size:22px;margin-bottom:4px">${s.icon}</div>
+    <div style="font-size:22px;color:${s.color};font-weight:900;font-family:'Cinzel',serif">${s.val}</div>
+    <div style="font-size:9px;color:#4a5272;text-transform:uppercase;letter-spacing:.5px;margin-top:2px">${s.label}</div>
+  </div>`).join('');
+
+  return `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">${statCards}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div>
+        <div style="font-size:10px;color:#9b6dff;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">❤ Party Health</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${healthRows}</div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:#c9a227;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">📊 Campaign State</div>
+        ${inspiredChars.length ? `<div style="margin-bottom:8px;padding:10px;background:#06060e;border:1px solid rgba(201,162,39,.2);border-radius:8px">
+          <div style="font-size:10px;color:#c9a227;margin-bottom:4px">⭐ Has Inspiration</div>
+          ${inspiredChars.map(n => `<span style="font-size:11px;color:#ffd700;margin-right:8px">⭐ ${n}</span>`).join('')}
+        </div>` : ''}
+        ${typeof initiativeList!=='undefined'&&initiativeList.length ? `<div style="margin-bottom:8px;padding:10px;background:#06060e;border:1px solid rgba(204,80,80,.2);border-radius:8px">
+          <div style="font-size:10px;color:#cc4444;margin-bottom:4px">⚔ In Combat (${initiativeList.length})</div>
+          ${initiativeList.map(e => `<span style="font-size:11px;color:#9098b8;margin-right:8px">${e.name}</span>`).join('')}
+        </div>` : ''}
+        <div style="padding:10px;background:#06060e;border:1px solid rgba(201,162,39,.15);border-radius:8px;margin-bottom:8px">
+          <div style="font-size:10px;color:#c9a227;margin-bottom:6px">💰 Party Treasury</div>
+          <div style="display:flex;gap:10px;font-size:12px">
+            <span style="color:#c9a227">${loot.pp||0} PP</span>
+            <span style="color:#c9a227">${loot.gp||0} GP</span>
+            <span style="color:#9098b8">${loot.sp||0} SP</span>
+            <span style="color:#9098b8">${loot.cp||0} CP</span>
+          </div>
+          <div style="font-size:10px;color:#4a5272;margin-top:4px">≈ ${totalGp.toFixed(1)} gp total · ${lootItems} magic items</div>
+        </div>
+        ${awardsData.length ? `<div style="padding:10px;background:#06060e;border:1px solid rgba(35,180,120,.15);border-radius:8px">
+          <div style="font-size:10px;color:#23b478;margin-bottom:6px">🏆 Recent Heroic Moments</div>
+          ${awardsData.slice(-3).reverse().map(a=>`<div style="font-size:11px;color:#c8d0e8;padding:2px 0"><strong>${a.char}</strong>: ${a.moment.slice(0,50)}${a.moment.length>50?'…':''}</div>`).join('')}
+        </div>` : ''}
+      </div>
+    </div>`;
 }
 
 // ══════════════════════════════════════════════════════════
