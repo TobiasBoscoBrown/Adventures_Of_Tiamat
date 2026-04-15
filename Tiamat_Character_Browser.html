@@ -3716,6 +3716,7 @@
   <button class="filter-btn" onclick="openGraveyardPanel()" style="border-color:#555;color:#888;" title="Character graveyard — fallen heroes and villains">💀 Graveyard</button>
   <button class="filter-btn" onclick="openWorldState()" style="border-color:#5588ff;color:#5588ff;" title="World State — campaign milestones, plot events, world facts">🌍 World</button>
   <button class="filter-btn" onclick="openXpTracker()" style="border-color:#44cc88;color:#44cc88;" title="XP Tracker — award experience, track level progress">⭐ XP</button>
+  <button class="filter-btn" onclick="openPartyNotes()" style="border-color:#ffcc44;color:#ffcc44;" title="Party Notes — shared session notes pad">📝 Notes</button>
   <button class="filter-btn" onclick="openSessionPrep()" style="border-color:#44cc88;color:#44cc88;" title="Session Prep Checklist — track DM readiness tasks">📋 Prep</button>
   <button class="filter-btn" onclick="openLairNotes()" style="border-color:#aa6644;color:#aa6644;" title="Lair Map Notes — describe rooms, traps, and areas">🗺 Lair</button>
   <button class="filter-btn" onclick="openCrReference()" style="border-color:#dd8833;color:#dd8833;" title="CR Reference — challenge rating stats, XP, proficiency bonus">⚔ CR Ref</button>
@@ -13289,6 +13290,97 @@ function deleteWorldEvent(id) {
   const arr = getWorldState().filter(e => e.id !== id);
   saveWorldState(arr);
   renderWorldEntries(_wsCatFilter);
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 102: Party Notes — persistent multi-tab notes pad.
+//   Tabs: Session Notes, DM Private, Loot Notes, Rumors, Misc.
+//   Auto-saves on every keystroke. Toolbar: 📝 Notes
+// ══════════════════════════════════════════════════════════
+const PARTY_NOTES_KEY = 'tiamat_party_notes';
+const NOTES_TABS = ['📋 Session', '🔒 DM Private', '💰 Loot', '👂 Rumors', '📌 Misc'];
+
+function getPartyNotes() {
+  try { return JSON.parse(localStorage.getItem(PARTY_NOTES_KEY) || '{}'); } catch { return {}; }
+}
+function savePartyNote(tab, text) {
+  const all = getPartyNotes();
+  all[tab] = text;
+  localStorage.setItem(PARTY_NOTES_KEY, JSON.stringify(all));
+}
+
+function openPartyNotes() {
+  const existing = document.getElementById('partyNotesOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'partyNotesOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto;';
+  ov.innerHTML = `
+    <div style="background:#151c2e;border:1px solid #ffcc44;border-radius:12px;width:680px;max-width:100%;padding:24px;color:#c8d0e8;font-family:'Inter',sans-serif;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div style="font-size:18px;font-weight:700;color:#ffcc44;">📝 Party Notes</div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="copyNoteToClipboard()" style="background:#2a3358;border:none;color:#c8d0e8;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px;">📋 Copy</button>
+          <button onclick="document.getElementById('partyNotesOverlay').remove()" style="background:#2a3358;border:none;color:#c8d0e8;border-radius:6px;padding:6px 14px;cursor:pointer;">✕ Close</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap;" id="notesTabs">
+        ${NOTES_TABS.map((tab,i) => `<button onclick="switchNotesTab('${tab}')" id="notesTab_${i}" style="background:${i===0?'#ffcc4422':'transparent'};border:1px solid ${i===0?'#ffcc44':'#2a3358'};color:${i===0?'#ffcc44':'#9098b8'};border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px;">${tab}</button>`).join('')}
+      </div>
+      <textarea id="notesTextarea" oninput="autoSaveNote()" rows="18" style="width:100%;background:#0e1422;border:1px solid #2a3358;border-radius:8px;padding:12px;color:#c8d0e8;font-size:13px;font-family:monospace;box-sizing:border-box;resize:vertical;line-height:1.6;" placeholder="Start typing session notes…"></textarea>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+        <span style="font-size:11px;color:#4a5272;" id="notesStatus">Auto-saved</span>
+        <span style="font-size:11px;color:#4a5272;" id="notesCharCount">0 chars</span>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  window._currentNotesTab = NOTES_TABS[0];
+  loadNotesTab(NOTES_TABS[0]);
+}
+
+function switchNotesTab(tab) {
+  window._currentNotesTab = tab;
+  NOTES_TABS.forEach((t, i) => {
+    const btn = document.getElementById('notesTab_' + i);
+    if (!btn) return;
+    const active = t === tab;
+    btn.style.background = active ? '#ffcc4422' : 'transparent';
+    btn.style.borderColor = active ? '#ffcc44' : '#2a3358';
+    btn.style.color = active ? '#ffcc44' : '#9098b8';
+  });
+  loadNotesTab(tab);
+}
+
+function loadNotesTab(tab) {
+  const ta = document.getElementById('notesTextarea');
+  if (!ta) return;
+  const all = getPartyNotes();
+  ta.value = all[tab] || '';
+  updateNotesMeta(ta.value);
+}
+
+function autoSaveNote() {
+  const ta = document.getElementById('notesTextarea');
+  if (!ta || !window._currentNotesTab) return;
+  savePartyNote(window._currentNotesTab, ta.value);
+  const status = document.getElementById('notesStatus');
+  if (status) { status.textContent = 'Saved ' + new Date().toLocaleTimeString(); }
+  updateNotesMeta(ta.value);
+}
+
+function updateNotesMeta(text) {
+  const cc = document.getElementById('notesCharCount');
+  if (cc) cc.textContent = `${text.length} chars · ${text.split('\n').length} lines`;
+}
+
+function copyNoteToClipboard() {
+  const ta = document.getElementById('notesTextarea');
+  if (!ta) return;
+  navigator.clipboard?.writeText(ta.value).then(() => {
+    if (typeof showToast === 'function') showToast('Notes copied to clipboard', '#ffcc44');
+  });
 }
 
 function openSessionPrep() {
