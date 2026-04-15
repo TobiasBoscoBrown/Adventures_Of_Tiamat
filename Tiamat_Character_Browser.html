@@ -23442,6 +23442,97 @@ function _doImportChar() {
     document.getElementById('importCharOverlay')?.remove();
   }
 }
+// Iter 142: Party Summary Panel — at-a-glance view of all visible characters
+// showing HP bars, AC, initiative, conditions, concentration, and inspiration.
+// Replaces the need to scroll through the whole grid during combat.
+
+function openPartySummary() {
+  const existing = document.getElementById('partySummaryOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'partySummaryOverlay';
+  ov.style.cssText = 'position:fixed;top:60px;right:20px;width:360px;max-height:85vh;background:linear-gradient(160deg,#080810,#0d0d1a);border:1px solid rgba(201,162,39,0.4);border-radius:14px;z-index:600;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.95);overflow:hidden';
+  document.body.appendChild(ov);
+  _renderPartySummary();
+}
+
+function _renderPartySummary() {
+  const ov = document.getElementById('partySummaryOverlay');
+  if (!ov) return;
+  const chars = filteredChars.length > 0 ? filteredChars : UNIQUE_CHARS;
+  const concMap = (typeof loadAllConc === 'function') ? loadAllConc() : {};
+  const condMap = (typeof loadAllConditions === 'function') ? loadAllConditions() : {};
+  const inspMap = (typeof loadInspiration === 'function') ? loadInspiration() : {};
+  const initMap = {};
+  if (typeof initiativeList !== 'undefined') {
+    initiativeList.forEach((e, i) => { initMap[e.name] = { pos: i+1, active: i === (typeof currentInitIndex !== 'undefined' ? currentInitIndex : -1) }; });
+  }
+
+  const deadIcon = '💀', concIcon = '🔮', condIcon = '⚠', inspIcon = '✨';
+
+  const rows = chars.map(c => {
+    const maxHp = parseInt(c.hp) || 1;
+    const currHp = (typeof getCharHP === 'function') ? getCharHP(c.name, maxHp) : maxHp;
+    const tempHp = (typeof getTempHP === 'function') ? getTempHP(c.name) : 0;
+    const hpPct = Math.max(0, Math.min(100, Math.round(currHp / maxHp * 100)));
+    const isDead = currHp <= 0;
+    const hpCol = isDead ? '#cc3333' : hpPct > 60 ? '#44aa44' : hpPct > 30 ? '#c9a227' : '#cc3333';
+    const conc = concMap[c.name];
+    const conds = (condMap[c.name] || []).filter(x => x);
+    const insp = inspMap[c.name];
+    const init = initMap[c.name];
+    const ac = parseInt(c.ac) || 10;
+
+    // Passive Perception
+    const wisEntry = (c.abilities || []).find(([n]) => n === 'WIS');
+    const wisMod = wisEntry ? parseInt(wisEntry[2]) || 0 : 0;
+    const passPerc = 10 + wisMod;
+
+    const condBadges = conds.slice(0, 4).map(cd => `<span style="font-size:9px;background:#1a1a2a;border:1px solid #2a2a50;border-radius:3px;padding:1px 4px;color:#aaa">${cd}</span>`).join('');
+
+    const idx = UNIQUE_CHARS.indexOf(c);
+    return `<div onclick="openModal(${idx})" style="display:flex;align-items:flex-start;gap:10px;padding:8px 12px;border-bottom:1px solid rgba(201,162,39,0.1);cursor:pointer;transition:background 0.1s${init?.active?';background:rgba(201,162,39,0.08)':''}" onmouseover="this.style.background='rgba(201,162,39,0.05)'" onmouseout="this.style.background='${init?.active?'rgba(201,162,39,0.08)':'transparent'}'">
+      ${init ? `<div style="width:20px;text-align:center;flex-shrink:0;padding-top:2px"><div style="font-size:10px;font-weight:700;color:${init.active?'#c9a227':'#4a5272'}">${init.pos}</div></div>` : ''}
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+          <span style="font-size:12px;font-weight:700;color:${isDead?'#cc3333':'#dce0f0'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px">${isDead?deadIcon+' ':insp?inspIcon+' ':''}${escHtml(c.name)}</span>
+          <span style="font-size:10px;color:#4a5272;white-space:nowrap">AC ${ac}</span>
+          <span style="font-size:10px;color:#4a5272;white-space:nowrap">👁${passPerc}</span>
+          ${conc ? `<span style="font-size:9px;color:#9b6dff" title="Concentrating: ${conc}">${concIcon}</span>` : ''}
+        </div>
+        <div style="background:#1a1a2a;border-radius:4px;height:8px;margin-bottom:4px;overflow:hidden;position:relative">
+          <div style="position:absolute;top:0;left:0;height:100%;width:${hpPct}%;background:${hpCol};border-radius:4px;transition:width 0.3s"></div>
+          ${tempHp > 0 ? `<div style="position:absolute;top:0;left:${hpPct}%;height:100%;width:${Math.min(100-hpPct,Math.round(tempHp/maxHp*100))}%;background:#ddaa22;border-radius:4px"></div>` : ''}
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:10px;color:${hpCol}">${currHp}/${maxHp}${tempHp>0?` +${tempHp}⬡`:''}</span>
+          <div style="display:flex;gap:3px;flex-wrap:wrap;justify-content:flex-end">${condBadges}</div>
+        </div>
+        ${conc ? `<div style="font-size:9px;color:#7755cc;margin-top:2px">${concIcon} ${escHtml(conc)}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  const aliveCount = chars.filter(c => { const mx=parseInt(c.hp)||1; return (typeof getCharHP==='function'?getCharHP(c.name,mx):mx) > 0; }).length;
+  const concCount = Object.keys(concMap).filter(n => chars.find(c => c.name===n)).length;
+  const inspCount = Object.keys(inspMap).filter(n => inspMap[n] && chars.find(c => c.name===n)).length;
+
+  ov.innerHTML = `
+    <div style="padding:10px 14px;border-bottom:1px solid rgba(201,162,39,0.25);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;background:rgba(201,162,39,0.05)">
+      <span style="font-family:'Cinzel',serif;color:#c9a227;font-size:12px;font-weight:700;letter-spacing:1px">📊 PARTY AT A GLANCE</span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span style="font-size:10px;color:#4a5272">${aliveCount}/${chars.length} up</span>
+        ${concCount ? `<span style="font-size:10px;color:#9b6dff">${concIcon}×${concCount}</span>` : ''}
+        ${inspCount ? `<span style="font-size:10px;color:#c9a227">${inspIcon}×${inspCount}</span>` : ''}
+        <button onclick="_refreshPartySummary()" style="background:none;border:1px solid #2a2040;color:#4a5272;border-radius:5px;padding:2px 7px;cursor:pointer;font-size:10px" title="Refresh">↻</button>
+        <button onclick="document.getElementById('partySummaryOverlay').remove()" style="background:none;border:1px solid #3a2a00;color:#6a5020;border-radius:5px;padding:2px 7px;cursor:pointer;font-size:12px">✕</button>
+      </div>
+    </div>
+    <div style="overflow-y:auto;flex:1">${rows || '<div style="padding:20px;text-align:center;color:#4a5272;font-style:italic">No characters visible</div>'}</div>
+    <div style="padding:8px 12px;border-top:1px solid rgba(201,162,39,0.15);font-size:10px;color:#2a2040;text-align:center;flex-shrink:0">Click a row to open character sheet</div>`;
+}
+
+function _refreshPartySummary() { _renderPartySummary(); }
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
 
