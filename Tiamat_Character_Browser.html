@@ -8099,6 +8099,19 @@ loadEncounters();
 
 // ── INITIATIVE TRACKER ──────────────────────────────────
 let initiativeList = [];
+const INIT_NOTES_KEY = 'tiamat_init_notes';
+function loadInitNotes() { try { return JSON.parse(localStorage.getItem(INIT_NOTES_KEY)) || {}; } catch { return {}; } }
+function saveInitNotes(d) { localStorage.setItem(INIT_NOTES_KEY, JSON.stringify(d)); }
+function getInitNote(name) { return loadInitNotes()[name] || ''; }
+function setInitNote(name, text) { const d = loadInitNotes(); if (text) d[name] = text; else delete d[name]; saveInitNotes(d); }
+function promptInitNote(name, event) {
+  if (event) event.stopPropagation();
+  const cur = getInitNote(name);
+  const val = prompt(`Combat note for ${name} (leave blank to clear):`, cur);
+  if (val === null) return;
+  setInitNote(name, val.trim());
+  renderInitiative();
+}
 let currentTurnIdx = 0;
 let currentRound = 1;
 
@@ -8344,6 +8357,7 @@ function removeFromInitiative(name) {
   if (idx < 0) return;
   initiativeList.splice(idx, 1);
   if (currentTurnIdx >= initiativeList.length) currentTurnIdx = 0;
+  setInitNote(name, ''); // clear note
   renderInitiative();
   renderGrid();
   updateHeaderStats();
@@ -8488,17 +8502,22 @@ function renderInitiative() {
       const used = ts[type];
       return `<button class="init-action-pip ${used?'used':''}" onclick="toggleTurnAction(${JSON.stringify(e.name)},'${type}',event)" title="${type} — click to toggle" style="border-color:${used?'#2a2a50':color};color:${used?'#2a2a50':color};background:${used?'transparent':'rgba(0,0,0,0)'};">${used?'○':label}</button>`;
     };
-    return `<div class="init-entry ${isActive ? 'active-turn' : ''} ${isDefeated ? 'defeated' : ''}" title="${e.name}" draggable="true" data-init-name="${e.name.replace(/"/g,'&quot;')}" ondragstart="initDragStart(event,${JSON.stringify(e.name)})" ondragover="initDragOver(event)" ondrop="initDrop(event,${JSON.stringify(e.name)})">
+    const note = getInitNote(e.name);
+    return `<div class="init-entry ${isActive ? 'active-turn' : ''} ${isDefeated ? 'defeated' : ''} ${note?'has-init-note':''}" title="${e.name}" draggable="true" data-init-name="${e.name.replace(/"/g,'&quot;')}" ondragstart="initDragStart(event,${JSON.stringify(e.name)})" ondragover="initDragOver(event)" ondrop="initDrop(event,${JSON.stringify(e.name)})">
       <div class="init-score" onclick="editInitiativeScore(${JSON.stringify(e.name)},event)" title="Click to edit initiative score" style="cursor:pointer;user-select:none" onmouseover="this.style.color='#c9a227'" onmouseout="this.style.color=''">${e.initiative}</div>
       <div style="display:flex;flex-direction:column;gap:1px;margin-right:2px">
         <button onclick="moveInInitiative(${JSON.stringify(e.name)},-1,event)" style="background:none;border:none;color:#3a3a60;cursor:pointer;padding:0 2px;font-size:9px;line-height:1" title="Move up">▲</button>
         <button onclick="moveInInitiative(${JSON.stringify(e.name)},1,event)" style="background:none;border:none;color:#3a3a60;cursor:pointer;padding:0 2px;font-size:9px;line-height:1" title="Move down">▼</button>
       </div>
-      <div class="init-name">${e.name}</div>
+      <div style="flex:1;min-width:0">
+        <div class="init-name">${e.name}</div>
+        ${note ? `<div style="font-size:9px;color:#6677aa;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px" onclick="promptInitNote(${JSON.stringify(e.name)},event)" title="${escHtml(note)} (click to edit)">${escHtml(note)}</div>` : ''}
+      </div>
       <div style="display:flex;gap:3px;margin-left:auto;margin-right:4px">
         ${actionBtn('action','A','#4488ff')}
         ${actionBtn('bonus','B','#88aa22')}
         ${actionBtn('reaction','R','#dd6622')}
+        <button onclick="promptInitNote(${JSON.stringify(e.name)},event)" style="background:none;border:1px solid ${note?'#4455aa':'#2a2a50'};color:${note?'#6677aa':'#2a2a50'};border-radius:3px;padding:1px 4px;cursor:pointer;font-size:9px" title="${note?'Edit note: '+note:'Add note'}">✎</button>
       </div>
       ${hpText ? `<div class="init-hp-mini">${hpText}</div>` : ''}
       <button class="init-remove-btn" onclick="removeFromInitiative(${JSON.stringify(e.name)})">✕</button>
