@@ -5848,6 +5848,7 @@ function buildStatsPanel(c) {
       </div>
     </div>
     ${buildMulticlassSection(c)}
+    ${buildAttunementSection(c)}
     ${buildAlignmentSection(c)}
     ${buildProficienciesSection(c)}
     ${buildTraitsSection(c)}
@@ -8461,6 +8462,141 @@ function inferCharClass(c) {
   const themeClass = { fire:'Sorcerer', shadow:'Rogue', arcane:'Wizard', warrior:'Fighter', nature:'Druid', royal:'Paladin', stone:'Barbarian', orc:'Barbarian', ocean:'Ranger', pink:'Bard' };
   const cls = themeClass[c.theme] || 'Fighter';
   return [{ cls, level: 1 }];
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 93: Item Attunement Tracker — store up to 3
+//   attuned magic items per character. Shows slot meter.
+//   Stored in tiamat_attunement per character.
+// ══════════════════════════════════════════════════════════
+const ATTUNEMENT_KEY = 'tiamat_attunement';
+const MAX_ATTUNEMENT = 3;
+
+function getAttunedItems(charName) {
+  try {
+    const all = JSON.parse(localStorage.getItem(ATTUNEMENT_KEY) || '{}');
+    return all[charName] || [];
+  } catch { return []; }
+}
+function saveAttunedItems(charName, items) {
+  try {
+    const all = JSON.parse(localStorage.getItem(ATTUNEMENT_KEY) || '{}');
+    all[charName] = items;
+    localStorage.setItem(ATTUNEMENT_KEY, JSON.stringify(all));
+  } catch {}
+}
+
+function buildAttunementSection(c) {
+  const items = getAttunedItems(c.name);
+  const slotsUsed = items.length;
+  const slotDots = Array.from({length: MAX_ATTUNEMENT}, (_,i) =>
+    `<span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${i < slotsUsed ? '#c9a227' : '#1e2744'};border:1px solid ${i < slotsUsed ? '#c9a227' : '#2a3358'};margin-right:4px;" title="Slot ${i+1}${i < slotsUsed ? ': ' + (items[i]?.name || 'Item') : ' (empty)'}"></span>`
+  ).join('');
+  const itemRows = items.map((item, idx) =>
+    `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #1e2744;">
+      <span style="font-size:16px;">${item.icon || '💎'}</span>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:600;color:#c9a227;">${item.name}</div>
+        ${item.desc ? `<div style="font-size:11px;color:#9098b8;">${item.desc}</div>` : ''}
+        ${item.rarity ? `<div style="font-size:10px;color:${rarityColor(item.rarity)};text-transform:capitalize;">${item.rarity}</div>` : ''}
+      </div>
+      <button onclick="removeAttunedItem('${c.name.replace(/'/g,"\\'")}',${idx},event)" style="background:none;border:none;color:#cc3333;cursor:pointer;font-size:13px;padding:0;" title="Unattune">✕</button>
+    </div>`
+  ).join('');
+  return `<div class="stats-section">
+    <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center;">
+      💎 Attunement (${slotsUsed}/${MAX_ATTUNEMENT})
+      <span>${slotDots}</span>
+      ${slotsUsed < MAX_ATTUNEMENT ? `<button onclick="openAttuneItem('${c.name.replace(/'/g,"\\'")}',event)" style="background:#2a1a0a;border:1px solid #c9a227;color:#c9a227;border-radius:5px;padding:3px 10px;cursor:pointer;font-size:11px;">+ Attune</button>` : `<span style="font-size:11px;color:#cc3333;">All slots full</span>`}
+    </div>
+    <div id="attuneList_${safeId(c.name)}">${items.length ? itemRows : '<div style="color:#4a5272;font-size:12px;font-style:italic;">No attuned items. Max 3 items can be attuned at once.</div>'}</div>
+  </div>`;
+}
+
+function rarityColor(r) {
+  const map = {common:'#c8d0e8',uncommon:'#44cc44',rare:'#4488ff',veryrare:'#aa44ff','very rare':'#aa44ff',legendary:'#cc8833',artifact:'#cc3333'};
+  return map[(r||'').toLowerCase()] || '#9098b8';
+}
+
+function openAttuneItem(charName, evt) {
+  evt && evt.stopPropagation();
+  const existing = document.getElementById('attunePickerOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'attunePickerOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;';
+  ov.innerHTML = `
+    <div style="background:#151c2e;border:1px solid #c9a227;border-radius:12px;width:440px;max-width:100%;padding:22px;color:#c8d0e8;font-family:'Inter',sans-serif;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div style="font-size:16px;font-weight:700;color:#c9a227;">💎 Attune Magic Item</div>
+        <button onclick="document.getElementById('attunePickerOverlay').remove()" style="background:#2a3358;border:none;color:#c8d0e8;border-radius:6px;padding:5px 12px;cursor:pointer;">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <input id="attuneItemName" placeholder="Item name *" style="grid-column:1/-1;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:8px;color:#c8d0e8;font-size:13px;">
+        <select id="attuneItemRarity" style="background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:8px;color:#c8d0e8;font-size:12px;">
+          <option value="">Rarity…</option>
+          <option>Common</option><option>Uncommon</option><option>Rare</option><option>Very Rare</option><option>Legendary</option><option>Artifact</option>
+        </select>
+        <input id="attuneItemIcon" placeholder="Icon emoji (opt)" style="background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:8px;color:#c8d0e8;font-size:13px;">
+      </div>
+      <textarea id="attuneItemDesc" rows="3" placeholder="Item description / properties…" style="width:100%;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:8px;color:#c8d0e8;font-size:12px;box-sizing:border-box;resize:vertical;margin-bottom:10px;"></textarea>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button onclick="document.getElementById('attunePickerOverlay').remove()" style="background:#2a3358;border:none;color:#c8d0e8;border-radius:6px;padding:8px 16px;cursor:pointer;">Cancel</button>
+        <button onclick="confirmAttune('${charName.replace(/'/g,"\\'")}',event)" style="background:#c9a227;border:none;color:#151c2e;border-radius:6px;padding:8px 18px;cursor:pointer;font-weight:700;">Attune</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  document.getElementById('attuneItemName').focus();
+}
+
+function confirmAttune(charName, evt) {
+  evt && evt.stopPropagation();
+  const name = document.getElementById('attuneItemName')?.value.trim();
+  if (!name) { if (typeof showToast === 'function') showToast('Item name required', '#cc3333'); return; }
+  const items = getAttunedItems(charName);
+  if (items.length >= MAX_ATTUNEMENT) { if (typeof showToast === 'function') showToast('All attunement slots full', '#cc3333'); return; }
+  items.push({
+    name,
+    rarity: document.getElementById('attuneItemRarity')?.value || '',
+    icon: document.getElementById('attuneItemIcon')?.value.trim() || '💎',
+    desc: document.getElementById('attuneItemDesc')?.value.trim() || '',
+    ts: Date.now(),
+  });
+  saveAttunedItems(charName, items);
+  document.getElementById('attunePickerOverlay').remove();
+  if (typeof showToast === 'function') showToast(`Attuned: ${name}`, '#c9a227');
+  refreshAttunementSection(charName);
+}
+
+function removeAttunedItem(charName, idx, evt) {
+  evt && evt.stopPropagation();
+  const items = getAttunedItems(charName);
+  const removed = items.splice(idx, 1)[0];
+  saveAttunedItems(charName, items);
+  if (typeof showToast === 'function') showToast(`Unattuned: ${removed.name}`, '#9098b8');
+  refreshAttunementSection(charName);
+}
+
+function refreshAttunementSection(charName) {
+  const c = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS.find(x => x.name === charName) : null;
+  if (!c) return;
+  const parent = document.getElementById('attuneList_' + safeId(charName));
+  if (!parent) return;
+  const items = getAttunedItems(charName);
+  const itemRows = items.map((item, idx) =>
+    `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #1e2744;">
+      <span style="font-size:16px;">${item.icon || '💎'}</span>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:600;color:#c9a227;">${item.name}</div>
+        ${item.desc ? `<div style="font-size:11px;color:#9098b8;">${item.desc}</div>` : ''}
+        ${item.rarity ? `<div style="font-size:10px;color:${rarityColor(item.rarity)};text-transform:capitalize;">${item.rarity}</div>` : ''}
+      </div>
+      <button onclick="removeAttunedItem('${charName.replace(/'/g,"\\'")}',${idx},event)" style="background:none;border:none;color:#cc3333;cursor:pointer;font-size:13px;padding:0;">✕</button>
+    </div>`
+  ).join('');
+  parent.innerHTML = items.length ? itemRows : '<div style="color:#4a5272;font-size:12px;font-style:italic;">No attuned items.</div>';
 }
 
 function buildMulticlassSection(c) {
