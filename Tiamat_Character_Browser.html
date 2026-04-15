@@ -3791,6 +3791,9 @@
   </div>
   <div class="hp-popup-bar"><div id="hpPopupBarFill" class="hp-popup-bar-fill"></div></div>
   <div id="hpPopupCurrent" class="hp-popup-current"></div>
+  <div style="margin-bottom:5px">
+    <input id="hpSourceNote" placeholder="Source (e.g. Fireball, Healing Word)…" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#9098b8;border-radius:6px;padding:5px 8px;font-size:10px;font-family:inherit;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='#9b6dff'" onblur="this.style.borderColor='#2a2a50'">
+  </div>
   <div class="hp-popup-row">
     <input type="number" id="hpDmgInput" class="hp-popup-input dmg-in" placeholder="Damage" min="1"
            onkeydown="if(event.key==='Enter')applyHpAction('dmg')">
@@ -4970,18 +4973,20 @@ function applyHpAction(type) {
   }
   hpState[popupCharName] = newHp;
   saveHp();
-  // Log HP changes
+  // Log HP changes (Iteration 84: include source note)
+  const srcNote = (document.getElementById('hpSourceNote')?.value || '').trim();
+  const srcSuffix = srcNote ? ` <em style="color:#7a7aaa">[${srcNote}]</em>` : '';
   if (type === 'dmg' && newHp !== currHp) {
     const dmg = currHp - newHp;
-    logEntry('damage', `<strong>${popupCharName}</strong> took <strong>${dmg} damage</strong> → ${newHp}/${maxHp} HP${newHp===0?' <strong style="color:#cc3333">⚠ DOWN</strong>':''}`);
+    logEntry('damage', `<strong>${popupCharName}</strong> took <strong>${dmg} damage</strong> → ${newHp}/${maxHp} HP${newHp===0?' <strong style="color:#cc3333">⚠ DOWN</strong>':''}${srcSuffix}`);
     logHpEvent(popupCharName, 'dmg', dmg, currHp, newHp, maxHp);
     if (typeof checkConcOnDamage === 'function') checkConcOnDamage(popupCharName, dmg);
   } else if (type === 'heal' && newHp !== currHp) {
     const healed = newHp - currHp;
-    logEntry('heal', `<strong>${popupCharName}</strong> healed <strong>${healed} HP</strong> → ${newHp}/${maxHp} HP`);
+    logEntry('heal', `<strong>${popupCharName}</strong> healed <strong>${healed} HP</strong> → ${newHp}/${maxHp} HP${srcSuffix}`);
     logHpEvent(popupCharName, 'heal', healed, currHp, newHp, maxHp);
   } else if (type === 'full') {
-    logEntry('heal', `<strong>${popupCharName}</strong> restored to full HP (${maxHp})`);
+    logEntry('heal', `<strong>${popupCharName}</strong> restored to full HP (${maxHp})${srcSuffix}`);
     logHpEvent(popupCharName, 'full', maxHp - currHp, currHp, maxHp, maxHp);
   }
   const pct = maxHp > 0 ? newHp / maxHp : 0;
