@@ -3564,6 +3564,7 @@
   <button class="filter-btn" onclick="openGraveyardPanel()" style="border-color:#555;color:#888;" title="Character graveyard — fallen heroes and villains">💀 Graveyard</button>
   <button class="filter-btn" onclick="openSessionPrep()" style="border-color:#44cc88;color:#44cc88;" title="Session Prep Checklist — track DM readiness tasks">📋 Prep</button>
   <button class="filter-btn" onclick="openLairNotes()" style="border-color:#aa6644;color:#aa6644;" title="Lair Map Notes — describe rooms, traps, and areas">🗺 Lair</button>
+  <button class="filter-btn" onclick="openRulesPanel()" style="border-color:#4488ff;color:#4488ff;" title="Quick Reference Rules — searchable 5e rules lookup">📚 Rules</button>
   <button class="filter-btn" onclick="openShortcutsHelp()" style="border-color:#4488ff;color:#4488ff;" title="Keyboard shortcuts — press ? anytime">⌨ ?</button>
   <button class="filter-btn" onclick="openGlobalSearch()" style="border-color:#c9a227;color:#9098b8;" title="Global search — Ctrl+K">🔍 Search All</button>
   <button class="filter-btn" onclick="openDiceMacros()" style="border-color:#ff8822;color:#ff8822;" title="Quick Dice Macros — save &amp; replay dice rolls">🎲 Dice</button>
@@ -8707,6 +8708,131 @@ function clearInitiative() {
   renderInitiative();
   renderGrid();
   updateHud();
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 79: Quick Reference Rules Panel — searchable 5e rules
+//   across categories: conditions, actions, spellcasting, combat,
+//   movement, resting, death saves, concentration, etc.
+// ══════════════════════════════════════════════════════════
+const RULES_DB = [
+  // Actions
+  { cat:'Actions', name:'Attack', text:'Make one melee or ranged attack. With Extra Attack, you can attack multiple times.' },
+  { cat:'Actions', name:'Cast a Spell', text:'Cast a spell with a casting time of 1 action. Bonus action spells allow only cantrips as your action spell.' },
+  { cat:'Actions', name:'Dash', text:'Move up to your speed again this turn (double movement).' },
+  { cat:'Actions', name:'Disengage', text:'Your movement does not provoke opportunity attacks for the rest of the turn.' },
+  { cat:'Actions', name:'Dodge', text:'Until your next turn: attacks against you have disadvantage (if you can see attacker), and you have advantage on DEX saves.' },
+  { cat:'Actions', name:'Help', text:'Give an ally advantage on their next attack roll or ability check before your next turn.' },
+  { cat:'Actions', name:'Hide', text:'Make a DEX (Stealth) check. Succeed to be hidden — attackers have disadvantage, you have advantage attacking.' },
+  { cat:'Actions', name:'Ready', text:'Choose a trigger and an action/movement. When trigger occurs, use your reaction to execute it.' },
+  { cat:'Actions', name:'Search', text:'Devote attention to finding something (Perception or Investigation).' },
+  { cat:'Actions', name:'Use Object', text:'Interact with a second object (your free interaction already used), or interact with objects that require your full attention.' },
+  // Bonus Actions
+  { cat:'Bonus Actions', name:'Off-Hand Attack', text:'After Attack action with light weapon, attack with another light weapon in other hand (no ability mod to damage unless negative).' },
+  { cat:'Bonus Actions', name:'Shove (BA)', text:'Only available via specific class features or Polearm Master feat.' },
+  // Reactions
+  { cat:'Reactions', name:'Opportunity Attack', text:'When a creature moves out of your reach, use your reaction to make one melee attack against it.' },
+  { cat:'Reactions', name:'Counterspell', text:'React when a creature within 60ft casts a spell. Spell of level ≤ 3 automatically fails. Higher level: DC 10+spell level check.' },
+  { cat:'Reactions', name:'Shield (Spell)', text:'React when hit by attack or targeted by magic missile: +5 AC until start of next turn. Magic missile has no effect.' },
+  // Conditions
+  { cat:'Conditions', name:'Blinded', text:'Automatically fails checks requiring sight. Attack rolls against have advantage. Own attacks have disadvantage.' },
+  { cat:'Conditions', name:'Charmed', text:'Cannot attack charmer or target with harmful abilities. Charmer has advantage on social checks with target.' },
+  { cat:'Conditions', name:'Deafened', text:'Automatically fails checks requiring hearing. Cannot be affected by sound-based effects.' },
+  { cat:'Conditions', name:'Exhaustion', text:'1:Disadv checks 2:Disadv saves+Speed halved 3:Disadv attacks 4:HP max halved 5:Speed 0 6:Death. Remove one level with long rest.' },
+  { cat:'Conditions', name:'Frightened', text:'Cannot willingly move closer to source of fear. Disadvantage on ability checks and attack rolls while source in line of sight.' },
+  { cat:'Conditions', name:'Grappled', text:'Speed becomes 0, no bonuses to speed. Ends if grappler is incapacitated, or target is moved beyond reach.' },
+  { cat:'Conditions', name:'Incapacitated', text:'Cannot take actions or reactions.' },
+  { cat:'Conditions', name:'Invisible', text:'Impossible to see without magic. Attacks against have disadvantage. Own attacks have advantage. Doesn\'t reveal location.' },
+  { cat:'Conditions', name:'Paralyzed', text:'Incapacitated. Can\'t move or speak. Auto-fail STR and DEX saves. Attacks against have advantage. Melee hits within 5ft = critical.' },
+  { cat:'Conditions', name:'Petrified', text:'Transformed to stone. Incapacitated, can\'t move/speak. Attacks against have advantage. Auto-fail STR/DEX saves. Resist all damage. Immune to poison/disease (existing suspended).' },
+  { cat:'Conditions', name:'Poisoned', text:'Disadvantage on attack rolls and ability checks.' },
+  { cat:'Conditions', name:'Prone', text:'Can only crawl (costs 1ft extra per 1ft moved). Disadvantage on attacks. Attacks against: melee = advantage, ranged = disadvantage.' },
+  { cat:'Conditions', name:'Restrained', text:'Speed 0. Attacks against have advantage. Own attacks have disadvantage. Disadvantage on DEX saves.' },
+  { cat:'Conditions', name:'Stunned', text:'Incapacitated. Can\'t move. Can only speak falteringly. Auto-fail STR and DEX saves. Attacks against have advantage.' },
+  { cat:'Conditions', name:'Unconscious', text:'Incapacitated. Drops held items, falls prone. Auto-fail STR/DEX saves. Attacks against have advantage. Melee hits within 5ft = crit.' },
+  // Spellcasting
+  { cat:'Spellcasting', name:'Concentration', text:'Maintain by not being incapacitated. When you take damage: CON save DC = max(10, half damage). Fail = spell ends.' },
+  { cat:'Spellcasting', name:'Verbal Components', text:'Silenced or Silence spell areas prevent verbal components. Deafness does not affect your own casting.' },
+  { cat:'Spellcasting', name:'Counterspell Range', text:'60ft. Must see or have line of effect to caster. Automatically counters spells level 3 or lower. Higher: DC 10+spell level INT (spellcasting modifier) check.' },
+  { cat:'Spellcasting', name:'Spell Save DC', text:'DC = 8 + proficiency bonus + spellcasting ability modifier.' },
+  { cat:'Spellcasting', name:'Upcasting', text:'You can cast a lower level spell using a higher level slot. Some spells improve; some don\'t (e.g. Magic Missile adds 1 dart per level).' },
+  // Combat
+  { cat:'Combat', name:'Grapple', text:'Attack action: STR (Athletics) check contested by STR (Athletics) or DEX (Acrobatics). Success: target grappled, one hand used.' },
+  { cat:'Combat', name:'Shove', text:'Attack action: STR (Athletics) check contested by STR (Athletics) or DEX (Acrobatics). Push 5ft away or knock prone.' },
+  { cat:'Combat', name:'Cover', text:'Half: +2 AC/DEX saves. Three-quarters: +5 AC/DEX saves. Total: can\'t be targeted directly (must use indirect effects).' },
+  { cat:'Combat', name:'Critical Hit', text:'Natural 20: roll all damage dice twice + modifiers. Some abilities grant crit on 19 or 18.' },
+  { cat:'Combat', name:'Death Saves', text:'3 successes = stable. 3 failures = dead. Nat 20 = regain 1 HP. Nat 1 = counts as 2 failures. Taking damage adds 1 failure (or 2 if crit).' },
+  { cat:'Combat', name:'Healing', text:'You can receive healing when unconscious (0 HP) — you regain that many HP and regain consciousness.' },
+  { cat:'Combat', name:'Massive Damage', text:'If damage from a single hit equals or exceeds your HP maximum, you die instantly (e.g., a Stone Giant crushes a rat).' },
+  // Movement
+  { cat:'Movement', name:'Difficult Terrain', text:'Every foot of movement in difficult terrain costs 1 extra foot. This applies to all movement types (walk, fly, swim, etc.).' },
+  { cat:'Movement', name:'Climbing/Swimming', text:'Costs 1 extra foot per foot traveled, unless the creature has a climb/swim speed.' },
+  { cat:'Movement', name:'Jumping', text:'Long: up to your STR score in feet (running start) or half (standing). High: 3 + STR modifier (running start) or half (standing).' },
+  // Resting
+  { cat:'Resting', name:'Short Rest', text:'1+ hour. Spend Hit Dice to recover HP (roll die + CON mod per die spent). Some class features recover.' },
+  { cat:'Resting', name:'Long Rest', text:'8+ hours sleep. Regain all HP, half Hit Dice (max = HD total), class features marked "long rest". Must not have had one in the last 24h.' },
+  // Multiattack/Special
+  { cat:'Special', name:'Two-Weapon Fighting', text:'When you take the Attack action with a light melee weapon, you can use a bonus action to attack with a different light weapon in your other hand. Don\'t add ability modifier to the damage unless negative.' },
+  { cat:'Special', name:'Flanking (Variant)', text:'If using optional flanking rule: creatures on opposite sides of an enemy grant advantage on attack rolls against it.' },
+  { cat:'Special', name:'Inspiration', text:'Roll with advantage on one attack, save, or check. Granted by DM for exceptional roleplay, heroism, or character consistency.' },
+];
+
+function openRulesPanel() {
+  const existing = document.getElementById('rulesPanelOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'rulesPanelOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:9500;display:flex;align-items:flex-start;justify-content:center;padding-top:4vh;overflow-y:auto';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  const cats = [...new Set(RULES_DB.map(r => r.cat))];
+  overlay.innerHTML = `
+    <div style="background:#0d0d1a;border:1px solid rgba(68,136,255,0.4);border-radius:14px;padding:24px;width:660px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.7)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div style="font-size:16px;font-weight:700;color:#4488ff">📚 Quick Rules Reference</div>
+        <button onclick="document.getElementById('rulesPanelOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <input id="rulesSearch" type="text" placeholder="🔍 Search rules..." style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:8px 12px;font-size:12px;box-sizing:border-box;margin-bottom:12px;font-family:inherit" oninput="filterRules(this.value)">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px" id="rulesCatBtns">
+        <button onclick="filterRulesCat('')" id="rcAll" style="background:rgba(68,136,255,0.15);border:1px solid rgba(68,136,255,0.4);color:#4488ff;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:11px">All</button>
+        ${cats.map(c => `<button onclick="filterRulesCat('${c}')" id="rc_${c.replace(/\s/g,'_')}" style="background:none;border:1px solid #2a2a50;color:#9098b8;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:11px">${c}</button>`).join('')}
+      </div>
+      <div id="rulesResults" style="max-height:450px;overflow-y:auto"></div>
+    </div>`;
+  document.body.appendChild(overlay);
+  renderRules('', '');
+}
+
+function renderRules(query, cat) {
+  const el = document.getElementById('rulesResults');
+  if (!el) return;
+  const q = query.toLowerCase();
+  const results = RULES_DB.filter(r =>
+    (!q || r.name.toLowerCase().includes(q) || r.text.toLowerCase().includes(q) || r.cat.toLowerCase().includes(q)) &&
+    (!cat || r.cat === cat)
+  );
+  const byCat = {};
+  results.forEach(r => { if (!byCat[r.cat]) byCat[r.cat] = []; byCat[r.cat].push(r); });
+  if (!results.length) { el.innerHTML = '<div style="color:#4a5272;text-align:center;padding:20px;font-size:12px">No rules found for that search.</div>'; return; }
+  el.innerHTML = Object.entries(byCat).map(([catName, rules]) => `
+    <div style="margin-bottom:14px">
+      <div style="font-size:10px;color:#4488ff;letter-spacing:1px;font-weight:700;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid rgba(68,136,255,0.2)">${catName.toUpperCase()}</div>
+      ${rules.map(r => `<div style="margin-bottom:8px">
+        <div style="font-size:12px;font-weight:700;color:#c8d0e8;margin-bottom:2px">${r.name}</div>
+        <div style="font-size:11px;color:#9098b8;line-height:1.6">${r.text}</div>
+      </div>`).join('')}
+    </div>`).join('');
+}
+
+function filterRules(q) { renderRules(q, window._rulesActiveCat || ''); }
+function filterRulesCat(cat) {
+  window._rulesActiveCat = cat;
+  document.querySelectorAll('[id^="rc"]').forEach(b => {
+    const isActive = (cat === '' && b.id === 'rcAll') || b.id === 'rc_' + cat.replace(/\s/g,'_');
+    b.style.background = isActive ? 'rgba(68,136,255,0.15)' : 'none';
+    b.style.borderColor = isActive ? 'rgba(68,136,255,0.4)' : '#2a2a50';
+    b.style.color = isActive ? '#4488ff' : '#9098b8';
+  });
+  renderRules(document.getElementById('rulesSearch')?.value || '', cat);
 }
 
 // ══════════════════════════════════════════════════════════
