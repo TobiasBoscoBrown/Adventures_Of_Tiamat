@@ -3789,6 +3789,12 @@
             style="background:rgba(221,136,34,0.2);border-color:#dd8822;color:#dd8822">⬡</button>
   </div>
   <div id="hpTempDisplay" style="font-size:11px;color:#dd8822;text-align:center;min-height:14px;margin-top:2px"></div>
+  <!-- Damage type selector for auto-resistance calculation -->
+  <div style="margin-top:4px;border-top:1px solid #1e2040;padding-top:5px">
+    <div style="font-size:9px;color:#4a5272;letter-spacing:.5px;margin-bottom:3px">DMG TYPE (auto-applies resistance)</div>
+    <div id="dmgTypeRow" style="display:flex;flex-wrap:wrap;gap:2px"></div>
+    <div id="dmgResistNote" style="font-size:9px;color:#4a5272;min-height:12px;margin-top:2px"></div>
+  </div>
   <div style="display:flex;gap:6px;margin-top:6px">
     <button class="hp-popup-full" style="flex:1;background:rgba(68,136,255,.12);border-color:#4488ff;color:#88bbff;font-size:11px" onclick="shortRest()" title="Short Rest: roll hit dice to heal">☽ Short Rest</button>
     <button class="hp-popup-full" style="flex:1;font-size:11px" onclick="applyHpAction('full')">↺ Full HP</button>
@@ -3877,12 +3883,13 @@
     </div>
   </div>
   <div class="init-add-area">
-    <input type="text" id="initCustomName" class="init-add-input" placeholder="Custom creature name...">
-    <input type="number" id="initCustomScore" class="init-add-input" placeholder="Init" style="width:50px;flex:none;">
-    <input type="number" id="initCustomCount" class="init-add-input" placeholder="×" min="1" max="20" style="width:42px;flex:none;" title="Number of creatures (multi-add)">
+    <input type="text" id="initCustomName" class="init-add-input" placeholder="Creature name…">
+    <input type="number" id="initCustomHp" class="init-add-input" placeholder="HP" min="1" max="9999" style="width:48px;flex:none;" title="Max HP for the creature (optional — enables HP tracking)">
+    <input type="number" id="initCustomScore" class="init-add-input" placeholder="Init" style="width:44px;flex:none;">
+    <input type="number" id="initCustomCount" class="init-add-input" placeholder="×" min="1" max="20" style="width:38px;flex:none;" title="Number of creatures">
     <button class="init-add-btn" onclick="addCustomToInitiative()">+ Add</button>
   </div>
-  <div style="padding:4px 10px 6px;font-size:10px;color:#4a5272">Tip: set × to add multiple (e.g. 5× Goblin with separate HP tracking)</div>
+  <div style="padding:3px 10px 6px;font-size:10px;color:#4a5272">HP → enables HP tracking. Init blank → random roll. × → add multiple with separate HP.</div>
   <!-- Iteration 56: Round Log Panel (collapsible) -->
   <div style="border-top:1px solid #1e2040">
     <div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="padding:5px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
@@ -4934,8 +4941,43 @@ function hpStatusInfo(pct) {
   return ['stat-dead', '✝ Down'];
 }
 
+let selectedDmgType = null;
+const DMG_TYPE_ICONS = { fire:'🔥',cold:'❄',lightning:'⚡',poison:'☠',acid:'🧪',necrotic:'💀',radiant:'✨',thunder:'💥',psychic:'🔮',force:'🌀',piercing:'🗡',slashing:'⚔',bludgeoning:'🪨',nonmagical:'⚙' };
+
+function renderDmgTypeRow(charName) {
+  const row = document.getElementById('dmgTypeRow');
+  const note = document.getElementById('dmgResistNote');
+  if (!row) return;
+  const char = UNIQUE_CHARS.find(c => c.name === charName);
+  const defs = char && typeof inferDamageDefenses === 'function' ? inferDamageDefenses(char) : {resistances:[],immunities:[],vulnerabilities:[]};
+  const types = ['fire','cold','lightning','poison','acid','necrotic','radiant','thunder','psychic','force','piercing','slashing','bludgeoning'];
+  row.innerHTML = types.map(t => {
+    const isImmune = defs.immunities.includes(t);
+    const isResist = defs.resistances.includes(t);
+    const isVuln = defs.vulnerabilities.includes(t);
+    const isSel = selectedDmgType === t;
+    const borderCol = isImmune ? '#666' : isResist ? '#4488ff' : isVuln ? '#cc4444' : (isSel ? '#dd8822' : '#2a2a50');
+    const bgCol = isSel ? 'rgba(221,136,34,.2)' : isImmune ? 'rgba(100,100,100,.1)' : isResist ? 'rgba(68,136,255,.08)' : isVuln ? 'rgba(204,68,68,.08)' : 'transparent';
+    return `<button onclick="selectDmgType(${JSON.stringify(t)},${JSON.stringify(charName)})" style="border:1px solid ${borderCol};background:${bgCol};color:${isSel?'#dd8822':'#9098b8'};border-radius:4px;padding:1px 4px;cursor:pointer;font-size:9px;line-height:1.5" title="${t}${isImmune?' — IMMUNE':isResist?' — Resistant':isVuln?' — Vulnerable':''}">${DMG_TYPE_ICONS[t]||''}${isImmune?'◈':isResist?'½':isVuln?'×2':''}</button>`;
+  }).join('') + `<button onclick="selectDmgType(null,${JSON.stringify(charName)})" style="border:1px solid #2a2a50;background:${selectedDmgType===null?'rgba(200,200,255,.05)':'transparent'};color:#4a5272;border-radius:4px;padding:1px 5px;cursor:pointer;font-size:9px;line-height:1.5" title="No type / clear">✕</button>`;
+  note.textContent = selectedDmgType ? getDmgTypeNote(selectedDmgType, defs) : '';
+}
+
+function selectDmgType(type, charName) {
+  selectedDmgType = type;
+  renderDmgTypeRow(charName);
+}
+
+function getDmgTypeNote(type, defs) {
+  if (defs.immunities.includes(type)) return `IMMUNE to ${type} — damage will be 0`;
+  if (defs.resistances.includes(type)) return `Resistant to ${type} — damage halved`;
+  if (defs.vulnerabilities.includes(type)) return `Vulnerable to ${type} — damage doubled`;
+  return '';
+}
+
 function openHpPopup(name, maxHp, event) {
   event.stopPropagation();
+  selectedDmgType = null;
   popupCharName = name;
   popupCharMax = maxHp;
   const currHp = getCharHP(name, maxHp);
@@ -4956,6 +4998,7 @@ function openHpPopup(name, maxHp, event) {
   popup.style.top = y + 'px';
   popup.classList.add('open');
   refreshDeathSavesUI(name, currHp);
+  renderDmgTypeRow(name);
   setTimeout(() => document.getElementById('hpDmgInput').focus(), 40);
 }
 
@@ -4969,7 +5012,19 @@ function applyHpAction(type) {
   let tempHp = getTempHP(popupCharName);
 
   if (type === 'dmg') {
-    const val = parseInt(document.getElementById('hpDmgInput').value) || 0;
+    let val = parseInt(document.getElementById('hpDmgInput').value) || 0;
+    let dmgNote = '';
+    // Apply damage type resistance/immunity/vulnerability
+    if (val > 0 && selectedDmgType) {
+      const char = UNIQUE_CHARS.find(c => c.name === popupCharName);
+      if (char && typeof inferDamageDefenses === 'function') {
+        const defs = inferDamageDefenses(char);
+        if (defs.immunities.includes(selectedDmgType)) { val = 0; dmgNote = `Immune to ${selectedDmgType} — 0 damage`; }
+        else if (defs.resistances.includes(selectedDmgType)) { val = Math.floor(val / 2); dmgNote = `Resistant to ${selectedDmgType} — halved to ${val}`; }
+        else if (defs.vulnerabilities.includes(selectedDmgType)) { val = val * 2; dmgNote = `Vulnerable to ${selectedDmgType} — doubled to ${val}`; }
+      }
+    }
+    if (dmgNote) logEntry('roll', `<strong>${escHtml(popupCharName)}</strong>: ${dmgNote}`);
     if (val > 0) {
       // Damage hits temp HP first
       if (tempHp > 0) {
@@ -7026,7 +7081,45 @@ function buildCombatBar(c) {
     </div>
   </div>`;
 
-  return mainBar + passiveRow;
+  // Spell DC row — only for spellcasters
+  let spellRow = '';
+  if (typeof inferSpells === 'function' && (inferSpells(c)||[]).length > 0) {
+    // Determine spellcasting ability: use highlighted ability among INT/WIS/CHA, else highest
+    const spellAbs = ['INT','WIS','CHA'];
+    const highlighted = spellAbs.filter(n => (c.abilities||[]).find(a=>a[0]===n&&a[3]));
+    const spellAbName = highlighted.length > 0 ? highlighted.reduce((best, n) => {
+      return (ab[n]?.mod||0) > (ab[best]?.mod||0) ? n : best;
+    }, highlighted[0]) : spellAbs.reduce((best, n) => (ab[n]?.mod||0) > (ab[best]?.mod||0) ? n : best, 'INT');
+    const spellMod = ab[spellAbName]?.mod || 0;
+    const spellDC = 8 + prof + spellMod;
+    const spellAtk = prof + spellMod;
+    const spellAtkStr = spellAtk >= 0 ? `+${spellAtk}` : `${spellAtk}`;
+    spellRow = `<div style="display:flex;gap:8px;padding:4px 12px 6px;background:#06061a;border-top:1px solid #0a0a20;flex-wrap:wrap">
+      <div title="Spell Save DC = 8 + Prof + ${spellAbName} mod" style="display:flex;align-items:center;gap:5px;padding:3px 10px;background:#0a0a1e;border:1px solid rgba(155,109,255,0.25);border-radius:8px;cursor:default">
+        <span style="font-size:10px;color:#4a5272;letter-spacing:0.5px">🔮 SPELL DC</span>
+        <span style="font-size:15px;font-weight:700;color:#9b6dff;font-family:'Cinzel',serif">${spellDC}</span>
+      </div>
+      <div title="Spell Attack Bonus = Prof + ${spellAbName} mod" style="display:flex;align-items:center;gap:5px;padding:3px 10px;background:#0a0a1e;border:1px solid rgba(155,109,255,0.25);border-radius:8px;cursor:pointer" onclick="rollSpellAttack(${JSON.stringify(c.name)},${spellAtk})" title="Click to roll spell attack">
+        <span style="font-size:10px;color:#4a5272;letter-spacing:0.5px">✨ SPELL ATK</span>
+        <span style="font-size:15px;font-weight:700;color:#9b6dff;font-family:'Cinzel',serif">${spellAtkStr}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:5px;padding:3px 10px;background:#0a0a1e;border:1px solid rgba(155,109,255,0.15);border-radius:8px;cursor:default">
+        <span style="font-size:10px;color:#4a5272;letter-spacing:0.5px">📖 CASTING</span>
+        <span style="font-size:12px;font-weight:700;color:#7a5aaa">${spellAbName}</span>
+      </div>
+    </div>`;
+  }
+
+  return mainBar + passiveRow + spellRow;
+}
+
+function rollSpellAttack(charName, bonus) {
+  const roll = Math.floor(Math.random() * 20) + 1;
+  const total = roll + bonus;
+  const isCrit = roll === 20, isFumble = roll === 1;
+  const bStr = bonus >= 0 ? `+${bonus}` : `${bonus}`;
+  showModalRollResult(`Spell Attack: d20(${roll})${bStr} = ${total}${isCrit?' ★ CRITICAL HIT!':isFumble?' ☠ Fumble':''}`, isCrit, isFumble, total);
+  logEntry('roll', `<strong>${escHtml(charName)}</strong> Spell Attack: ${roll}${bStr} = <strong>${total}</strong>${isCrit?' ★':isFumble?' ☠':''}`);
 }
 
 function rollModalInitiative(dexMod) {
@@ -9109,6 +9202,7 @@ function addCustomToInitiative() {
   const baseName = document.getElementById('initCustomName').value.trim();
   const baseScore = parseInt(document.getElementById('initCustomScore').value) || null;
   const count = Math.max(1, Math.min(20, parseInt(document.getElementById('initCustomCount').value) || 1));
+  const customHp = parseInt(document.getElementById('initCustomHp').value) || 0;
   if (!baseName) return;
 
   for (let i = 1; i <= count; i++) {
@@ -9116,15 +9210,26 @@ function addCustomToInitiative() {
     const score = baseScore !== null ? baseScore : Math.floor(Math.random() * 20) + 1;
     // Check if a known UNIQUE_CHAR has this base name (for HP lookup)
     const knownChar = UNIQUE_CHARS.find(c => c.name.toLowerCase() === baseName.toLowerCase());
-    const maxHp = knownChar ? (parseInt(knownChar.hp) || 0) : 0;
+    let maxHp = knownChar ? (parseInt(knownChar.hp) || 0) : customHp;
+    // If custom HP specified for a new creature, inject a minimal entry into UNIQUE_CHARS for HP tracking
+    if (customHp > 0 && !knownChar) {
+      const exists = UNIQUE_CHARS.find(c => c.name === name);
+      if (!exists) {
+        UNIQUE_CHARS.push({ name, hp: String(customHp), ac: '10', cr: '1', abilities: [], theme: 'fire', group: 'combat', _custom: true });
+      }
+      maxHp = customHp;
+    }
     initiativeList.push({ name, maxHp, initiative: score, isNpc: false });
   }
   initiativeList.sort((a, b) => b.initiative - a.initiative);
   document.getElementById('initCustomName').value = '';
+  document.getElementById('initCustomHp').value = '';
   document.getElementById('initCustomScore').value = '';
   document.getElementById('initCustomCount').value = '';
   renderInitiative();
+  renderGrid(); // refresh cards to show any injected creatures
   if (count > 1) showToast(`Added ${count}× ${baseName} to initiative`, '#dd6622');
+  else if (customHp > 0) showToast(`Added ${baseName} (${customHp} HP) to initiative`, '#dd6622');
 }
 
 function removeFromInitiative(name) {
@@ -9136,6 +9241,34 @@ function removeFromInitiative(name) {
   renderGrid();
   updateHeaderStats();
 }
+
+// ── MOVEMENT TRACKER ─────────────────────────────────────
+let moveState = {}; // charName -> remaining movement ft
+
+function getCharSpeed(char) {
+  if (!char || !char.speed) return 30;
+  const m = String(char.speed).match(/\d+/);
+  return m ? parseInt(m[0]) : 30;
+}
+
+function resetMoveState(name) {
+  const char = UNIQUE_CHARS.find(c => c.name === name);
+  moveState[name] = char ? getCharSpeed(char) : 30;
+}
+
+function useMove(name, ft, event) {
+  if (event) event.stopPropagation();
+  const cur = moveState[name] ?? 30;
+  moveState[name] = Math.max(0, cur - ft);
+  renderActiveTurnBar();
+}
+
+function restoreMove(name, event) {
+  if (event) event.stopPropagation();
+  resetMoveState(name);
+  renderActiveTurnBar();
+}
+// ─────────────────────────────────────────────────────────
 
 function nextTurn() {
   if (!initiativeList.length) return;
@@ -9155,7 +9288,10 @@ function nextTurn() {
     if (typeof resetLegendaryActions === 'function') resetLegendaryActions();
   }
   const active = initiativeList[currentTurnIdx];
-  if (active) logEntry('combat', `<strong>${active.name}</strong>'s turn (Init: ${active.initiative})`);
+  if (active) {
+    logEntry('combat', `<strong>${active.name}</strong>'s turn (Init: ${active.initiative})`);
+    resetMoveState(active.name);
+  }
   renderInitiative();
   updateHud();
   // Auto-reset & restart turn timer if it was running
@@ -10881,17 +11017,88 @@ function renderActiveTurnBar() {
 
   const chip = (label, val, col='#9098b8') => `<span style="font-size:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:2px 7px;color:${col}"><span style="color:#4a5272;font-size:9px">${label} </span>${val}</span>`;
 
+  const maxSpd = getCharSpeed(char);
+  if (moveState[char.name] === undefined) moveState[char.name] = maxSpd;
+  const moveRem = moveState[char.name];
+  const movePct = maxSpd > 0 ? moveRem / maxSpd : 0;
+  const moveCol = movePct > 0.5 ? '#44ccaa' : movePct > 0 ? '#c9a227' : '#cc3333';
+  const moveBtn = (ft) => `<button onclick="useMove(${JSON.stringify(char.name)},${ft},event)" style="background:none;border:1px solid rgba(68,204,170,.3);color:#44ccaa;border-radius:4px;padding:1px 4px;cursor:pointer;font-size:9px;line-height:1">-${ft}</button>`;
+
   let html = `<div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
     <span style="font-size:11px;color:#f0c060;font-weight:700;font-family:'Cinzel',serif;margin-right:4px">${escHtml(char.name.length>20?char.name.slice(0,19)+'…':char.name)}</span>
     ${chip('AC', ac, '#88aaff')}
     ${chip('HP', `${currHp}/${maxHp}`, currHp/maxHp < 0.25 ? '#ff6666' : currHp/maxHp < 0.5 ? '#dd8822' : '#44aa44')}
-    ${chip('Spd', speed, '#88ccff')}
     ${chip('PP', pp, '#aa88ff')}
     ${conc ? chip('⊙', escHtml(conc.length>10?conc.slice(0,9)+'…':conc), '#c9a227') : ''}
     ${conds.slice(0,3).map(c=>chip('', escHtml(c.slice(0,2)+c.slice(2,12)), '#dd8822')).join('')}
+  </div>
+  <div style="display:flex;gap:4px;align-items:center;margin-top:4px">
+    <span style="font-size:9px;color:#4a5272;letter-spacing:.5px">MOVE</span>
+    <span style="font-size:11px;font-weight:700;color:${moveCol};min-width:44px">${moveRem}/${maxSpd}ft</span>
+    <div style="flex:1;height:4px;background:#1e2040;border-radius:2px;overflow:hidden;max-width:80px"><div style="height:100%;width:${Math.round(movePct*100)}%;background:${moveCol};border-radius:2px;transition:width .2s"></div></div>
+    ${moveBtn(5)}${moveBtn(10)}${moveBtn(15)}${moveBtn(30)}
+    <button onclick="restoreMove(${JSON.stringify(char.name)},event)" style="background:none;border:1px solid rgba(68,204,170,.2);color:#3a8070;border-radius:4px;padding:1px 4px;cursor:pointer;font-size:9px;line-height:1" title="Restore full movement">↺</button>
   </div>`;
+  // Attack roll buttons row
+  const strMod = (char.abilities||[]).find(a=>a[0]==='STR'); const sM = strMod ? (parseInt(strMod[2])||0) : 0;
+  const dexEntry = (char.abilities||[]).find(a=>a[0]==='DEX'); const dM = dexEntry ? (parseInt(dexEntry[2])||0) : 0;
+  const meleeBonus = maxSpd > 0 ? prof + Math.max(sM, dM) : prof + sM; // use finesse if DEX >= STR
+  const rangedBonus = prof + dM;
+  const mStr = meleeBonus >= 0 ? `+${meleeBonus}` : `${meleeBonus}`;
+  const rStr = rangedBonus >= 0 ? `+${rangedBonus}` : `${rangedBonus}`;
+  const isSpellcaster = typeof inferSpells === 'function' && (inferSpells(char)||[]).length > 0;
+  const spellAbs = ['INT','WIS','CHA'];
+  const spellAbName = isSpellcaster ? spellAbs.reduce((best,n)=>{const m=(char.abilities||[]).find(a=>a[0]===n);const mod=m?parseInt(m[2])||0:0;const bm=(char.abilities||[]).find(a=>a[0]===best);return mod>(bm?parseInt(bm[2])||0:0)?n:best;},spellAbs[0]) : '';
+  const spellAb = spellAbName ? (char.abilities||[]).find(a=>a[0]===spellAbName) : null;
+  const spellBonus = spellAb ? prof + (parseInt(spellAb[2])||0) : 0;
+  const satkStr = spellBonus >= 0 ? `+${spellBonus}` : `${spellBonus}`;
+
+  const atkBtn = (label, title, bonus, type) => `<button onclick="rollInitAttack(${JSON.stringify(char.name)},${JSON.stringify(title)},${bonus},event)" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:#9098b8;border-radius:4px;padding:2px 7px;cursor:pointer;font-size:10px;line-height:1.4" title="${title} attack">${label} (${type})</button>`;
+
+  html += `<div style="display:flex;gap:4px;align-items:center;margin-top:3px;flex-wrap:wrap">
+    <span style="font-size:9px;color:#4a5272;letter-spacing:.5px">ATK</span>
+    ${atkBtn('⚔ Melee', 'Melee', meleeBonus, mStr)}
+    ${atkBtn('🏹 Ranged', 'Ranged', rangedBonus, rStr)}
+    ${isSpellcaster ? atkBtn('🔮 Spell', 'Spell', spellBonus, satkStr) : ''}
+  </div>`;
+
+  // Saving throws row
+  const saveAbils = ['STR','DEX','CON','INT','WIS','CHA'];
+  const saveBtns = saveAbils.map(ab2 => {
+    const abilEntry = (char.abilities||[]).find(a=>a[0]===ab2);
+    const mod2 = abilEntry ? (parseInt(abilEntry[2])||0) : 0;
+    const isProf = abilEntry ? !!abilEntry[3] : false; // highlighted = proficient
+    const saveBonus = isProf ? mod2 + prof : mod2;
+    const sStr2 = saveBonus >= 0 ? `+${saveBonus}` : `${saveBonus}`;
+    return `<button onclick="rollInitSave(${JSON.stringify(char.name)},${JSON.stringify(ab2)},${saveBonus},event)" style="background:rgba(255,255,255,.04);border:1px solid rgba(${isProf?'201,162,39':'255,255,255'},.${isProf?'3':'08'});color:${isProf?'#c9a227':'#9098b8'};border-radius:4px;padding:2px 5px;cursor:pointer;font-size:9px;line-height:1.4" title="${ab2} saving throw (${sStr2})">${ab2}<br><span style="font-size:10px;font-weight:700">${sStr2}</span></button>`;
+  }).join('');
+  html += `<div style="display:flex;gap:3px;align-items:center;margin-top:3px">
+    <span style="font-size:9px;color:#4a5272;letter-spacing:.5px;min-width:24px">SAVE</span>
+    ${saveBtns}
+  </div>`;
+
   bar.style.display = 'block';
   bar.innerHTML = html;
+}
+
+function rollInitAttack(charName, type, bonus, event) {
+  if (event) event.stopPropagation();
+  const roll = Math.floor(Math.random() * 20) + 1;
+  const total = roll + bonus;
+  const isCrit = roll === 20, isFumble = roll === 1;
+  const bStr = bonus >= 0 ? `+${bonus}` : `${bonus}`;
+  logEntry('roll', `<strong>${escHtml(charName)}</strong> ${type} Attack: d20(${roll})${bStr} = <strong>${total}</strong>${isCrit?' ★ CRIT!':isFumble?' ☠ MISS':''}`);
+  playSound?.(isCrit ? 'crit' : 'roll');
+}
+
+function rollInitSave(charName, ab, bonus, event) {
+  if (event) event.stopPropagation();
+  const roll = Math.floor(Math.random() * 20) + 1;
+  const total = roll + bonus;
+  const isCrit = roll === 20, isFumble = roll === 1;
+  const bStr = bonus >= 0 ? `+${bonus}` : `${bonus}`;
+  logEntry('roll', `<strong>${escHtml(charName)}</strong> ${ab} Save: d20(${roll})${bStr} = <strong>${total}</strong>${isCrit?' ★':isFumble?' ☠ auto-fail':''}`);
+  playSound?.('roll');
 }
 
 function renderInitiative() {
