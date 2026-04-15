@@ -3705,6 +3705,7 @@
   <button class="filter-btn" onclick="showPassiveSkills()" style="border-color:#2299bb;color:#2299bb;" title="Party passive Perception, Investigation & Insight">👁 Passives</button>
   <button class="filter-btn" onclick="openPartyCheckRoller()" style="border-color:#aa44ff;color:#aa44ff;" title="Party Check Roller — roll any skill for the whole party at once">🎯 Party Roll</button>
   <button class="filter-btn" onclick="openGroupHpDashboard()" style="border-color:#44aa44;color:#44aa44;" title="Group HP Dashboard — all characters at a glance">❤ Group HP</button>
+  <button class="filter-btn" onclick="openDefenseOverview()" style="border-color:#ff8844;color:#ff8844;" title="Defense Overview — all characters damage immunities, resistances, vulnerabilities">🛡 Defenses</button>
   <button class="filter-btn" onclick="openRestPanel()" style="border-color:#88bbff;color:#88bbff;" title="Rest Panel — short or long rest for party or individual characters">💤 Rest</button>
   <button class="filter-btn" onclick="openTempHpPanel()" style="border-color:#ddaa22;color:#ddaa22;" title="Temp HP Panel — manage temporary HP for all characters">⬡ Temp HP</button>
   <button class="filter-btn" onclick="openTreasureGenerator()" style="border-color:#c9a227;color:#c9a227;" title="Random treasure generator by CR">💎 Treasure</button>
@@ -12299,6 +12300,89 @@ function doPartyRest(type) {
 //   all characters' HP bars at a glance. Filter by group.
 //   Click any character to open their modal.
 // ══════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 108: Defense Overview — quick tactical view of all
+//   characters' damage immunities, resistances, vulnerabilities.
+//   Toolbar: 🛡 Defenses
+// ══════════════════════════════════════════════════════════
+const ALL_DMG_TYPES = ['Acid','Bludgeoning','Cold','Fire','Force','Lightning','Necrotic','Piercing','Poison','Psychic','Radiant','Slashing','Thunder','Nonmagical B/P/S','Magical'];
+
+function openDefenseOverview() {
+  const existing = document.getElementById('defenseOverviewOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'defenseOverviewOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto;';
+  const allChars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+  ov.innerHTML = `
+    <div style="background:#151c2e;border:1px solid #ff8844;border-radius:12px;width:760px;max-width:100%;padding:24px;color:#c8d0e8;font-family:'Inter',sans-serif;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-size:18px;font-weight:700;color:#ff8844;">🛡 Defense Overview</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input id="defSearchQ" oninput="renderDefenseList()" placeholder="Search…" style="background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:6px 10px;color:#c8d0e8;font-size:12px;width:120px;">
+          <button onclick="document.getElementById('defenseOverviewOverlay').remove()" style="background:#2a3358;border:none;color:#c8d0e8;border-radius:6px;padding:6px 14px;cursor:pointer;">✕ Close</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;font-size:11px;">
+        <span style="background:#44cc8822;border:1px solid #44cc88;color:#44cc88;border-radius:4px;padding:2px 8px;">🛡 Immune</span>
+        <span style="background:#c9a22722;border:1px solid #c9a227;color:#c9a227;border-radius:4px;padding:2px 8px;">⬡ Resistant</span>
+        <span style="background:#cc333322;border:1px solid #cc3333;color:#cc3333;border-radius:4px;padding:2px 8px;">⚠ Vulnerable</span>
+      </div>
+      <div id="defenseList" style="overflow-x:auto;"></div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  renderDefenseList();
+}
+
+function renderDefenseList() {
+  const el = document.getElementById('defenseList');
+  if (!el) return;
+  const q = (document.getElementById('defSearchQ')?.value || '').toLowerCase();
+  const allChars = (typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : []).filter(c =>
+    !q || c.name.toLowerCase().includes(q) || (c.group || '').toLowerCase().includes(q)
+  );
+  if (!allChars.length) { el.innerHTML = '<div style="color:#4a5272;font-size:12px;font-style:italic;padding:12px;">No characters match.</div>'; return; }
+
+  const rows = allChars.map(c => {
+    const def = typeof inferDamageDefenses === 'function' ? inferDamageDefenses(c) : {immune:[],resist:[],vuln:[]};
+    const t = getTheme(c.theme);
+    const maxHp = parseInt(c.hp) || 1;
+    const currHp = typeof getCharHP === 'function' ? getCharHP(c.name, maxHp) : maxHp;
+    const hpPct = Math.round(currHp / maxHp * 100);
+    const hpCol = hpPct > 66 ? '#44cc88' : hpPct > 33 ? '#c9a227' : '#cc3333';
+    const badge = (arr, col, title) => arr.length
+      ? arr.map(x => `<span title="${title}" style="background:${col}22;color:${col};border:1px solid ${col}44;border-radius:3px;padding:1px 5px;font-size:10px;white-space:nowrap;">${x}</span>`).join('')
+      : `<span style="color:#2a3358;font-size:10px;">—</span>`;
+    return `<tr style="border-bottom:1px solid #1e2744;">
+      <td style="padding:6px 8px;cursor:pointer;" onclick="openModal(${UNIQUE_CHARS.indexOf(c)})">
+        <div style="font-weight:600;color:${t.accent};font-size:12px;white-space:nowrap;">${c.name}</div>
+        <div style="display:flex;align-items:center;gap:4px;margin-top:2px;">
+          <div style="background:#1e2744;border-radius:2px;height:4px;width:50px;overflow:hidden;"><div style="background:${hpCol};height:100%;width:${hpPct}%;border-radius:2px;"></div></div>
+          <span style="font-size:10px;color:#4a5272;">${currHp}/${maxHp}</span>
+        </div>
+      </td>
+      <td style="padding:6px 8px;"><div style="display:flex;gap:3px;flex-wrap:wrap;">${badge(def.immune,'#44cc88','Immune')}</div></td>
+      <td style="padding:6px 8px;"><div style="display:flex;gap:3px;flex-wrap:wrap;">${badge(def.resist,'#c9a227','Resistant')}</div></td>
+      <td style="padding:6px 8px;"><div style="display:flex;gap:3px;flex-wrap:wrap;">${badge(def.vuln,'#cc3333','Vulnerable')}</div></td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <thead>
+      <tr style="background:#1e2744;color:#9098b8;text-align:left;">
+        <th style="padding:6px 8px;border-bottom:1px solid #2a3358;white-space:nowrap;">Character</th>
+        <th style="padding:6px 8px;border-bottom:1px solid #2a3358;color:#44cc88;">🛡 Immune</th>
+        <th style="padding:6px 8px;border-bottom:1px solid #2a3358;color:#c9a227;">⬡ Resistant</th>
+        <th style="padding:6px 8px;border-bottom:1px solid #2a3358;color:#cc3333;">⚠ Vulnerable</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
 function openGroupHpDashboard() {
   const existing = document.getElementById('groupHpOverlay');
   if (existing) { existing.remove(); return; }
