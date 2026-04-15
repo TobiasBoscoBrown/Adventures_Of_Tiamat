@@ -3034,6 +3034,7 @@
     <button class="encounter-open-btn" onclick="openSessionManager()" style="border-color:#9b6dff;color:#9b6dff">💾 Session</button>
     <button class="encounter-open-btn" onclick="toggleHealthPanel()" style="border-color:#cc3333;color:#cc3333" id="healthPanelBtn">❤ Party HP</button>
     <button class="encounter-open-btn" onclick="openQuestTracker()" style="border-color:#ffaa44;color:#ffaa44" id="questBtn">📜 Quests</button>
+    <button class="encounter-open-btn" onclick="openTheaterMode()" style="border-color:#44aacc;color:#44aacc" title="Theater mode — fullscreen battle board for second screen">🎭 Theater</button>
     <div class="stat-badge"><strong id="totalCount">0</strong> Characters</div>
     <div class="stat-badge"><strong id="visibleCount">0</strong> Showing</div>
     <div class="stat-badge stat-live" id="statDown" onclick="filterToDown()" title="Click to show downed characters" style="display:none"><strong id="downCount">0</strong> ⚠ Down</div>
@@ -8581,6 +8582,127 @@ function clearTagFilter(dropdown) {
 // ────────────────────────────────────────────────────────
 
 renderGrid();
+
+// ── THEATER MODE ─────────────────────────────────────────
+let theaterInterval = null;
+
+function openTheaterMode() {
+  let overlay = document.getElementById('theaterOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'theaterOverlay';
+    overlay.style.cssText = `
+      position:fixed;inset:0;background:#06061a;z-index:9999;display:flex;flex-direction:column;
+      font-family:'Cinzel',serif;overflow:hidden;cursor:default;
+    `;
+    overlay.innerHTML = `
+      <div id="theaterHeader" style="display:flex;justify-content:space-between;align-items:center;padding:12px 24px;background:rgba(0,0,0,.5);border-bottom:1px solid #1e2040;flex-shrink:0">
+        <div style="font-size:18px;font-weight:900;color:#c9a227;letter-spacing:3px">ADVENTURES OF <span style="color:#fff">TIAMAT</span></div>
+        <div id="theaterStatus" style="font-size:13px;color:#4a5272"></div>
+        <button onclick="closeTheaterMode()" style="background:rgba(255,255,255,.08);border:1px solid #333;color:#9098b8;border-radius:8px;padding:6px 14px;cursor:pointer;font-family:'Inter',sans-serif;font-size:12px">✕ Exit</button>
+      </div>
+      <div id="theaterGrid" style="flex:1;overflow:auto;padding:16px 20px;display:grid;gap:12px;align-content:start"></div>
+      <div style="text-align:center;padding:6px;font-size:10px;color:#1e2040;font-family:'Inter',sans-serif">Press ESC to exit</div>
+    `;
+    document.body.appendChild(overlay);
+    document.addEventListener('keydown', function _esc(e) {
+      if (e.key === 'Escape' && document.getElementById('theaterOverlay')) {
+        closeTheaterMode(); document.removeEventListener('keydown', _esc);
+      }
+    });
+  }
+  overlay.style.display = 'flex';
+  renderTheaterGrid();
+  theaterInterval = setInterval(renderTheaterGrid, 2000); // live update every 2s
+  // Request fullscreen
+  overlay.requestFullscreen?.().catch(() => {});
+}
+
+function closeTheaterMode() {
+  clearInterval(theaterInterval); theaterInterval = null;
+  const overlay = document.getElementById('theaterOverlay');
+  if (overlay) overlay.style.display = 'none';
+  document.exitFullscreen?.().catch(() => {});
+}
+
+function renderTheaterGrid() {
+  const grid = document.getElementById('theaterGrid');
+  if (!grid) return;
+
+  // Determine what to show: combat chars first, then all
+  const inCombat = new Set(initiativeList.map(e => e.name));
+  const allConds = loadAllConditions();
+  const allConc = (typeof loadAllConc === 'function') ? loadAllConc() : {};
+
+  // Sort: in combat first (by initiative), then alphabetical
+  const chars = [...UNIQUE_CHARS].sort((a, b) => {
+    const aIn = inCombat.has(a.name), bIn = inCombat.has(b.name);
+    if (aIn && !bIn) return -1;
+    if (!aIn && bIn) return 1;
+    if (aIn && bIn) {
+      const aI = initiativeList.findIndex(e => e.name === a.name);
+      const bI = initiativeList.findIndex(e => e.name === b.name);
+      return aI - bI;
+    }
+    return a.name.localeCompare(b.name);
+  });
+
+  // Column count based on viewport
+  const cols = Math.max(2, Math.floor((window.innerWidth - 40) / 180));
+  grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+  // Status bar
+  const downCount = chars.filter(c => {
+    const maxHp = parseInt(c.hp)||1;
+    return getCharHP(c.name, maxHp) === 0;
+  }).length;
+  const statusEl = document.getElementById('theaterStatus');
+  if (statusEl) {
+    const parts = [];
+    if (initiativeList.length) parts.push(`⚔ Round ${currentRound} — ${initiativeList[currentTurnIdx]?.name || '?'}'s turn`);
+    if (downCount) parts.push(`⚠ ${downCount} DOWN`);
+    statusEl.textContent = parts.join('  ·  ');
+    statusEl.style.color = downCount > 0 ? '#cc3333' : initiativeList.length ? '#dd6622' : '#4a5272';
+  }
+
+  const isActiveTurn = (name) => initiativeList.length > 0 && initiativeList[currentTurnIdx]?.name === name;
+
+  grid.innerHTML = chars.map(c => {
+    const t = getTheme(c.theme);
+    const maxHp = parseInt(c.hp) || 1;
+    const currHp = getCharHP(c.name, maxHp);
+    const pct = currHp / maxHp;
+    const hpColor = hpBarColor(pct);
+    const isActive = isActiveTurn(c.name);
+    const isDown = currHp === 0;
+    const conds = allConds[c.name] || [];
+    const conc = allConc[c.name];
+    const inInit = inCombat.has(c.name);
+    const initEntry = initiativeList.find(e => e.name === c.name);
+
+    return `<div style="
+      background:linear-gradient(145deg, ${isActive?'rgba(221,102,34,.15)':'#0e0e24'}, #06061a);
+      border:2px solid ${isActive?'#dd6622':isDown?'#cc3333':inInit?t.accent+'88':'#1e2040'};
+      border-radius:14px;padding:12px;text-align:center;position:relative;
+      ${isActive?'box-shadow:0 0 20px rgba(221,102,34,.4);':isDown?'opacity:.6;filter:grayscale(.4)':''}
+      transition:all .3s;
+    ">
+      ${isActive ? '<div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:#dd6622;color:#fff;font-size:9px;padding:1px 8px;border-radius:8px;letter-spacing:1px;white-space:nowrap">ACTIVE TURN</div>' : ''}
+      ${inInit && initEntry ? `<div style="position:absolute;top:8px;right:8px;font-size:12px;font-weight:700;color:${isActive?'#dd6622':t.accent};font-family:'Cinzel',serif">${initEntry.initiative}</div>` : ''}
+      <div style="width:56px;height:56px;border-radius:50%;border:2px solid ${t.accent};margin:0 auto 8px;overflow:hidden;box-shadow:0 0 12px ${t.glow}">${getPortraitSvg(c)}</div>
+      <div style="font-size:11px;font-weight:700;color:#e0e0ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.name}</div>
+      <div style="font-size:9px;color:${t.accent};margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.title.split('·')[0].trim()}</div>
+      <div style="height:5px;background:#1e2040;border-radius:3px;margin-bottom:4px;overflow:hidden">
+        <div style="height:100%;width:${Math.round(pct*100)}%;background:${hpColor};border-radius:3px;transition:width .5s"></div>
+      </div>
+      <div style="font-size:10px;color:${hpColor}">${currHp}/${maxHp}</div>
+      ${isDown ? '<div style="font-size:9px;color:#cc3333;font-weight:700;letter-spacing:1px">⚠ DOWN</div>' : ''}
+      ${conds.length ? `<div style="font-size:8px;color:#dd8822;margin-top:2px">${conds.slice(0,2).join(' · ')}</div>` : ''}
+      ${conc ? `<div style="font-size:8px;color:#c9a227;margin-top:2px">🔮 ${conc.slice(0,16)}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+// ────────────────────────────────────────────────────────
 </script>
 </body>
 </html>
