@@ -2516,6 +2516,18 @@
     flex-shrink: 0;
   }
   .hp-row-val.down { color: #ff6666; }
+  .hp-row-extras {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    align-items: center;
+    padding: 3px 0 0 2px;
+    font-size: 9px;
+    color: #6a7098;
+    pointer-events: none;
+  }
+  .hp-row-extras > * { pointer-events: auto; }
   .hp-group-label {
     font-size: 10px;
     color: #4a5272;
@@ -8499,11 +8511,45 @@ function renderHealthPanel() {
       const color = isDown ? '#cc3333' : pct >= 0.5 ? '#44aa44' : pct >= 0.25 ? '#dd8822' : '#cc3333';
       const dispName = c.name.length > 20 ? c.name.slice(0, 19) + '…' : c.name;
       const dsSaveHtml = isDown && typeof getDeathSaveHtml === 'function' ? getDeathSaveHtml(c.name) : '';
-      html += `<div class="hp-row${dsSaveHtml ? ' has-ds' : ''}" onclick="openModal(UNIQUE_CHARS.findIndex(x=>x.name===${JSON.stringify(c.name)}))" title="${c.name} — click to open" style="${dsSaveHtml ? 'height:auto;padding-bottom:4px;flex-wrap:wrap' : ''}">
+
+      // Build extras: conditions, concentration, temp HP, spell slots
+      let extraParts = [];
+      // Active conditions
+      const conds = getAllConditions ? getAllConditions() : CONDITIONS;
+      const activeConds = conds.filter(cond => (condState[c.name]||{})[cond.name]);
+      if (activeConds.length) {
+        extraParts.push(activeConds.map(cond => `<span title="${escHtml(cond.name)}">${cond.icon}</span>`).join(''));
+      }
+      // Concentration
+      const concSpell = getConcSpell(c.name);
+      if (concSpell) {
+        const short = concSpell.length > 14 ? concSpell.slice(0, 13) + '…' : concSpell;
+        extraParts.push(`<span title="Concentrating: ${escHtml(concSpell)}" style="color:#c9a227;background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.3);border-radius:8px;padding:0 4px;cursor:pointer" onclick="clearConc(${JSON.stringify(c.name)},event)">🔮 ${escHtml(short)}</span>`);
+      }
+      // Temp HP
+      const tmp = getTempHP(c.name);
+      if (tmp > 0) {
+        extraParts.push(`<span title="Temp HP: ${tmp}" style="color:#dd8822;background:rgba(221,136,34,.15);border:1px solid rgba(221,136,34,.3);border-radius:8px;padding:0 4px">+${tmp}tmp</span>`);
+      }
+      // Spell slots
+      const slotMax = getMaxSlotsForChar(c);
+      if (slotMax && Object.keys(slotMax).length) {
+        const used = getUsedSlots(c.name);
+        const slotParts = Object.keys(slotMax).map(Number).sort((a,b)=>a-b).map(lvl => {
+          const rem = slotMax[lvl] - (used[lvl]||0);
+          const col = rem === 0 ? '#3a3a50' : rem <= slotMax[lvl]/2 ? '#c9a227' : '#5588dd';
+          return `<span title="Level ${lvl} slots: ${rem}/${slotMax[lvl]}" style="color:${col}">${lvl}:${rem}</span>`;
+        });
+        extraParts.push(`<span style="color:#3a3a60">▪</span>${slotParts.join(' ')}`);
+      }
+
+      const extrasHtml = extraParts.length ? `<div class="hp-row-extras">${extraParts.join('<span style="color:#2a2a40;margin:0 1px">·</span>')}</div>` : '';
+      html += `<div class="hp-row" onclick="openModal(UNIQUE_CHARS.findIndex(x=>x.name===${JSON.stringify(c.name)}))" title="${c.name} — click to open" style="${dsSaveHtml||extrasHtml ? 'height:auto;padding-bottom:4px;flex-wrap:wrap' : ''}">
         <span class="hp-row-name${isDown ? ' down' : ''}">${dispName}</span>
         <div class="hp-row-bar-wrap"><div class="hp-row-bar" style="width:${Math.round(pct*100)}%;background:${color}"></div></div>
         <span class="hp-row-val${isDown ? ' down' : ''}">${currHp}/${maxHp}</span>
         ${dsSaveHtml ? `<div style="width:100%;padding-left:0">${dsSaveHtml}</div>` : ''}
+        ${extrasHtml}
       </div>`;
     });
   });
