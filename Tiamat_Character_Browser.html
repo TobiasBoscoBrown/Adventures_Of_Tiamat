@@ -948,8 +948,28 @@
     margin-bottom: 5px;
     cursor: pointer;
     transition: border-color 0.12s, background 0.12s;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
   }
   .spell-entry:hover { border-color: var(--accent, #c9a227); background: #0a0a1e; }
+  .spell-entry.unprepared { opacity: 0.45; }
+  .spell-entry.unprepared:hover { opacity: 0.75; }
+  .spell-prep-btn {
+    background: none;
+    border: 1px solid #2a2a50;
+    border-radius: 4px;
+    color: #2a2a50;
+    font-size: 9px;
+    padding: 1px 5px;
+    cursor: pointer;
+    transition: all 0.12s;
+    align-self: flex-start;
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+  }
+  .spell-prep-btn.prepared { border-color: #44aa44; color: #44aa44; background: rgba(68,170,68,0.08); }
+  .spell-prep-btn:hover { border-color: #44aa44; color: #44aa44; }
   .spell-header { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
   .spell-name { font-size: 12px; font-weight: 600; color: #dce0f0; flex: 1; }
   .spell-school { font-size: 9px; color: #4488ff; background: rgba(68,136,255,0.1); padding: 1px 6px; border-radius: 3px; }
@@ -5702,12 +5722,16 @@ function buildSpellBook(c) {
   const levelNames = ['Cantrips', '1st Level', '2nd Level', '3rd Level', '4th Level',
     '5th Level', '6th Level', '7th Level', '8th Level', '9th Level'];
 
+  // Spells with levels > 0 can be toggled prepared (cantrips always prepared)
   const sections = Object.keys(byLevel).sort((a,b) => a-b).map(level => {
     const spells = byLevel[level];
+    const isCantrip = parseInt(level) === 0;
     const rows = spells.map(s => {
       const castColor = s.cast.includes('Reaction') ? '#aa66ff' : s.cast.includes('Bonus') ? '#88aa22' : '#9098b8';
       const isConc = /concentration/i.test(s.desc);
-      return `<div class="spell-entry" onclick="rollSpellAttack(${JSON.stringify(s.name)},${JSON.stringify(s.school)},${spellAtk},${spellDC})">
+      const isPrepared = isCantrip || isSpellPrepared(c.name, s.name);
+      const prepClass = !isCantrip && !isPrepared ? ' unprepared' : '';
+      return `<div class="spell-entry${prepClass}" onclick="rollSpellAttack(${JSON.stringify(s.name)},${JSON.stringify(s.school)},${spellAtk},${spellDC})">
         <div class="spell-header">
           <span class="spell-name">${s.name}</span>
           <span class="spell-school">${s.school}</span>
@@ -5720,11 +5744,14 @@ function buildSpellBook(c) {
           ${level > 0 ? `<span style="color:#4a5272">·</span><span style="color:#9b6dff;font-size:10px">Slot L${level}</span>` : ''}
         </div>
         <div class="spell-desc">${s.desc}</div>
+        ${!isCantrip ? `<button class="spell-prep-btn${isPrepared?' prepared':''}" onclick="event.stopPropagation();toggleSpellPrepared(${JSON.stringify(c.name)},${JSON.stringify(s.name)},this)">${isPrepared ? '✓ Prepared' : '○ Not Prepared'}</button>` : ''}
       </div>`;
     }).join('');
 
+    const preparedCount = isCantrip ? spells.length : spells.filter(s => isSpellPrepared(c.name, s.name)).length;
+    const prepLabel = isCantrip ? '' : ` <span style="color:#4a5272">(${preparedCount}/${spells.length} prepared)</span>`;
     return `<div style="margin-bottom:12px">
-      <div style="font-size:10px;color:var(--accent,#c9a227);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid rgba(201,162,39,0.2)">${levelNames[parseInt(level)]||level+'th Level'}</div>
+      <div style="font-size:10px;color:var(--accent,#c9a227);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid rgba(201,162,39,0.2)">${levelNames[parseInt(level)]||level+'th Level'}${prepLabel}</div>
       ${rows}
     </div>`;
   }).join('');
@@ -9364,6 +9391,50 @@ function renderTheaterGrid() {
       ${conc ? `<div style="font-size:8px;color:#c9a227;margin-top:2px">🔮 ${conc.slice(0,16)}</div>` : ''}
     </div>`;
   }).join('');
+}
+// ────────────────────────────────────────────────────────
+
+// ── SPELL PREPARED TRACKER ───────────────────────────────
+const PREP_KEY = 'tiamat_spell_prepared';
+
+function loadPrepared() {
+  try { return JSON.parse(localStorage.getItem(PREP_KEY)) || {}; } catch { return {}; }
+}
+function savePrepared(data) { localStorage.setItem(PREP_KEY, JSON.stringify(data)); }
+
+function isSpellPrepared(charName, spellName) {
+  const data = loadPrepared();
+  // Default: all spells prepared unless explicitly unprepared
+  return !data[charName] || data[charName][spellName] !== false;
+}
+
+function toggleSpellPrepared(charName, spellName, btn) {
+  const data = loadPrepared();
+  if (!data[charName]) data[charName] = {};
+  const cur = data[charName][spellName] !== false; // true = prepared
+  data[charName][spellName] = !cur;
+  savePrepared(data);
+  const isPrepared = !cur;
+  if (btn) {
+    btn.textContent = isPrepared ? '✓ Prepared' : '○ Not Prepared';
+    btn.classList.toggle('prepared', isPrepared);
+  }
+  const entry = btn?.closest('.spell-entry');
+  if (entry) entry.classList.toggle('unprepared', !isPrepared);
+  // Update level header count
+  const section = btn?.closest('[style*="margin-bottom:12px"]');
+  if (section) {
+    const header = section.querySelector('[style*="border-bottom"]');
+    if (header) {
+      const allBtns = section.querySelectorAll('.spell-prep-btn');
+      const preparedBtns = section.querySelectorAll('.spell-prep-btn.prepared');
+      const total = allBtns.length;
+      const count = preparedBtns.length;
+      // Update the count in the header span
+      const countSpan = header.querySelector('span');
+      if (countSpan) countSpan.innerHTML = `(${count}/${total} prepared)`;
+    }
+  }
 }
 // ────────────────────────────────────────────────────────
 
