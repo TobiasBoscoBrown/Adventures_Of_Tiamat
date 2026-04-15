@@ -3781,6 +3781,7 @@
   <button class="filter-btn" onclick="openFeatCompendium()" style="border-color:#44ccaa;color:#44ccaa;" title="Feat Compendium — searchable 5e feats with full descriptions, assign to character">⚡ Feats</button>
   <button class="filter-btn" onclick="openRandEncounter()" style="border-color:#cc6644;color:#cc6644;" title="Random Encounter Generator — pick terrain &amp; CR, roll a thematic encounter">🎲 Encounter</button>
   <button class="filter-btn" onclick="openClassFeatures()" style="border-color:#dd8822;color:#dd8822;" title="Class Features Reference — key features for all 12 classes by level">📖 Classes</button>
+  <button class="filter-btn" onclick="openRaceRef()" style="border-color:#44aacc;color:#44aacc;" title="Race Features Reference — traits for all PHB races">🧝 Races</button>
   <button class="filter-btn" onclick="printPartySheet()" style="border-color:#4488ff;color:#4488ff;" title="Print Party Sheet — all party members on one printable page">🖨 Party Sheet</button>
   <button class="filter-btn" onclick="openWorldMap()" style="border-color:#44cc88;color:#44cc88;" title="World Map — pin characters to the Tiamat campaign map (hotkey: M)">🗺 World Map</button>
   <span style="color: #333; margin: 0 4px;">|</span>
@@ -25225,6 +25226,141 @@ const _prevBgRender2 = renderBgPanel;
 function renderBgPanel(c) {
   _prevBgRender2(c);
   renderAppearSection(c);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 156: Race Features Reference — all 10 PHB races with key traits.
+//   Toolbar button 🧝 Races opens a filterable panel. Pairs with Class Features.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const RACE_REF = {
+  Human:       { color:'#c9a227', icon:'👤', asi:'All ability scores +1 (Variant: +1 to 2 chosen + 1 skill + 1 feat)', speed:30, size:'Medium',
+    traits:[
+      { name:'Ability Score Increase', desc:'All ability scores increase by 1. Variant Human: choose any 2 scores +1, gain 1 skill proficiency, gain 1 feat.' },
+      { name:'Extra Language',         desc:'You can speak, read, and write one extra language of your choice.' },
+      { name:'Versatile',              desc:'Humans\' adaptability has made them the dominant species — more ASIs and feats than any race.' },
+    ]},
+  'High Elf':  { color:'#4488ff', icon:'🧝', asi:'DEX +2, INT +1', speed:30, size:'Medium',
+    traits:[
+      { name:'Darkvision',          desc:'See in dim light as bright, darkness as dim light, 60 ft.' },
+      { name:'Keen Senses',         desc:'Proficiency in Perception.' },
+      { name:'Fey Ancestry',        desc:'Advantage on saves vs charm. Magic cannot put you to sleep.' },
+      { name:'Trance',              desc:'Don\'t sleep; meditate 4 hours for same benefit as 8-hour rest.' },
+      { name:'Cantrip',             desc:'Learn 1 wizard cantrip (INT).' },
+      { name:'Extra Language',      desc:'Speak 1 additional language.' },
+      { name:'Elf Weapon Training', desc:'Proficiency: longsword, shortsword, shortbow, longbow.' },
+    ]},
+  'Wood Elf':  { color:'#44aa44', icon:'🌿', asi:'DEX +2, WIS +1', speed:35, size:'Medium',
+    traits:[
+      { name:'Darkvision',          desc:'See in dim light as bright, darkness as dim light, 60 ft.' },
+      { name:'Keen Senses',         desc:'Proficiency in Perception.' },
+      { name:'Fey Ancestry',        desc:'Advantage on saves vs charm. Magic cannot put you to sleep.' },
+      { name:'Trance',              desc:'Don\'t sleep; meditate 4 hours.' },
+      { name:'Fleet of Foot',       desc:'Base walking speed is 35 ft.' },
+      { name:'Mask of the Wild',    desc:'Hide when lightly obscured by natural phenomena (rain, foliage, etc.).' },
+    ]},
+  'Hill Dwarf':{ color:'#aa8844', icon:'⛏', asi:'CON +2, WIS +1', speed:25, size:'Medium',
+    traits:[
+      { name:'Darkvision',          desc:'60 ft darkvision.' },
+      { name:'Dwarven Resilience',  desc:'Advantage on saves vs poison. Resistance to poison damage.' },
+      { name:'Dwarven Combat Training', desc:'Proficiency: battleaxe, handaxe, light hammer, warhammer.' },
+      { name:'Tool Proficiency',    desc:'Proficiency with one type of artisan\'s tools.' },
+      { name:'Stonecunning',        desc:'Double proficiency on History checks about stonework.' },
+      { name:'Dwarven Toughness',   desc:'HP maximum increases by 1, +1 for each level gained.' },
+    ]},
+  Halfling:    { color:'#44cc88', icon:'🦶', asi:'DEX +2 (Lightfoot: CHA +1; Stout: CON +1)', speed:25, size:'Small',
+    traits:[
+      { name:'Lucky',               desc:'When you roll a 1 on a d20, reroll and use the new roll.' },
+      { name:'Brave',               desc:'Advantage on saving throws vs frightened.' },
+      { name:'Halfling Nimbleness', desc:'Move through the space of any Medium or larger creature.' },
+      { name:'Naturally Stealthy',  desc:'(Lightfoot) Can attempt to hide behind creatures one size larger.' },
+    ]},
+  Gnome:       { color:'#88cc44', icon:'🔬', asi:'INT +2 (Forest: DEX +1; Rock: CON +1)', speed:25, size:'Small',
+    traits:[
+      { name:'Darkvision',          desc:'60 ft darkvision.' },
+      { name:'Gnome Cunning',       desc:'Advantage on INT/WIS/CHA saves vs magic.' },
+      { name:'Natural Illusionist', desc:'(Forest) Know Minor Illusion cantrip.' },
+      { name:'Artificer\'s Lore',   desc:'(Rock) Double proficiency on History checks about magical/alchemical items.' },
+    ]},
+  'Half-Elf':  { color:'#bb66ff', icon:'🌓', asi:'CHA +2, and +1 to any 2 other scores', speed:30, size:'Medium',
+    traits:[
+      { name:'Darkvision',          desc:'60 ft darkvision.' },
+      { name:'Fey Ancestry',        desc:'Advantage on saves vs charm. Magic cannot put you to sleep.' },
+      { name:'Skill Versatility',   desc:'Proficiency in 2 skills of your choice.' },
+    ]},
+  'Half-Orc':  { color:'#88aa22', icon:'💪', asi:'STR +2, CON +1', speed:30, size:'Medium',
+    traits:[
+      { name:'Darkvision',          desc:'60 ft darkvision.' },
+      { name:'Menacing',            desc:'Proficiency in Intimidation.' },
+      { name:'Relentless Endurance', desc:'Drop to 0 HP: drop to 1 HP instead. 1 use/long rest.' },
+      { name:'Savage Attacks',      desc:'On a critical hit with a melee weapon, roll one extra damage die.' },
+    ]},
+  Dragonborn:  { color:'#cc4444', icon:'🐉', asi:'STR +2, CHA +1', speed:30, size:'Medium',
+    traits:[
+      { name:'Draconic Ancestry',   desc:'Choose a dragon type. This determines your breath weapon damage type and resistance.' },
+      { name:'Breath Weapon',       desc:'Action: 15-ft cone or 30-ft line (CON save DC = 8+prof+CON mod). Damage: 2d6 (scales: 3d6@6, 4d6@11, 5d6@16). 1 use/short rest.' },
+      { name:'Damage Resistance',   desc:'Resistance to damage type of your draconic ancestry.' },
+    ]},
+  Tiefling:    { color:'#cc2244', icon:'😈', asi:'INT +1, CHA +2', speed:30, size:'Medium',
+    traits:[
+      { name:'Darkvision',          desc:'60 ft darkvision.' },
+      { name:'Hellish Resistance',  desc:'Resistance to fire damage.' },
+      { name:'Infernal Legacy',     desc:'Know Thaumaturgy cantrip. At level 3: Hellish Rebuke 1/day. At 5: Darkness 1/day. CHA-based.' },
+    ]},
+};
+
+function openRaceRef() {
+  const ex = document.getElementById('raceRefOverlay');
+  if (ex) { ex.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'raceRefOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9100;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto';
+  const raceNames = Object.keys(RACE_REF);
+  ov.innerHTML = `
+    <div style="background:linear-gradient(160deg,#060e18,#0a1622);border:1px solid rgba(68,170,204,0.4);border-radius:14px;width:700px;max-width:100%;padding:20px;color:#c8d0e8;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div style="font-size:17px;font-weight:700;font-family:'Cinzel',serif;color:#44aacc">🧝 Race Features Reference</div>
+        <button onclick="document.getElementById('raceRefOverlay').remove()" style="background:none;border:1px solid #0a2030;color:#44aacc;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px">✕</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px">
+        ${raceNames.map((r,i) => {
+          const rd = RACE_REF[r];
+          return `<button onclick="_showRace('${r.replace(/'/g,'\\\'')}')" id="rrBtn_${r.replace(/[^a-zA-Z]/g,'_')}"
+            style="background:${i===0?`rgba(68,170,204,0.2)`:'none'};border:1px solid ${rd.color}${i===0?'88':'33'};color:${i===0?rd.color:rd.color+'99'};border-radius:8px;padding:5px 12px;cursor:pointer;font-size:11px;font-weight:700"
+          >${rd.icon} ${r}</button>`;
+        }).join('')}
+      </div>
+      <div id="raceFeatContent" style="max-height:58vh;overflow-y:auto"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _showRace(raceNames[0]);
+}
+
+function _showRace(raceName) {
+  const rd = RACE_REF[raceName];
+  if (!rd) return;
+  Object.keys(RACE_REF).forEach(r => {
+    const btn = document.getElementById('rrBtn_' + r.replace(/[^a-zA-Z]/g,'_'));
+    if (!btn) return;
+    btn.style.background = r===raceName ? `rgba(68,170,204,0.2)` : 'none';
+    btn.style.borderColor = RACE_REF[r].color + (r===raceName?'88':'33');
+    btn.style.color = RACE_REF[r].color + (r===raceName?'':'99');
+  });
+  const el = document.getElementById('raceFeatContent');
+  if (!el) return;
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 14px;background:rgba(0,0,0,0.3);border-radius:10px;border:1px solid ${rd.color}22">
+      <span style="font-size:24px">${rd.icon}</span>
+      <div>
+        <div style="font-size:16px;font-weight:700;font-family:'Cinzel',serif;color:${rd.color}">${escHtml(raceName)}</div>
+        <div style="font-size:10px;color:#4a5272;margin-top:2px">${escHtml(rd.asi)} · Speed ${rd.speed} ft · Size ${rd.size}</div>
+      </div>
+    </div>
+    ${rd.traits.map(t => `
+      <div style="padding:9px 12px;border-bottom:1px solid rgba(255,255,255,0.04);border-left:3px solid ${rd.color}66">
+        <div style="font-size:12px;font-weight:700;color:#c8d0e8;margin-bottom:2px">${escHtml(t.name)}</div>
+        <div style="font-size:11px;color:#8898b8;line-height:1.5">${escHtml(t.desc)}</div>
+      </div>`).join('')}`;
 }
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
