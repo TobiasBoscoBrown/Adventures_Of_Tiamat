@@ -16880,6 +16880,21 @@ const REL_ICONS = {
   ally:'⚔', enemy:'☠', family:'♥', rival:'⚡', friend:'★', mentor:'◈', student:'◇', neutral:'○'
 };
 
+// Iter 132: Relationship sentiment — how Character A feels about Character B right now
+// Stored per-source-character in localStorage. Click the sentiment icon to cycle.
+const REL_SENTIMENTS = [
+  { key:'hostile',  label:'Hostile',  icon:'💀', color:'#cc3333' },
+  { key:'cold',     label:'Cold',     icon:'😤', color:'#dd7733' },
+  { key:'neutral',  label:'Neutral',  icon:'😐', color:'#4a5272' },
+  { key:'warm',     label:'Warm',     icon:'🤝', color:'#4488ff' },
+  { key:'allied',   label:'Allied',   icon:'❤',  color:'#44aa44' },
+  { key:'devoted',  label:'Devoted',  icon:'⭐', color:'#c9a227' },
+];
+function _loadRelSentiments(name) {
+  try { return JSON.parse(localStorage.getItem('tiamat_sent_' + name)) || {}; }
+  catch { return {}; }
+}
+
 function initRelationships() {
   try { relState = JSON.parse(localStorage.getItem('tiamat_relationships')) || {}; } catch { relState = {}; }
 }
@@ -16891,11 +16906,20 @@ function getRelationships(name) { return relState[name] || []; }
 function buildRelDisplay(name) {
   const rels = getRelationships(name);
   if (!rels.length) return '<span style="color:#2a2a50;font-size:12px">No relationships defined</span>';
-  return rels.map(r =>
-    `<span class="rel-badge" style="border-color:${REL_COLORS[r.type]||'#4a5272'}33;color:${REL_COLORS[r.type]||'#7a7aaa'};background:${REL_COLORS[r.type]||'#333'}11">
-      ${REL_ICONS[r.type]||'○'} <span style="color:#e0e0ff">${r.target}</span> <span style="opacity:0.7;font-size:10px">(${r.type})</span>
-    </span>`
-  ).join('');
+  const sentData = _loadRelSentiments(name);
+  return rels.map(r => {
+    const sentKey = sentData[r.target] || 'neutral';
+    const sent = REL_SENTIMENTS.find(s => s.key === sentKey) || REL_SENTIMENTS[2];
+    const relColor = REL_COLORS[r.type] || '#4a5272';
+    return `<span class="rel-badge" style="border-color:${relColor}33;color:${relColor};background:${relColor}11;cursor:default">
+      ${REL_ICONS[r.type]||'○'} <span style="color:#e0e0ff">${r.target}</span>
+      <span style="opacity:0.7;font-size:10px">(${r.type})</span>
+      <span onclick="event.stopPropagation();cycleRelSentiment(${JSON.stringify(name)},${JSON.stringify(r.target)})"
+        title="Current sentiment: ${sent.label} — click to cycle\nHostile 💀 → Cold 😤 → Neutral 😐 → Warm 🤝 → Allied ❤ → Devoted ⭐"
+        style="cursor:pointer;margin-left:5px;color:${sent.color};font-size:13px;transition:transform 0.12s;display:inline-block"
+        onmouseover="this.style.transform='scale(1.35)'" onmouseout="this.style.transform='scale(1)'">${sent.icon}</span>
+    </span>`;
+  }).join('');
 }
 
 let relEditorChar = '';
@@ -22440,6 +22464,31 @@ function wMapClearAll() {
   saveMapPins([]);
   _renderMapPins();
   _wMapStatus('<span style="color:#dd6644">All pins cleared.</span>', 1500);
+}
+// Iter 132: Fix Story Panel undefined bug + Relationship Sentiment Tracker
+// buildPersonalitySection / buildAppearanceSection were called in buildStoryPanel
+// (Iter 93/96) but never implemented — produced literal "undefined" in the Story tab.
+
+function buildPersonalitySection(c) { return ''; } // bio section already handles editable personality
+function buildAppearanceSection(c) { return ''; }   // bio section already handles appearance fields
+
+// ── RELATIONSHIP SENTIMENT TRACKER ──────────────────────────────────────────
+function _saveRelSentiment(name, target, key) {
+  const d = _loadRelSentiments(name);
+  d[target] = key;
+  localStorage.setItem('tiamat_sent_' + name, JSON.stringify(d));
+}
+
+function cycleRelSentiment(name, target) {
+  const d = _loadRelSentiments(name);
+  const cur = d[target] || 'neutral';
+  const idx = REL_SENTIMENTS.findIndex(s => s.key === cur);
+  const next = REL_SENTIMENTS[(idx + 1) % REL_SENTIMENTS.length];
+  _saveRelSentiment(name, target, next.key);
+  showToast(`${name} → ${target}: ${next.icon} ${next.label}`, next.color, 1800);
+  // Refresh relation badge in the open modal
+  const el = document.getElementById('relDisplay_' + safeId(name));
+  if (el) el.innerHTML = buildRelDisplay(name);
 }
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
