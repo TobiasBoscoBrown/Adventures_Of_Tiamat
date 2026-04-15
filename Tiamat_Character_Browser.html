@@ -14967,6 +14967,19 @@ function renderActiveTurnBar() {
     </select>
   </div>`;
 
+  // Quick Condition Apply row
+  const activeCondNames = typeof getCharConditions === 'function' ? getCharConditions(char.name) : [];
+  const condPills = activeCondNames.length ? activeCondNames.map(cn => {
+    const cDef = (typeof getAllConditions==='function'?getAllConditions():CONDITIONS).find(c=>c.name===cn);
+    const icon = cDef ? cDef.icon : '⚡';
+    return `<span onclick="quickRemoveCond(${JSON.stringify(char.name)},${JSON.stringify(cn)},event)" style="cursor:pointer;font-size:9px;background:rgba(221,136,34,.12);border:1px solid rgba(221,136,34,.3);color:#dd8822;border-radius:8px;padding:1px 5px" title="Click to remove: ${escHtml(cn)}">${icon} ${escHtml(cn)}</span>`;
+  }).join('') : '';
+  html += `<div style="display:flex;gap:3px;align-items:center;margin-top:3px;flex-wrap:wrap">
+    <span style="font-size:9px;color:#4a5272;letter-spacing:.5px;min-width:24px">COND</span>
+    <button onclick="showCondPalette(${JSON.stringify(char.name)},event)" style="background:rgba(170,102,221,.08);border:1px solid rgba(170,102,221,.3);color:#aa66dd;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:9px" title="Apply/remove conditions">⚡ +</button>
+    ${condPills}
+  </div>`;
+
   // Saving throws row
   const saveAbils = ['STR','DEX','CON','INT','WIS','CHA'];
   const saveBtns = saveAbils.map(ab2 => {
@@ -15092,6 +15105,60 @@ function rollInitAttack(charName, type, bonus, event) {
     logEntry('roll', `<strong>${escHtml(charName)}</strong> ${type} Attack${multiLabel}${advLabel}: ${attackResults.map(r=>r.str).join(' | ')}`);
   }
   playSound?.(anyCrit ? 'crit' : 'roll');
+}
+
+function quickRemoveCond(charName, condName, event) {
+  if (event) event.stopPropagation();
+  const all = loadAllConditions();
+  const conds = all[charName] || [];
+  const idx = conds.indexOf(condName);
+  if (idx >= 0) conds.splice(idx, 1);
+  if (conds.length) all[charName] = conds;
+  else delete all[charName];
+  saveAllConditions(all);
+  logEntry('roll', `<strong>${escHtml(charName)}</strong> condition removed: ${condName}`);
+  renderActiveTurnBar();
+  renderInitiative();
+  updateHeaderStats();
+}
+
+function quickApplyCond(charName, condName, event) {
+  if (event) event.stopPropagation();
+  const all = loadAllConditions();
+  const conds = all[charName] || [];
+  if (!conds.includes(condName)) {
+    conds.push(condName);
+    all[charName] = conds;
+    saveAllConditions(all);
+    logEntry('roll', `<strong>${escHtml(charName)}</strong> → <span style="color:#dd8822">⚡ ${condName}</span>`);
+  }
+  document.querySelectorAll('.cond-palette-popup').forEach(e => e.remove());
+  renderActiveTurnBar();
+  renderInitiative();
+  updateHeaderStats();
+}
+
+function showCondPalette(charName, event) {
+  if (event) event.stopPropagation();
+  document.querySelectorAll('.cond-palette-popup').forEach(e => e.remove());
+  const popup = document.createElement('div');
+  popup.className = 'cond-palette-popup';
+  popup.style.cssText = 'position:fixed;z-index:960;background:#0a0a1e;border:1px solid #3a2a50;border-radius:10px;padding:10px 12px;min-width:230px;max-width:280px;box-shadow:0 8px 30px rgba(0,0,0,.95)';
+  const rect = event.target.getBoundingClientRect();
+  popup.style.left = Math.min(rect.left, window.innerWidth - 290) + 'px';
+  popup.style.top = (rect.bottom + 4) + 'px';
+  const activeConds = typeof getCharConditions === 'function' ? getCharConditions(charName) : [];
+  const allConds = typeof getAllConditions === 'function' ? getAllConditions() : CONDITIONS;
+  const btns = allConds.map(c => {
+    const isActive = activeConds.includes(c.name);
+    const fn = isActive ? `quickRemoveCond` : `quickApplyCond`;
+    return `<button onclick="${fn}(${JSON.stringify(charName)},${JSON.stringify(c.name)},event)" style="background:${isActive?`${c.color}22`:'rgba(255,255,255,.03)'};border:1px solid ${isActive?c.color+'55':'rgba(255,255,255,.07)'};color:${isActive?c.color:'#6a7098'};border-radius:5px;padding:3px 7px;cursor:pointer;font-size:10px;text-align:left;width:calc(50% - 2px);margin:1px" title="${c.effects?c.effects[0]:''}">${c.icon} ${c.name}${isActive?' ✓':''}</button>`;
+  }).join('');
+  popup.innerHTML = `<div style="font-size:10px;color:#aa66dd;font-weight:700;margin-bottom:8px">⚡ ${escHtml(charName)} — Conditions</div>
+    <div style="display:flex;flex-wrap:wrap;gap:2px">${btns}</div>`;
+  document.body.appendChild(popup);
+  const close = ev => { if (!popup.contains(ev.target)) { popup.remove(); document.removeEventListener('mousedown', close); } };
+  setTimeout(() => document.addEventListener('mousedown', close), 80);
 }
 
 function buildCombatHints(char) {
