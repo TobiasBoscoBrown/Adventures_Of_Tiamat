@@ -3721,6 +3721,7 @@
   <button class="filter-btn" onclick="openPartyNotes()" style="border-color:#ffcc44;color:#ffcc44;" title="Party Notes — shared session notes pad">📝 Notes</button>
   <button class="filter-btn" onclick="openSessionPrep()" style="border-color:#44cc88;color:#44cc88;" title="Session Prep Checklist — track DM readiness tasks">📋 Prep</button>
   <button class="filter-btn" onclick="openLairNotes()" style="border-color:#aa6644;color:#aa6644;" title="Lair Map Notes — describe rooms, traps, and areas">🗺 Lair</button>
+  <button class="filter-btn" onclick="openTrapBuilder()" style="border-color:#ff6644;color:#ff6644;" title="Trap Builder — design traps with DCs, damage and effects">⚙ Traps</button>
   <button class="filter-btn" onclick="openCrReference()" style="border-color:#dd8833;color:#dd8833;" title="CR Reference — challenge rating stats, XP, proficiency bonus">⚔ CR Ref</button>
   <button class="filter-btn" onclick="openRulesPanel()" style="border-color:#4488ff;color:#4488ff;" title="Quick Reference Rules — searchable 5e rules lookup">📚 Rules</button>
   <button class="filter-btn" onclick="openShortcutsHelp()" style="border-color:#4488ff;color:#4488ff;" title="Keyboard shortcuts — press ? anytime">⌨ ?</button>
@@ -13070,6 +13071,159 @@ function loadLairNotes() {
   catch(e) { return []; }
 }
 function saveLairNotes(notes) { localStorage.setItem(LAIR_NOTES_KEY, JSON.stringify(notes)); }
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 105: Trap Builder — design & save dungeon traps
+//   with trigger type, detection DC, disable DC, damage,
+//   saving throw, and effects. Stored in tiamat_traps.
+// ══════════════════════════════════════════════════════════
+const TRAPS_KEY = 'tiamat_traps';
+const TRAP_TRIGGERS = ['Step on pressure plate','Open door','Open chest','Move tripwire','Touch object','Use item','Pass area','Custom'];
+const TRAP_TYPES = ['Mechanical','Magic','Natural','Poison','Fire','Cold','Lightning','Necrotic','Psychic'];
+const TRAP_SEVERITIES = [
+  {label:'Setback',dc:[10,11],save:[10,11],dice:'1d10',col:'#44cc88'},
+  {label:'Dangerous',dc:[12,14],save:[12,14],dice:'2d10',col:'#c9a227'},
+  {label:'Deadly',dc:[16,20],save:[16,20],dice:'4d10',col:'#cc3333'},
+];
+
+function getTraps() { try { return JSON.parse(localStorage.getItem(TRAPS_KEY) || '[]'); } catch { return []; } }
+function saveTraps(arr) { localStorage.setItem(TRAPS_KEY, JSON.stringify(arr)); }
+
+function openTrapBuilder() {
+  const existing = document.getElementById('trapBuilderOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'trapBuilderOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto;';
+  ov.innerHTML = `
+    <div style="background:#151c2e;border:1px solid #ff6644;border-radius:12px;width:680px;max-width:100%;padding:24px;color:#c8d0e8;font-family:'Inter',sans-serif;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-size:18px;font-weight:700;color:#ff6644;">⚙ Trap Builder</div>
+        <button onclick="document.getElementById('trapBuilderOverlay').remove()" style="background:#2a3358;border:none;color:#c8d0e8;border-radius:6px;padding:6px 14px;cursor:pointer;">✕ Close</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
+        ${TRAP_SEVERITIES.map(s => `<button onclick="applyTrapPreset('${s.label}')" title="DC ${s.dc[0]}-${s.dc[1]}, ${s.dice} damage" style="background:${s.col}22;border:1px solid ${s.col};color:${s.col};border-radius:6px;padding:6px;cursor:pointer;font-size:12px;font-weight:600;">${s.label}<br><span style="font-size:10px;font-weight:400;">DC ${s.dc[0]}-${s.dc[1]} · ${s.dice}</span></button>`).join('')}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <div>
+          <label style="font-size:11px;color:#9098b8;display:block;margin-bottom:3px;">Trap Name *</label>
+          <input id="trapName" placeholder="e.g. Poison Dart Trap" style="width:100%;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:7px;color:#c8d0e8;font-size:12px;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#9098b8;display:block;margin-bottom:3px;">Trigger</label>
+          <select id="trapTrigger" style="width:100%;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:7px;color:#c8d0e8;font-size:12px;">
+            ${TRAP_TRIGGERS.map(t => `<option>${t}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;color:#9098b8;display:block;margin-bottom:3px;">Type</label>
+          <select id="trapType" style="width:100%;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:7px;color:#c8d0e8;font-size:12px;">
+            ${TRAP_TYPES.map(t => `<option>${t}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;color:#9098b8;display:block;margin-bottom:3px;">Detection DC</label>
+          <input id="trapDetectDC" type="number" value="14" min="5" max="25" style="width:100%;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:7px;color:#c8d0e8;font-size:12px;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#9098b8;display:block;margin-bottom:3px;">Disable DC</label>
+          <input id="trapDisableDC" type="number" value="14" min="5" max="25" style="width:100%;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:7px;color:#c8d0e8;font-size:12px;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#9098b8;display:block;margin-bottom:3px;">Save DC</label>
+          <input id="trapSaveDC" type="number" value="13" min="5" max="25" style="width:100%;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:7px;color:#c8d0e8;font-size:12px;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#9098b8;display:block;margin-bottom:3px;">Save Type</label>
+          <select id="trapSaveType" style="width:100%;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:7px;color:#c8d0e8;font-size:12px;">
+            <option>DEX</option><option>CON</option><option>STR</option><option>WIS</option><option>INT</option><option>CHA</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;color:#9098b8;display:block;margin-bottom:3px;">Damage Dice</label>
+          <input id="trapDamage" placeholder="e.g. 2d10, 4d6" style="width:100%;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:7px;color:#c8d0e8;font-size:12px;box-sizing:border-box;">
+        </div>
+      </div>
+      <div style="margin-bottom:8px;">
+        <label style="font-size:11px;color:#9098b8;display:block;margin-bottom:3px;">Effects / Notes</label>
+        <textarea id="trapNotes" rows="2" placeholder="Additional effects, poison type, special mechanics…" style="width:100%;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:7px;color:#c8d0e8;font-size:12px;box-sizing:border-box;resize:vertical;"></textarea>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <button onclick="saveTrap()" style="background:#ff6644;border:none;color:#fff;border-radius:6px;padding:8px 18px;cursor:pointer;font-weight:700;">Save Trap</button>
+        <button onclick="triggerTrapOnParty()" style="background:#2a3358;border:1px solid #ff6644;color:#ff6644;border-radius:6px;padding:8px 18px;cursor:pointer;">⚡ Trigger on Party</button>
+      </div>
+      <div id="savedTrapsList" style="max-height:30vh;overflow-y:auto;"></div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  renderTrapsList();
+}
+
+function applyTrapPreset(label) {
+  const s = TRAP_SEVERITIES.find(x => x.label === label);
+  if (!s) return;
+  const midDC = Math.round((s.dc[0] + s.dc[1]) / 2);
+  document.getElementById('trapDetectDC').value = midDC;
+  document.getElementById('trapDisableDC').value = midDC;
+  document.getElementById('trapSaveDC').value = Math.round((s.save[0] + s.save[1]) / 2);
+  document.getElementById('trapDamage').value = s.dice;
+}
+
+function saveTrap() {
+  const name = document.getElementById('trapName')?.value.trim();
+  if (!name) { if (typeof showToast === 'function') showToast('Trap name required', '#cc3333'); return; }
+  const traps = getTraps();
+  traps.push({
+    id: 'trap_' + Date.now(),
+    name, trigger: document.getElementById('trapTrigger').value,
+    type: document.getElementById('trapType').value,
+    detectDC: +document.getElementById('trapDetectDC').value || 14,
+    disableDC: +document.getElementById('trapDisableDC').value || 14,
+    saveDC: +document.getElementById('trapSaveDC').value || 13,
+    saveType: document.getElementById('trapSaveType').value,
+    damage: document.getElementById('trapDamage').value.trim(),
+    notes: document.getElementById('trapNotes').value.trim(),
+    ts: Date.now(),
+  });
+  saveTraps(traps);
+  document.getElementById('trapName').value = '';
+  if (typeof showToast === 'function') showToast(`Trap "${name}" saved`, '#ff6644');
+  renderTrapsList();
+}
+
+function triggerTrapOnParty() {
+  const dmg = document.getElementById('trapDamage')?.value.trim();
+  const dc = +document.getElementById('trapSaveDC').value || 13;
+  const savType = document.getElementById('trapSaveType')?.value || 'DEX';
+  const name = document.getElementById('trapName')?.value.trim() || 'Trap';
+  if (!dmg) { if (typeof showToast === 'function') showToast('Enter damage dice first', '#cc3333'); return; }
+  const result = typeof rollDiceExpr === 'function' ? rollDiceExpr(dmg) : null;
+  const total = result ? result.total : '?';
+  if (typeof showToast === 'function') showToast(`${name} triggered! ${total} damage (DC ${dc} ${savType} for half)`, '#ff6644');
+  if (typeof logEntry === 'function') logEntry(`⚙ <b>${name}</b> triggered! ${total} damage · DC ${dc} ${savType} save for half`);
+}
+
+function renderTrapsList() {
+  const list = document.getElementById('savedTrapsList');
+  if (!list) return;
+  const traps = getTraps();
+  if (!traps.length) { list.innerHTML = '<div style="color:#4a5272;font-size:12px;font-style:italic;">No traps saved yet.</div>'; return; }
+  list.innerHTML = traps.slice().reverse().map(t => `<div style="background:#0e1422;border:1px solid #ff664433;border-radius:6px;padding:10px;margin-bottom:6px;display:flex;gap:8px;align-items:flex-start;">
+    <div style="flex:1;">
+      <div style="font-size:13px;font-weight:600;color:#ff6644;">${t.name} <span style="font-size:10px;color:#9098b8;font-weight:400;">${t.type}</span></div>
+      <div style="font-size:11px;color:#9098b8;">Trigger: ${t.trigger} · Detect DC ${t.detectDC} · Disable DC ${t.disableDC}</div>
+      <div style="font-size:11px;color:#c8d0e8;">${t.damage || 'No damage'} · DC ${t.saveDC} ${t.saveType} save</div>
+      ${t.notes ? `<div style="font-size:11px;color:#4a5272;font-style:italic;">${t.notes}</div>` : ''}
+    </div>
+    <button onclick="deleteTrap('${t.id}')" style="background:none;border:none;color:#cc3333;cursor:pointer;font-size:13px;">🗑</button>
+  </div>`).join('');
+}
+
+function deleteTrap(id) {
+  saveTraps(getTraps().filter(t => t.id !== id));
+  renderTrapsList();
+}
 
 function openLairNotes() {
   const existing = document.getElementById('lairNotesOverlay');
