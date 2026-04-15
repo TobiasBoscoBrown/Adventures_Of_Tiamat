@@ -6251,6 +6251,8 @@ function buildStoryPanel(c) {
 
       ${buildCharBattleLog(c)}
 
+      <div class="story-block" style="padding:0">${buildTacticsSection(c.name)}</div>
+
       ${notes && notes.text ? `
       <div class="story-block" style="border-color:rgba(155,109,255,0.3)">
         <div class="story-block-title" style="color:#9b6dff">✎ DM Notes</div>
@@ -9829,6 +9831,39 @@ function clearTagFilter(dropdown) {
   renderGrid();
 }
 // ────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// ITERATION 53: Monster Tactics Notes — DM-facing combat
+//   behavior editor. Threat priority, opening move, retreat
+//   trigger. Shows in modal Story tab under lore.
+// ══════════════════════════════════════════════════════════
+let tacticsState = {};
+try { tacticsState = JSON.parse(localStorage.getItem('tiamat_tactics')) || {}; } catch { tacticsState = {}; }
+function saveTactics() { localStorage.setItem('tiamat_tactics', JSON.stringify(tacticsState)); }
+function getTactics(name) {
+  return tacticsState[name] || { priority:'', opening:'', retreat:'', morale:'' };
+}
+function setTactics(name, field, value) {
+  if (!tacticsState[name]) tacticsState[name] = {};
+  tacticsState[name][field] = value;
+  saveTactics();
+}
+function buildTacticsSection(name) {
+  const t = getTactics(name);
+  const field = (label, key, placeholder, color) => `
+    <div style="margin-bottom:10px">
+      <div style="font-size:10px;color:${color};letter-spacing:1px;margin-bottom:4px">${label}</div>
+      <textarea onchange="setTactics(${JSON.stringify(name)},${JSON.stringify(key)},this.value)" placeholder="${placeholder}" style="width:100%;background:#06061a;border:1px solid #1e2040;color:#e0e0ff;border-radius:6px;padding:6px 8px;font-size:12px;resize:vertical;min-height:48px;box-sizing:border-box;line-height:1.5">${t[key] || ''}</textarea>
+    </div>`;
+  return `<div class="stats-section">
+    <div class="stats-section-title">⚔ DM Combat Tactics</div>
+    <div style="font-size:11px;color:#4a5272;margin-bottom:10px">Private DM notes — not shown to players. Think and plan ahead.</div>
+    ${field('🎯 THREAT PRIORITY', 'priority', 'Who does this character target first? (e.g. Spellcasters, lowest HP, flanked targets)', '#cc4444')}
+    ${field('⚡ OPENING MOVE', 'opening', 'What does this character do on round 1? (e.g. Charge the frontline, cast Hold Person, use Frightful Presence)', '#dd8822')}
+    ${field('💨 RETREAT TRIGGER', 'retreat', 'At what point does this character flee or surrender? (e.g. Below 25% HP, all allies down, hostage threatened)', '#4488ff')}
+    ${field('💀 MORALE / TACTICS', 'morale', 'Special behaviors, tactics, lair advantages, or roleplay hooks during combat', '#44cc88')}
+  </div>`;
+}
+
 // ══════════════════════════════════════════════════════════
 // ITERATION 52: Random Treasure Generator — CR-appropriate
 //   loot tables. GP/gems/art objects/magic items by CR tier.
