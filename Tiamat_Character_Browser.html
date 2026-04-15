@@ -3391,6 +3391,7 @@
     <button class="encounter-open-btn" onclick="toggleHealthPanel()" style="border-color:#cc3333;color:#cc3333" id="healthPanelBtn">❤ Party HP</button>
     <button class="encounter-open-btn" onclick="openQuestTracker()" style="border-color:#ffaa44;color:#ffaa44" id="questBtn">📜 Quests</button>
     <button class="encounter-open-btn" onclick="openTheaterMode()" style="border-color:#44aacc;color:#44aacc" title="Theater mode — fullscreen battle board for second screen">🎭 Theater</button>
+    <button class="encounter-open-btn" onclick="toggleXpPanel()" style="border-color:#c9a227;color:#c9a227" id="xpTrackerBtn" title="Party XP & Level Tracker">⭐ XP</button>
     <button class="encounter-open-btn" onclick="toggleRestPanel()" style="border-color:#23b478;color:#23b478" id="restBtn" title="Short Rest / Long Rest">🌙 Rest</button>
     <button class="encounter-open-btn" onclick="toggleLootPanel()" style="border-color:#c9a227;color:#c9a227" id="lootBtn" title="Party Loot & Treasury">💰 Loot</button>
     <button class="encounter-open-btn" onclick="toggleDmNotes()" style="border-color:#9b6dff;color:#9b6dff" id="dmNotesBtn" title="DM Session Notes">📝 DM Notes</button>
@@ -4273,6 +4274,26 @@
     <!-- Transaction Log -->
     <div class="loot-section-title" style="margin-top:8px">Transaction Log</div>
     <div class="loot-log" id="lootLog"></div>
+  </div>
+</div>
+
+<!-- XP & Level Tracker Panel -->
+<div id="xpTrackerPanel" style="position:fixed;top:60px;right:20px;width:300px;max-height:70vh;background:linear-gradient(160deg,#0d0b00,#1a1400);border:1px solid rgba(201,162,39,0.4);border-radius:14px;z-index:348;display:none;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.9),0 0 20px rgba(201,162,39,0.08);overflow:hidden">
+  <div style="padding:10px 14px;border-bottom:1px solid rgba(201,162,39,0.25);display:flex;justify-content:space-between;align-items:center;background:rgba(201,162,39,0.04);flex-shrink:0">
+    <span style="font-family:'Cinzel',serif;color:#c9a227;font-size:13px;font-weight:700;letter-spacing:1px">⭐ PARTY XP & LEVEL</span>
+    <button onclick="toggleXpPanel()" style="background:none;border:1px solid #3a2a00;color:#6a5020;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px">✕</button>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:14px">
+    <div id="xpLevelDisplay"></div>
+    <div style="display:flex;gap:6px;margin-top:10px">
+      <input type="number" id="xpAwardInput" placeholder="XP to award" min="0" style="flex:1;background:#0d0b00;border:1px solid #3a2a00;color:#c9a227;border-radius:6px;padding:6px 8px;font-size:13px;outline:none" onfocus="this.style.borderColor='#c9a227'" onblur="this.style.borderColor='#3a2a00'" onkeydown="if(event.key==='Enter')awardXp()">
+      <button onclick="awardXp()" style="background:rgba(201,162,39,0.15);border:1px solid #c9a227;color:#c9a227;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px">Award</button>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:6px">
+      <button onclick="awardMilestone()" style="flex:1;background:rgba(201,162,39,0.05);border:1px solid #3a2a00;color:#6a5020;border-radius:6px;padding:5px;cursor:pointer;font-size:11px" title="Award XP for current encounter from initiative tracker">📜 Award Encounter XP</button>
+      <button onclick="resetPartyXp()" style="background:rgba(204,51,51,0.1);border:1px solid #442222;color:#884444;border-radius:6px;padding:5px 8px;cursor:pointer;font-size:11px" title="Reset XP to 0">✕ Reset</button>
+    </div>
+    <div style="margin-top:10px;font-size:11px;color:#4a3a10" id="xpLog"></div>
   </div>
 </div>
 
@@ -10740,6 +10761,105 @@ function saveLoot() {
   const l = loadLoot();
   l.notes = document.getElementById('lootNotes')?.value || l.notes;
   localStorage.setItem(LOOT_KEY, JSON.stringify(l));
+}
+
+// ===================== XP & LEVEL TRACKER =====================
+const PARTY_XP_KEY = 'tiamat_party_xp';
+const LEVEL_XP_THRESHOLDS = [0,300,900,2700,6500,14000,23000,34000,48000,64000,85000,100000,120000,140000,165000,195000,225000,265000,305000,355000];
+const PROF_BONUS = [0,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,6,6,6,6]; // index = level
+let xpPanelOpen = false;
+
+function getPartyXp() { return parseInt(localStorage.getItem(PARTY_XP_KEY)) || 0; }
+function savePartyXp(xp) { localStorage.setItem(PARTY_XP_KEY, Math.max(0, xp)); }
+
+function getPartyLevelFromXp(xp) {
+  let level = 1;
+  for (let i = 1; i < LEVEL_XP_THRESHOLDS.length; i++) { if (xp >= LEVEL_XP_THRESHOLDS[i]) level = i + 1; else break; }
+  return Math.min(level, 20);
+}
+
+function toggleXpPanel() {
+  xpPanelOpen = !xpPanelOpen;
+  const panel = document.getElementById('xpTrackerPanel');
+  const btn = document.getElementById('xpTrackerBtn');
+  if (!panel) return;
+  panel.style.display = xpPanelOpen ? 'flex' : 'none';
+  btn.style.background = xpPanelOpen ? 'rgba(201,162,39,0.15)' : '';
+  if (xpPanelOpen) renderXpPanel();
+}
+
+function renderXpPanel() {
+  const el = document.getElementById('xpLevelDisplay');
+  if (!el) return;
+  const xp = getPartyXp();
+  const level = getPartyLevelFromXp(xp);
+  const nextLvl = level < 20 ? LEVEL_XP_THRESHOLDS[level] : null;
+  const prevLvl = LEVEL_XP_THRESHOLDS[level - 1] || 0;
+  const pct = nextLvl ? Math.round((xp - prevLvl) / (nextLvl - prevLvl) * 100) : 100;
+  const prof = PROF_BONUS[level] || 2;
+  const xpToNext = nextLvl ? (nextLvl - xp).toLocaleString() : '—';
+  el.innerHTML = `
+    <div style="text-align:center;margin-bottom:10px">
+      <div style="font-size:28px;font-weight:bold;color:#c9a227;font-family:'Cinzel',serif">Level ${level}</div>
+      <div style="font-size:11px;color:#6a5020;margin-top:2px">Proficiency Bonus: <strong style="color:#c9a227">+${prof}</strong></div>
+    </div>
+    <div style="background:#0d0b00;border-radius:6px;height:8px;overflow:hidden;margin-bottom:6px;border:1px solid #3a2a00">
+      <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#a07010,#c9a227);border-radius:6px;transition:width .4s"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:#4a3a10;margin-bottom:8px">
+      <span>${xp.toLocaleString()} XP</span>
+      <span>${nextLvl ? xpToNext + ' XP to level ' + (level+1) : 'MAX LEVEL'}</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+      ${LEVEL_XP_THRESHOLDS.map((thresh, i) => {
+        const lvl = i + 1; if (lvl > 20) return '';
+        const reached = xp >= thresh;
+        const active = lvl === level;
+        return `<div style="padding:3px 6px;border-radius:4px;font-size:10px;background:${active?'rgba(201,162,39,0.2)':reached?'rgba(201,162,39,0.06)':'transparent'};border:1px solid ${active?'#c9a227':reached?'#3a2a00':'#1a1400'};color:${active?'#c9a227':reached?'#6a5020':'#2a2000'}">
+          Lv${lvl} <span style="float:right">${thresh.toLocaleString()}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function awardXp() {
+  const input = document.getElementById('xpAwardInput');
+  const amount = parseInt(input?.value) || 0;
+  if (amount <= 0) return;
+  const prev = getPartyXp();
+  const newXp = prev + amount;
+  savePartyXp(newXp);
+  const prevLevel = getPartyLevelFromXp(prev);
+  const newLevel = getPartyLevelFromXp(newXp);
+  const levelUp = newLevel > prevLevel;
+  logEntry('roll', `⭐ <strong>+${amount.toLocaleString()} XP</strong> awarded — Party now at ${newXp.toLocaleString()} XP${levelUp ? ` 🎉 <strong>LEVEL UP! Now Level ${newLevel}</strong>` : ''}`);
+  if (levelUp) playSound?.('crit');
+  if (input) input.value = '';
+  renderXpPanel();
+  const xpLog = document.getElementById('xpLog');
+  if (xpLog) { const li = document.createElement('div'); li.textContent = `+${amount.toLocaleString()} XP`; li.style.padding = '2px 0'; xpLog.prepend(li); }
+}
+
+function awardMilestone() {
+  // Sum XP from current encounter monsters
+  const totalXp = initiativeList.reduce((sum, e) => {
+    const char = UNIQUE_CHARS.find(c => c.name === e.name);
+    if (!char) return sum;
+    const isMonster = !char.alignment || /evil/i.test(char.alignment);
+    return isMonster ? sum + (XP_BY_CR[char.cr] || 0) : sum;
+  }, 0);
+  if (!totalXp) { logEntry('note', '⭐ No monsters in initiative — no XP to award'); return; }
+  const input = document.getElementById('xpAwardInput');
+  if (input) input.value = totalXp;
+  logEntry('note', `⭐ Loaded ${totalXp.toLocaleString()} XP from encounter — click Award to confirm`);
+  renderXpPanel();
+}
+
+function resetPartyXp() {
+  if (!confirm('Reset party XP to 0?')) return;
+  savePartyXp(0);
+  logEntry('note', '⭐ Party XP reset to 0');
+  renderXpPanel();
 }
 
 // ===================== SHORT / LONG REST =====================
