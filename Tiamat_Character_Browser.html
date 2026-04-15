@@ -3353,6 +3353,7 @@
   <button class="filter-btn" onclick="openNpcBuilder()" style="border-color:#44aa44;color:#9098b8;" title="Create a custom NPC">+ NPC</button>
   <button class="filter-btn" onclick="openTagFilter(this)" id="tagFilterBtn" style="border-color:#ffaa44;color:#9098b8;" title="Filter by custom tag">🏷 Tags</button>
   <button class="filter-btn" onclick="openAoeDmg()" style="border-color:#cc3333;color:#cc3333;" title="AoE damage/heal — apply to multiple characters at once">💥 AoE</button>
+  <button class="filter-btn" onclick="showPassiveSkills()" style="border-color:#2299bb;color:#2299bb;" title="Party passive Perception, Investigation & Insight">👁 Passives</button>
   <span style="color: #333; margin: 0 4px;">|</span>
   <span style="font-size:11px;color:#4a5272;margin-right:4px">View:</span>
   <button class="filter-btn view-btn active" id="viewGrid" onclick="setView('grid',this)" title="Grid view">⊞ Grid</button>
@@ -6522,7 +6523,7 @@ document.getElementById('searchBox').addEventListener('input', (e) => {
 
 document.addEventListener('keydown', (e) => {
   const isTyping = document.activeElement && ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName);
-  if (e.key === 'Escape') { closeModal(); closeHpPopup(); closeAoeDmg?.(); closeQuestTracker?.(); document.querySelectorAll('.rel-map-overlay,.session-stats-overlay,.exhaust-menu').forEach(e=>e.remove()); }
+  if (e.key === 'Escape') { closeModal(); closeHpPopup(); closeAoeDmg?.(); closeQuestTracker?.(); document.querySelectorAll('.rel-map-overlay,.session-stats-overlay,.exhaust-menu,.passive-skills-overlay').forEach(e=>e.remove()); }
   if (e.key === 'ArrowLeft' && currentModalIdx >= 0) navChar(-1);
   if (e.key === 'ArrowRight' && currentModalIdx >= 0) navChar(1);
   if (e.key === '/' && currentModalIdx < 0 && !isTyping) {
@@ -9396,6 +9397,99 @@ function renderTheaterGrid() {
       ${conc ? `<div style="font-size:8px;color:#c9a227;margin-top:2px">🔮 ${conc.slice(0,16)}</div>` : ''}
     </div>`;
   }).join('');
+}
+// ────────────────────────────────────────────────────────
+
+// ── PASSIVE SKILLS PANEL ─────────────────────────────────
+function getPassiveSkills(char) {
+  const ab = {};
+  (char.abilities || []).forEach(([n,s,m,p]) => {
+    ab[n] = { score: parseInt(s)||10, mod: parseInt(m)||0, prof: !!p };
+  });
+  const wisMod = ab['WIS']?.mod || 0;
+  const intMod = ab['INT']?.mod || 0;
+  const wisProf = ab['WIS']?.prof;
+
+  // Proficiency bonus from CR
+  const cr = parseFloat(char.cr || 0);
+  const prof = cr >= 17 ? 6 : cr >= 13 ? 5 : cr >= 9 ? 4 : cr >= 5 ? 3 : 2;
+
+  // Check if char has Perception/Investigation/Insight proficiency from abilities array highlight
+  const getSkillProf = (skillName, ability) => {
+    const ab = (char.abilities || []).find(([n]) => n === ability);
+    return ab ? (ab[3] === 1) : false;
+  };
+  const percProf = getSkillProf('Perception', 'WIS');
+  const invProf = getSkillProf('Investigation', 'INT');
+  const insightProf = getSkillProf('Insight', 'WIS');
+
+  return {
+    perception: 10 + wisMod + (percProf ? prof : 0),
+    investigation: 10 + intMod + (invProf ? prof : 0),
+    insight: 10 + wisMod + (insightProf ? prof : 0),
+  };
+}
+
+function showPassiveSkills() {
+  document.querySelectorAll('.passive-skills-overlay').forEach(e => e.remove());
+
+  // Use chars in initiative if any, otherwise all UNIQUE_CHARS
+  const chars = initiativeList.length > 0
+    ? initiativeList.map(e => UNIQUE_CHARS.find(c => c.name === e.name)).filter(Boolean)
+    : UNIQUE_CHARS.filter((_, i) => i < 30); // cap at 30 for readability
+
+  const rows = chars.map(c => {
+    const ps = getPassiveSkills(c);
+    const t = getTheme(c.theme);
+    const maxHp = parseInt(c.hp)||1;
+    const currHp = getCharHP(c.name, maxHp);
+    const isDown = currHp === 0;
+    const percColor = ps.perception >= 17 ? '#44aa44' : ps.perception >= 13 ? '#9098b8' : '#cc3333';
+    const invColor  = ps.investigation >= 17 ? '#44aa44' : ps.investigation >= 13 ? '#9098b8' : '#cc3333';
+    const insColor  = ps.insight >= 17 ? '#44aa44' : ps.insight >= 13 ? '#9098b8' : '#cc3333';
+    return `<tr style="${isDown?'opacity:0.4;':''}">
+      <td style="padding:6px 8px;color:${t.accent};font-weight:600;border-bottom:1px solid rgba(30,32,64,0.5);white-space:nowrap">${c.name.split(' ')[0]}${isDown?' ⚠':''}</td>
+      <td style="padding:6px 8px;text-align:center;font-weight:700;color:${percColor};border-bottom:1px solid rgba(30,32,64,0.5)">${ps.perception}</td>
+      <td style="padding:6px 8px;text-align:center;font-weight:700;color:${invColor};border-bottom:1px solid rgba(30,32,64,0.5)">${ps.investigation}</td>
+      <td style="padding:6px 8px;text-align:center;font-weight:700;color:${insColor};border-bottom:1px solid rgba(30,32,64,0.5)">${ps.insight}</td>
+    </tr>`;
+  }).join('');
+
+  // Best passive perception for "does anyone notice?"
+  const bestPerc = Math.max(...chars.map(c => getPassiveSkills(c).perception));
+  const bestInv  = Math.max(...chars.map(c => getPassiveSkills(c).investigation));
+
+  const overlay = document.createElement('div');
+  overlay.className = 'passive-skills-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9998;display:flex;align-items:center;justify-content:center';
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `<div style="background:linear-gradient(160deg,#07101a,#0c1620);border:1px solid rgba(34,153,187,0.35);border-radius:14px;padding:20px;max-width:520px;width:94%;max-height:80vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div style="font-family:'Cinzel',serif;color:#2299bb;font-size:14px;font-weight:700;letter-spacing:1px">👁 PASSIVE SKILLS</div>
+      <button onclick="this.closest('.passive-skills-overlay').remove()" style="background:none;border:1px solid #2a2a50;color:#4a5272;border-radius:6px;padding:4px 10px;cursor:pointer">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+      <div style="background:rgba(34,153,187,0.08);border:1px solid rgba(34,153,187,0.25);border-radius:8px;padding:8px;text-align:center">
+        <div style="font-size:20px;font-weight:700;color:#2299bb;font-family:'Cinzel',serif">${bestPerc}</div>
+        <div style="font-size:9px;color:#4a5272;text-transform:uppercase;letter-spacing:1px">Best Passive Perception</div>
+      </div>
+      <div style="background:rgba(68,136,255,0.08);border:1px solid rgba(68,136,255,0.25);border-radius:8px;padding:8px;text-align:center">
+        <div style="font-size:20px;font-weight:700;color:#4488ff;font-family:'Cinzel',serif">${bestInv}</div>
+        <div style="font-size:9px;color:#4a5272;text-transform:uppercase;letter-spacing:1px">Best Passive Investigation</div>
+      </div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <tr>
+        <th style="text-align:left;padding:6px 8px;color:#4a5272;font-size:9px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #1e2040">Character</th>
+        <th style="text-align:center;padding:6px 8px;color:#2299bb;font-size:9px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #1e2040">👁 Perc</th>
+        <th style="text-align:center;padding:6px 8px;color:#4488ff;font-size:9px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #1e2040">🔍 Invest</th>
+        <th style="text-align:center;padding:6px 8px;color:#9b6dff;font-size:9px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #1e2040">🧠 Insight</th>
+      </tr>
+      ${rows}
+    </table>
+    <div style="text-align:center;font-size:10px;color:#2a2a50;margin-top:10px">Passive = 10 + ability mod (+ prof if proficient) · ESC to close</div>
+  </div>`;
+  document.body.appendChild(overlay);
 }
 // ────────────────────────────────────────────────────────
 
