@@ -145,7 +145,19 @@ Core character browser, search/filter, dark theme, tooltips, view modes.
 - Iter 197: Faction Reputation Tracker — 7-tier standing (Hostile→Exalted) for 6 factions
 - Iter 198: Party Prepared Spells Overview — tab per caster, toggle prep/unprep, prepare-all
 - Iter 199: Visual Initiative Board — sorted combat order, HP bars, draggable floating HUD
-- Iter 200: Campaign Milestone Tracker — record story beats by category with history log ← CURRENT
+- Iter 200: Campaign Milestone Tracker — record story beats by category with history log
+
+### Iterations 201–210
+- Iter 201: Monster Quick-Builder — generate DMG stat blocks from CR (AC/HP/atk/DC auto-filled), save custom monsters, add to encounter
+- Iter 202: Spell Card Popup — click 📖 on any spell to see full description (cast time, range, components, duration, classes)
+- Iter 203: DM Scratch Pad — floating persistent sticky notepad, draggable, tab-support, persists across sessions
+- Iter 204: Combat Export to Text — copy full combat state (initiative, HP, conditions) to clipboard for Discord/notes
+- Iter 205: Bloodied/Critical HP Alerts — cards pulse with animated border glow at ≤50% (bloodied) and ≤25% (critical)
+- Iter 206: Party Save Roller — roll any save for ALL party members at once with adv/dis toggle (great for AOE spells)
+- Iter 207: Random Tables Roller — d8–d20 tables for weather, NPC traits, motivation, shop names, tavern events, plot twists
+- Iter 208: Treasure & Loot Generator — DMG individual and hoard treasure by CR tier (gold, gems, art objects, magic items)
+- Iter 209: Search History — remember last 12 searches, show on focus for quick recall
+- Iter 210: Post-Combat Cleanup — one-click clear temp HP, conditions, and concentration for all party members after a fight ← CURRENT
 
 ## Features Currently Implemented (What We Have)
 - Character browser: search, filter by category/theme, view modes (grid/compact/list)
