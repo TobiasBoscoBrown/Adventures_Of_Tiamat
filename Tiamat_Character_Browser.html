@@ -3599,6 +3599,7 @@
   <button class="filter-btn" onclick="openFactionMap()" style="border-color:#9b6dff;color:#9b6dff;" title="Faction Allegiance Map — overview of all groups">⚑ Factions</button>
   <button class="filter-btn" onclick="openEncounterBuilder()" style="border-color:#cc3333;color:#cc3333;" title="Encounter Builder — build &amp; balance encounters by CR/XP">🐉 Build Enc</button>
   <button class="filter-btn" onclick="openGraveyardPanel()" style="border-color:#555;color:#888;" title="Character graveyard — fallen heroes and villains">💀 Graveyard</button>
+  <button class="filter-btn" onclick="openWorldState()" style="border-color:#5588ff;color:#5588ff;" title="World State — campaign milestones, plot events, world facts">🌍 World</button>
   <button class="filter-btn" onclick="openSessionPrep()" style="border-color:#44cc88;color:#44cc88;" title="Session Prep Checklist — track DM readiness tasks">📋 Prep</button>
   <button class="filter-btn" onclick="openLairNotes()" style="border-color:#aa6644;color:#aa6644;" title="Lair Map Notes — describe rooms, traps, and areas">🗺 Lair</button>
   <button class="filter-btn" onclick="openCrReference()" style="border-color:#dd8833;color:#dd8833;" title="CR Reference — challenge rating stats, XP, proficiency bonus">⚔ CR Ref</button>
@@ -10139,6 +10140,129 @@ function loadPrepTasks() {
   return DEFAULT_PREP_TASKS.map((text, i) => ({ id: i, text, done: false }));
 }
 function savePrepTasks(tasks) { localStorage.setItem(SESSION_PREP_KEY, JSON.stringify(tasks)); }
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 89: Persistent World State — campaign milestones,
+//   plot events, world facts. Categorized, timestamped entries
+//   stored in tiamat_world_state. Toolbar: 🌍 World
+// ══════════════════════════════════════════════════════════
+const WORLD_STATE_KEY = 'tiamat_world_state';
+const WORLD_CATS = ['📖 Plot', '🏰 Factions', '🗺 Locations', '⚔ Conflicts', '🧙 NPCs', '📜 Lore', '🏆 Victories', '💀 Deaths', '💰 Economy', '🔮 Prophecies'];
+const WORLD_COLORS = {
+  '📖 Plot': '#5588ff', '🏰 Factions': '#cc8833', '🗺 Locations': '#44cc88', '⚔ Conflicts': '#cc3333',
+  '🧙 NPCs': '#cc44cc', '📜 Lore': '#9098b8', '🏆 Victories': '#c9a227', '💀 Deaths': '#666',
+  '💰 Economy': '#44cccc', '🔮 Prophecies': '#cc44cc'
+};
+
+function getWorldState() {
+  try { return JSON.parse(localStorage.getItem(WORLD_STATE_KEY) || '[]'); } catch { return []; }
+}
+function saveWorldState(arr) { localStorage.setItem(WORLD_STATE_KEY, JSON.stringify(arr)); }
+
+function openWorldState() {
+  const existing = document.getElementById('worldStateOverlay');
+  if (existing) { existing.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'worldStateOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto;';
+  ov.innerHTML = `
+    <div style="background:#151c2e;border:1px solid #5588ff;border-radius:12px;width:680px;max-width:100%;padding:24px;color:#c8d0e8;font-family:'Inter',sans-serif;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-size:18px;font-weight:700;color:#5588ff;">🌍 World State</div>
+        <button onclick="document.getElementById('worldStateOverlay').remove()" style="background:#2a3358;border:none;color:#c8d0e8;border-radius:6px;padding:6px 14px;cursor:pointer;">✕ Close</button>
+      </div>
+      <div style="margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button onclick="worldFilterCat('')" id="wsCatAll" style="background:#5588ff22;border:1px solid #5588ff;color:#5588ff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;">All</button>
+        ${WORLD_CATS.map(cat => `<button onclick="worldFilterCat('${cat}')" id="wsCat_${cat.replace(/[^a-zA-Z]/g,'')}" style="background:transparent;border:1px solid #2a3358;color:#9098b8;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;">${cat}</button>`).join('')}
+      </div>
+      <div id="worldEntryList" style="max-height:50vh;overflow-y:auto;margin-bottom:14px;"></div>
+      <div style="border-top:1px solid #2a3358;padding-top:14px;">
+        <div style="font-size:12px;color:#9098b8;font-weight:600;margin-bottom:8px;">+ Add World Event</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+          <select id="wsNewCat" style="background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:7px;color:#c8d0e8;font-size:12px;">
+            ${WORLD_CATS.map(c => `<option>${c}</option>`).join('')}
+          </select>
+          <input id="wsNewTitle" placeholder="Event title…" style="background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:7px;color:#c8d0e8;font-size:12px;">
+        </div>
+        <textarea id="wsNewBody" rows="3" placeholder="Describe what happened, its significance, or world impact…" style="width:100%;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:8px;color:#c8d0e8;font-size:12px;box-sizing:border-box;resize:vertical;margin-bottom:8px;"></textarea>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input id="wsNewSession" placeholder="Session # (opt)" style="width:100px;background:#0e1422;border:1px solid #2a3358;border-radius:6px;padding:7px;color:#c8d0e8;font-size:12px;">
+          <button onclick="addWorldEvent()" style="background:#5588ff;border:none;color:#fff;border-radius:6px;padding:8px 18px;cursor:pointer;font-weight:600;font-size:13px;">Add Event</button>
+          <span style="margin-left:auto;font-size:11px;color:#4a5272;" id="wsCount"></span>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  renderWorldEntries('');
+}
+
+let _wsCatFilter = '';
+function worldFilterCat(cat) {
+  _wsCatFilter = cat;
+  renderWorldEntries(cat);
+  // Update button styles
+  document.querySelectorAll('[id^="wsCat_"], #wsCatAll').forEach(b => {
+    b.style.background = 'transparent';
+    b.style.borderColor = '#2a3358';
+    b.style.color = '#9098b8';
+  });
+  const key = cat ? 'wsCat_' + cat.replace(/[^a-zA-Z]/g,'') : 'wsCatAll';
+  const active = document.getElementById(key);
+  if (active) { active.style.background = '#5588ff22'; active.style.borderColor = '#5588ff'; active.style.color = '#5588ff'; }
+}
+
+function renderWorldEntries(cat) {
+  const list = document.getElementById('worldEntryList');
+  if (!list) return;
+  const all = getWorldState();
+  const filtered = cat ? all.filter(e => e.cat === cat) : all;
+  const countEl = document.getElementById('wsCount');
+  if (countEl) countEl.textContent = `${all.length} total events`;
+  if (filtered.length === 0) {
+    list.innerHTML = '<div style="color:#4a5272;font-size:12px;font-style:italic;padding:12px 0;">No world events yet. Record your first campaign milestone!</div>';
+    return;
+  }
+  list.innerHTML = filtered.slice().reverse().map(ev => {
+    const col = WORLD_COLORS[ev.cat] || '#5588ff';
+    const date = new Date(ev.ts).toLocaleDateString();
+    return `<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid #1e2744;align-items:flex-start;">
+      <div style="flex:1;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:10px;background:${col}22;color:${col};border-radius:4px;padding:2px 7px;">${ev.cat}</span>
+          <span style="font-size:13px;font-weight:600;color:#c8d0e8;">${ev.title}</span>
+          ${ev.session ? `<span style="font-size:10px;color:#4a5272;">Session ${ev.session}</span>` : ''}
+          <span style="font-size:10px;color:#4a5272;margin-left:auto;">${date}</span>
+        </div>
+        ${ev.body ? `<div style="font-size:12px;color:#9098b8;margin-top:4px;">${ev.body}</div>` : ''}
+      </div>
+      <button onclick="deleteWorldEvent('${ev.id}')" style="background:none;border:none;color:#cc3333;cursor:pointer;font-size:13px;padding:0;flex-shrink:0;">🗑</button>
+    </div>`;
+  }).join('');
+}
+
+function addWorldEvent() {
+  const cat = document.getElementById('wsNewCat')?.value;
+  const title = document.getElementById('wsNewTitle')?.value.trim();
+  const body = document.getElementById('wsNewBody')?.value.trim();
+  const session = document.getElementById('wsNewSession')?.value.trim();
+  if (!title) { if (typeof showToast === 'function') showToast('Event title required', '#cc3333'); return; }
+  const arr = getWorldState();
+  arr.push({ id: 'ws_' + Date.now(), cat, title, body, session, ts: Date.now() });
+  saveWorldState(arr);
+  document.getElementById('wsNewTitle').value = '';
+  document.getElementById('wsNewBody').value = '';
+  document.getElementById('wsNewSession').value = '';
+  renderWorldEntries(_wsCatFilter);
+  if (typeof showToast === 'function') showToast(`World event recorded: ${title}`, '#5588ff');
+}
+
+function deleteWorldEvent(id) {
+  const arr = getWorldState().filter(e => e.id !== id);
+  saveWorldState(arr);
+  renderWorldEntries(_wsCatFilter);
+}
 
 function openSessionPrep() {
   const existing = document.getElementById('sessionPrepOverlay');
