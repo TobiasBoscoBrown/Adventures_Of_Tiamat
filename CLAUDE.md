@@ -1,0 +1,150 @@
+# Tiamat Character Browser — Claude Development Log
+
+## Project Overview
+A single-file D&D campaign management web app for the "Tiamat" world.
+**File:** `Tiamat_Character_Browser.html` (22,000+ lines, self-contained)
+**Goal:** Make this the ultimate DM tool — better than DND Beyond, with full user control.
+
+## Architecture
+- Single HTML file: embedded CSS + JS + character data
+- No build step required — open in any browser
+- localStorage for persistence (HP, conditions, notes, pins, etc.)
+- Character data in `const CHARS = [...]` array starting at line ~5011
+- PDF.js for character sheet rendering
+- Tiamat Map.jpg in root for world map
+
+## Character Data Structure
+```js
+{
+  name: "Character Name",
+  title: "Role · Race · Class",
+  subtitle: "Born XXXX A.T. · Alignment",
+  theme: "royal|warrior|arcane|nature|shadow|fire|ocean|stone|orc|pink",
+  group: "royals|power|colorful|kubi|gondor|misc",
+  cr: "20", hp: "262", ac: "19",
+  quote: "Iconic quote",
+  abilities: [["STR",18,"+4",1],["DEX",18,"+4",1],...], // [name, score, modStr, saveProficient]
+  traits: ["Trait 1", "Trait 2"],
+  lore: "Character backstory and DM notes",
+  // Optional: spells, speed, senses, resistances, languages
+}
+```
+
+## Iteration Log (what's been built)
+
+### Iterations 1–90 (Pre-log)
+Core character browser, search/filter, dark theme, tooltips, view modes.
+
+### Iterations 91–100
+- Iter 91: Rich dice roll system with crit/fumble detection
+- Iter 92: Quick HP ±5 buttons  
+- Iter 93: Editable characteristics (DnD Beyond style)
+- Iter 94: Enhanced speed/senses from theme + custom override
+- Iter 95: Weapons list render
+- Iter 96: Physical description panel
+
+### Iterations 101–110
+- Iter 101: Target AC check on attack rolls
+- Iter 102: Spell name detection (SPELL_LIBRARY lookup)
+- Iter 103: Condition badges clickable with effect descriptions
+
+### Iterations 111–120
+- Relationship map (SVG visualization of NPC connections)
+- Spell prepared tracker (toggle prepared/unprepared)
+
+### Iterations 121–130
+- Iter 121: Encounter Difficulty Calculator — XP thresholds by party level
+- Iter 122: Concentration Save Helper — CON save when taking damage
+- Iter 123: Action Economy Tracker — track action/bonus/reaction used
+- Iter 124: NPC Dialog Generator — quick dialog from personality
+- Iter 125: Quick Damage Calculator — roll attack + damage vs AC in one click
+- Iter 126: Encounter difficulty button in toolbar
+- Iter 127: Print Party Sheet — all party members on one printable page
+- Iter 128: Dialog generator + action economy integrated into modal
+- Iter 129: Damage Type Vulnerability/Resistance quick reference
+- Iter 130: Keyboard shortcuts (Q=quick attack, E=encounter diff, ?=help, i/h/n/t/r)
+
+### Iter 131: Interactive World Map ← CURRENT
+- "🗺 World Map" toolbar button
+- Full-screen overlay showing Tiamat Map.jpg
+- DM can pin characters to map locations (click to place in edit mode)
+- Pins stored in localStorage (`tiamat_map_pins`)
+- Color-coded pins matching character themes
+- Click pin to open character modal
+- Right-click pin to remove it
+- Search bar to filter visible pins
+
+## Features Currently Implemented (What We Have)
+- Character browser: search, filter by category/theme, view modes (grid/compact/list)
+- Per-character: ability scores, saving throws, skills, HP tracking, conditions, death saves
+- Combat: initiative tracker, encounter builder, XP calculator
+- Spellcasting: spell slots, concentration tracker, spell prepared toggle
+- Equipment: weapons, inventory, ammo, attunement (3 max)
+- DM tools: notes, session log, campaign calendar, lore browser
+- Character comparison (side-by-side)
+- PDF character sheet rendering (Character Sheets/*.pdf)
+- Custom NPC builder
+- Favorites system
+- Party health panel
+- Relationship map (SVG, opens from character modal)
+- Multiclass support
+- Exhaustion tracker (6 levels)
+- Alignment compass
+- Currency tracker
+- Hit dice
+- Passive skills (Perception/Investigation/Insight table)
+- 42 PDF character sheets
+- 47+ built-in NPCs across 6 factions
+
+## DND Beyond Features Checklist (Progress Toward Clone)
+- [x] Character stat blocks
+- [x] HP tracking with health bar
+- [x] Ability scores with modifiers
+- [x] Saving throws with proficiency
+- [x] Skills with proficiency indicators
+- [x] Spell slots tracker
+- [x] Condition tracking
+- [x] Initiative tracker
+- [x] Encounter builder
+- [x] Dice rolling (multiple types + formulas)
+- [x] Character notes
+- [x] Equipment/inventory management
+- [x] Death saves tracker
+- [x] Exhaustion levels
+- [x] Concentration tracker
+- [x] Action economy tracker
+- [x] Attunement tracking (3 max)
+- [ ] **World map with character locations** ← Iter 131
+- [ ] Character progression (level up, XP tracking)
+- [ ] Spell compendium with full descriptions
+- [ ] Backgrounds (Traits/Ideals/Bonds/Flaws format)
+- [ ] Monster stat block generator
+- [ ] Weather/environment tracker
+- [ ] NPC relationship strength (like/dislike/trust meter)
+
+## Things Better Than DND Beyond
+- NPC-first design (47+ rich NPCs with lore)
+- Relationship map visualization
+- Campaign lore browser (integrated markdown)
+- Session combat log with export
+- Custom NPC builder with personality
+- Dialog generator from character personality
+- Quick damage calculator
+- Full campaign world context
+- No subscription required
+- **World map with pins** (DND Beyond doesn't do homebrew maps this well)
+
+## Files
+- `Tiamat_Character_Browser.html` — Main app (everything is here)
+- `Tiamat Map.jpg` — World map image (7MB, used in Iter 131)
+- `Character Sheets/*.pdf` — 42 PDF character sheets
+- `Tiamat/` — Obsidian lore vault (markdown files)
+- `CLAUDE.md` — This file (development log)
+
+## Development Guidelines
+- Always add new code at the END of the `<script>` section with an `// Iter NNN:` comment
+- Use localStorage with `tiamat_*` prefix for all persistence
+- Follow existing CSS variables: `--accent`, dark theme (#06061a bg, #c9a227 gold, #9b6dff purple)
+- Test by opening the HTML in a browser
+- Push to main branch after each feature batch
+- After every 10 iterations, send a Telegram update via /send-telegram skill

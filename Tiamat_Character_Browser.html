@@ -3772,6 +3772,7 @@
   <button class="filter-btn" onclick="openEncounterDifficulty()" style="border-color:#cc3333;color:#cc3333;" title="Encounter Difficulty Calculator — XP thresholds (Easy/Medium/Hard/Deadly) · hotkey E">⚔ Difficulty</button>
   <button class="filter-btn" onclick="openQuickDamageCalc()" style="border-color:#dd6622;color:#dd6622;" title="Quick Attack — roll attack + damage with target AC check · hotkey Q">🎲 Quick Atk</button>
   <button class="filter-btn" onclick="printPartySheet()" style="border-color:#4488ff;color:#4488ff;" title="Print Party Sheet — all party members on one printable page">🖨 Party Sheet</button>
+  <button class="filter-btn" onclick="openWorldMap()" style="border-color:#44cc88;color:#44cc88;" title="World Map — pin characters to the Tiamat campaign map (hotkey: M)">🗺 World Map</button>
   <span style="color: #333; margin: 0 4px;">|</span>
   <span style="font-size:11px;color:#4a5272;margin-right:4px">View:</span>
   <button class="filter-btn view-btn active" id="viewGrid" onclick="setView('grid',this)" title="Grid view">⊞ Grid</button>
@@ -8448,6 +8449,7 @@ function showHotkeyHelp() {
     ['h', 'Toggle Party HP panel'],
     ['q', 'Quick Attack Calculator'],
     ['e', 'Encounter Difficulty'],
+    ['m', 'Toggle World Map'],
     ['?', 'Show/hide this help'],
   ];
   hkEl.innerHTML = `<div style="font-family:'Cinzel',serif;color:#c9a227;font-size:12px;margin-bottom:8px">⌨ KEYBOARD SHORTCUTS</div>
@@ -22246,9 +22248,201 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'e' && !document.getElementById('modal')?.classList.contains('open')) {
     openEncounterDifficulty(); e.preventDefault();
   }
+  if (e.key === 'm' && !document.getElementById('modal')?.classList.contains('open')) {
+    openWorldMap(); e.preventDefault();
+  }
 }, {capture: false});
 
 // ────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 131: Interactive World Map — pin characters to the Tiamat campaign map
+// ─────────────────────────────────────────────────────────────────────────────
+const MAP_PINS_KEY = 'tiamat_map_pins';
+let wMapEditMode = false;
+
+function loadMapPins() { try { return JSON.parse(localStorage.getItem(MAP_PINS_KEY)) || []; } catch { return []; } }
+function saveMapPins(pins) { localStorage.setItem(MAP_PINS_KEY, JSON.stringify(pins)); }
+
+function openWorldMap() {
+  const existing = document.getElementById('worldMapOverlay');
+  if (existing) { existing.remove(); wMapEditMode = false; return; }
+  wMapEditMode = false;
+  const overlay = document.createElement('div');
+  overlay.id = 'worldMapOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:#02030a;z-index:9990;display:flex;flex-direction:column';
+  document.body.appendChild(overlay);
+  _renderWorldMap();
+}
+
+function _renderWorldMap() {
+  const overlay = document.getElementById('worldMapOverlay');
+  if (!overlay) return;
+  const pins = loadMapPins();
+  overlay.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#080818;border-bottom:2px solid #c9a227;flex-shrink:0;flex-wrap:wrap">
+      <div style="font-family:'Cinzel',serif;color:#c9a227;font-size:15px;font-weight:700;letter-spacing:1px">🗺 Tiamat World Map</div>
+      <div style="flex:1"></div>
+      <select id="wMapCharSel" style="background:#0e0e28;border:1px solid #444;border-radius:6px;color:#dce0f0;padding:5px 10px;font-size:12px;max-width:240px">
+        <option value="">— select character to pin —</option>
+        ${UNIQUE_CHARS.map(c=>`<option value="${c.name.replace(/"/g,'&quot;')}">${c.name} · ${c.title.split('·')[0].trim()}</option>`).join('')}
+      </select>
+      <button id="wMapEditBtn" onclick="wMapToggleEdit()" style="background:#0e0e28;border:1px solid #444;border-radius:6px;color:#9098b8;padding:5px 12px;cursor:pointer;font-size:12px;transition:all 0.2s">📌 Place Pin</button>
+      <button onclick="wMapClearAll()" style="background:#0e0e28;border:1px solid #cc3333;border-radius:6px;color:#cc5555;padding:5px 10px;cursor:pointer;font-size:11px" title="Remove all pins">✕ Clear All</button>
+      <span id="wMapPinCount" style="font-size:11px;color:#4a5272;min-width:52px;text-align:right">${pins.length} pin${pins.length!==1?'s':''}</span>
+      <button onclick="document.getElementById('worldMapOverlay').remove();wMapEditMode=false;" style="background:#0e0e28;border:1px solid #444;border-radius:6px;color:#9098b8;padding:5px 12px;cursor:pointer;font-size:12px">✕ Close</button>
+    </div>
+    <div id="wMapScrollArea" style="flex:1;overflow:auto;position:relative;background:#020408">
+      <div id="wMapInner" style="position:relative;display:inline-block;min-width:100%;min-height:100%">
+        <img id="wMapImg" src="Tiamat Map.jpg" alt="Tiamat World Map"
+          style="display:block;width:100%;height:auto;user-select:none;-webkit-user-drag:none"
+          onerror="document.getElementById('wMapInner').innerHTML='<div style=\\'padding:80px;text-align:center;color:#4a5272;font-size:14px;line-height:2\\'>⚠ Map image not found.<br>Place <strong style=\\'color:#c9a227\\'>Tiamat Map.jpg</strong> in the same folder as this HTML file.<br><small style=\\'color:#333\\'>Expected path: Tiamat Map.jpg</small></div>'"
+        >
+        <div id="wMapPins" style="position:absolute;inset:0;pointer-events:none"></div>
+      </div>
+    </div>
+    <div id="wMapStatus" style="padding:5px 16px;background:#04060e;border-top:1px solid #1e2040;font-size:10px;color:#4a5272;flex-shrink:0">
+      Click <strong style="color:#c9a227">Place Pin</strong>, select a character, then click the map. Right-click any pin to remove it. Hotkey: <code style="background:#1e2040;padding:1px 4px;border-radius:3px;color:#4488ff">M</code>
+    </div>`;
+
+  const mapImg = document.getElementById('wMapImg');
+  if (mapImg) {
+    mapImg.addEventListener('click', _wMapHandleClick);
+    mapImg.addEventListener('load', _renderMapPins);
+    if (mapImg.complete && mapImg.naturalWidth > 0) _renderMapPins();
+  }
+
+  // Re-render pins on window resize (pins are percentage-based)
+  window.addEventListener('resize', _wMapOnResize);
+}
+
+function _wMapOnResize() {
+  if (!document.getElementById('worldMapOverlay')) {
+    window.removeEventListener('resize', _wMapOnResize);
+    return;
+  }
+  _renderMapPins();
+}
+
+function _renderMapPins() {
+  const pinLayer = document.getElementById('wMapPins');
+  const mapImg = document.getElementById('wMapImg');
+  if (!pinLayer || !mapImg) return;
+  const imgW = mapImg.offsetWidth;
+  const imgH = mapImg.offsetHeight;
+  if (!imgW || !imgH) { setTimeout(_renderMapPins, 150); return; }
+
+  const pins = loadMapPins();
+  pinLayer.style.pointerEvents = 'none';
+  pinLayer.innerHTML = pins.map((pin, i) => {
+    const char = UNIQUE_CHARS.find(c => c.name === pin.name);
+    const th = char ? getTheme(char.theme) : {accent:'#c9a227',glow:'rgba(201,162,39,0.4)'};
+    const maxHp = char ? (parseInt(char.hp)||1) : 1;
+    const currHp = char ? getCharHP(pin.name, maxHp) : 1;
+    const isDown = char && currHp === 0;
+    const color = isDown ? '#cc3333' : th.accent;
+    const px = (pin.xPct / 100) * imgW;
+    const py = (pin.yPct / 100) * imgH;
+    const firstName = pin.name.split(' ')[0];
+    const safeName = pin.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `<div style="position:absolute;left:${px}px;top:${py}px;transform:translate(-50%,-100%);pointer-events:all;cursor:pointer;user-select:none"
+              onclick="wMapPinClick(event,'${safeName}',${i})"
+              oncontextmenu="wMapPinRemove(event,${i})"
+              title="${pin.name}${isDown?' ⚠ DOWN':''} — click to open · right-click to remove">
+      <div style="background:${color};border-radius:50% 50% 50% 0;width:18px;height:18px;transform:rotate(-45deg);border:2px solid rgba(255,255,255,0.85);box-shadow:0 0 10px ${color}88,0 2px 8px rgba(0,0,0,0.9);transition:transform 0.15s" onmouseover="this.style.transform='rotate(-45deg) scale(1.3)'" onmouseout="this.style.transform='rotate(-45deg)'"></div>
+      <div style="position:absolute;bottom:22px;left:50%;transform:translateX(-50%);background:rgba(4,6,14,0.93);border:1px solid ${color};border-radius:4px;padding:2px 7px;white-space:nowrap;font-size:9px;color:${color};font-family:'Cinzel',serif;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.9);letter-spacing:0.5px;pointer-events:none">${firstName}${isDown?' ⚠':''}</div>
+    </div>`;
+  }).join('');
+
+  const countEl = document.getElementById('wMapPinCount');
+  if (countEl) countEl.textContent = `${pins.length} pin${pins.length!==1?'s':''}`;
+}
+
+function _wMapHandleClick(e) {
+  if (!wMapEditMode) return;
+  const charName = document.getElementById('wMapCharSel')?.value;
+  if (!charName) {
+    const sel = document.getElementById('wMapCharSel');
+    if (sel) { sel.style.borderColor='#cc3333'; setTimeout(()=>{ if(sel) sel.style.borderColor='#444'; },1000); }
+    _wMapStatus('<span style="color:#cc3333">⚠ Select a character from the dropdown first!</span>', 2000);
+    return;
+  }
+  const mapImg = document.getElementById('wMapImg');
+  if (!mapImg) return;
+  const rect = mapImg.getBoundingClientRect();
+  const xPct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / mapImg.offsetWidth) * 100));
+  const yPct = Math.max(0, Math.min(100, ((e.clientY - rect.top) / mapImg.offsetHeight) * 100));
+
+  const pins = loadMapPins();
+  const existing = pins.findIndex(p => p.name === charName);
+  if (existing >= 0) pins.splice(existing, 1);
+  pins.push({ name: charName, xPct, yPct });
+  saveMapPins(pins);
+  _renderMapPins();
+  _wMapStatus(`<span style="color:#44aa44">📌 ${charName} pinned! Select another character or click Place Pin to exit.</span>`, 2500);
+}
+
+function _wMapStatus(html, duration) {
+  const el = document.getElementById('wMapStatus');
+  if (!el) return;
+  const orig = `Click <strong style="color:#c9a227">Place Pin</strong>, select a character, then click the map. Right-click any pin to remove it. Hotkey: <code style="background:#1e2040;padding:1px 4px;border-radius:3px;color:#4488ff">M</code>`;
+  el.innerHTML = html;
+  if (duration) setTimeout(() => { if (el) el.innerHTML = orig; }, duration);
+}
+
+function wMapPinClick(e, charName, pinIdx) {
+  e.stopPropagation();
+  if (wMapEditMode) return;
+  document.getElementById('worldMapOverlay')?.remove();
+  wMapEditMode = false;
+  window.removeEventListener('resize', _wMapOnResize);
+  currentFilter = 'all';
+  currentSearch = '';
+  const sb = document.getElementById('searchBox');
+  if (sb) sb.value = '';
+  renderGrid();
+  const newIdx = filteredChars.findIndex(c => c.name === charName);
+  if (newIdx >= 0) openModal(newIdx);
+}
+
+function wMapPinRemove(e, pinIdx) {
+  e.preventDefault();
+  e.stopPropagation();
+  const pins = loadMapPins();
+  if (!pins[pinIdx]) return;
+  const name = pins[pinIdx].name;
+  pins.splice(pinIdx, 1);
+  saveMapPins(pins);
+  _renderMapPins();
+  _wMapStatus(`<span style="color:#dd6644">🗑 Removed pin for ${name}</span>`, 1500);
+}
+
+function wMapToggleEdit() {
+  wMapEditMode = !wMapEditMode;
+  const btn = document.getElementById('wMapEditBtn');
+  const scroll = document.getElementById('wMapScrollArea');
+  if (btn) {
+    btn.style.background = wMapEditMode ? 'rgba(68,170,68,0.15)' : '#0e0e28';
+    btn.style.borderColor = wMapEditMode ? '#44aa44' : '#444';
+    btn.style.color = wMapEditMode ? '#44aa44' : '#9098b8';
+    btn.textContent = wMapEditMode ? '✓ Pinning Mode ON' : '📌 Place Pin';
+  }
+  if (scroll) scroll.style.cursor = wMapEditMode ? 'crosshair' : 'default';
+  if (wMapEditMode) {
+    _wMapStatus('<span style="color:#44aa44">PINNING MODE: Select a character, then click anywhere on the map to place their pin.</span>');
+  } else {
+    _wMapStatus(`Click <strong style="color:#c9a227">Place Pin</strong>, select a character, then click the map. Right-click any pin to remove it. Hotkey: <code style="background:#1e2040;padding:1px 4px;border-radius:3px;color:#4488ff">M</code>`);
+  }
+}
+
+function wMapClearAll() {
+  if (!confirm('Remove ALL character pins from the world map?')) return;
+  saveMapPins([]);
+  _renderMapPins();
+  _wMapStatus('<span style="color:#dd6644">All pins cleared.</span>', 1500);
+}
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
+
 </body>
 </html>
