@@ -1264,21 +1264,11 @@
     background: #1e2040;
     border-radius: 3px;
     overflow: hidden;
-    position: relative;
   }
   .hp-fill {
     height: 100%;
     border-radius: 3px;
     transition: width 0.4s ease, background 0.4s ease;
-  }
-  .temp-hp-fill {
-    position: absolute;
-    top: 0;
-    height: 100%;
-    background: rgba(221,136,34,0.75);
-    border-radius: 0 3px 3px 0;
-    transition: width 0.4s, left 0.4s;
-    pointer-events: none;
   }
   .hp-lbl {
     font-size: 10px;
@@ -1730,8 +1720,6 @@
   .cond-status  { background: rgba(201,162,39,0.2); border: 1px solid #c9a227; color: #c9a227; }
   .cond-movement{ background: rgba(34,153,187,0.2); border: 1px solid #2299bb; color: #2299bb; }
   .condition-badge:hover { opacity: 0.9; transform: scale(1.05); }
-  .condition-badge.cond-expired { animation: condExpired 0.6s ease-in-out infinite; border-style: dashed !important; }
-  @keyframes condExpired { 0%,100% { opacity:1 } 50% { opacity:0.4 } }
 
   /* Crit/Fumble flash overlay */
   @keyframes critFlash {
@@ -1807,20 +1795,148 @@
     0%,100% { box-shadow: 0 0 4px rgba(201,162,39,0.3); }
     50% { box-shadow: 0 0 10px rgba(201,162,39,0.6); }
   }
-  /* Damage Type Badges */
-  .dmg-badge { display:inline-flex;align-items:center;gap:2px;font-size:9px;padding:1px 5px;border-radius:8px;cursor:default;border:1px solid;letter-spacing:0.2px;margin:1px; }
-  .dmg-badge.immune  { background:rgba(60,60,80,0.5); border-color:#555; color:#aaa; }
-  .dmg-badge.resist  { background:rgba(30,80,120,0.4); border-color:#2299bb; color:#66ccee; }
-  .dmg-badge.vuln    { background:rgba(160,40,30,0.3); border-color:#cc3333; color:#ff6666; }
-  .dmg-type-picker { position:fixed;z-index:900;background:#0a0a1a;border:1px solid #2a2a50;border-radius:12px;padding:12px 14px;width:280px;box-shadow:0 8px 40px rgba(0,0,0,0.9);max-height:70vh;overflow-y:auto; }
-  .dmg-type-picker h4 { font-family:'Cinzel',serif;color:#9b6dff;font-size:11px;margin:0 0 8px;letter-spacing:1px; }
-  .dmg-type-row { display:grid;grid-template-columns:80px 1fr;align-items:center;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04); }
-  .dmg-type-name { font-size:11px;color:#8888aa;text-transform:capitalize; }
-  .dmg-type-btns { display:flex;gap:4px; }
-  .dmg-type-btn { padding:2px 7px;border-radius:10px;border:1px solid #2a2a50;background:transparent;color:#4a5272;cursor:pointer;font-size:10px;transition:all .15s; }
-  .dmg-type-btn.active-immune { background:rgba(60,60,80,0.7);border-color:#555;color:#bbb; }
-  .dmg-type-btn.active-resist { background:rgba(30,80,120,0.6);border-color:#2299bb;color:#66ccee; }
-  .dmg-type-btn.active-vuln  { background:rgba(160,40,30,0.5);border-color:#cc3333;color:#ff6666; }
+  /* Iteration 31: Inspiration Badge */
+  .inspiration-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    background: rgba(255,215,0,0.18);
+    border: 1px solid rgba(255,215,0,0.6);
+    color: #ffd700;
+    cursor: pointer;
+    user-select: none;
+    transition: all .15s;
+    animation: inspirGlow 2s ease-in-out infinite;
+    white-space: nowrap;
+    font-weight: 700;
+  }
+  .inspiration-badge:hover { opacity: 0.7; transform: scale(1.05); }
+  @keyframes inspirGlow {
+    0%,100% { box-shadow: 0 0 5px rgba(255,215,0,0.3); }
+    50% { box-shadow: 0 0 14px rgba(255,215,0,0.7); }
+  }
+  .inspiration-modal-btn {
+    background: rgba(255,215,0,0.1);
+    border: 1px solid rgba(255,215,0,0.35);
+    color: #b8941a;
+    border-radius: 8px;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: 'Cinzel', serif;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .inspiration-modal-btn.active {
+    background: rgba(255,215,0,0.22);
+    border-color: #ffd700;
+    color: #ffd700;
+    box-shadow: 0 0 10px rgba(255,215,0,0.4);
+  }
+  .inspiration-modal-btn:hover { border-color: #ffd700; color: #ffd700; }
+  /* Iteration 32: Exhaustion Tracker */
+  .exhaustion-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    background: rgba(180,60,60,0.18);
+    border: 1px solid rgba(180,60,60,0.5);
+    color: #e07070;
+    cursor: pointer;
+    user-select: none;
+    transition: all .15s;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+  .exhaustion-badge:hover { opacity: 0.8; border-color: #cc4444; }
+  .exhaustion-badge.ex5, .exhaustion-badge.ex6 {
+    background: rgba(200,30,30,0.25);
+    border-color: rgba(200,30,30,0.7);
+    color: #ff6060;
+    animation: exhaustGlow 1.5s ease-in-out infinite;
+  }
+  @keyframes exhaustGlow {
+    0%,100% { box-shadow: 0 0 4px rgba(200,30,30,0.3); }
+    50% { box-shadow: 0 0 12px rgba(200,30,30,0.7); }
+  }
+  .exhaustion-widget {
+    background: #0e0e24;
+    border: 1px solid rgba(180,60,60,0.4);
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin: 8px 0;
+  }
+  .exhaustion-pips { display: flex; gap: 6px; margin: 8px 0; }
+  .ex-pip {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 2px solid #333;
+    background: #0a0a1e;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: #4a5272;
+    transition: all .15s;
+  }
+  .ex-pip.filled { border-color: #cc4444; background: rgba(180,50,50,0.3); color: #ff7070; }
+  .ex-pip.filled:nth-child(5), .ex-pip.filled:nth-child(6) {
+    border-color: #ff2020; background: rgba(220,20,20,0.35); color: #ff4040;
+    box-shadow: 0 0 8px rgba(220,20,20,0.5);
+  }
+  .ex-pip:hover { border-color: #aa3333; }
+  /* Iteration 33: Currency Tracker */
+  .currency-section { margin: 8px 0; }
+  .currency-grid { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+  .currency-coin {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    background: #0a0a1e; border: 1px solid #1e2040; border-radius: 8px;
+    padding: 8px 12px; cursor: pointer; transition: all .15s; min-width: 58px;
+  }
+  .currency-coin:hover { border-color: var(--coin-color, #c9a227); box-shadow: 0 0 8px rgba(201,162,39,0.2); }
+  .currency-coin .coin-icon {
+    font-size: 18px; line-height: 1;
+  }
+  .currency-coin .coin-amount {
+    font-size: 16px; font-weight: 700; color: var(--coin-color, #c9a227); font-family: 'Cinzel', serif;
+  }
+  .currency-coin .coin-label {
+    font-size: 9px; color: #4a5272; letter-spacing: 1px; text-transform: uppercase;
+  }
+  .currency-total { font-size:11px; color:#7a7aaa; margin-top:6px; }
+  .currency-popup {
+    position: fixed; background: #0e0e24; border: 1px solid rgba(201,162,39,.5);
+    border-radius: 10px; padding: 14px; z-index: 9000;
+    box-shadow: 0 8px 32px rgba(0,0,0,.8); min-width: 220px;
+  }
+  /* Iteration 35: Hit Dice Tracker */
+  .hd-pips { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0; }
+  .hd-pip {
+    width: 26px; height: 26px; border-radius: 4px;
+    border: 2px solid #4488ff; background: rgba(68,136,255,0.25);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700; color: #4488ff; transition: all .15s;
+    position: relative;
+  }
+  .hd-pip.spent { border-color: #1e2040; background: #0a0a1e; color: #2a2a50; }
+  .hd-pip:hover:not(.spent) { box-shadow: 0 0 8px rgba(68,136,255,0.5); }
+  .hd-pip:hover.spent { border-color: #4488ff; }
+  .hd-section { background:#0e0e24; border:1px solid rgba(68,136,255,0.25); border-radius:10px; padding:12px 14px; margin:8px 0; }
+  /* Iteration 36: Proficiency & Languages */
+  .prof-chip {
+    display:inline-block; font-size:11px; padding:3px 9px; border-radius:12px;
+    border:1px solid #1e2040; background:#0a0a1e; color:#9098b8; margin:2px;
+    transition:all .15s;
+  }
+  .prof-chip.armor  { border-color:rgba(201,162,39,0.3); color:#c9a227; }
+  .prof-chip.weapon { border-color:rgba(204,51,51,0.3);  color:#cc4444; }
+  .prof-chip.tool   { border-color:rgba(68,200,120,0.3); color:#44cc88; }
+  .prof-chip.lang   { border-color:rgba(68,136,255,0.3); color:#4488ff; }
+  .prof-chip.save   { border-color:rgba(136,68,255,0.3); color:#8844ff; }
   /* Concentration modal button */
   .conc-set-btn {
     background: rgba(201,162,39,0.1);
@@ -3226,40 +3342,6 @@
   .loot-panel-body { flex:1; overflow-y:auto; padding:12px 14px; }
   .loot-panel-body::-webkit-scrollbar { width:4px; }
   .loot-panel-body::-webkit-scrollbar-thumb { background:#2a2a50; border-radius:2px; }
-  .rest-panel {
-    position: fixed;
-    top: 60px;
-    right: 20px;
-    width: 340px;
-    max-height: 78vh;
-    background: linear-gradient(160deg,#061209,#0c1a10);
-    border: 1px solid rgba(35,180,120,0.4);
-    border-radius: 14px;
-    z-index: 349;
-    display: none;
-    flex-direction: column;
-    box-shadow: 0 8px 40px rgba(0,0,0,0.9), 0 0 20px rgba(35,180,120,0.1);
-    overflow: hidden;
-  }
-  .rest-panel.open { display: flex; }
-  .rest-panel-header {
-    padding: 10px 14px;
-    border-bottom: 1px solid rgba(35,180,120,0.25);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: rgba(35,180,120,0.05);
-    flex-shrink: 0;
-  }
-  .rest-panel-title { font-family:'Cinzel',serif; color:#23b478; font-size:13px; font-weight:700; letter-spacing:1px; }
-  .rest-panel-body { flex:1; overflow-y:auto; padding:12px 14px; }
-  .rest-panel-body::-webkit-scrollbar { width:4px; }
-  .rest-panel-body::-webkit-scrollbar-thumb { background:#1a3a28; border-radius:2px; }
-  .rest-tab-bar { display:flex; gap:4px; margin-bottom:12px; }
-  .rest-tab { flex:1; padding:6px; background:#0a1a0f; border:1px solid #1a3a28; color:#4a7a5a; border-radius:6px; cursor:pointer; font-size:12px; text-align:center; transition:all .2s; }
-  .rest-tab.active { background:rgba(35,180,120,0.15); border-color:#23b478; color:#23b478; }
-  .rest-char-row { background:rgba(255,255,255,0.03); border:1px solid #1a3a28; border-radius:8px; padding:10px; margin-bottom:8px; }
-  .rest-char-row .roll-result { color:#23b478; font-size:11px; text-align:center; margin-top:4px; min-height:14px; }
 
   .loot-currency-grid {
     display: grid;
@@ -3403,11 +3485,8 @@
     <button class="encounter-open-btn" onclick="toggleHealthPanel()" style="border-color:#cc3333;color:#cc3333" id="healthPanelBtn">❤ Party HP</button>
     <button class="encounter-open-btn" onclick="openQuestTracker()" style="border-color:#ffaa44;color:#ffaa44" id="questBtn">📜 Quests</button>
     <button class="encounter-open-btn" onclick="openTheaterMode()" style="border-color:#44aacc;color:#44aacc" title="Theater mode — fullscreen battle board for second screen">🎭 Theater</button>
-    <button class="encounter-open-btn" onclick="toggleXpPanel()" style="border-color:#c9a227;color:#c9a227" id="xpTrackerBtn" title="Party XP & Level Tracker">⭐ XP</button>
-    <button class="encounter-open-btn" onclick="toggleRestPanel()" style="border-color:#23b478;color:#23b478" id="restBtn" title="Short Rest / Long Rest">🌙 Rest</button>
     <button class="encounter-open-btn" onclick="toggleLootPanel()" style="border-color:#c9a227;color:#c9a227" id="lootBtn" title="Party Loot & Treasury">💰 Loot</button>
     <button class="encounter-open-btn" onclick="toggleDmNotes()" style="border-color:#9b6dff;color:#9b6dff" id="dmNotesBtn" title="DM Session Notes">📝 DM Notes</button>
-    <button class="encounter-open-btn" onclick="toggleSound()" id="soundToggleBtn" style="padding:6px 10px;font-size:16px;border-color:#2a2a50;color:#4a5272" title="Sound on — click to mute">🔊</button>
     <div class="stat-badge"><strong id="totalCount">0</strong> Characters</div>
     <div class="stat-badge"><strong id="visibleCount">0</strong> Showing</div>
     <div class="stat-badge stat-live" id="statDown" onclick="filterToDown()" title="Click to show downed characters" style="display:none"><strong id="downCount">0</strong> ⚠ Down</div>
@@ -3460,6 +3539,11 @@
   <button class="filter-btn" onclick="openTagFilter(this)" id="tagFilterBtn" style="border-color:#ffaa44;color:#9098b8;" title="Filter by custom tag">🏷 Tags</button>
   <button class="filter-btn" onclick="openAoeDmg()" style="border-color:#cc3333;color:#cc3333;" title="AoE damage/heal — apply to multiple characters at once">💥 AoE</button>
   <button class="filter-btn" onclick="showPassiveSkills()" style="border-color:#2299bb;color:#2299bb;" title="Party passive Perception, Investigation & Insight">👁 Passives</button>
+  <button class="filter-btn" onclick="openTreasureGenerator()" style="border-color:#c9a227;color:#c9a227;" title="Random treasure generator by CR">💎 Treasure</button>
+  <button class="filter-btn" onclick="openCampaignTimeline()" style="border-color:#44cc88;color:#44cc88;" title="Campaign timeline — track key events">📅 Timeline</button>
+  <button class="filter-btn" onclick="openGraveyardPanel()" style="border-color:#555;color:#888;" title="Character graveyard — fallen heroes and villains">💀 Graveyard</button>
+  <button class="filter-btn" onclick="openShortcutsHelp()" style="border-color:#4488ff;color:#4488ff;" title="Keyboard shortcuts — press ? anytime">⌨ ?</button>
+  <button class="filter-btn" onclick="openGlobalSearch()" style="border-color:#c9a227;color:#9098b8;" title="Global search — Ctrl+K">🔍 Search All</button>
   <span style="color: #333; margin: 0 4px;">|</span>
   <span style="font-size:11px;color:#4a5272;margin-right:4px">View:</span>
   <button class="filter-btn view-btn active" id="viewGrid" onclick="setView('grid',this)" title="Grid view">⊞ Grid</button>
@@ -3488,6 +3572,7 @@
         </div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
+        <button id="modalInspirationBtn" class="inspiration-modal-btn" onclick="toggleModalInspiration()" title="Toggle Inspiration — advantage on one roll">✦ Inspiration</button>
         <div class="modal-nav">
           <button onclick="navChar(-1)">&#9664; Prev</button>
           <button onclick="navChar(1)">Next &#9654;</button>
@@ -3503,6 +3588,7 @@
         <div class="modal-tab" data-tab="story" onclick="switchModalTab('story', this)">Story</div>
         <div class="modal-tab" data-tab="sheet" onclick="switchModalTab('sheet', this)">Sheet</div>
       </div>
+      <button onclick="exportCharacter()" style="background:none;border:1px solid #2a2a50;color:#7a7aaa;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:12px;margin-right:4px;transition:all 0.15s" onmouseover="this.style.borderColor='#44cc88';this.style.color='#44cc88'" onmouseout="this.style.borderColor='#2a2a50';this.style.color='#7a7aaa'" title="Export character state as JSON">⬇ Export</button>
       <button onclick="copyStatBlockMarkdown()" style="background:none;border:1px solid #2a2a50;color:#7a7aaa;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:12px;margin-right:4px;transition:all 0.15s" id="copyStatBtn" onmouseover="this.style.borderColor='#9b6dff';this.style.color='#9b6dff'" onmouseout="this.style.borderColor='#2a2a50';this.style.color='#7a7aaa'" title="Copy markdown stat block to clipboard">📋 Copy MD</button>
       <button onclick="printCharCard()" style="background:none;border:1px solid #2a2a50;color:#7a7aaa;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:12px;margin-right:10px;transition:all 0.15s" onmouseover="this.style.borderColor='#4488ff';this.style.color='#4488ff'" onmouseout="this.style.borderColor='#2a2a50';this.style.color='#7a7aaa'">🖨 Print Card</button>
     </div>
@@ -3680,6 +3766,7 @@
       <button class="init-ctrl-btn" onclick="rollAllInitiative()" title="Roll initiative for all NPCs">⚄ Roll All</button>
       <button class="init-ctrl-btn next-btn" onclick="nextTurn()" title="Next turn">Next ▶</button>
       <button class="init-ctrl-btn" onclick="toggleGroupRoll()" title="Group saving throw / ability check" style="border-color:#aa66dd;color:#aa66dd">⚔ Save</button>
+      <button class="init-ctrl-btn" onclick="toggleBulkCond(event)" title="Apply condition to all in initiative" style="border-color:#dd8822;color:#dd8822">⚡ Bulk</button>
       <button class="init-ctrl-btn" id="lairActionBtn" onclick="toggleLairAction()" title="Toggle Lair Action at Init 20" style="border-color:#2a2a50;color:#4a5272">🏰 Lair</button>
       <button class="init-ctrl-btn" onclick="clearInitiative()" title="Clear initiative">✕</button>
     </div>
@@ -3723,7 +3810,19 @@
   <div class="init-add-area">
     <input type="text" id="initCustomName" class="init-add-input" placeholder="Custom creature name...">
     <input type="number" id="initCustomScore" class="init-add-input" placeholder="Init" style="width:50px;flex:none;">
+    <input type="number" id="initCustomCount" class="init-add-input" placeholder="×" min="1" max="20" style="width:42px;flex:none;" title="Number of creatures (multi-add)">
     <button class="init-add-btn" onclick="addCustomToInitiative()">+ Add</button>
+  </div>
+  <div style="padding:4px 10px 6px;font-size:10px;color:#4a5272">Tip: set × to add multiple (e.g. 5× Goblin with separate HP tracking)</div>
+  <!-- Iteration 56: Round Log Panel (collapsible) -->
+  <div style="border-top:1px solid #1e2040">
+    <div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="padding:5px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:10px;color:#4a5272;letter-spacing:1px">📋 ROUND LOG</span>
+      <span style="font-size:10px;color:#4a5272">▾</span>
+    </div>
+    <div id="roundLogPanel" style="display:none;max-height:160px;overflow-y:auto;padding:6px 12px 8px;font-size:11px;color:#7a7aaa">
+      <div style="text-align:center;color:#4a5272;font-size:11px;padding:10px">Combat log will appear here</div>
+    </div>
   </div>
 </div>
 
@@ -4289,52 +4388,6 @@
   </div>
 </div>
 
-<!-- XP & Level Tracker Panel -->
-<div id="xpTrackerPanel" style="position:fixed;top:60px;right:20px;width:300px;max-height:70vh;background:linear-gradient(160deg,#0d0b00,#1a1400);border:1px solid rgba(201,162,39,0.4);border-radius:14px;z-index:348;display:none;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.9),0 0 20px rgba(201,162,39,0.08);overflow:hidden">
-  <div style="padding:10px 14px;border-bottom:1px solid rgba(201,162,39,0.25);display:flex;justify-content:space-between;align-items:center;background:rgba(201,162,39,0.04);flex-shrink:0">
-    <span style="font-family:'Cinzel',serif;color:#c9a227;font-size:13px;font-weight:700;letter-spacing:1px">⭐ PARTY XP & LEVEL</span>
-    <button onclick="toggleXpPanel()" style="background:none;border:1px solid #3a2a00;color:#6a5020;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px">✕</button>
-  </div>
-  <div style="flex:1;overflow-y:auto;padding:14px">
-    <div id="xpLevelDisplay"></div>
-    <div style="display:flex;gap:6px;margin-top:10px">
-      <input type="number" id="xpAwardInput" placeholder="XP to award" min="0" style="flex:1;background:#0d0b00;border:1px solid #3a2a00;color:#c9a227;border-radius:6px;padding:6px 8px;font-size:13px;outline:none" onfocus="this.style.borderColor='#c9a227'" onblur="this.style.borderColor='#3a2a00'" onkeydown="if(event.key==='Enter')awardXp()">
-      <button onclick="awardXp()" style="background:rgba(201,162,39,0.15);border:1px solid #c9a227;color:#c9a227;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px">Award</button>
-    </div>
-    <div style="display:flex;gap:6px;margin-top:6px">
-      <button onclick="awardMilestone()" style="flex:1;background:rgba(201,162,39,0.05);border:1px solid #3a2a00;color:#6a5020;border-radius:6px;padding:5px;cursor:pointer;font-size:11px" title="Award XP for current encounter from initiative tracker">📜 Award Encounter XP</button>
-      <button onclick="resetPartyXp()" style="background:rgba(204,51,51,0.1);border:1px solid #442222;color:#884444;border-radius:6px;padding:5px 8px;cursor:pointer;font-size:11px" title="Reset XP to 0">✕ Reset</button>
-    </div>
-    <div style="margin-top:10px;font-size:11px;color:#4a3a10" id="xpLog"></div>
-  </div>
-</div>
-
-<!-- Short / Long Rest Panel -->
-<div class="rest-panel" id="restPanel">
-  <div class="rest-panel-header">
-    <span class="rest-panel-title">🌙 PARTY REST</span>
-    <button onclick="toggleRestPanel()" style="background:none;border:1px solid #1a3a28;color:#4a7a5a;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px">✕</button>
-  </div>
-  <div class="rest-panel-body">
-    <div class="rest-tab-bar">
-      <button class="rest-tab active" id="restTab0" onclick="switchRestTab(0)">🛖 Short Rest</button>
-      <button class="rest-tab" id="restTab1" onclick="switchRestTab(1)">🌙 Long Rest</button>
-    </div>
-    <!-- Short Rest Tab -->
-    <div id="restTabShort">
-      <div style="color:#6a9a7a;font-size:11px;margin-bottom:10px">Spend Hit Dice to recover HP. CON modifier added to each roll.</div>
-      <div id="restCharList"></div>
-    </div>
-    <!-- Long Rest Tab -->
-    <div id="restTabLong" style="display:none">
-      <div style="color:#6a9a7a;font-size:11px;margin-bottom:12px">Restore all HP, spell slots, and reduce exhaustion by 1 for all non-evil party members.</div>
-      <div id="longRestPreview" style="margin-bottom:12px"></div>
-      <button id="longRestBtn" onclick="doLongRest()" style="width:100%;background:rgba(35,180,120,0.1);border:1px solid #23b478;color:#23b478;border-radius:8px;padding:10px;cursor:pointer;font-size:14px;font-weight:bold">🌙 Take Long Rest</button>
-      <button onclick="doShortRestAll()" style="width:100%;margin-top:8px;background:rgba(35,180,120,0.05);border:1px solid #1a3a28;color:#4a7a5a;border-radius:8px;padding:7px;cursor:pointer;font-size:12px" title="Roll one hit die for each party member automatically">🎲 Auto Short Rest (Roll 1 Hit Die Each)</button>
-    </div>
-  </div>
-</div>
-
 <!-- DM Session Notes Panel -->
 <div id="dmNotesPanel" style="position:fixed;top:60px;left:50%;transform:translateX(-50%);width:min(520px,94vw);max-height:80vh;background:linear-gradient(160deg,#07101a,#0c1620);border:1px solid rgba(155,109,255,0.35);border-radius:14px;z-index:350;display:none;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.9)">
   <div style="padding:10px 14px;border-bottom:1px solid rgba(155,109,255,0.2);display:flex;justify-content:space-between;align-items:center;background:rgba(155,109,255,0.04);flex-shrink:0">
@@ -4713,12 +4766,10 @@ function applyHpAction(type) {
     logEntry('damage', `<strong>${popupCharName}</strong> took <strong>${dmg} damage</strong> → ${newHp}/${maxHp} HP${newHp===0?' <strong style="color:#cc3333">⚠ DOWN</strong>':''}`);
     logHpEvent(popupCharName, 'dmg', dmg, currHp, newHp, maxHp);
     if (typeof checkConcOnDamage === 'function') checkConcOnDamage(popupCharName, dmg);
-    if (typeof playSound === 'function') { if (newHp === 0) playSound('down'); else playSound('dmg'); }
   } else if (type === 'heal' && newHp !== currHp) {
     const healed = newHp - currHp;
     logEntry('heal', `<strong>${popupCharName}</strong> healed <strong>${healed} HP</strong> → ${newHp}/${maxHp} HP`);
     logHpEvent(popupCharName, 'heal', healed, currHp, newHp, maxHp);
-    if (typeof playSound === 'function') playSound('heal');
   } else if (type === 'full') {
     logEntry('heal', `<strong>${popupCharName}</strong> restored to full HP (${maxHp})`);
     logHpEvent(popupCharName, 'full', maxHp - currHp, currHp, maxHp, maxHp);
@@ -4755,24 +4806,6 @@ function updateTempHpDisplay(name) {
   if (badge) {
     badge.textContent = tempHp > 0 ? `⬡ +${tempHp}` : '';
     badge.style.display = tempHp > 0 ? '' : 'none';
-  }
-  // Update visual bar overlay
-  const barBg = document.querySelector(`[data-sid="${sid}"] .hp-bar-bg`);
-  if (barBg) {
-    let fill = barBg.querySelector('.temp-hp-fill');
-    const char = UNIQUE_CHARS.find(c => c.name === name);
-    const maxHp = parseInt(char?.hp || '1');
-    const currHp = getCharHP(name, maxHp);
-    const hpPct = maxHp > 0 ? currHp / maxHp : 0;
-    if (tempHp > 0) {
-      const tPct = Math.min(100 - Math.round(hpPct * 100), Math.round(tempHp / maxHp * 100));
-      if (!fill) { fill = document.createElement('div'); fill.className = 'temp-hp-fill'; barBg.appendChild(fill); }
-      fill.style.left = Math.round(hpPct * 100) + '%';
-      fill.style.width = tPct + '%';
-      fill.style.display = '';
-    } else if (fill) {
-      fill.style.display = 'none';
-    }
   }
 }
 
@@ -4897,6 +4930,10 @@ function longRestAll() {
   tempHpState = {};
   deathSaveState = {};
   slotState = {};
+  // Restore half hit dice on long rest
+  if (typeof hitDiceState !== 'undefined') {
+    UNIQUE_CHARS.forEach(c => { if (typeof restoreHitDice === 'function') restoreHitDice(c.name, Math.ceil(getMaxHitDice(c)/2)); });
+  }
   saveHp();
   saveTempHp();
   saveDeathSaves();
@@ -5029,7 +5066,8 @@ function renderGrid() {
       });
       return `<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:10px;margin-top:6px">${saves.join('')}</div>`;
     })();
-    return `<div class="card" style="--accent:${t.accent};--glow:${t.glow}" onclick="openModal(${i})">
+    const deceasedOverlay = isDeceased(c.name) ? `<div style="position:absolute;inset:0;background:rgba(0,0,0,0.7);z-index:20;display:flex;align-items:center;justify-content:center;border-radius:10px;pointer-events:none"><div style="text-align:center"><div style="font-size:32px">💀</div><div style="font-size:10px;color:#666;font-family:'Cinzel',serif">DECEASED</div><div style="font-size:9px;color:#444">${graveyardState[c.name]?.cause||''}</div></div></div>` : '';
+    return `<div class="card" style="--accent:${isDeceased(c.name)?'#333':t.accent};--glow:${t.glow};${isDeceased(c.name)?'filter:grayscale(0.8);opacity:0.7':''}" onclick="openModal(${i})" oncontextmenu="event.preventDefault();openStatBlockPopup(${JSON.stringify(c.name)},event)" title="Left-click to open full sheet • Right-click for stat block popup">${deceasedOverlay}
       <div class="card-tooltip" style="--accent:${t.accent}">
         <div class="tt-name">${c.name}</div>
         <div class="tt-title">${c.title}</div>
@@ -5066,19 +5104,17 @@ function renderGrid() {
             </div>
           </div>
           ${c.quote ? `<div class="card-quote">"${c.quote}"</div>` : ''}
-          <div class="conditions-row" onclick="event.stopPropagation()" data-char-name="${c.name}">${getConditionBadgesHtml(c.name)}${getConcBadgeHtml(c.name)}${getTagBadgesHtml(c.name)}${getExhaustBadgeHtml(c.name)}${getDmgTypeBadgesHtml(c.name)}</div>
+          <div class="conditions-row" onclick="event.stopPropagation()">${getInspirationBadgeHtml(c.name)}${getExhaustionBadgeHtml(c.name)}${getConditionBadgesHtml(c.name)}${getConcBadgeHtml(c.name)}${getTagBadgesHtml(c.name)}</div>
           <div style="display:flex;gap:8px;align-items:center;margin-top:3px" onclick="event.stopPropagation()">
             <button class="card-cond-btn ${hasConditions(c.name)?'has-conds':''}" onclick="openCondPopup(${JSON.stringify(c.name)},event)">⚡ ${hasConditions(c.name)?'Conds':'Condition'}</button>
             <button class="card-enc-btn ${isInActiveEncounter(c.name)?'in-enc':''}" onclick="addCharToActiveEncounter(${JSON.stringify(c.name)},${maxHp})">☩ ${isInActiveEncounter(c.name)?'In Enc':'Encounter'}</button>
             <button class="card-notes-btn ${hasNotes(c.name)?'has-notes':''}" onclick="openNotes(${JSON.stringify(c.name)},${JSON.stringify(c.title)})">${hasNotes(c.name)?'✎':'✎'}</button>
-            <button onclick="openDmgTypePicker(${JSON.stringify(c.name)},this,event)" title="Set damage immunities, resistances, vulnerabilities" style="background:none;border:1px solid #2a2a50;color:#4a5272;border-radius:4px;padding:1px 5px;cursor:pointer;font-size:10px;line-height:1.4" onmouseover="this.style.borderColor='#6688bb';this.style.color='#88aacc'" onmouseout="this.style.borderColor='#2a2a50';this.style.color='#4a5272'">⚔DR</button>
             <span class="insp-star${hasInspiration(c.name)?' active':''}" onclick="event.stopPropagation();toggleInspiration(${JSON.stringify(c.name)})" title="${hasInspiration(c.name)?'Has Inspiration — click to remove':'Click to grant Inspiration'}" id="insp_${sid}">★</span>
           </div>
           <div class="hp-tracker" data-sid="${sid}" onclick="event.stopPropagation()">
             <div class="hp-row" onclick="openHpPopup(${JSON.stringify(c.name)},${maxHp},event)" title="Click to adjust HP">
               <div class="hp-bar-bg">
                 <div class="hp-fill" style="width:${Math.round(hpPct*100)}%;background:${hpFill}"></div>
-                ${(()=>{ const tmp=getTempHP(c.name); const tPct=tmp>0?Math.min(100-Math.round(hpPct*100), Math.round(tmp/maxHp*100)):0; return tmp>0?`<div class="temp-hp-fill" style="left:${Math.round(hpPct*100)}%;width:${tPct}%"></div>`:''; })()}
               </div>
               <span class="hp-lbl">${currHp}/${maxHp}</span>
             </div>
@@ -5404,8 +5440,9 @@ function buildStatsPanel(c) {
   const noteBox = notes && notes.text ?
     `<div style="margin-bottom:10px;padding:10px;background:#06061a;border:1px solid rgba(155,109,255,0.3);border-radius:8px;font-size:12px;color:#9098b8;line-height:1.6"><span style="color:#9b6dff;font-weight:600">DM Notes: </span>${notes.text}</div>` : '';
 
+  const exWidget = buildExhaustionWidget(c.name);
   return `
-    ${condBadges}${noteBox}
+    ${condBadges}${noteBox}${exWidget}
     <div class="stats-section">
       <div class="stats-section-title">Combat Stats</div>
       <div style="margin-bottom:12px">
@@ -5416,6 +5453,9 @@ function buildStatsPanel(c) {
         <span class="stat-chip"><strong>Passive Perc</strong> ${passivePerc}</span>
       </div>
     </div>
+    ${buildCurrencySection(c.name)}
+    ${buildHitDiceSection(c)}
+    ${buildDamageDefenseSection(c)}
     ${buildSpeedSection(c)}
     <div class="stats-section">
       <div class="stats-section-title">Ability Scores <span style="font-size:10px;color:#4a5272;font-weight:400;font-family:'Inter',sans-serif">— click to roll</span></div>
@@ -5462,6 +5502,7 @@ function buildStatsPanel(c) {
         ).join('')}
       </div>
     </div>
+    ${buildProficienciesSection(c)}
     ${buildTraitsSection(c)}
     ${isSpellcaster(c) ? `
     <div class="stats-section">
@@ -6226,6 +6267,8 @@ function buildStoryPanel(c) {
 
       ${buildCharBattleLog(c)}
 
+      <div class="story-block" style="padding:0">${buildTacticsSection(c.name)}</div>
+
       ${notes && notes.text ? `
       <div class="story-block" style="border-color:rgba(155,109,255,0.3)">
         <div class="story-block-title" style="color:#9b6dff">✎ DM Notes</div>
@@ -6246,22 +6289,6 @@ const TRAIT_RULES = {
   'multiattack': { type:'active', icon:'⚔', rule:'This creature can attack multiple times when it takes the Attack action on its turn.' },
   'relentless': { type:'passive', icon:'🛡', rule:'If damage reduces to 0 HP, make a Constitution save (DC 5 + damage taken). On success, drop to 1 HP instead.' },
   'aggressive': { type:'bonus', icon:'⚡', rule:'Bonus action: Move up to your speed toward a hostile creature you can see.' },
-  'pack tactics': { type:'passive', icon:'🐺', rule:'Advantage on attack rolls against a creature if at least one of the creature\'s allies is within 5 ft and not incapacitated.' },
-  'sunlight sensitivity': { type:'passive', icon:'☀', rule:'Disadvantage on attack rolls and Perception checks that rely on sight when in sunlight.' },
-  'spider climb': { type:'passive', icon:'🕷', rule:'Can climb difficult surfaces, including upside down on ceilings, without ability checks.' },
-  'web sense': { type:'passive', icon:'🕸', rule:'While in contact with a web, can pinpoint the location of any other creature in contact with the same web.' },
-  'undead fortitude': { type:'passive', icon:'💀', rule:'If damage reduces to 0 HP, must make CON save (DC 5 + damage taken) unless damage was radiant or from a critical hit. On success, drop to 1 HP.' },
-  'reckless': { type:'active', icon:'⚡', rule:'At the start of its turn, can gain advantage on all melee weapon attack rolls during that turn, but attack rolls against it also have advantage until the start of its next turn.' },
-  'evasion': { type:'passive', icon:'💨', rule:'When subjected to an effect allowing a DEX save for half damage, takes no damage on success and half on failure.' },
-  'sneak attack': { type:'passive', icon:'🗡', rule:'Once per turn, deal extra damage if advantage on the attack or an ally is adjacent to the target and you don\'t have disadvantage.' },
-  'divine grace': { type:'passive', icon:'✦', rule:'Add Charisma modifier to saving throws (in addition to the usual modifier).' },
-  'keen smell': { type:'passive', icon:'👃', rule:'Advantage on Wisdom (Perception) checks that rely on smell.' },
-  'amphibious': { type:'passive', icon:'🌊', rule:'Can breathe both air and water.' },
-  'flyby': { type:'passive', icon:'🦅', rule:'Doesn\'t provoke opportunity attacks when it flies out of an enemy\'s reach.' },
-  'brute': { type:'passive', icon:'⚒', rule:'A melee weapon deals one extra die of its damage when it hits.' },
-  'ram': { type:'active', icon:'🐏', rule:'If the creature moves at least 20 ft in a straight line before hitting with a horn attack, the target must succeed on a STR save or be knocked prone.' },
-  'charge': { type:'active', icon:'⚡', rule:'If moves at least 20 ft in a straight line before attacking, deal extra damage. Target may be knocked prone on failed STR save.' },
-  'counterspell': { type:'reaction', icon:'⚡', rule:'Reaction: Interrupt a creature casting a spell. Automatically negates spells of 3rd level or lower. Higher levels require a spellcasting check.' },
   'poison': { type:'active', icon:'☠', rule:'Creature is poisoned until end of next turn unless they succeed on a DC 15 CON save.' },
   'invisible': { type:'active', icon:'👁', rule:'Cannot be targeted by attacks. Attacks against invisible creatures have disadvantage.' },
   'charm': { type:'active', icon:'💫', rule:'Charmed creature cannot attack the charmer. Charmer has advantage on Persuasion checks against charmed creature.' },
@@ -6274,14 +6301,6 @@ const TRAIT_RULES = {
   'immune': { type:'passive', icon:'◆', rule:'Take no damage from this damage type or are unaffected by this condition.' },
   'darkvision': { type:'passive', icon:'👁', rule:'Can see in dim light within range as if bright light, in darkness as if dim light. Cannot discern color in darkness.' },
   'magic resistance': { type:'passive', icon:'✦', rule:'Advantage on saving throws against spells and other magical effects.' },
-  'spellcasting': { type:'active', icon:'✨', rule:'Uses a spell ability score (INT, WIS, or CHA) to cast spells. Spell save DC = 8 + proficiency + ability modifier.' },
-  'innate spellcasting': { type:'active', icon:'✨', rule:'Can cast spells without material components. Uses natural magical ability rather than a prepared spell list.' },
-  'frightful presence': { type:'active', icon:'😨', rule:'Each creature of choice within 120 ft that is aware of it must succeed on WIS save or be frightened for 1 minute. Repeat save at end of each turn.' },
-  'telepathy': { type:'passive', icon:'🧠', rule:'Can communicate telepathically with any creature within range that has a language.' },
-  'regeneration': { type:'passive', icon:'💚', rule:'Regains hit points at the start of its turn. Certain damage types may negate this.' },
-  'stone camouflage': { type:'passive', icon:'🪨', rule:'Advantage on Dexterity (Stealth) checks made to hide in rocky terrain.' },
-  'siege monster': { type:'passive', icon:'🏰', rule:'Deals double damage to objects and structures.' },
-  'swarm': { type:'passive', icon:'🐜', rule:'Can occupy another creature\'s space. Resistance to bludgeoning, piercing, slashing from nonmagical attacks. Immune to conditions: charmed, frightened, grappled, paralyzed, petrified, prone, restrained, stunned.' },
 };
 
 function enrichTrait(traitStr) {
@@ -6494,13 +6513,26 @@ function buildInventorySection(c) {
     </div>`;
   }).join('');
 
-  const attunedCount = items.filter(i => i.attuned).length;
-  const attunedStr = attunedCount ? ` <span style="font-size:10px;color:#c9a227">(${attunedCount}/3 attuned)</span>` : '';
+  const baseAttuned = items.filter(i => i.attuned).length;
+  const extraAttuned = getExtraAttuned(c.name);
+  const totalAttuned = baseAttuned + extraAttuned.length;
+  const attunedColor = totalAttuned >= 3 ? '#c9a227' : totalAttuned > 3 ? '#cc4444' : '#c9a227';
+  const attunedStr = totalAttuned > 0 ? ` <span style="font-size:10px;color:${attunedColor}">(${totalAttuned}/3 attuned)</span>` : '';
+  const extraCards = extraAttuned.map((item, idx) => `
+    <div class="item-card attuned" style="position:relative">
+      <button onclick="removeExtraAttuned(${JSON.stringify(c.name)},${idx})" style="position:absolute;top:4px;right:4px;background:none;border:none;color:#4a5272;cursor:pointer;font-size:11px" title="Remove">✕</button>
+      <div class="item-name">${item}</div>
+      <div class="item-desc" style="font-size:10px;color:#4a5272">Custom attuned item</div>
+      <div class="item-badges"><span class="item-badge attuned">⬡ Attuned</span></div>
+    </div>`).join('');
 
   return `
     <div class="stats-section">
-      <div class="stats-section-title">Equipment & Inventory${attunedStr}</div>
-      <div class="inventory-grid">${cards}</div>
+      <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>Equipment & Inventory${attunedStr}</span>
+        <button onclick="openAddAttunement(${JSON.stringify(c.name)},event)" style="background:none;border:1px solid rgba(201,162,39,.4);color:#c9a227;border-radius:6px;padding:2px 8px;cursor:pointer;font-size:10px${totalAttuned>=3?';opacity:.5;cursor:not-allowed':''}" title="${totalAttuned>=3?'Max 3 attuned items':'Add custom attuned item'}">⬡ + Attune</button>
+      </div>
+      <div class="inventory-grid">${cards}${extraCards}</div>
     </div>`;
 }
 // ────────────────────────────────────────────────────────
@@ -6651,6 +6683,7 @@ function buildCombatBar(c) {
   (c.abilities || []).forEach(([n,s,m]) => ab[n] = { score: s, mod: parseInt(m)||0 });
   const dexMod = ab['DEX'] ? ab['DEX'].mod : 0;
   const wisMod = ab['WIS'] ? ab['WIS'].mod : 0;
+  const intMod = ab['INT'] ? ab['INT'].mod : 0;
   const prof = c.cr === '30' ? 9 : c.cr === '21' || c.cr === '20' ? 7 : c.cr === '17' || c.cr === '16' ? 6 :
                c.cr === '15' || c.cr === '14' ? 5 : c.cr === '13' || c.cr === '9' || c.cr === '10' ? 4 :
                c.cr === '7' || c.cr === '8' ? 3 : c.cr === '5' || c.cr === '6' ? 3 : 2;
@@ -6658,7 +6691,10 @@ function buildCombatBar(c) {
   const currHp = getCharHP(c.name, maxHp);
   const hpPct = currHp / maxHp;
   const initBonus = dexMod >= 0 ? `+${dexMod}` : `${dexMod}`;
-  const passivePerc = 10 + wisMod + prof;
+  // Iteration 34: Passive skill calculations
+  const passivePerc   = 10 + wisMod + prof;
+  const passiveInvest = 10 + intMod + prof;
+  const passiveInsight= 10 + wisMod;
   const speed = c.theme === 'nature' ? 40 : c.theme === 'ocean' ? 35 : c.theme === 'fire' ? 30 : 30;
 
   const box = (label, value, sub, rollable, onClick) =>
@@ -6668,16 +6704,37 @@ function buildCombatBar(c) {
       ${sub ? `<div class="combat-stat-sub">${sub}</div>` : ''}
     </div>`;
 
-  return [
+  const mainBar = [
     box('Armor Class', c.ac, 'AC', false, null),
     box('Initiative', initBonus, 'DEX mod', true, `rollModalInitiative(${dexMod})`),
     box('Speed', speed + ' ft', null, false, null),
     box('HP', `<span style="color:${hpBarColor(hpPct)}">${currHp}</span>`, `of ${maxHp} max`, false, null),
     box('Hit Dice', 'd' + (parseInt(c.hp) > 100 ? '12' : '8'), null, false, null),
     box('Prof Bonus', `+${prof}`, 'CR ' + c.cr, false, null),
-    box('Passive Perc', passivePerc, 'WIS', false, null),
     box('CR', c.cr, 'Challenge', false, null),
   ].join('');
+
+  // Passive skills row (Iteration 34)
+  const passiveRow = `<div style="display:flex;gap:8px;padding:6px 12px;background:#06061a;border-top:1px solid #0e0e24;flex-wrap:wrap">
+    <div title="Passive Perception = 10 + WIS mod + Prof (proficient in Perception by default)" style="display:flex;align-items:center;gap:5px;padding:3px 10px;background:#0a0a1e;border:1px solid rgba(68,136,255,0.2);border-radius:8px;cursor:default">
+      <span style="font-size:10px;color:#4a5272;letter-spacing:0.5px">👁 PASSIVE PERC</span>
+      <span style="font-size:15px;font-weight:700;color:#4488ff;font-family:'Cinzel',serif">${passivePerc}</span>
+    </div>
+    <div title="Passive Investigation = 10 + INT mod + Prof" style="display:flex;align-items:center;gap:5px;padding:3px 10px;background:#0a0a1e;border:1px solid rgba(136,68,255,0.2);border-radius:8px;cursor:default">
+      <span style="font-size:10px;color:#4a5272;letter-spacing:0.5px">🔍 PASSIVE INVEST</span>
+      <span style="font-size:15px;font-weight:700;color:#8844ff;font-family:'Cinzel',serif">${passiveInvest}</span>
+    </div>
+    <div title="Passive Insight = 10 + WIS mod (typically not proficient)" style="display:flex;align-items:center;gap:5px;padding:3px 10px;background:#0a0a1e;border:1px solid rgba(68,200,120,0.2);border-radius:8px;cursor:default">
+      <span style="font-size:10px;color:#4a5272;letter-spacing:0.5px">🧠 PASSIVE INSIGHT</span>
+      <span style="font-size:15px;font-weight:700;color:#44cc88;font-family:'Cinzel',serif">${passiveInsight}</span>
+    </div>
+    <div title="Proficiency Bonus based on CR" style="display:flex;align-items:center;gap:5px;padding:3px 10px;background:#0a0a1e;border:1px solid rgba(201,162,39,0.2);border-radius:8px;cursor:default">
+      <span style="font-size:10px;color:#4a5272;letter-spacing:0.5px">⚔ PROF BONUS</span>
+      <span style="font-size:15px;font-weight:700;color:#c9a227;font-family:'Cinzel',serif">+${prof}</span>
+    </div>
+  </div>`;
+
+  return mainBar + passiveRow;
 }
 
 function rollModalInitiative(dexMod) {
@@ -6743,6 +6800,8 @@ function openModal(idx) {
   document.getElementById('modalTabStats').classList.add('active');
 
   document.getElementById('modal').classList.add('open');
+  // Refresh inspiration button state
+  if (typeof refreshInspirationBtn === 'function') refreshInspirationBtn(c.name);
 }
 
 function closeModal() {
@@ -6787,7 +6846,7 @@ document.getElementById('searchBox').addEventListener('input', (e) => {
 
 document.addEventListener('keydown', (e) => {
   const isTyping = document.activeElement && ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName);
-  if (e.key === 'Escape') { closeModal(); closeHpPopup(); closeAoeDmg?.(); closeQuestTracker?.(); if (restPanelOpen) toggleRestPanel(); document.querySelectorAll('.rel-map-overlay,.session-stats-overlay,.exhaust-menu,.passive-skills-overlay').forEach(e=>e.remove()); }
+  if (e.key === 'Escape') { closeModal(); closeHpPopup(); closeAoeDmg?.(); closeQuestTracker?.(); document.querySelectorAll('.rel-map-overlay,.session-stats-overlay,.exhaust-menu,.passive-skills-overlay').forEach(e=>e.remove()); }
   if (e.key === 'ArrowLeft' && currentModalIdx >= 0) navChar(-1);
   if (e.key === 'ArrowRight' && currentModalIdx >= 0) navChar(1);
   if (e.key === '/' && currentModalIdx < 0 && !isTyping) {
@@ -6905,39 +6964,7 @@ const CONDITIONS = [
 ];
 
 const COND_KEY = 'tiamat_conditions';
-const CUSTOM_COND_KEY = 'tiamat_custom_conditions';
 let condPopupChar = '';
-
-function loadCustomConditions() { try { return JSON.parse(localStorage.getItem(CUSTOM_COND_KEY)) || []; } catch { return []; } }
-function saveCustomConditions(arr) { localStorage.setItem(CUSTOM_COND_KEY, JSON.stringify(arr)); }
-function getAllConditions() { return [...CONDITIONS, ...loadCustomConditions()]; }
-
-function addCustomCondition(name, icon, effectText) {
-  if (!name.trim()) return false;
-  const existing = loadCustomConditions();
-  if (getAllConditions().some(c => c.name.toLowerCase() === name.trim().toLowerCase())) return false;
-  existing.push({ name: name.trim(), type: 'custom', icon: icon || '✦', color: '#9b6dff', effects: effectText ? [effectText.trim()] : [], custom: true });
-  saveCustomConditions(existing);
-  return true;
-}
-
-function removeCustomCondition(condName) {
-  const arr = loadCustomConditions().filter(c => c.name !== condName);
-  saveCustomConditions(arr);
-}
-
-function promptAddCustomCondition(reopenFor) {
-  const name = prompt('Custom condition name (e.g. "Cursed", "Marked", "Bleeding Out"):');
-  if (!name?.trim()) return;
-  const icon = prompt('Icon/emoji (leave blank for ✦):', '✦') || '✦';
-  const effect = prompt('Effect description (optional):') || '';
-  if (addCustomCondition(name, icon, effect)) {
-    logEntry('note', `✦ Custom condition created: <strong>${escHtml(name)}</strong>`);
-    if (reopenFor) openCondPopup(reopenFor, { stopPropagation:()=>{}, clientX: window.innerWidth/2, clientY: 200 });
-  } else {
-    alert('A condition with that name already exists.');
-  }
-}
 
 function loadAllConditions() {
   try { return JSON.parse(localStorage.getItem(COND_KEY)) || {}; } catch { return {}; }
@@ -6957,62 +6984,13 @@ function getCondClass(type) {
   return map[type] || 'cond-debuff';
 }
 
-// Condition Duration Tracking
-const COND_DUR_KEY = 'tiamat_cond_durations';
-function loadCondDurations() { try { return JSON.parse(localStorage.getItem(COND_DUR_KEY)) || {}; } catch { return {}; } }
-function saveCondDurations(d) { localStorage.setItem(COND_DUR_KEY, JSON.stringify(d)); }
-function getCondDuration(charName, condName) { return (loadCondDurations()[charName] || {})[condName] ?? null; }
-function setCondDuration(charName, condName, rounds) {
-  const d = loadCondDurations();
-  if (!d[charName]) d[charName] = {};
-  if (rounds === null || rounds === '' || isNaN(rounds)) delete d[charName][condName];
-  else d[charName][condName] = Math.max(0, parseInt(rounds));
-  if (d[charName] && !Object.keys(d[charName]).length) delete d[charName];
-  saveCondDurations(d);
-}
-function tickCondDurations(charName) {
-  // Called at start/end of character's turn; decrement their condition durations
-  const all = loadAllConditions();
-  const conds = all[charName] || [];
-  const d = loadCondDurations();
-  let expired = [];
-  conds.forEach(cname => {
-    const dur = (d[charName] || {})[cname];
-    if (dur !== null && dur !== undefined) {
-      const newDur = dur - 1;
-      if (newDur <= 0) {
-        expired.push(cname);
-        delete d[charName][cname];
-      } else {
-        d[charName][cname] = newDur;
-      }
-    }
-  });
-  saveCondDurations(d);
-  // Remove expired conditions
-  if (expired.length) {
-    expired.forEach(cname => {
-      const idx = (all[charName] || []).indexOf(cname);
-      if (idx >= 0) all[charName].splice(idx, 1);
-    });
-    if (!all[charName]?.length) delete all[charName];
-    saveAllConditions(all);
-    logEntry('cond', `⏱ <strong>${escHtml(charName)}</strong>: condition(s) expired — ${expired.map(escHtml).join(', ')}`);
-    updateHeaderStats();
-    playSound?.('heal');
-  }
-  renderInitiative();
-}
-
 function getConditionBadgesHtml(name) {
   const conds = getCharConditions(name);
   if (!conds.length) return '';
   return conds.map(cname => {
-    const cd = getAllConditions().find(c => c.name === cname);
+    const cd = CONDITIONS.find(c => c.name === cname);
     const cls = cd ? getCondClass(cd.type) : 'cond-debuff';
-    const dur = getCondDuration(name, cname);
-    const durBadge = dur !== null ? `<span style="font-size:8px;background:rgba(0,0,0,0.4);border-radius:6px;padding:0 3px;margin-left:2px;color:${dur<=1?'#ff4444':'#c9a227'}">${dur}</span>` : '';
-    return `<span class="condition-badge ${cls}${dur===0?' cond-expired':''}" onclick="openCondPopup(${JSON.stringify(name)},event)" title="${cname}${dur!==null?' ('+dur+' rounds)':''} — Click to manage">${cname}${durBadge}</span>`;
+    return `<span class="condition-badge ${cls}" onclick="openCondPopup(${JSON.stringify(name)},event)" title="Click to manage conditions">${cname}</span>`;
   }).join('');
 }
 
@@ -7030,30 +7008,19 @@ function openCondPopup(name, event) {
     </div>
     ${exLvl > 0 ? `<div style="font-size:10px;color:#9098b8;margin-top:5px">${EXHAUST_EFFECTS[exLvl]}</div>` : ''}
   </div>`;
-  const customConds = loadCustomConditions();
-  const allConds = getAllConditions();
-  document.getElementById('condGrid').innerHTML = exhaustRow + allConds.map(c => {
+  document.getElementById('condGrid').innerHTML = exhaustRow + CONDITIONS.map(c => {
     const isActive = active.includes(c.name);
-    const typeClass = {debuff:'cond-debuff',control:'cond-control',status:'cond-status',movement:'cond-movement',custom:'cond-status'}[c.type]||'cond-debuff';
+    const typeClass = {debuff:'cond-debuff',control:'cond-control',status:'cond-status',movement:'cond-movement'}[c.type]||'cond-debuff';
     const effectsHtml = (c.effects || []).map(e => `<li>${e}</li>`).join('');
-    const deleteBtn = c.custom ? `<span onclick="event.stopPropagation();removeCustomCondition(${JSON.stringify(c.name)});openCondPopup(${JSON.stringify(name)},{stopPropagation:()=>{},clientX:${Math.round(window?.innerWidth/2||300)},clientY:200})" style="margin-left:auto;color:#4a5272;cursor:pointer;font-size:10px;padding:1px 4px;border-radius:3px" title="Delete custom condition">✕</span>` : '';
-    const dur = isActive ? getCondDuration(name, c.name) : null;
-    const durInput = isActive ? `<div onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;margin-top:5px">
-      <span style="font-size:9px;color:#4a5272">⏱ Rounds:</span>
-      <input type="number" min="0" max="99" placeholder="∞" value="${dur !== null ? dur : ''}" onchange="setCondDuration(${JSON.stringify(name)},${JSON.stringify(c.name)},this.value||null);event.stopPropagation()" onclick="event.stopPropagation()" style="width:40px;background:#0a0a1a;border:1px solid #2a2a50;color:#c9a227;border-radius:4px;padding:1px 4px;font-size:10px;text-align:center">
-      ${dur!==null?`<span style="font-size:9px;color:${dur<=1?'#ff4444':'#8888aa'}">${dur} left</span>`:''}
-    </div>` : '';
     return `<div class="cond-card ${isActive?'cond-card-active':''}" onclick="toggleCondition(${JSON.stringify(c.name)});this.classList.toggle('cond-card-active')" style="border-color:${isActive?c.color:'#1e2040'}">
       <div class="cond-card-header">
         <span class="cond-card-icon">${c.icon||'◆'}</span>
         <span class="cond-card-name" style="color:${isActive?c.color:'#9098b8'}">${c.name}</span>
         <span class="cond-card-type ${typeClass}">${c.type}</span>
-        ${deleteBtn}
       </div>
       ${c.effects && c.effects.length ? `<ul class="cond-card-effects">${effectsHtml}</ul>` : ''}
-      ${durInput}
     </div>`;
-  }).join('') + `<div style="grid-column:1/-1;margin-top:4px"><button onclick="promptAddCustomCondition(${JSON.stringify(name)})" style="width:100%;background:rgba(155,109,255,0.08);border:1px dashed rgba(155,109,255,0.3);color:#6a4aaa;border-radius:8px;padding:7px;cursor:pointer;font-size:12px">✦ Add Custom Condition…</button></div>`;
+  }).join('');
   const popup = document.getElementById('condPopup');
   const x = Math.min(Math.max(event.clientX - 130, 10), window.innerWidth - 280);
   const y = Math.min(Math.max(event.clientY + 8, 10), window.innerHeight - 320);
@@ -8072,24 +8039,92 @@ function renderEncounterList() {
   }).join('');
 }
 
+// Iteration 38: XP by CR table (5e standard values)
+const CR_XP = {
+  '0':10,'1/8':25,'1/4':50,'1/2':100,'1':200,'2':450,'3':700,'4':1100,
+  '5':1800,'6':2300,'7':2900,'8':3900,'9':5000,'10':5900,'11':7200,
+  '12':8400,'13':10000,'14':11500,'15':13000,'16':15000,'17':18000,
+  '18':20000,'19':22000,'20':25000,'21':33000,'22':41000,'23':50000,
+  '24':62000,'25':75000,'26':90000,'27':105000,'28':120000,'29':135000,'30':155000
+};
+const ENCOUNTER_MULTI = [1,1,1.5,2,2,2,2.5,2.5,2.5,3,3,4];
+function crToXP(cr) { return CR_XP[cr] || 0; }
+function calcEncounterXP(chars) {
+  if (!chars.length) return { raw: 0, adjusted: 0, per4: 0 };
+  const raw = chars.reduce((s, cn) => {
+    const c = UNIQUE_CHARS.find(x => x.name === cn);
+    return s + (c ? crToXP(c.cr) : 0);
+  }, 0);
+  const multi = ENCOUNTER_MULTI[Math.min(chars.length, ENCOUNTER_MULTI.length-1)] || 4;
+  const adjusted = Math.round(raw * multi);
+  const per4 = Math.round(adjusted / 4);
+  return { raw, adjusted, per4, multi };
+}
+function getEncounterDifficulty(adjusted, partyLevel) {
+  // Thresholds for 4 players at given level
+  const thresholds = {
+    1:{easy:25,med:50,hard:75,deadly:100},
+    2:{easy:50,med:100,hard:150,deadly:200},
+    3:{easy:75,med:150,hard:225,deadly:400},
+    4:{easy:125,med:250,hard:375,deadly:500},
+    5:{easy:250,med:500,hard:750,deadly:1100},
+    6:{easy:300,med:600,hard:900,deadly:1400},
+    7:{easy:350,med:750,hard:1100,deadly:1700},
+    8:{easy:450,med:900,hard:1400,deadly:2100},
+    9:{easy:550,med:1100,hard:1600,deadly:2400},
+    10:{easy:600,med:1200,hard:1900,deadly:2800},
+    15:{easy:1100,med:2200,hard:3300,deadly:5400},
+    20:{easy:2800,med:5700,hard:8500,deadly:12700}
+  };
+  const lvl = [1,2,3,4,5,6,7,8,9,10,15,20].reduce((best, l) => l <= partyLevel ? l : best, 1);
+  const t = thresholds[lvl] || thresholds[1];
+  if (adjusted >= t.deadly) return { label: 'DEADLY', color: '#cc3333' };
+  if (adjusted >= t.hard)   return { label: 'HARD',   color: '#dd8822' };
+  if (adjusted >= t.med)    return { label: 'MEDIUM', color: '#c9a227' };
+  if (adjusted >= t.easy)   return { label: 'EASY',   color: '#44aa44' };
+  return { label: 'TRIVIAL', color: '#4a5272' };
+}
+
 function renderEncounterRight() {
   const enc = encounters[activeEncounterId];
   if (!enc) return;
   const el = document.getElementById('encounterRight');
   const allCharNames = UNIQUE_CHARS.map(c => c.name);
+  const xp = calcEncounterXP(enc.chars);
+  const partyLevel = enc.partyLevel || 5;
+
+  const diff = enc.chars.length ? getEncounterDifficulty(xp.adjusted, partyLevel) : null;
+  const xpBar = enc.chars.length ? `
+    <div style="background:#06061a;border:1px solid #1e2040;border-radius:8px;padding:10px 12px;margin:8px 0">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:11px;color:#c9a227;font-weight:600;font-family:'Cinzel',serif">⚔ ENCOUNTER XP</span>
+        ${diff ? `<span style="font-size:12px;font-weight:700;color:${diff.color};font-family:'Cinzel',serif">${diff.label}</span>` : ''}
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <div style="text-align:center"><div style="font-size:16px;font-weight:700;color:#f0e6d3;font-family:'Cinzel',serif">${xp.raw.toLocaleString()}</div><div style="font-size:9px;color:#4a5272">RAW XP</div></div>
+        <div style="text-align:center"><div style="font-size:16px;font-weight:700;color:#c9a227;font-family:'Cinzel',serif">${xp.adjusted.toLocaleString()}</div><div style="font-size:9px;color:#4a5272">ADJUSTED (×${xp.multi})</div></div>
+        <div style="text-align:center"><div style="font-size:16px;font-weight:700;color:#44aa44;font-family:'Cinzel',serif">${xp.per4.toLocaleString()}</div><div style="font-size:9px;color:#4a5272">PER PLAYER (4)</div></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:11px;color:#4a5272">
+        Party Lv:
+        <input type="number" min="1" max="20" value="${partyLevel}" onchange="setEncounterPartyLevel(${JSON.stringify(activeEncounterId)},+this.value)" style="width:44px;background:#0a0a1e;border:1px solid #2a2a50;color:#e0e0ff;border-radius:4px;padding:2px 6px;font-size:11px">
+      </div>
+    </div>` : '';
   el.innerHTML = `
     <div class="encounter-right-header">
       <input class="encounter-name-edit" value="${enc.name}" onchange="renameEncounter(${JSON.stringify(activeEncounterId)},this.value)" placeholder="Encounter name">
       <button class="encounter-launch-btn" onclick="launchEncounter(${JSON.stringify(activeEncounterId)})">⚔ Launch to Initiative</button>
     </div>
     <div style="font-size:11px;color:#4a5272;margin-top:-4px">${enc.chars.length} NPC${enc.chars.length!==1?'s':''} in this encounter</div>
+    ${xpBar}
     ${enc.chars.length ? `<div class="encounter-chars-grid">${enc.chars.map(cn => {
       const char = UNIQUE_CHARS.find(c => c.name === cn);
       const maxHp = char ? parseInt(char.hp) || 1 : 0;
+      const charXP = char ? crToXP(char.cr) : 0;
       return `<div class="enc-char-card">
         <div>
           <div class="enc-char-name">${cn}</div>
-          ${maxHp ? `<div class="enc-char-hp">HP: ${maxHp}</div>` : ''}
+          ${maxHp ? `<div class="enc-char-hp">HP: ${maxHp} · ${charXP.toLocaleString()} XP</div>` : ''}
         </div>
         <button class="enc-char-remove" onclick="removeFromEncounter(${JSON.stringify(activeEncounterId)},${JSON.stringify(cn)})">✕</button>
       </div>`;
@@ -8102,6 +8137,9 @@ function renderEncounterRight() {
       <button class="encounter-new-btn" onclick="addFromSelect()">+ Add</button>
     </div>
   `;
+}
+function setEncounterPartyLevel(encId, level) {
+  if (encounters[encId]) { encounters[encId].partyLevel = Math.max(1, Math.min(20, level)); saveEncounters(); renderEncounterRight(); }
 }
 
 function renameEncounter(id, name) {
@@ -8186,19 +8224,6 @@ loadEncounters();
 
 // ── INITIATIVE TRACKER ──────────────────────────────────
 let initiativeList = [];
-const INIT_NOTES_KEY = 'tiamat_init_notes';
-function loadInitNotes() { try { return JSON.parse(localStorage.getItem(INIT_NOTES_KEY)) || {}; } catch { return {}; } }
-function saveInitNotes(d) { localStorage.setItem(INIT_NOTES_KEY, JSON.stringify(d)); }
-function getInitNote(name) { return loadInitNotes()[name] || ''; }
-function setInitNote(name, text) { const d = loadInitNotes(); if (text) d[name] = text; else delete d[name]; saveInitNotes(d); }
-function promptInitNote(name, event) {
-  if (event) event.stopPropagation();
-  const cur = getInitNote(name);
-  const val = prompt(`Combat note for ${name} (leave blank to clear):`, cur);
-  if (val === null) return;
-  setInitNote(name, val.trim());
-  renderInitiative();
-}
 let currentTurnIdx = 0;
 let currentRound = 1;
 
@@ -8429,14 +8454,25 @@ function rollAllInitiative() {
 }
 
 function addCustomToInitiative() {
-  const name = document.getElementById('initCustomName').value.trim();
-  const score = parseInt(document.getElementById('initCustomScore').value) || Math.floor(Math.random() * 20) + 1;
-  if (!name) return;
-  initiativeList.push({ name, maxHp: 0, initiative: score, isNpc: false });
+  const baseName = document.getElementById('initCustomName').value.trim();
+  const baseScore = parseInt(document.getElementById('initCustomScore').value) || null;
+  const count = Math.max(1, Math.min(20, parseInt(document.getElementById('initCustomCount').value) || 1));
+  if (!baseName) return;
+
+  for (let i = 1; i <= count; i++) {
+    const name = count > 1 ? `${baseName} #${i}` : baseName;
+    const score = baseScore !== null ? baseScore : Math.floor(Math.random() * 20) + 1;
+    // Check if a known UNIQUE_CHAR has this base name (for HP lookup)
+    const knownChar = UNIQUE_CHARS.find(c => c.name.toLowerCase() === baseName.toLowerCase());
+    const maxHp = knownChar ? (parseInt(knownChar.hp) || 0) : 0;
+    initiativeList.push({ name, maxHp, initiative: score, isNpc: false });
+  }
   initiativeList.sort((a, b) => b.initiative - a.initiative);
   document.getElementById('initCustomName').value = '';
   document.getElementById('initCustomScore').value = '';
+  document.getElementById('initCustomCount').value = '';
   renderInitiative();
+  if (count > 1) showToast(`Added ${count}× ${baseName} to initiative`, '#dd6622');
 }
 
 function removeFromInitiative(name) {
@@ -8444,7 +8480,6 @@ function removeFromInitiative(name) {
   if (idx < 0) return;
   initiativeList.splice(idx, 1);
   if (currentTurnIdx >= initiativeList.length) currentTurnIdx = 0;
-  setInitNote(name, ''); // clear note
   renderInitiative();
   renderGrid();
   updateHeaderStats();
@@ -8452,10 +8487,9 @@ function removeFromInitiative(name) {
 
 function nextTurn() {
   if (!initiativeList.length) return;
-  if (typeof playSound === 'function') playSound('next');
   // Clear action state for the character whose turn is ending
   const endingChar = initiativeList[currentTurnIdx];
-  if (endingChar) { delete turnActionState[endingChar.name]; tickCondDurations(endingChar.name); }
+  if (endingChar) delete turnActionState[endingChar.name];
   currentTurnIdx = (currentTurnIdx + 1) % initiativeList.length;
   if (currentTurnIdx === 0) {
     currentRound++;
@@ -8496,51 +8530,6 @@ function toggleTurnAction(name, type, event) {
   renderInitiative();
 }
 function clearTurnActions() { turnActionState = {}; }
-
-// ── INITIATIVE REORDER ────────────────────────────────────
-let initDragName = null;
-function initDragStart(event, name) { initDragName = name; event.dataTransfer.effectAllowed = 'move'; }
-function initDragOver(event) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }
-function initDrop(event, targetName) {
-  event.preventDefault();
-  if (!initDragName || initDragName === targetName) return;
-  const fromIdx = initiativeList.findIndex(e => e.name === initDragName);
-  const toIdx = initiativeList.findIndex(e => e.name === targetName);
-  if (fromIdx < 0 || toIdx < 0) return;
-  const [moved] = initiativeList.splice(fromIdx, 1);
-  initiativeList.splice(toIdx, 0, moved);
-  // Adjust currentTurnIdx if needed
-  if (currentTurnIdx === fromIdx) currentTurnIdx = toIdx;
-  else if (fromIdx < currentTurnIdx && toIdx >= currentTurnIdx) currentTurnIdx--;
-  else if (fromIdx > currentTurnIdx && toIdx <= currentTurnIdx) currentTurnIdx++;
-  renderInitiative();
-  initDragName = null;
-}
-
-function moveInInitiative(name, dir, event) {
-  if (event) event.stopPropagation();
-  const idx = initiativeList.findIndex(e => e.name === name);
-  const newIdx = idx + dir;
-  if (idx < 0 || newIdx < 0 || newIdx >= initiativeList.length) return;
-  [initiativeList[idx], initiativeList[newIdx]] = [initiativeList[newIdx], initiativeList[idx]];
-  if (currentTurnIdx === idx) currentTurnIdx = newIdx;
-  else if (currentTurnIdx === newIdx) currentTurnIdx = idx;
-  renderInitiative();
-}
-
-function editInitiativeScore(name, event) {
-  if (event) event.stopPropagation();
-  const entry = initiativeList.find(e => e.name === name);
-  if (!entry) return;
-  const newVal = prompt(`Edit initiative for ${name}:`, entry.initiative);
-  const parsed = parseInt(newVal);
-  if (isNaN(parsed)) return;
-  entry.initiative = parsed;
-  // Re-sort by initiative value
-  initiativeList.sort((a, b) => b.initiative - a.initiative);
-  currentTurnIdx = 0;
-  renderInitiative();
-}
 
 let lairActionEnabled = false;
 let lairActionDescription = '';
@@ -8589,22 +8578,13 @@ function renderInitiative() {
       const used = ts[type];
       return `<button class="init-action-pip ${used?'used':''}" onclick="toggleTurnAction(${JSON.stringify(e.name)},'${type}',event)" title="${type} — click to toggle" style="border-color:${used?'#2a2a50':color};color:${used?'#2a2a50':color};background:${used?'transparent':'rgba(0,0,0,0)'};">${used?'○':label}</button>`;
     };
-    const note = getInitNote(e.name);
-    return `<div class="init-entry ${isActive ? 'active-turn' : ''} ${isDefeated ? 'defeated' : ''} ${note?'has-init-note':''}" title="${e.name}" draggable="true" data-init-name="${e.name.replace(/"/g,'&quot;')}" ondragstart="initDragStart(event,${JSON.stringify(e.name)})" ondragover="initDragOver(event)" ondrop="initDrop(event,${JSON.stringify(e.name)})">
-      <div class="init-score" onclick="editInitiativeScore(${JSON.stringify(e.name)},event)" title="Click to edit initiative score" style="cursor:pointer;user-select:none" onmouseover="this.style.color='#c9a227'" onmouseout="this.style.color=''">${e.initiative}</div>
-      <div style="display:flex;flex-direction:column;gap:1px;margin-right:2px">
-        <button onclick="moveInInitiative(${JSON.stringify(e.name)},-1,event)" style="background:none;border:none;color:#3a3a60;cursor:pointer;padding:0 2px;font-size:9px;line-height:1" title="Move up">▲</button>
-        <button onclick="moveInInitiative(${JSON.stringify(e.name)},1,event)" style="background:none;border:none;color:#3a3a60;cursor:pointer;padding:0 2px;font-size:9px;line-height:1" title="Move down">▼</button>
-      </div>
-      <div style="flex:1;min-width:0">
-        <div class="init-name">${e.name}</div>
-        ${note ? `<div style="font-size:9px;color:#6677aa;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px" onclick="promptInitNote(${JSON.stringify(e.name)},event)" title="${escHtml(note)} (click to edit)">${escHtml(note)}</div>` : ''}
-      </div>
+    return `<div class="init-entry ${isActive ? 'active-turn' : ''} ${isDefeated ? 'defeated' : ''}" title="${e.name}">
+      <div class="init-score">${e.initiative}</div>
+      <div class="init-name">${e.name}</div>
       <div style="display:flex;gap:3px;margin-left:auto;margin-right:4px">
         ${actionBtn('action','A','#4488ff')}
         ${actionBtn('bonus','B','#88aa22')}
         ${actionBtn('reaction','R','#dd6622')}
-        <button onclick="promptInitNote(${JSON.stringify(e.name)},event)" style="background:none;border:1px solid ${note?'#4455aa':'#2a2a50'};color:${note?'#6677aa':'#2a2a50'};border-radius:3px;padding:1px 4px;cursor:pointer;font-size:9px" title="${note?'Edit note: '+note:'Add note'}">✎</button>
       </div>
       ${hpText ? `<div class="init-hp-mini">${hpText}</div>` : ''}
       <button class="init-remove-btn" onclick="removeFromInitiative(${JSON.stringify(e.name)})">✕</button>
@@ -8800,9 +8780,8 @@ function showDiceResult(total, detail, isCrit, isFumble) {
   void mainEl.offsetWidth; // force reflow
   mainEl.style.animation = 'diceRoll 0.3s ease';
   document.getElementById('diceResultDetail').textContent = detail;
-  if (isCrit) { showCritFlash(true); if (typeof playSound === 'function') playSound('crit'); }
-  else if (isFumble) { showCritFlash(false); if (typeof playSound === 'function') playSound('fumble'); }
-  else { if (typeof playSound === 'function') playSound('roll'); }
+  if (isCrit) showCritFlash(true);
+  else if (isFumble) showCritFlash(false);
 }
 
 function showCritFlash(isCrit) {
@@ -9868,6 +9847,1110 @@ function clearTagFilter(dropdown) {
   renderGrid();
 }
 // ────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// ITERATION 61: Damage Resistances & Immunities — auto-
+//   inferred from character traits, lore, and theme.
+//   Critical for combat: shows which damage types to avoid.
+// ══════════════════════════════════════════════════════════
+const DMG_TYPES = ['fire','cold','lightning','thunder','poison','acid','necrotic','radiant','psychic','force','bludgeoning','piercing','slashing','nonmagical'];
+const DMG_ICONS = { fire:'🔥',cold:'❄',lightning:'⚡',thunder:'🌩',poison:'☠',acid:'🧪',necrotic:'💀',radiant:'✨',psychic:'🧠',force:'💥',bludgeoning:'🔨',piercing:'🗡',slashing:'⚔',nonmagical:'⚔' };
+const DMG_COLORS = { fire:'#cc4422',cold:'#4499cc',lightning:'#cccc22',thunder:'#9966cc',poison:'#44aa22',acid:'#88aa00',necrotic:'#666',radiant:'#ccaa22',psychic:'#aa44cc',force:'#4488ff',bludgeoning:'#887755',piercing:'#aa7755',slashing:'#994444',nonmagical:'#555' };
+
+function inferDamageDefenses(c) {
+  const text = ((c.traits || []).join(' ') + ' ' + (c.lore || '') + ' ' + (c.subtitle || '')).toLowerCase();
+  const resistances = [];
+  const immunities = [];
+  const vulnerabilities = [];
+
+  DMG_TYPES.forEach(dmg => {
+    const key = dmg === 'nonmagical' ? 'nonmagical bludgeoning, piercing, and slashing' : dmg;
+    if (text.includes(`immune to ${dmg}`) || text.includes(`immunity to ${dmg}`) || text.includes(`${dmg} immunity`)) immunities.push(dmg);
+    else if (text.includes(`resistant to ${dmg}`) || text.includes(`resistance to ${dmg}`) || text.includes(`${dmg} resistance`)) resistances.push(dmg);
+    else if (text.includes(`vulnerable to ${dmg}`) || text.includes(`vulnerability to ${dmg}`)) vulnerabilities.push(dmg);
+  });
+
+  // Theme-based inference
+  const theme = c.theme || '';
+  if (theme === 'fire' && !immunities.includes('fire') && !resistances.includes('fire')) resistances.push('fire');
+  if (theme === 'shadow' && !resistances.includes('necrotic')) resistances.push('necrotic');
+  if (theme === 'ocean' && !resistances.includes('cold')) resistances.push('cold');
+  if (theme === 'stone' && !resistances.includes('bludgeoning')) resistances.push('bludgeoning');
+  const crNum = parseFloat(c.cr || '1');
+  if (crNum >= 20 && !immunities.includes('poison')) immunities.push('poison');
+
+  return { resistances, immunities, vulnerabilities };
+}
+function buildDamageDefenseSection(c) {
+  const { resistances, immunities, vulnerabilities } = inferDamageDefenses(c);
+  if (!resistances.length && !immunities.length && !vulnerabilities.length) return '';
+  const chip = (dmg, type) => {
+    const col = type === 'immune' ? '#888' : type === 'resist' ? DMG_COLORS[dmg]||'#9098b8' : '#cc4444';
+    const bg = type === 'immune' ? 'rgba(100,100,100,0.15)' : type === 'resist' ? `${DMG_COLORS[dmg]||'#666'}22` : 'rgba(200,50,50,0.15)';
+    const icon = DMG_ICONS[dmg] || '•';
+    return `<span title="${type.toUpperCase()}: ${dmg}" style="display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;border:1px solid ${col}44;background:${bg};color:${col};font-size:10px;margin:2px">${icon} ${dmg}</span>`;
+  };
+  return `<div class="stats-section">
+    <div class="stats-section-title">🛡 Damage Defenses</div>
+    ${immunities.length ? `<div style="margin-bottom:6px"><span style="font-size:9px;color:#888;letter-spacing:1px">IMMUNE </span>${immunities.map(d => chip(d,'immune')).join('')}</div>` : ''}
+    ${resistances.length ? `<div style="margin-bottom:6px"><span style="font-size:9px;color:#4488ff;letter-spacing:1px">RESIST </span>${resistances.map(d => chip(d,'resist')).join('')}</div>` : ''}
+    ${vulnerabilities.length ? `<div><span style="font-size:9px;color:#cc4444;letter-spacing:1px">VULNER </span>${vulnerabilities.map(d => chip(d,'vuln')).join('')}</div>` : ''}
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 59: Keyboard Shortcuts Help Panel — press ?
+//   to see all keyboard shortcuts. Comprehensive hotkey ref.
+// ══════════════════════════════════════════════════════════
+const KEYBOARD_SHORTCUTS = [
+  { group: 'Navigation', keys: [
+    { key: '/', desc: 'Focus search box' },
+    { key: '← →', desc: 'Navigate between characters in modal' },
+    { key: 'Esc', desc: 'Close modal / popup' },
+    { key: 'Ctrl+K', desc: 'Open global spotlight search' },
+    { key: '?', desc: 'Show this help panel' },
+  ]},
+  { group: 'Character Modal', keys: [
+    { key: 'Right-click card', desc: 'Open compact stat block popup' },
+    { key: 'Left-click card', desc: 'Open full character modal' },
+    { key: '⬇ Export', desc: 'Download character JSON snapshot' },
+    { key: '📋 Copy MD', desc: 'Copy stat block as Markdown' },
+    { key: '🖨 Print', desc: 'Print character card' },
+  ]},
+  { group: 'Combat', keys: [
+    { key: '⚔ on card', desc: 'Add/remove from initiative' },
+    { key: 'HP bar', desc: 'Click to open HP adjustment popup' },
+    { key: '⚡ Bulk', desc: 'Apply condition to all in initiative' },
+    { key: '⚄ Roll All', desc: 'Roll initiative for everyone' },
+    { key: 'Next ▶', desc: 'Advance to next turn' },
+    { key: '☽ Short / ☀ Long', desc: 'Rest all characters' },
+  ]},
+  { group: 'Filters & Views', keys: [
+    { key: 'Group buttons', desc: 'Filter by faction/group' },
+    { key: 'Theme buttons', desc: 'Filter by character theme' },
+    { key: '★ Favorites', desc: 'Show only favorited characters' },
+    { key: '🏷 Tags', desc: 'Filter by custom tag' },
+    { key: '⊞ ☰ ⊡', desc: 'Switch grid/list/compact view' },
+    { key: 'Name/CR/HP/AC', desc: 'Sort by attribute' },
+  ]},
+  { group: 'Tools', keys: [
+    { key: '💎 Treasure', desc: 'Random loot generator by CR' },
+    { key: '📅 Timeline', desc: 'Campaign event timeline' },
+    { key: '💀 Graveyard', desc: 'Fallen character tracker' },
+    { key: '💥 AoE', desc: 'Area damage/heal tool' },
+    { key: '+ NPC', desc: 'Create custom NPC' },
+    { key: '⚖ Compare', desc: 'Compare multiple characters' },
+  ]},
+];
+function openShortcutsHelp() {
+  const existing = document.getElementById('shortcutsModal');
+  if (existing) { existing.remove(); return; }
+  const modal = document.createElement('div');
+  modal.id = 'shortcutsModal';
+  modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#0a0a1e;border:1px solid rgba(68,136,255,.4);border-radius:14px;padding:20px;z-index:9500;box-shadow:0 8px 48px rgba(0,0,0,.9);min-width:340px;max-width:700px;width:90vw;max-height:85vh;overflow-y:auto';
+  modal.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <span style="font-size:16px;font-weight:700;color:#4488ff;font-family:'Cinzel',serif">⌨ Keyboard Shortcuts & Tips</span>
+      <button onclick="document.getElementById('shortcutsModal').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">
+      ${KEYBOARD_SHORTCUTS.map(g => `
+        <div style="background:#06061a;border:1px solid #1e2040;border-radius:8px;padding:12px">
+          <div style="font-size:10px;color:#4488ff;letter-spacing:1px;font-weight:700;margin-bottom:8px">${g.group.toUpperCase()}</div>
+          ${g.keys.map(k => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid rgba(30,32,64,0.5)">
+              <span style="font-size:11px;color:#9098b8">${k.desc}</span>
+              <kbd style="background:#0a0a1e;border:1px solid #2a2a50;color:#4488ff;border-radius:4px;padding:1px 6px;font-size:10px;font-family:monospace;flex-shrink:0;margin-left:8px">${k.key}</kbd>
+            </div>`).join('')}
+        </div>`).join('')}
+    </div>
+    <div style="margin-top:12px;padding-top:10px;border-top:1px solid #1e2040;font-size:11px;color:#4a5272;text-align:center">Press <kbd style="background:#0a0a1e;border:1px solid #2a2a50;color:#4488ff;border-radius:3px;padding:1px 5px;font-size:10px">?</kbd> anywhere to toggle this panel</div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => e.stopPropagation());
+  document.addEventListener('click', function rem(e) { if (!modal.contains(e.target)) { modal.remove(); document.removeEventListener('click', rem); } });
+}
+// ? key shortcut
+document.addEventListener('keydown', function(e) {
+  if (e.key === '?' && !['INPUT','TEXTAREA'].includes(document.activeElement?.tagName)) {
+    openShortcutsHelp();
+  }
+});
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 58: Global Deep Search — search ALL content:
+//   lore, traits, spells, quotes, notes, conditions.
+//   Keyboard shortcut Ctrl+K opens the spotlight.
+// ══════════════════════════════════════════════════════════
+function openGlobalSearch() {
+  const existing = document.getElementById('globalSearchOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'globalSearchOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.75);z-index:9600;display:flex;align-items:flex-start;justify-content:center;padding-top:10vh';
+  overlay.innerHTML = `
+    <div style="background:#0a0a1e;border:1px solid rgba(201,162,39,.4);border-radius:14px;width:100%;max-width:620px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.9)">
+      <div style="padding:14px 16px;border-bottom:1px solid #1e2040;display:flex;align-items:center;gap:10px">
+        <span style="font-size:16px">🔍</span>
+        <input id="globalSearchInput" placeholder="Search everything — lore, traits, spells, notes, quotes..."
+          style="flex:1;background:none;border:none;color:#e0e0ff;font-size:15px;outline:none;font-family:'Inter',sans-serif"
+          oninput="runGlobalSearch(this.value)" autofocus>
+        <span style="font-size:10px;color:#4a5272;background:#06061a;padding:2px 6px;border-radius:4px">ESC</span>
+      </div>
+      <div id="globalSearchResults" style="max-height:65vh;overflow-y:auto;padding:8px">
+        <div style="text-align:center;color:#4a5272;padding:30px;font-size:12px">Type to search across all characters, lore, traits, spells, and notes</div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.getElementById('globalSearchInput').focus();
+}
+function runGlobalSearch(query) {
+  const q = query.toLowerCase().trim();
+  const el = document.getElementById('globalSearchResults');
+  if (!q || q.length < 2) {
+    el.innerHTML = '<div style="text-align:center;color:#4a5272;padding:20px;font-size:12px">Type at least 2 characters</div>';
+    return;
+  }
+  const notes = loadAllNotes();
+  const results = [];
+  UNIQUE_CHARS.forEach(c => {
+    const matches = [];
+    const check = (field, value, context) => {
+      if (value && value.toLowerCase().includes(q)) matches.push({ field, context: value.slice(0, 80) });
+    };
+    check('name', c.name, c.name);
+    check('title', c.title, c.title);
+    check('subtitle', c.subtitle, c.subtitle);
+    check('quote', c.quote, `"${c.quote}"`);
+    check('lore', c.lore, c.lore);
+    (c.traits || []).forEach(tr => check('trait', tr, tr));
+    (notes[c.name]?.text || '').split('\n').forEach(line => check('note', line, 'Note: ' + line));
+    if (matches.length) results.push({ c, matches });
+  });
+  if (!results.length) {
+    el.innerHTML = `<div style="text-align:center;color:#4a5272;padding:30px;font-size:12px">No results for "${q}"</div>`;
+    return;
+  }
+  el.innerHTML = results.slice(0, 20).map(({ c, matches }) => {
+    const t = getTheme(c.theme);
+    return `<div onclick="openGlobalSearchResult(${JSON.stringify(c.name)})" style="padding:10px 12px;border-radius:8px;cursor:pointer;margin-bottom:4px;border:1px solid #1e2040;transition:all .1s" onmouseover="this.style.background='#0e0e24';this.style.borderColor='${t.accent}'" onmouseout="this.style.background='';this.style.borderColor='#1e2040'">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
+        <span style="font-size:13px;font-weight:600;color:${t.accent};font-family:'Cinzel',serif">${c.name}</span>
+        <span style="font-size:10px;color:#4a5272">${c.title} · CR ${c.cr}</span>
+      </div>
+      ${matches.slice(0,2).map(m => {
+        const hi = m.context.replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi'), '<mark style="background:rgba(201,162,39,0.3);color:#c9a227;border-radius:2px">$&</mark>');
+        return `<div style="font-size:11px;color:#7a7aaa"><span style="color:#4488ff;text-transform:uppercase;font-size:9px;letter-spacing:.5px">${m.field}</span> ${hi}</div>`;
+      }).join('')}
+      ${matches.length > 2 ? `<div style="font-size:10px;color:#4a5272">+${matches.length-2} more matches</div>` : ''}
+    </div>`;
+  }).join('') + (results.length > 20 ? `<div style="text-align:center;color:#4a5272;font-size:11px;padding:8px">Showing 20 of ${results.length} results</div>` : '');
+}
+function openGlobalSearchResult(name) {
+  document.getElementById('globalSearchOverlay')?.remove();
+  // Clear filters and find character
+  currentSearch = '';
+  currentFilter = 'all';
+  document.getElementById('searchBox').value = '';
+  renderGrid();
+  const idx = filteredChars.findIndex(c => c.name === name);
+  if (idx >= 0) openModal(idx);
+}
+// Ctrl+K shortcut for global search
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    e.preventDefault();
+    openGlobalSearch();
+  }
+});
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 57: Character Graveyard — Track fallen characters
+//   with cause of death, session date. View campaign losses
+//   in a dedicated graveyard panel. Adds skull overlay on card.
+// ══════════════════════════════════════════════════════════
+let graveyardState = {};
+try { graveyardState = JSON.parse(localStorage.getItem('tiamat_graveyard')) || {}; } catch { graveyardState = {}; }
+function saveGraveyard() { localStorage.setItem('tiamat_graveyard', JSON.stringify(graveyardState)); }
+function isDeceased(name) { return !!graveyardState[name]; }
+function markDeceased(name, cause, date) {
+  graveyardState[name] = { cause: cause || 'Unknown', date: date || getCurrentCampaignDate(), killedAt: Date.now() };
+  saveGraveyard();
+  renderGrid();
+  showToast(`${name} has fallen.`, '#888');
+}
+function resurrect(name) {
+  delete graveyardState[name];
+  saveGraveyard();
+  renderGrid();
+  showToast(`${name} has been resurrected!`, '#44cc88');
+}
+function getCurrentCampaignDate() {
+  try {
+    const cal = JSON.parse(localStorage.getItem('tiamat_calendar'));
+    if (cal) return `Day ${cal.day}, ${cal.month}`;
+  } catch {}
+  return new Date().toLocaleDateString();
+}
+function openGraveyardPanel() {
+  const existing = document.getElementById('graveyardModal');
+  if (existing) { existing.remove(); return; }
+  const modal = document.createElement('div');
+  modal.id = 'graveyardModal';
+  modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#06061a;border:1px solid #333;border-radius:14px;padding:20px;z-index:9500;box-shadow:0 8px 48px rgba(0,0,0,.95);min-width:360px;max-width:600px;width:90vw;max-height:80vh;overflow-y:auto';
+  const dead = Object.entries(graveyardState).sort((a,b) => (b[1].killedAt||0) - (a[1].killedAt||0));
+  modal.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <span style="font-size:16px;font-weight:700;color:#888;font-family:'Cinzel',serif">💀 The Graveyard</span>
+      <button onclick="document.getElementById('graveyardModal').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+    </div>
+    ${!dead.length ? '<div style="text-align:center;color:#4a5272;padding:30px;font-size:12px">No characters have fallen... yet.</div>' :
+      dead.map(([name, info]) => {
+        const c = UNIQUE_CHARS.find(x => x.name === name);
+        const t = c ? getTheme(c.theme) : {accent:'#555'};
+        return `<div style="display:flex;gap:12px;margin-bottom:10px;padding:10px 12px;background:#0a0a1e;border:1px solid #1a1a2e;border-left:3px solid #444;border-radius:8px;opacity:0.85">
+          <div style="font-size:28px;opacity:0.5">💀</div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:600;color:#9098b8;text-decoration:line-through">${name}</div>
+            <div style="font-size:10px;color:#4a5272">${c?.title || ''} • ${info.date}</div>
+            <div style="font-size:11px;color:#666;margin-top:2px">Cause: <em>${info.cause}</em></div>
+          </div>
+          <button onclick="resurrect(${JSON.stringify(name)});document.getElementById('graveyardModal').innerHTML=document.getElementById('graveyardModal').innerHTML" style="background:rgba(68,204,136,.1);border:1px solid rgba(68,204,136,.3);color:#44cc88;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:10px">Resurrect</button>
+        </div>`;
+      }).join('')}
+    <div style="margin-top:12px;padding-top:10px;border-top:1px solid #1e2040">
+      <div style="font-size:11px;color:#4a5272;margin-bottom:8px">Mark a character as deceased:</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <select id="graveyardCharSel" style="flex:1;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">
+          <option value="">— Select Character —</option>
+          ${UNIQUE_CHARS.filter(c => !isDeceased(c.name)).map(c => `<option value="${c.name}">${c.name}</option>`).join('')}
+        </select>
+        <input id="graveyardCause" placeholder="Cause of death..." style="flex:2;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:4px 8px;font-size:11px">
+        <button onclick="const n=document.getElementById('graveyardCharSel').value,ca=document.getElementById('graveyardCause').value;if(n){markDeceased(n,ca);document.getElementById('graveyardModal').remove();openGraveyardPanel()}" style="background:rgba(100,100,100,.2);border:1px solid #444;color:#888;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px">💀 Mark Dead</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => e.stopPropagation());
+  document.addEventListener('click', function rem(e) { if (!modal.contains(e.target)) { modal.remove(); document.removeEventListener('click', rem); } });
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 56: Initiative Round Log — per-round combat log
+//   with auto-entries when rounds change. DMs can annotate
+//   each round with custom notes.
+// ══════════════════════════════════════════════════════════
+let roundLog = []; // [{ round, entries: [{time, text}] }]
+function getRoundLog(round) {
+  let rl = roundLog.find(r => r.round === round);
+  if (!rl) { rl = { round, entries: [] }; roundLog.push(rl); }
+  return rl;
+}
+function addRoundLogEntry(round, text) {
+  const rl = getRoundLog(round);
+  rl.entries.push({ time: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}), text });
+  renderRoundLogPanel();
+}
+function renderRoundLogPanel() {
+  const el = document.getElementById('roundLogPanel');
+  if (!el) return;
+  if (!roundLog.length) { el.innerHTML = '<div style="text-align:center;color:#4a5272;font-size:11px;padding:10px">Combat log will appear here</div>'; return; }
+  const sorted = [...roundLog].sort((a,b) => b.round - a.round);
+  el.innerHTML = sorted.map(rl =>
+    `<div style="margin-bottom:8px">
+      <div style="font-size:10px;color:#dd6622;font-weight:700;margin-bottom:3px;font-family:'Cinzel',serif">— Round ${rl.round} —</div>
+      ${rl.entries.map(e => `<div style="font-size:10px;color:#7a7aaa;padding:1px 0"><span style="color:#4a5272">${e.time}</span> ${e.text}</div>`).join('')}
+    </div>`
+  ).join('');
+}
+// Patch nextTurn to add round log entries
+(function() {
+  const orig = window.nextTurn;
+  if (!orig) return;
+  window.nextTurn = function() {
+    const prevRound = currentRound;
+    const prevChar = initiativeList[currentTurnIdx];
+    orig();
+    if (prevChar) addRoundLogEntry(prevRound, `${prevChar.name}'s turn ended`);
+    const newChar = initiativeList[currentTurnIdx];
+    if (newChar) addRoundLogEntry(currentRound, `${newChar.name}'s turn`);
+  };
+})();
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 55: Compact Stat Block Popup — right-click or
+//   long-press on any character card to show a formatted
+//   D&D 5e stat block popup. Quick reference without opening
+//   the full modal.
+// ══════════════════════════════════════════════════════════
+function openStatBlockPopup(charName, evt) {
+  evt.stopPropagation();
+  document.querySelectorAll('.stat-block-popup').forEach(p => p.remove());
+  const c = UNIQUE_CHARS.find(x => x.name === charName);
+  if (!c) return;
+  const ab = {};
+  (c.abilities || []).forEach(([n,s,m,hl]) => ab[n] = { score: parseInt(s)||10, mod: parseInt(m)||0, hl: !!hl });
+  const prof = c.cr === '30' ? 9 : c.cr === '21'||c.cr==='20' ? 7 : c.cr==='17'||c.cr==='16' ? 6 :
+               c.cr==='15'||c.cr==='14' ? 5 : c.cr==='13'||c.cr==='9'||c.cr==='10' ? 4 :
+               c.cr==='7'||c.cr==='8' ? 3 : c.cr==='5'||c.cr==='6' ? 3 : 2;
+  const abOrder = ['STR','DEX','CON','INT','WIS','CHA'];
+  const abRow = abOrder.map(n => {
+    const a = ab[n] || {score:10,mod:0};
+    const m = a.mod >= 0 ? `+${a.mod}` : `${a.mod}`;
+    return `<div style="text-align:center;padding:4px 0"><div style="font-size:9px;color:#4a5272;letter-spacing:.5px">${n}</div><div style="font-size:15px;font-weight:700;color:${a.hl?'#c9a227':'#e0e0ff'}">${a.score}</div><div style="font-size:11px;color:${a.hl?'#c9a227':'#7a7aaa'}">${m}</div></div>`;
+  }).join('');
+  const saveRow = abOrder.map(n => {
+    const a = ab[n] || {score:10,mod:0};
+    const sv = a.hl ? a.mod + prof : a.mod;
+    return `${n} ${sv>=0?'+':''}${sv}`;
+  }).join('  ');
+  const maxHp = parseInt(c.hp) || 1;
+  const currHp = getCharHP(c.name, maxHp);
+  const hpPct = currHp/maxHp;
+  const t = getTheme(c.theme);
+
+  const popup = document.createElement('div');
+  popup.className = 'stat-block-popup';
+  popup.style.cssText = `position:fixed;background:#0a0a1e;border:2px solid ${t.accent};border-radius:10px;padding:14px;z-index:9200;box-shadow:0 8px 48px rgba(0,0,0,.9);width:320px;font-size:12px`;
+  popup.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:start">
+      <div>
+        <div style="font-size:15px;font-weight:700;color:${t.accent};font-family:'Cinzel',serif">${c.name}</div>
+        <div style="font-size:11px;color:#7a7aaa">${c.title} • ${c.subtitle}</div>
+      </div>
+      <button onclick="this.closest('.stat-block-popup').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:14px">✕</button>
+    </div>
+    <div style="border-top:1px solid #1e2040;margin:8px 0;padding-top:6px;display:flex;gap:12px;font-size:11px;color:#9098b8">
+      <span>AC <strong style="color:#e0e0ff">${c.ac}</strong></span>
+      <span>HP <strong style="color:${hpBarColor(hpPct)}">${currHp}/${maxHp}</strong></span>
+      <span>CR <strong style="color:#e0e0ff">${c.cr}</strong></span>
+      <span>Prof <strong style="color:#c9a227">+${prof}</strong></span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:2px;background:rgba(201,162,39,0.05);border-radius:6px;padding:4px;margin-bottom:8px">${abRow}</div>
+    <div style="font-size:10px;color:#4a5272;margin-bottom:6px"><strong style="color:#9098b8">Saves:</strong> ${saveRow}</div>
+    ${c.traits?.length ? `<div style="font-size:10px;color:#4a5272;margin-bottom:6px"><strong style="color:#9098b8">Traits:</strong> ${(c.traits||[]).slice(0,3).join(' • ')}</div>` : ''}
+    <div style="font-size:10px;color:#4a5272;margin-top:6px;border-top:1px solid #1e2040;padding-top:6px"><em>${(c.lore||'').slice(0,100)}${(c.lore||'').length>100?'…':''}</em></div>
+    <button onclick="openModal(filteredChars.findIndex(x=>x.name===${JSON.stringify(c.name)}));this.closest('.stat-block-popup').remove()" style="margin-top:8px;width:100%;background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.3);color:#c9a227;border-radius:6px;padding:4px;cursor:pointer;font-size:11px">Open Full Sheet →</button>`;
+  document.body.appendChild(popup);
+  const x = Math.min(evt.clientX, window.innerWidth - 330);
+  const y = Math.min(evt.clientY + 10, window.innerHeight - 400);
+  popup.style.left = x + 'px';
+  popup.style.top = y + 'px';
+  setTimeout(() => document.addEventListener('click', function rem(e) {
+    if (!popup.contains(e.target)) { popup.remove(); document.removeEventListener('click', rem); }
+  }), 50);
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 54: Campaign Timeline — Visual milestone tracker
+//   with campaign dates. Add/remove/edit events. Shows
+//   chronological campaign history. Better than DnD Beyond.
+// ══════════════════════════════════════════════════════════
+let timelineEvents = [];
+try { timelineEvents = JSON.parse(localStorage.getItem('tiamat_timeline')) || []; } catch { timelineEvents = []; }
+function saveTimeline() { localStorage.setItem('tiamat_timeline', JSON.stringify(timelineEvents)); }
+const TIMELINE_TYPES = {
+  battle:  { icon: '⚔', color: '#cc4444', label: 'Battle' },
+  story:   { icon: '📖', color: '#4488ff', label: 'Story Event' },
+  death:   { icon: '💀', color: '#777',    label: 'Death' },
+  reveal:  { icon: '💡', color: '#c9a227', label: 'Revelation' },
+  travel:  { icon: '🗺', color: '#44cc88', label: 'Travel' },
+  session: { icon: '🎲', color: '#aa66dd', label: 'Session' },
+  quest:   { icon: '📜', color: '#ff8844', label: 'Quest' },
+};
+function openCampaignTimeline() {
+  const existing = document.getElementById('timelineModal');
+  if (existing) { existing.remove(); return; }
+  const modal = document.createElement('div');
+  modal.id = 'timelineModal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);z-index:9400;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box';
+  modal.innerHTML = `
+    <div style="background:#0a0a1e;border:1px solid rgba(201,162,39,.4);border-radius:14px;width:100%;max-width:700px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #1e2040">
+        <span style="font-size:16px;font-weight:700;color:#c9a227;font-family:'Cinzel',serif">📅 Campaign Timeline</span>
+        <button onclick="document.getElementById('timelineModal').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <div style="padding:14px 20px;border-bottom:1px solid #0e0e24;background:#06061a">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input id="tlDate" placeholder="Date (e.g. Day 142)" style="background:#0a0a1e;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:5px 8px;font-size:12px;flex:1;min-width:100px">
+          <input id="tlTitle" placeholder="Event title..." style="background:#0a0a1e;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:5px 8px;font-size:12px;flex:2;min-width:150px">
+          <select id="tlType" style="background:#0a0a1e;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:5px 8px;font-size:12px;cursor:pointer">
+            ${Object.entries(TIMELINE_TYPES).map(([k,v]) => `<option value="${k}">${v.icon} ${v.label}</option>`).join('')}
+          </select>
+          <button onclick="addTimelineEvent()" style="background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.5);color:#c9a227;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px">+ Add</button>
+        </div>
+        <input id="tlDesc" placeholder="Description (optional)..." style="background:#0a0a1e;border:1px solid #1e2040;color:#9098b8;border-radius:6px;padding:4px 8px;font-size:11px;width:100%;margin-top:6px;box-sizing:border-box">
+      </div>
+      <div id="timelineList" style="flex:1;overflow-y:auto;padding:14px 20px">
+        ${renderTimelineList()}
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+function renderTimelineList() {
+  if (!timelineEvents.length) return '<div style="text-align:center;color:#4a5272;padding:30px;font-size:12px">No events yet. Add the first milestone above.</div>';
+  const sorted = [...timelineEvents].reverse();
+  return sorted.map((ev, ridx) => {
+    const idx = timelineEvents.length - 1 - ridx;
+    const tt = TIMELINE_TYPES[ev.type] || TIMELINE_TYPES.story;
+    return `<div style="display:flex;gap:10px;margin-bottom:10px;padding:8px 10px;background:#06061a;border-left:3px solid ${tt.color};border-radius:6px">
+      <div style="font-size:20px;flex-shrink:0;margin-top:2px">${tt.icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span style="font-size:13px;font-weight:600;color:#e0e0ff">${ev.title}</span>
+          <span style="font-size:10px;color:#4a5272;flex-shrink:0;margin-left:8px">${ev.date || '—'}</span>
+        </div>
+        ${ev.desc ? `<div style="font-size:11px;color:#7a7aaa;margin-top:2px">${ev.desc}</div>` : ''}
+        <span style="font-size:9px;color:${tt.color}">${tt.label}</span>
+      </div>
+      <button onclick="removeTimelineEvent(${idx})" style="background:none;border:none;color:#2a2a50;cursor:pointer;font-size:12px;flex-shrink:0" onmouseover="this.style.color='#cc4444'" onmouseout="this.style.color='#2a2a50'">✕</button>
+    </div>`;
+  }).join('');
+}
+function addTimelineEvent() {
+  const date  = document.getElementById('tlDate').value.trim();
+  const title = document.getElementById('tlTitle').value.trim();
+  const type  = document.getElementById('tlType').value;
+  const desc  = document.getElementById('tlDesc').value.trim();
+  if (!title) return;
+  timelineEvents.push({ date, title, type, desc, addedAt: Date.now() });
+  saveTimeline();
+  document.getElementById('tlDate').value = '';
+  document.getElementById('tlTitle').value = '';
+  document.getElementById('tlDesc').value = '';
+  const list = document.getElementById('timelineList');
+  if (list) list.innerHTML = renderTimelineList();
+}
+function removeTimelineEvent(idx) {
+  timelineEvents.splice(idx, 1);
+  saveTimeline();
+  const list = document.getElementById('timelineList');
+  if (list) list.innerHTML = renderTimelineList();
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 53: Monster Tactics Notes — DM-facing combat
+//   behavior editor. Threat priority, opening move, retreat
+//   trigger. Shows in modal Story tab under lore.
+// ══════════════════════════════════════════════════════════
+let tacticsState = {};
+try { tacticsState = JSON.parse(localStorage.getItem('tiamat_tactics')) || {}; } catch { tacticsState = {}; }
+function saveTactics() { localStorage.setItem('tiamat_tactics', JSON.stringify(tacticsState)); }
+function getTactics(name) {
+  return tacticsState[name] || { priority:'', opening:'', retreat:'', morale:'' };
+}
+function setTactics(name, field, value) {
+  if (!tacticsState[name]) tacticsState[name] = {};
+  tacticsState[name][field] = value;
+  saveTactics();
+}
+function buildTacticsSection(name) {
+  const t = getTactics(name);
+  const field = (label, key, placeholder, color) => `
+    <div style="margin-bottom:10px">
+      <div style="font-size:10px;color:${color};letter-spacing:1px;margin-bottom:4px">${label}</div>
+      <textarea onchange="setTactics(${JSON.stringify(name)},${JSON.stringify(key)},this.value)" placeholder="${placeholder}" style="width:100%;background:#06061a;border:1px solid #1e2040;color:#e0e0ff;border-radius:6px;padding:6px 8px;font-size:12px;resize:vertical;min-height:48px;box-sizing:border-box;line-height:1.5">${t[key] || ''}</textarea>
+    </div>`;
+  return `<div class="stats-section">
+    <div class="stats-section-title">⚔ DM Combat Tactics</div>
+    <div style="font-size:11px;color:#4a5272;margin-bottom:10px">Private DM notes — not shown to players. Think and plan ahead.</div>
+    ${field('🎯 THREAT PRIORITY', 'priority', 'Who does this character target first? (e.g. Spellcasters, lowest HP, flanked targets)', '#cc4444')}
+    ${field('⚡ OPENING MOVE', 'opening', 'What does this character do on round 1? (e.g. Charge the frontline, cast Hold Person, use Frightful Presence)', '#dd8822')}
+    ${field('💨 RETREAT TRIGGER', 'retreat', 'At what point does this character flee or surrender? (e.g. Below 25% HP, all allies down, hostage threatened)', '#4488ff')}
+    ${field('💀 MORALE / TACTICS', 'morale', 'Special behaviors, tactics, lair advantages, or roleplay hooks during combat', '#44cc88')}
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 52: Random Treasure Generator — CR-appropriate
+//   loot tables. GP/gems/art objects/magic items by CR tier.
+//   Based on D&D 5e DMG treasure tables.
+// ══════════════════════════════════════════════════════════
+const MAGIC_ITEMS_BY_TIER = {
+  low:   ['Potion of Healing','Spell Scroll (1st)','Bag of Holding','Rope of Climbing','Cloak of Protection','Boots of Elvenkind','Goggles of Night','Ring of Swimming'],
+  mid:   ['Potion of Greater Healing','Staff of the Python','Wand of Fireballs','Cloak of Elvenkind','Gloves of Missile Snaring','Helm of Telepathy','Periapt of Health','Wand of Lightning Bolts'],
+  high:  ['Potion of Superior Healing','Flame Tongue Sword','Holy Avenger','Ring of Protection','Staff of Fire','Vorpal Sword','Belt of Giant Strength','Cloak of Displacement'],
+  legendary: ['Potion of Supreme Healing','Apparatus of Kwalish','Staff of the Magi','Ring of Wishes','Robe of the Archmagi','Tome of Clear Thought','Sword of Kas','Axe of the Dwarvish Lords']
+};
+const GEM_TABLES = {
+  low:    [['Azurite',10],['Blue Quartz',10],['Lapis Lazuli',10],['Malachite',10],['Obsidian',10]],
+  mid:    [['Amber',100],['Amethyst',100],['Coral',100],['Jade',100],['Pearl',100]],
+  high:   [['Diamond',1000],['Ruby',1000],['Sapphire',1000],['Emerald',1000]],
+  legendary: [['Diamond (5 carat)',5000],['Black Opal',5000],['Blue Sapphire',5000]]
+};
+function roll(sides) { return Math.floor(Math.random() * sides) + 1; }
+function genTreasure(cr) {
+  const crNum = parseFloat(cr) || 1;
+  let tier, gpMulti;
+  if (crNum <= 4)  { tier = 'low';       gpMulti = 1; }
+  else if (crNum <= 10) { tier = 'mid';   gpMulti = 10; }
+  else if (crNum <= 16) { tier = 'high';  gpMulti = 100; }
+  else              { tier = 'legendary'; gpMulti = 1000; }
+
+  const gp    = roll(6) * roll(6) * gpMulti;
+  const sp    = roll(6) * roll(6) * gpMulti * 10;
+  const cp    = tier === 'low' ? roll(6) * 100 : 0;
+  const gems  = roll(3) <= 2 ? [GEM_TABLES[tier][Math.floor(Math.random() * GEM_TABLES[tier].length)]] : [];
+  const hasMagic = roll(4) <= (tier === 'legendary' ? 4 : tier === 'high' ? 3 : tier === 'mid' ? 2 : 1);
+  const magicItems = hasMagic ? [MAGIC_ITEMS_BY_TIER[tier][Math.floor(Math.random() * MAGIC_ITEMS_BY_TIER[tier].length)]] : [];
+  if (tier !== 'low' && roll(6) <= 2) magicItems.push(MAGIC_ITEMS_BY_TIER[tier][Math.floor(Math.random() * MAGIC_ITEMS_BY_TIER[tier].length)]);
+
+  return { gp, sp, cp, gems, magicItems, tier };
+}
+function openTreasureGenerator() {
+  const existing = document.querySelector('.treasure-modal');
+  if (existing) { existing.remove(); return; }
+  const modal = document.createElement('div');
+  modal.className = 'treasure-modal';
+  modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#0a0a1e;border:1px solid rgba(201,162,39,.5);border-radius:14px;padding:20px;z-index:9500;box-shadow:0 8px 48px rgba(0,0,0,.9);min-width:320px;max-width:500px;width:90vw';
+  modal.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <span style="font-size:16px;font-weight:700;color:#c9a227;font-family:'Cinzel',serif">💎 Treasure Generator</span>
+      <button onclick="document.querySelector('.treasure-modal').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+      <label style="font-size:12px;color:#7a7aaa">CR:</label>
+      <select id="treasureCrSel" style="background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:4px 8px;font-size:12px">
+        <option value="1/4">CR 1/4</option><option value="1">CR 1</option><option value="2">CR 2</option><option value="3">CR 3</option>
+        <option value="5" selected>CR 5</option><option value="8">CR 8</option><option value="10">CR 10</option><option value="13">CR 13</option>
+        <option value="15">CR 15</option><option value="17">CR 17</option><option value="20">CR 20</option><option value="24">CR 24</option><option value="30">CR 30</option>
+      </select>
+      <button onclick="rollTreasure()" style="background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.5);color:#c9a227;border-radius:6px;padding:5px 14px;cursor:pointer;font-size:12px;font-family:'Cinzel',serif">Roll Treasure!</button>
+    </div>
+    <div id="treasureResult" style="font-size:13px;color:#9098b8;text-align:center;padding:20px">Click Roll to generate loot</div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => e.stopPropagation());
+  document.addEventListener('click', function rem(e) { if (!modal.contains(e.target)) { modal.remove(); document.removeEventListener('click', rem); } }, { once: true });
+}
+function rollTreasure() {
+  const cr = document.getElementById('treasureCrSel').value;
+  const t = genTreasure(cr);
+  const el = document.getElementById('treasureResult');
+  if (!el) return;
+  el.innerHTML = `
+    <div style="margin-bottom:10px">
+      <div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:6px">${t.tier.toUpperCase()} TIER HOARD</div>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+        ${t.gp ? `<div style="text-align:center"><div style="font-size:18px;font-weight:700;color:#c9a227;font-family:'Cinzel',serif">${t.gp.toLocaleString()}</div><div style="font-size:9px;color:#4a5272">GP</div></div>` : ''}
+        ${t.sp ? `<div style="text-align:center"><div style="font-size:18px;font-weight:700;color:#9098b8;font-family:'Cinzel',serif">${t.sp.toLocaleString()}</div><div style="font-size:9px;color:#4a5272">SP</div></div>` : ''}
+        ${t.cp ? `<div style="text-align:center"><div style="font-size:18px;font-weight:700;color:#b87333;font-family:'Cinzel',serif">${t.cp.toLocaleString()}</div><div style="font-size:9px;color:#4a5272">CP</div></div>` : ''}
+      </div>
+    </div>
+    ${t.gems.length ? `<div style="margin-bottom:8px"><div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:4px">💎 GEMS</div>${t.gems.map(([n,v]) => `<span style="background:#0a0a1e;border:1px solid rgba(68,136,255,0.3);color:#88bbff;border-radius:6px;padding:2px 8px;font-size:11px;margin:2px;display:inline-block">${n} (${v} gp)</span>`).join('')}</div>` : ''}
+    ${t.magicItems.length ? `<div><div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:4px">✨ MAGIC ITEMS</div>${t.magicItems.map(m => `<div style="background:rgba(201,162,39,0.08);border:1px solid rgba(201,162,39,0.3);border-radius:6px;padding:4px 10px;font-size:12px;color:#c9a227;margin:3px 0">${m}</div>`).join('')}</div>` : '<div style="font-size:11px;color:#4a5272">No magic items this time</div>'}
+    <button onclick="rollTreasure()" style="margin-top:10px;background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.3);color:#c9a227;border-radius:6px;padding:5px 20px;cursor:pointer;font-size:11px">Roll Again</button>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 50: Attunement Slots Enforcer — max 3 attuned
+//   items tracked per character. Add custom magic items.
+//   Shows over-attunement warning. D&D 5e RAW enforced.
+// ══════════════════════════════════════════════════════════
+let attunementState = {};
+try { attunementState = JSON.parse(localStorage.getItem('tiamat_attunement')) || {}; } catch { attunementState = {}; }
+function saveAttunement() { localStorage.setItem('tiamat_attunement', JSON.stringify(attunementState)); }
+function getExtraAttuned(name) { return attunementState[name] || []; }
+function addExtraAttuned(name, itemName) {
+  if (!attunementState[name]) attunementState[name] = [];
+  attunementState[name].push(itemName);
+  saveAttunement();
+  if (currentModalIdx >= 0 && filteredChars[currentModalIdx]?.name === name) {
+    document.getElementById('statsPanel').innerHTML = buildStatsPanel(filteredChars[currentModalIdx]);
+  }
+}
+function removeExtraAttuned(name, idx) {
+  if (!attunementState[name]) return;
+  attunementState[name].splice(idx, 1);
+  saveAttunement();
+  if (currentModalIdx >= 0 && filteredChars[currentModalIdx]?.name === name) {
+    document.getElementById('statsPanel').innerHTML = buildStatsPanel(filteredChars[currentModalIdx]);
+  }
+}
+function openAddAttunement(name, evt) {
+  evt.stopPropagation();
+  document.querySelectorAll('.attune-popup').forEach(p => p.remove());
+  const popup = document.createElement('div');
+  popup.className = 'attune-popup';
+  popup.style.cssText = 'position:fixed;background:#0e0e24;border:1px solid rgba(201,162,39,.5);border-radius:10px;padding:14px;z-index:9000;box-shadow:0 8px 32px rgba(0,0,0,.8);min-width:240px';
+  popup.innerHTML = `
+    <div style="font-size:12px;color:#c9a227;font-weight:700;margin-bottom:10px;font-family:'Cinzel',serif">⬡ ATTUNE ITEM — ${name}</div>
+    <input id="attuneItemInput" type="text" placeholder="Item name..." style="width:100%;background:#0a0a1e;border:1px solid #4a5272;color:#e0e0ff;border-radius:6px;padding:6px 10px;font-size:13px;margin-bottom:8px;box-sizing:border-box">
+    <div style="display:flex;gap:8px">
+      <button onclick="const v=document.getElementById('attuneItemInput').value.trim();if(v){addExtraAttuned(${JSON.stringify(name)},v);document.querySelectorAll('.attune-popup').forEach(p=>p.remove())}" style="flex:1;background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.5);color:#c9a227;border-radius:6px;padding:6px;cursor:pointer">⬡ Attune</button>
+      <button onclick="document.querySelectorAll('.attune-popup').forEach(p=>p.remove())" style="background:none;border:1px solid #2a2a50;color:#4a5272;border-radius:6px;padding:6px 10px;cursor:pointer">Cancel</button>
+    </div>`;
+  document.body.appendChild(popup);
+  const rect = evt.target.getBoundingClientRect();
+  popup.style.left = Math.max(4, rect.left - 100) + 'px';
+  popup.style.top = (rect.bottom + 4) + 'px';
+  setTimeout(() => { const inp = document.getElementById('attuneItemInput'); if (inp) inp.focus(); }, 50);
+  setTimeout(() => document.addEventListener('click', function rem(e) {
+    if (!popup.contains(e.target)) { popup.remove(); document.removeEventListener('click', rem); }
+  }), 50);
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 39: Bulk Condition Applicator — Apply or remove
+//   any condition to ALL characters currently in initiative.
+//   Perfect for area effects: fog, frightened, poisoned, etc.
+// ══════════════════════════════════════════════════════════
+function toggleBulkCond(evt) {
+  evt.stopPropagation();
+  const existing = document.querySelector('.bulk-cond-popup');
+  if (existing) { existing.remove(); return; }
+  if (!initiativeList.length) { showToast('No characters in initiative', '#cc4444'); return; }
+  const popup = document.createElement('div');
+  popup.className = 'bulk-cond-popup';
+  popup.style.cssText = 'position:fixed;background:#0e0e24;border:1px solid rgba(221,136,34,.5);border-radius:12px;padding:14px;z-index:9000;box-shadow:0 8px 32px rgba(0,0,0,.8);min-width:260px;max-height:70vh;overflow-y:auto';
+  const names = initiativeList.map(e => e.name).filter(Boolean);
+  // All possible conditions + common area conditions grouped first
+  const areaFirst = ['Poisoned','Frightened','Prone','Blinded','Deafened','Charmed','Paralyzed','Restrained'];
+  const rest = CONDITIONS.map(c => c.name).filter(n => !areaFirst.includes(n));
+  const allConds = [...areaFirst, ...rest];
+  popup.innerHTML = `
+    <div style="font-size:12px;color:#dd8822;font-weight:700;margin-bottom:8px;font-family:'Cinzel',serif">⚡ BULK CONDITIONS</div>
+    <div style="font-size:10px;color:#4a5272;margin-bottom:10px">Affects all ${names.length} characters in initiative</div>
+    <div style="display:flex;gap:6px;margin-bottom:10px">
+      <button onclick="bulkClearAllConds()" style="flex:1;background:rgba(204,51,51,0.1);border:1px solid rgba(204,51,51,0.4);color:#cc4444;border-radius:6px;padding:5px;cursor:pointer;font-size:11px">✕ Clear All Conditions</button>
+    </div>
+    <div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:6px">APPLY TO ALL:</div>
+    ${allConds.map(cn => {
+      const cd = CONDITIONS.find(c => c.name === cn);
+      const cls = cd ? getCondClass(cd.type) : '';
+      return `<div onclick="bulkApplyCond(${JSON.stringify(cn)})" style="padding:5px 8px;cursor:pointer;border-radius:4px;font-size:12px;display:flex;align-items:center;gap:6px;margin-bottom:2px" onmouseover="this.style.background='#1e2040'" onmouseout="this.style.background=''">
+        <span class="condition-badge ${cls}" style="cursor:default;font-size:10px;padding:1px 6px">${cn}</span>
+        <span style="font-size:10px;color:#4a5272">${cd ? cd.effect.slice(0,40) + '…' : ''}</span>
+      </div>`;
+    }).join('')}
+    <div style="border-top:1px solid #1e2040;margin-top:8px;padding-top:8px">
+      <div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:6px">REMOVE FROM ALL:</div>
+      ${allConds.map(cn => `<div onclick="bulkRemoveCond(${JSON.stringify(cn)})" style="padding:3px 8px;cursor:pointer;border-radius:4px;font-size:11px;color:#4a5272" onmouseover="this.style.background='#1e2040';this.style.color='#cc4444'" onmouseout="this.style.background='';this.style.color='#4a5272'">✕ Remove ${cn}</div>`).join('')}
+    </div>`;
+  document.body.appendChild(popup);
+  const rect = evt.target.getBoundingClientRect();
+  popup.style.left = Math.max(4, rect.left - 100) + 'px';
+  popup.style.top = (rect.bottom + 4) + 'px';
+  setTimeout(() => document.addEventListener('click', function rem(e) {
+    if (!popup.contains(e.target)) { popup.remove(); document.removeEventListener('click', rem); }
+  }), 50);
+}
+function bulkApplyCond(condName) {
+  initiativeList.forEach(entry => {
+    if (!entry.name) return;
+    const conds = getCharConditions(entry.name);
+    if (!conds.includes(condName)) {
+      const all = loadAllConditions();
+      all[entry.name] = [...(all[entry.name] || []), condName];
+      localStorage.setItem('tiamat_conditions', JSON.stringify(all));
+    }
+  });
+  document.querySelectorAll('.bulk-cond-popup').forEach(p => p.remove());
+  renderGrid();
+  showToast(`Applied ${condName} to ${initiativeList.length} characters`, '#dd8822');
+}
+function bulkRemoveCond(condName) {
+  initiativeList.forEach(entry => {
+    if (!entry.name) return;
+    const all = loadAllConditions();
+    if (all[entry.name]) {
+      all[entry.name] = all[entry.name].filter(c => c !== condName);
+      localStorage.setItem('tiamat_conditions', JSON.stringify(all));
+    }
+  });
+  document.querySelectorAll('.bulk-cond-popup').forEach(p => p.remove());
+  renderGrid();
+  showToast(`Removed ${condName} from all in initiative`, '#44aa44');
+}
+function bulkClearAllConds() {
+  initiativeList.forEach(entry => {
+    if (!entry.name) return;
+    const all = loadAllConditions();
+    delete all[entry.name];
+    localStorage.setItem('tiamat_conditions', JSON.stringify(all));
+  });
+  document.querySelectorAll('.bulk-cond-popup').forEach(p => p.remove());
+  renderGrid();
+  showToast(`Cleared all conditions from ${initiativeList.length} characters`, '#44aa44');
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 37: Character Export/Import — Backup full state
+//   per character as JSON. Includes HP, conditions, notes,
+//   currency, inspiration, exhaustion, hit dice, tags.
+// ══════════════════════════════════════════════════════════
+function exportCharacter() {
+  if (currentModalIdx < 0) return;
+  const c = filteredChars[currentModalIdx];
+  const name = c.name;
+  const maxHp = parseInt(c.hp) || 1;
+  const data = {
+    exportedAt: new Date().toISOString(),
+    version: '1.0',
+    character: {
+      name, title: c.title, cr: c.cr, hp: c.hp, ac: c.ac,
+      theme: c.theme, group: c.group,
+    },
+    state: {
+      hp: getCharHP(name, maxHp),
+      maxHp,
+      tempHp: getTempHP(name),
+      conditions: getCharConditions(name),
+      inspiration: getInspiration(name),
+      exhaustion: getExhaustion(name),
+      currency: getCoins(name),
+      hitDice: { remaining: getRemainingHD(name, getMaxHitDice(c)), max: getMaxHitDice(c), die: getHitDieType(c) },
+      notes: (loadAllNotes()[name] || {}).text || '',
+      tags: getCharTags(name),
+    }
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name.replace(/\s+/g, '_') + '_tiamat_export.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast(`Exported ${name}`, '#44cc88');
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 36: Proficiency & Languages Panel — auto-infer
+//   armor/weapon/tool/language proficiencies from theme,
+//   traits, and lore. Displays as colored chips in modal.
+// ══════════════════════════════════════════════════════════
+function inferProficiencies(c) {
+  const trait = (c.traits || []).join(' ').toLowerCase();
+  const lore  = (c.lore || '').toLowerCase();
+  const theme = c.theme || '';
+  const all = trait + ' ' + lore;
+
+  const armor = [];
+  const weapons = [];
+  const tools = [];
+  const languages = [];
+  const saves = [];
+
+  // Armor proficiency inference
+  if (theme === 'warrior' || all.includes('heavy armor') || all.includes('plate') || all.includes('full armor')) armor.push('Heavy Armor');
+  else if (theme === 'royal' || all.includes('chain mail') || all.includes('medium armor')) armor.push('Medium Armor');
+  if (all.includes('shield')) armor.push('Shields');
+  if (theme === 'arcane' && !armor.length) armor.push('No Armor (robes)');
+  if (theme === 'shadow' || theme === 'nature') armor.push('Light Armor');
+  if (!armor.length) armor.push('Light Armor', 'Medium Armor');
+
+  // Weapon proficiency
+  if (theme === 'warrior' || all.includes('martial weapon') || all.includes('greatsword') || all.includes('longsword')) weapons.push('Martial Weapons');
+  if (theme === 'arcane' || all.includes('staff') || all.includes('dagger')) weapons.push('Simple Weapons');
+  if (all.includes('bow') || all.includes('crossbow')) weapons.push('Ranged Weapons');
+  if (all.includes('rapier') || theme === 'shadow') weapons.push('Finesse Weapons');
+  if (!weapons.length) weapons.push('Simple Weapons');
+
+  // Tools
+  if (all.includes('thief') || all.includes('thieves') || theme === 'shadow') tools.push("Thieves' Tools");
+  if (all.includes('herbalism') || all.includes('alchemy') || theme === 'nature') tools.push('Herbalism Kit');
+  if (all.includes('smith') || all.includes('forge') || theme === 'stone') tools.push("Smith's Tools");
+  if (all.includes('navigator') || all.includes('sailing') || theme === 'ocean') tools.push("Navigator's Tools");
+  if (all.includes('disguise')) tools.push('Disguise Kit');
+  if (all.includes('music') || all.includes('instrument')) tools.push('Musical Instrument');
+
+  // Languages (inferred from group/theme/lore)
+  languages.push('Common');
+  if (theme === 'arcane' || all.includes('elven') || all.includes('elvish') || c.group?.toLowerCase().includes('elf')) languages.push('Elvish');
+  if (theme === 'stone' || all.includes('dwarvish') || all.includes('dwarven')) languages.push('Dwarvish');
+  if (theme === 'orc' || all.includes('orcish') || c.group?.toLowerCase().includes('orc')) languages.push('Orcish');
+  if (all.includes('draconic') || all.includes('dragon')) languages.push('Draconic');
+  if (all.includes('infernal') || all.includes('demon') || all.includes('devil')) languages.push('Infernal');
+  if (all.includes('celestial') || all.includes('angel') || all.includes('divine')) languages.push('Celestial');
+  if (all.includes('primordial') || all.includes('elemental')) languages.push('Primordial');
+  if (theme === 'shadow' || all.includes('undercommon') || all.includes('underdark')) languages.push('Undercommon');
+  if (all.includes('sylvan') || all.includes('fey') || all.includes('fairy')) languages.push('Sylvan');
+
+  // Saving throw proficiencies from highlighted abilities
+  const highlightedAbs = (c.abilities || []).filter(([,,,hl]) => hl).map(([n]) => n);
+  saves.push(...highlightedAbs);
+
+  return { armor, weapons, tools, languages, saves };
+}
+function buildProficienciesSection(c) {
+  const { armor, weapons, tools, languages, saves } = inferProficiencies(c);
+  const chips = (arr, cls) => arr.map(x => `<span class="prof-chip ${cls}">${x}</span>`).join('');
+  return `<div class="stats-section">
+    <div class="stats-section-title">Proficiencies & Languages</div>
+    <div style="margin-bottom:6px">
+      <div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:4px">🛡 ARMOR</div>
+      ${chips(armor, 'armor')}
+    </div>
+    <div style="margin-bottom:6px">
+      <div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:4px">⚔ WEAPONS</div>
+      ${chips(weapons, 'weapon')}
+    </div>
+    ${tools.length ? `<div style="margin-bottom:6px">
+      <div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:4px">🔧 TOOLS</div>
+      ${chips(tools, 'tool')}
+    </div>` : ''}
+    <div style="margin-bottom:6px">
+      <div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:4px">💬 LANGUAGES</div>
+      ${chips(languages, 'lang')}
+    </div>
+    ${saves.length ? `<div>
+      <div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:4px">🎯 SAVING THROW PROF</div>
+      ${chips(saves, 'save')}
+    </div>` : ''}
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 35: Hit Dice Tracker — Track remaining hit dice
+//   for each character. Spend on short rest for healing.
+//   Long rest restores half total. Visual pip system.
+// ══════════════════════════════════════════════════════════
+let hitDiceState = {};
+try { hitDiceState = JSON.parse(localStorage.getItem('tiamat_hit_dice')) || {}; } catch { hitDiceState = {}; }
+function saveHitDice() { localStorage.setItem('tiamat_hit_dice', JSON.stringify(hitDiceState)); }
+function getHitDieType(c) {
+  const cr = parseFloat(c.cr || '1');
+  return cr >= 17 ? 12 : cr >= 9 ? 10 : cr >= 5 ? 8 : 6;
+}
+function getMaxHitDice(c) {
+  const cr = parseFloat(c.cr || '1');
+  return Math.max(1, Math.min(20, Math.ceil(cr)));
+}
+function getRemainingHD(name, max) {
+  if (hitDiceState[name] === undefined) return max;
+  return Math.max(0, Math.min(max, hitDiceState[name]));
+}
+function spendHitDie(name) {
+  const c = UNIQUE_CHARS.find(x => x.name === name);
+  if (!c) return;
+  const max = getMaxHitDice(c);
+  const rem = getRemainingHD(name, max);
+  if (rem <= 0) { showToast('No hit dice remaining! Take a long rest.', '#cc4444'); return; }
+  const die = getHitDieType(c);
+  const roll = Math.floor(Math.random() * die) + 1;
+  const conArr = (c.abilities || []).find(([n]) => n === 'CON');
+  const conMod = conArr ? parseInt(conArr[2]) || 0 : 0;
+  const healed = Math.max(1, roll + conMod);
+  const maxHp = parseInt(c.hp) || 1;
+  const currHp = getCharHP(name, maxHp);
+  const newHp = Math.min(maxHp, currHp + healed);
+  hpState[name] = newHp;
+  saveHp();
+  hitDiceState[name] = rem - 1;
+  saveHitDice();
+  showToast(`${name}: Spent 1d${die}+${conMod}=${healed} → ${newHp}/${maxHp} HP`, '#44aa44');
+  if (currentModalIdx >= 0 && filteredChars[currentModalIdx]?.name === name) {
+    document.getElementById('statsPanel').innerHTML = buildStatsPanel(filteredChars[currentModalIdx]);
+    document.getElementById('modalCombatBar').innerHTML = buildCombatBar(filteredChars[currentModalIdx]);
+  }
+  renderGrid();
+}
+function restoreHitDice(name, amount) {
+  const c = UNIQUE_CHARS.find(x => x.name === name);
+  if (!c) return;
+  const max = getMaxHitDice(c);
+  const rem = getRemainingHD(name, max);
+  hitDiceState[name] = Math.min(max, rem + amount);
+  saveHitDice();
+}
+function buildHitDiceSection(c) {
+  const max = getMaxHitDice(c);
+  const rem = getRemainingHD(c.name, max);
+  const die = getHitDieType(c);
+  const pips = Array.from({length: max}, (_, i) =>
+    `<div class="hd-pip${i >= rem ? ' spent' : ''}" onclick="spendHitDie(${JSON.stringify(c.name)})" title="${i < rem ? 'Click to spend 1 Hit Die' : 'Spent — recover on long rest'}">d${die}</div>`
+  ).join('');
+  return `<div class="stats-section">
+    <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>🎲 Hit Dice</span>
+      <span style="font-size:11px;color:#7a7aaa">${rem}/${max} d${die} remaining</span>
+    </div>
+    <div class="hd-section">
+      <div class="hd-pips">${pips}</div>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <button onclick="spendHitDie(${JSON.stringify(c.name)})" style="flex:1;background:rgba(68,136,255,0.1);border:1px solid rgba(68,136,255,0.4);color:#4488ff;border-radius:6px;padding:5px;cursor:pointer;font-size:11px${rem===0?';opacity:0.4;cursor:not-allowed':''}">☽ Spend 1 Hit Die</button>
+        <button onclick="restoreHitDice(${JSON.stringify(c.name)},${Math.ceil(max/2)});if(currentModalIdx>=0)document.getElementById('statsPanel').innerHTML=buildStatsPanel(filteredChars[currentModalIdx])" style="background:rgba(68,136,255,0.05);border:1px solid #1e2040;color:#4a5272;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px">↺ +${Math.ceil(max/2)} (½ Long Rest)</button>
+      </div>
+    </div>
+  </div>`;
+}
+function showToast(msg, color) {
+  let t = document.getElementById('toastMsg');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toastMsg';
+    t.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:99999;transition:all 0.3s;pointer-events:none;font-family:Cinzel,serif;text-align:center;max-width:400px';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.background = (color || '#44aa44') + '22';
+  t.style.border = '1px solid ' + (color || '#44aa44');
+  t.style.color = color || '#44aa44';
+  t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.style.opacity = '0', 3000);
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 33: Currency Tracker — GP/SP/CP/EP/PP per
+//   character. Click any coin to open input popup. Total
+//   shown in gold equivalent. DnD Beyond equivalent + better.
+// ══════════════════════════════════════════════════════════
+const COINS = [
+  { key:'pp', label:'PP', name:'Platinum', icon:'🔵', color:'#a8c0d0', mult:10 },
+  { key:'gp', label:'GP', name:'Gold',     icon:'🟡', color:'#c9a227', mult:1  },
+  { key:'ep', label:'EP', name:'Electrum', icon:'🟢', color:'#88bbaa', mult:0.5},
+  { key:'sp', label:'SP', name:'Silver',   icon:'⚪', color:'#9098b8', mult:0.1},
+  { key:'cp', label:'CP', name:'Copper',   icon:'🟠', color:'#b87333', mult:0.01}
+];
+let currencyState = {};
+try { currencyState = JSON.parse(localStorage.getItem('tiamat_currency')) || {}; } catch { currencyState = {}; }
+function saveCurrency() { localStorage.setItem('tiamat_currency', JSON.stringify(currencyState)); }
+function getCoins(name) { return currencyState[name] || {pp:0,gp:0,ep:0,sp:0,cp:0}; }
+function setCoins(name, coins) {
+  currencyState[name] = coins;
+  saveCurrency();
+  if (currentModalIdx >= 0 && filteredChars[currentModalIdx]?.name === name) {
+    const c = filteredChars[currentModalIdx];
+    document.getElementById('statsPanel').innerHTML = buildStatsPanel(c);
+  }
+}
+function getTotalGP(name) {
+  const c = getCoins(name);
+  return c.pp*10 + c.gp*1 + c.ep*0.5 + c.sp*0.1 + c.cp*0.01;
+}
+function buildCurrencySection(name) {
+  const coins = getCoins(name);
+  const total = getTotalGP(name);
+  const hasAny = Object.values(coins).some(v => v > 0);
+  const coinHtml = COINS.map(co =>
+    `<div class="currency-coin" style="--coin-color:${co.color}" onclick="openCurrencyPopup(${JSON.stringify(name)},${JSON.stringify(co.key)},event)" title="Click to edit ${co.name}">
+      <div class="coin-icon">${co.icon}</div>
+      <div class="coin-amount" style="color:${co.color}">${(coins[co.key]||0).toLocaleString()}</div>
+      <div class="coin-label">${co.label}</div>
+    </div>`
+  ).join('');
+  return `<div class="stats-section currency-section">
+    <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>💰 Currency</span>
+      ${hasAny ? `<span class="currency-total">≈ ${total.toFixed(1)} GP total</span>` : ''}
+    </div>
+    <div class="currency-grid">${coinHtml}</div>
+  </div>`;
+}
+function openCurrencyPopup(name, coinKey, evt) {
+  evt.stopPropagation();
+  document.querySelectorAll('.currency-popup').forEach(p => p.remove());
+  const co = COINS.find(c => c.key === coinKey);
+  const coins = getCoins(name);
+  const popup = document.createElement('div');
+  popup.className = 'currency-popup';
+  popup.innerHTML = `
+    <div style="font-size:12px;color:#c9a227;font-weight:700;margin-bottom:10px;font-family:'Cinzel',serif">${co.icon} ${co.name} Pieces — ${name}</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+      <button onclick="adjustCoin(${JSON.stringify(name)},${JSON.stringify(coinKey)},-100)" style="background:#1e2040;border:1px solid #333;color:#9098b8;border-radius:4px;padding:4px 8px;cursor:pointer">-100</button>
+      <button onclick="adjustCoin(${JSON.stringify(name)},${JSON.stringify(coinKey)},-10)" style="background:#1e2040;border:1px solid #333;color:#9098b8;border-radius:4px;padding:4px 8px;cursor:pointer">-10</button>
+      <button onclick="adjustCoin(${JSON.stringify(name)},${JSON.stringify(coinKey)},-1)" style="background:#1e2040;border:1px solid #333;color:#9098b8;border-radius:4px;padding:4px 8px;cursor:pointer">-1</button>
+      <span id="coinVal_${coinKey}" style="font-size:20px;font-weight:700;color:${co.color};min-width:50px;text-align:center;font-family:'Cinzel',serif">${coins[coinKey]||0}</span>
+      <button onclick="adjustCoin(${JSON.stringify(name)},${JSON.stringify(coinKey)},1)" style="background:#1e2040;border:1px solid #333;color:#9098b8;border-radius:4px;padding:4px 8px;cursor:pointer">+1</button>
+      <button onclick="adjustCoin(${JSON.stringify(name)},${JSON.stringify(coinKey)},10)" style="background:#1e2040;border:1px solid #333;color:#9098b8;border-radius:4px;padding:4px 8px;cursor:pointer">+10</button>
+      <button onclick="adjustCoin(${JSON.stringify(name)},${JSON.stringify(coinKey)},100)" style="background:#1e2040;border:1px solid #333;color:#9098b8;border-radius:4px;padding:4px 8px;cursor:pointer">+100</button>
+    </div>
+    <div style="display:flex;gap:8px">
+      <input id="coinInput_${coinKey}" type="number" min="0" value="${coins[coinKey]||0}" style="flex:1;background:#0a0a1e;border:1px solid #4a5272;color:#e0e0ff;border-radius:6px;padding:6px 10px;font-size:14px">
+      <button onclick="setCoinDirect(${JSON.stringify(name)},${JSON.stringify(coinKey)})" style="background:rgba(201,162,39,0.15);border:1px solid rgba(201,162,39,0.5);color:#c9a227;border-radius:6px;padding:6px 12px;cursor:pointer">Set</button>
+    </div>`;
+  document.body.appendChild(popup);
+  // Position popup
+  const rect = evt.target.closest('.currency-coin').getBoundingClientRect();
+  popup.style.left = Math.min(rect.left, window.innerWidth - 340) + 'px';
+  popup.style.top = (rect.bottom + 4) + 'px';
+  popup.dataset.name = name; popup.dataset.key = coinKey;
+  setTimeout(() => document.addEventListener('click', function rem(e) { if (!popup.contains(e.target) && !e.target.closest('.currency-coin')) { popup.remove(); document.removeEventListener('click', rem); } }), 50);
+}
+function adjustCoin(name, key, delta) {
+  const coins = getCoins(name);
+  coins[key] = Math.max(0, (coins[key]||0) + delta);
+  setCoins(name, coins);
+  const el = document.getElementById('coinVal_' + key);
+  if (el) el.textContent = coins[key];
+  const inp = document.getElementById('coinInput_' + key);
+  if (inp) inp.value = coins[key];
+}
+function setCoinDirect(name, key) {
+  const inp = document.getElementById('coinInput_' + key);
+  if (!inp) return;
+  const coins = getCoins(name);
+  coins[key] = Math.max(0, parseInt(inp.value) || 0);
+  setCoins(name, coins);
+  document.querySelectorAll('.currency-popup').forEach(p => p.remove());
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 32 + 31: Exhaustion & Inspiration bridges —
+//   These delegate to the implementations defined later in
+//   the file (Iterations 40+ block) which use the same
+//   localStorage keys. Only unique UI helpers defined here.
+// ══════════════════════════════════════════════════════════
+// getExhaustLevel / setExhaustLevel / EXHAUST_EFFECTS defined at end
+// hasInspiration / toggleInspiration defined at end
+// Bridge wrappers (safe to call before definition via hoisting context):
+function getExhaustion(name) { return typeof getExhaustLevel === 'function' ? getExhaustLevel(name) : 0; }
+function setExhaustion(name, level) {
+  if (typeof setExhaustLevel === 'function') {
+    setExhaustLevel(name, level);
+  }
+  renderGrid();
+  if (currentModalIdx >= 0 && filteredChars[currentModalIdx]?.name === name) {
+    const c = filteredChars[currentModalIdx];
+    document.getElementById('statsPanel').innerHTML = buildStatsPanel(c);
+  }
+}
+function getExhaustionBadgeHtml(name) {
+  const lv = getExhaustion(name);
+  if (lv === 0) return '';
+  const cls = (lv >= 5) ? 'ex5' : '';
+  const effects = ['','Disadvantage on checks','Speed halved','Disadv attacks & saves','HP max halved','Speed 0','Death'];
+  return `<span class="exhaustion-badge ${cls}" onclick="event.stopPropagation();showExhaustMenu(${JSON.stringify(name)},event)" title="Exhaustion Lv ${lv}: ${effects[lv]||''}">☠ Exhausted ${lv}</span>`;
+}
+function buildExhaustionWidget(name) {
+  const lv = getExhaustion(name);
+  const effects = ['','Disadvantage on ability checks','Speed halved','Disadvantage on attack rolls and saving throws','Hit point maximum halved','Speed reduced to 0','Death'];
+  if (lv === 0) {
+    return `<div style="text-align:right;margin-bottom:4px"><button onclick="setExhaustion(${JSON.stringify(name)},1)" style="background:none;border:1px dashed #333;color:#4a5272;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:11px" onmouseover="this.style.borderColor='#cc4444';this.style.color='#e07070'" onmouseout="this.style.borderColor='#333';this.style.color='#4a5272'">+ Add Exhaustion</button></div>`;
+  }
+  const pips = [1,2,3,4,5,6].map(i =>
+    `<div class="ex-pip${i<=lv?' filled':''}" onclick="setExhaustion(${JSON.stringify(name)},${i===lv&&lv>0?i-1:i})" title="${i===lv?'Click to reduce':'Set level '+i}">${i}</div>`
+  ).join('');
+  return `<div class="exhaustion-widget">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:12px;color:#e07070;font-weight:600">☠ Exhaustion Level ${lv}</span>
+      <button onclick="setExhaustion(${JSON.stringify(name)},0)" style="background:none;border:1px solid #333;color:#4a5272;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:10px">✕ Clear</button>
+    </div>
+    <div class="exhaustion-pips">${pips}</div>
+    <div style="font-size:11px;color:#e07070;opacity:0.85;margin-top:4px">${effects[lv]||''}</div>
+    ${lv > 1 ? `<div style="font-size:10px;color:#4a5272;margin-top:2px">All lower effects also apply</div>` : ''}
+  </div>`;
+}
+function getInspirationBadgeHtml(name) {
+  const has = typeof hasInspiration === 'function' ? hasInspiration(name) : false;
+  if (!has) return '';
+  return `<span class="inspiration-badge" onclick="toggleInspiration(${JSON.stringify(name)});renderGrid()" title="Has Inspiration — click to remove">✦ Inspired</span>`;
+}
+function refreshInspirationBtn(name) {
+  const btn = document.getElementById('modalInspirationBtn');
+  if (!btn) return;
+  const has = typeof hasInspiration === 'function' ? hasInspiration(name) : false;
+  btn.classList.toggle('active', has);
+  btn.title = has ? 'Has Inspiration — click to remove' : 'Grant Inspiration (advantage on one d20 roll)';
+  btn.innerHTML = has ? '✦ Inspired!' : '✦ Inspiration';
+}
+function toggleModalInspiration() {
+  if (currentModalIdx < 0) return;
+  const name = filteredChars[currentModalIdx].name;
+  if (typeof toggleInspiration === 'function') toggleInspiration(name);
+  renderGrid();
+}
 
 renderGrid();
 
@@ -9989,58 +11072,6 @@ function renderTheaterGrid() {
       ${conc ? `<div style="font-size:8px;color:#c9a227;margin-top:2px">🔮 ${conc.slice(0,16)}</div>` : ''}
     </div>`;
   }).join('');
-}
-// ────────────────────────────────────────────────────────
-
-// ── SOUND EFFECTS ────────────────────────────────────────
-let soundEnabled = localStorage.getItem('tiamat_sound') !== 'off';
-let audioCtx = null;
-
-function getAudioCtx() {
-  if (!audioCtx) {
-    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
-  }
-  return audioCtx;
-}
-
-function playTone(freq, duration, type='sine', volume=0.3, decay=0.5) {
-  if (!soundEnabled) return;
-  const ctx = getAudioCtx();
-  if (!ctx) return;
-  try {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, ctx.currentTime);
-    gain.gain.setValueAtTime(volume, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + decay);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + decay);
-  } catch(e) {}
-}
-
-function playSound(name) {
-  if (!soundEnabled) return;
-  switch(name) {
-    case 'roll':   playTone(440, 0.1, 'triangle', 0.2, 0.15); setTimeout(()=>playTone(520,0.1,'triangle',0.15,0.1), 50); break;
-    case 'crit':   [0,80,160,240].forEach((d,i)=>setTimeout(()=>playTone(550+i*200,0.15,'square',0.15,0.2),d)); break;
-    case 'fumble': [0,100].forEach((d,i)=>setTimeout(()=>playTone(200-i*60,0.15,'sawtooth',0.12,0.25),d)); break;
-    case 'next':   playTone(660, 0.1, 'sine', 0.2, 0.12); break;
-    case 'dmg':    playTone(150, 0.15, 'sawtooth', 0.18, 0.3); break;
-    case 'heal':   playTone(523, 0.1, 'sine', 0.15, 0.2); setTimeout(()=>playTone(659,0.1,'sine',0.1,0.2), 80); break;
-    case 'down':   [0,150,300].forEach((d,i)=>setTimeout(()=>playTone(300-i*60,0.15,'sawtooth',0.12,0.3),d)); break;
-    case 'quest':  [0,100,200].forEach((d,i)=>setTimeout(()=>playTone(440+i*100,0.1,'sine',0.15,0.15),d)); break;
-  }
-}
-
-function toggleSound() {
-  soundEnabled = !soundEnabled;
-  localStorage.setItem('tiamat_sound', soundEnabled ? 'on' : 'off');
-  const btn = document.getElementById('soundToggleBtn');
-  if (btn) { btn.textContent = soundEnabled ? '🔊' : '🔇'; btn.title = soundEnabled ? 'Sound on — click to mute' : 'Sound off — click to unmute'; }
-  if (soundEnabled) { playSound('roll'); } // preview
 }
 // ────────────────────────────────────────────────────────
 
@@ -10594,120 +11625,6 @@ function toggleInspiration(name) {
 }
 // ────────────────────────────────────────────────────────
 
-// ── DAMAGE TYPE TRACKER ──────────────────────────────────
-const DMG_TYPES_KEY = 'tiamat_damage_types';
-const DMG_TYPE_LIST = ['acid','bludgeoning','cold','fire','force','lightning','necrotic','piercing','poison','psychic','radiant','slashing','thunder'];
-const DMG_TYPE_ICONS = { acid:'🧪',bludgeoning:'🔨',cold:'❄',fire:'🔥',force:'💥',lightning:'⚡',necrotic:'💀',piercing:'🗡',poison:'☠',psychic:'🌀',radiant:'✨',slashing:'⚔',thunder:'🌩' };
-
-function loadDmgTypes() { try { return JSON.parse(localStorage.getItem(DMG_TYPES_KEY)) || {}; } catch { return {}; } }
-function saveDmgTypes(d) { localStorage.setItem(DMG_TYPES_KEY, JSON.stringify(d)); }
-
-function getDmgType(name, dtype) {
-  const all = loadDmgTypes();
-  return (all[name] || {})[dtype] || null; // null | 'immune' | 'resist' | 'vuln'
-}
-function setDmgType(name, dtype, state) {
-  const all = loadDmgTypes();
-  if (!all[name]) all[name] = {};
-  if (!state) delete all[name][dtype];
-  else all[name][dtype] = state;
-  if (all[name] && !Object.keys(all[name]).length) delete all[name];
-  saveDmgTypes(all);
-  refreshDmgBadges(name);
-}
-function cycleDmgType(name, dtype, event) {
-  if (event) event.stopPropagation();
-  const cur = getDmgType(name, dtype);
-  const next = cur === null ? 'immune' : cur === 'immune' ? 'resist' : cur === 'resist' ? 'vuln' : null;
-  setDmgType(name, dtype, next);
-  // Update picker button
-  const btn = document.getElementById(`dmgbtn_${safeId(name)}_${dtype}`);
-  if (btn) {
-    btn.classList.remove('active-immune','active-resist','active-vuln');
-    if (next) btn.classList.add(`active-${next}`);
-    btn.textContent = next ? next.charAt(0).toUpperCase()+next.slice(1) : 'None';
-  }
-}
-
-function getDmgTypeBadgesHtml(name) {
-  const data = (loadDmgTypes()[name]) || {};
-  const types = Object.keys(data);
-  if (!types.length) return '';
-  return types.map(dtype => {
-    const state = data[dtype];
-    const icon = DMG_TYPE_ICONS[dtype] || '◆';
-    const label = state === 'immune' ? '◆' : state === 'resist' ? '½' : '2×';
-    return `<span class="dmg-badge ${state}" title="${state.toUpperCase()}: ${dtype}">${icon} ${label}</span>`;
-  }).join('');
-}
-
-function refreshDmgBadges(name) {
-  const condRow = [...document.querySelectorAll('.conditions-row')].find(el => el.dataset.charName === name);
-  if (condRow) {
-    // Rebuild entire conditions row
-    const badges = getConditionBadgesHtml(name) + getConcBadgeHtml(name) + getTagBadgesHtml(name) + getExhaustBadgeHtml(name) + getDmgTypeBadgesHtml(name);
-    condRow.innerHTML = badges;
-  }
-}
-
-function openDmgTypePicker(charName, anchorEl, event) {
-  if (event) event.stopPropagation();
-  document.querySelectorAll('.dmg-type-picker').forEach(e => e.remove());
-  const data = loadDmgTypes()[charName] || {};
-  const sid = safeId(charName);
-  const rows = DMG_TYPE_LIST.map(dtype => {
-    const cur = data[dtype] || null;
-    const mkBtn = (state, label) => `<button id="dmgbtn_${sid}_${dtype}_${state}" class="dmg-type-btn${cur===state?` active-${state}`:''}" onclick="setDmgTypeFull(${JSON.stringify(charName)},${JSON.stringify(dtype)},${JSON.stringify(state)},event)">${label}</button>`;
-    return `<div class="dmg-type-row">
-      <div class="dmg-type-name">${DMG_TYPE_ICONS[dtype]||''} ${dtype}</div>
-      <div class="dmg-type-btns">
-        <button class="dmg-type-btn${!cur?' active-immune':''}" style="${!cur?'background:rgba(255,255,255,0.06);color:#8888aa;border-color:#3a3a5a':''}" onclick="setDmgTypeFull(${JSON.stringify(charName)},${JSON.stringify(dtype)},null,event)">—</button>
-        ${mkBtn('immune','Immune')}
-        ${mkBtn('resist','Resist')}
-        ${mkBtn('vuln','Vuln')}
-      </div>
-    </div>`;
-  }).join('');
-  const rect = anchorEl ? anchorEl.getBoundingClientRect() : { left:200, bottom:200 };
-  const picker = document.createElement('div');
-  picker.className = 'dmg-type-picker';
-  picker.style.left = Math.min(rect.left, window.innerWidth - 300) + 'px';
-  picker.style.top = (rect.bottom + 4) + 'px';
-  picker.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-    <h4>⚔ DAMAGE TYPES — ${escHtml(charName)}</h4>
-    <button onclick="this.closest('.dmg-type-picker').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:14px">✕</button>
-  </div>
-  <div style="font-size:10px;color:#4a5272;margin-bottom:8px">Set immunity, resistance, or vulnerability for each damage type.</div>
-  ${rows}`;
-  document.body.appendChild(picker);
-  const close = e => { if (!picker.contains(e.target)) { picker.remove(); document.removeEventListener('mousedown', close); } };
-  setTimeout(() => document.addEventListener('mousedown', close), 100);
-}
-
-function setDmgTypeFull(name, dtype, state, event) {
-  if (event) event.stopPropagation();
-  const all = loadDmgTypes();
-  if (!all[name]) all[name] = {};
-  if (!state) delete all[name][dtype];
-  else all[name][dtype] = state;
-  if (!Object.keys(all[name]).length) delete all[name];
-  saveDmgTypes(all);
-  // Refresh all buttons in picker
-  const sid = safeId(name);
-  const states = ['immune','resist','vuln'];
-  ['immune','resist','vuln',null].forEach(s => {
-    const btn = document.getElementById(`dmgbtn_${sid}_${dtype}_${s}`);
-    if (btn) { btn.classList.remove('active-immune','active-resist','active-vuln'); btn.style.background=''; btn.style.color=''; btn.style.borderColor=''; }
-  });
-  const nullBtn = document.querySelector(`.dmg-type-picker [onclick*="${CSS.escape(dtype)}"][onclick*="null,event"]`);
-  if (!state && nullBtn) { nullBtn.style.background='rgba(255,255,255,0.06)'; nullBtn.style.color='#8888aa'; nullBtn.style.borderColor='#3a3a5a'; }
-  if (state) {
-    const activeBtn = document.getElementById(`dmgbtn_${sid}_${dtype}_${state}`);
-    if (activeBtn) activeBtn.classList.add(`active-${state}`);
-  }
-  refreshDmgBadges(name);
-}
-
 // ── DEATH SAVE TRACKER ───────────────────────────────────
 const DS_KEY = 'tiamat_death_saves';
 
@@ -10927,16 +11844,6 @@ function updateDmNotesBadge() {
 (function initDmNotes() {
   updateDmNotesBadge();
 })();
-// Initialize sound toggle button state
-(function initSoundBtn() {
-  const btn = document.getElementById('soundToggleBtn');
-  if (btn) {
-    btn.textContent = soundEnabled ? '🔊' : '🔇';
-    btn.title = soundEnabled ? 'Sound on — click to mute' : 'Sound off — click to unmute';
-    btn.style.color = soundEnabled ? '#2299bb' : '#4a5272';
-    btn.style.borderColor = soundEnabled ? '#2299bb' : '#2a2a50';
-  }
-})();
 // ────────────────────────────────────────────────────────
 
 // ── PARTY LOOT & TREASURY TRACKER ────────────────────────
@@ -10952,247 +11859,6 @@ function saveLoot() {
   const l = loadLoot();
   l.notes = document.getElementById('lootNotes')?.value || l.notes;
   localStorage.setItem(LOOT_KEY, JSON.stringify(l));
-}
-
-// ===================== XP & LEVEL TRACKER =====================
-const PARTY_XP_KEY = 'tiamat_party_xp';
-const LEVEL_XP_THRESHOLDS = [0,300,900,2700,6500,14000,23000,34000,48000,64000,85000,100000,120000,140000,165000,195000,225000,265000,305000,355000];
-const PROF_BONUS = [0,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,6,6,6,6]; // index = level
-let xpPanelOpen = false;
-
-function getPartyXp() { return parseInt(localStorage.getItem(PARTY_XP_KEY)) || 0; }
-function savePartyXp(xp) { localStorage.setItem(PARTY_XP_KEY, Math.max(0, xp)); }
-
-function getPartyLevelFromXp(xp) {
-  let level = 1;
-  for (let i = 1; i < LEVEL_XP_THRESHOLDS.length; i++) { if (xp >= LEVEL_XP_THRESHOLDS[i]) level = i + 1; else break; }
-  return Math.min(level, 20);
-}
-
-function toggleXpPanel() {
-  xpPanelOpen = !xpPanelOpen;
-  const panel = document.getElementById('xpTrackerPanel');
-  const btn = document.getElementById('xpTrackerBtn');
-  if (!panel) return;
-  panel.style.display = xpPanelOpen ? 'flex' : 'none';
-  btn.style.background = xpPanelOpen ? 'rgba(201,162,39,0.15)' : '';
-  if (xpPanelOpen) renderXpPanel();
-}
-
-function renderXpPanel() {
-  const el = document.getElementById('xpLevelDisplay');
-  if (!el) return;
-  const xp = getPartyXp();
-  const level = getPartyLevelFromXp(xp);
-  const nextLvl = level < 20 ? LEVEL_XP_THRESHOLDS[level] : null;
-  const prevLvl = LEVEL_XP_THRESHOLDS[level - 1] || 0;
-  const pct = nextLvl ? Math.round((xp - prevLvl) / (nextLvl - prevLvl) * 100) : 100;
-  const prof = PROF_BONUS[level] || 2;
-  const xpToNext = nextLvl ? (nextLvl - xp).toLocaleString() : '—';
-  el.innerHTML = `
-    <div style="text-align:center;margin-bottom:10px">
-      <div style="font-size:28px;font-weight:bold;color:#c9a227;font-family:'Cinzel',serif">Level ${level}</div>
-      <div style="font-size:11px;color:#6a5020;margin-top:2px">Proficiency Bonus: <strong style="color:#c9a227">+${prof}</strong></div>
-    </div>
-    <div style="background:#0d0b00;border-radius:6px;height:8px;overflow:hidden;margin-bottom:6px;border:1px solid #3a2a00">
-      <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#a07010,#c9a227);border-radius:6px;transition:width .4s"></div>
-    </div>
-    <div style="display:flex;justify-content:space-between;font-size:10px;color:#4a3a10;margin-bottom:8px">
-      <span>${xp.toLocaleString()} XP</span>
-      <span>${nextLvl ? xpToNext + ' XP to level ' + (level+1) : 'MAX LEVEL'}</span>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
-      ${LEVEL_XP_THRESHOLDS.map((thresh, i) => {
-        const lvl = i + 1; if (lvl > 20) return '';
-        const reached = xp >= thresh;
-        const active = lvl === level;
-        return `<div style="padding:3px 6px;border-radius:4px;font-size:10px;background:${active?'rgba(201,162,39,0.2)':reached?'rgba(201,162,39,0.06)':'transparent'};border:1px solid ${active?'#c9a227':reached?'#3a2a00':'#1a1400'};color:${active?'#c9a227':reached?'#6a5020':'#2a2000'}">
-          Lv${lvl} <span style="float:right">${thresh.toLocaleString()}</span>
-        </div>`;
-      }).join('')}
-    </div>`;
-}
-
-function awardXp() {
-  const input = document.getElementById('xpAwardInput');
-  const amount = parseInt(input?.value) || 0;
-  if (amount <= 0) return;
-  const prev = getPartyXp();
-  const newXp = prev + amount;
-  savePartyXp(newXp);
-  const prevLevel = getPartyLevelFromXp(prev);
-  const newLevel = getPartyLevelFromXp(newXp);
-  const levelUp = newLevel > prevLevel;
-  logEntry('roll', `⭐ <strong>+${amount.toLocaleString()} XP</strong> awarded — Party now at ${newXp.toLocaleString()} XP${levelUp ? ` 🎉 <strong>LEVEL UP! Now Level ${newLevel}</strong>` : ''}`);
-  if (levelUp) playSound?.('crit');
-  if (input) input.value = '';
-  renderXpPanel();
-  const xpLog = document.getElementById('xpLog');
-  if (xpLog) { const li = document.createElement('div'); li.textContent = `+${amount.toLocaleString()} XP`; li.style.padding = '2px 0'; xpLog.prepend(li); }
-}
-
-function awardMilestone() {
-  // Sum XP from current encounter monsters
-  const totalXp = initiativeList.reduce((sum, e) => {
-    const char = UNIQUE_CHARS.find(c => c.name === e.name);
-    if (!char) return sum;
-    const isMonster = !char.alignment || /evil/i.test(char.alignment);
-    return isMonster ? sum + (XP_BY_CR[char.cr] || 0) : sum;
-  }, 0);
-  if (!totalXp) { logEntry('note', '⭐ No monsters in initiative — no XP to award'); return; }
-  const input = document.getElementById('xpAwardInput');
-  if (input) input.value = totalXp;
-  logEntry('note', `⭐ Loaded ${totalXp.toLocaleString()} XP from encounter — click Award to confirm`);
-  renderXpPanel();
-}
-
-function resetPartyXp() {
-  if (!confirm('Reset party XP to 0?')) return;
-  savePartyXp(0);
-  logEntry('note', '⭐ Party XP reset to 0');
-  renderXpPanel();
-}
-
-// ===================== SHORT / LONG REST =====================
-const REST_DICE_KEY = 'tiamat_hit_dice';
-let restPanelOpen = false;
-let restActiveTab = 0;
-
-function getHitDiceType(name) {
-  try { return parseInt(JSON.parse(localStorage.getItem(REST_DICE_KEY) || '{}')[name]) || 8; } catch { return 8; }
-}
-function setHitDiceType(name, val) {
-  try { const d = JSON.parse(localStorage.getItem(REST_DICE_KEY) || '{}'); d[name] = parseInt(val); localStorage.setItem(REST_DICE_KEY, JSON.stringify(d)); renderRestShortTab(); } catch {}
-}
-function getConMod(char) {
-  const con = (char.abilities || []).find(a => a[0] === 'CON');
-  return con ? parseInt(con[2]) || 0 : 0;
-}
-function getPartyChars() {
-  return UNIQUE_CHARS.filter(c => c.alignment && /good|neutral/i.test(c.alignment) && !/evil/i.test(c.alignment));
-}
-
-function toggleRestPanel() {
-  restPanelOpen = !restPanelOpen;
-  const panel = document.getElementById('restPanel');
-  const btn = document.getElementById('restBtn');
-  if (restPanelOpen) {
-    panel.classList.add('open');
-    btn.style.background = 'rgba(35,180,120,0.15)';
-    switchRestTab(0);
-  } else {
-    panel.classList.remove('open');
-    btn.style.background = '';
-  }
-}
-
-function switchRestTab(idx) {
-  restActiveTab = idx;
-  document.getElementById('restTabShort').style.display = idx === 0 ? 'block' : 'none';
-  document.getElementById('restTabLong').style.display = idx === 1 ? 'block' : 'none';
-  document.getElementById('restTab0').classList.toggle('active', idx === 0);
-  document.getElementById('restTab1').classList.toggle('active', idx === 1);
-  if (idx === 0) renderRestShortTab();
-  else renderRestLongTab();
-}
-
-function renderRestShortTab() {
-  const party = getPartyChars();
-  const el = document.getElementById('restCharList');
-  if (!el) return;
-  if (!party.length) { el.innerHTML = '<div style="color:#4a7a5a;text-align:center;padding:16px;font-size:12px">No good/neutral aligned characters found.<br>Add characters with a good or neutral alignment to use rest.</div>'; return; }
-  el.innerHTML = party.map(c => {
-    const maxHp = parseInt(c.hp || '1');
-    const currHp = getCharHP(c.name, maxHp);
-    const pct = maxHp > 0 ? Math.round(currHp / maxHp * 100) : 0;
-    const hpColor = pct <= 25 ? '#e05050' : pct <= 60 ? '#c9a227' : '#23b478';
-    const conMod = getConMod(c);
-    const hd = getHitDiceType(c.name);
-    const sid = safeId(c.name);
-    const full = currHp >= maxHp;
-    return `<div class="rest-char-row">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-        <span style="font-weight:bold;color:#c8d8ff;font-size:13px;flex:1">${escHtml(c.name)}</span>
-        <span style="font-size:11px;color:${hpColor}">${currHp}/${maxHp}</span>
-        <select onchange="setHitDiceType(${JSON.stringify(c.name)},this.value)" style="background:#061209;border:1px solid #1a3a28;color:#6a9a7a;border-radius:4px;padding:1px 3px;font-size:11px;cursor:pointer" title="Hit die size">
-          ${[6,8,10,12].map(d=>`<option value="${d}"${hd===d?' selected':''}>d${d}</option>`).join('')}
-        </select>
-      </div>
-      <div style="height:3px;background:#0a1a0f;border-radius:2px;margin-bottom:6px"><div style="height:100%;width:${pct}%;background:${hpColor};border-radius:2px;transition:width .3s"></div></div>
-      <button onclick="rollHitDie(${JSON.stringify(c.name)})" ${full?'disabled':''}
-        style="width:100%;background:${full?'#0a1a0f':'rgba(35,180,120,0.1)'};border:1px solid ${full?'#1a3a28':'#23b478'};color:${full?'#2a4a30':'#23b478'};border-radius:6px;padding:5px 8px;cursor:${full?'default':'pointer'};font-size:12px">
-        ${full ? '✓ Full HP' : `🎲 Roll d${hd}${conMod>=0?'+':''}${conMod} Hit Die`}
-      </button>
-      <div class="roll-result" id="hdResult_${sid}"></div>
-    </div>`;
-  }).join('');
-}
-
-function renderRestLongTab() {
-  const party = getPartyChars();
-  const el = document.getElementById('longRestPreview');
-  if (!el) return;
-  const rows = party.map(c => {
-    const maxHp = parseInt(c.hp || '1');
-    const currHp = getCharHP(c.name, maxHp);
-    const missing = maxHp - currHp;
-    const exLvl = typeof getExhaustLevel === 'function' ? getExhaustLevel(c.name) : 0;
-    const slots = slotState[c.name] ? Object.values(slotState[c.name]).reduce((a,b)=>a+b,0) : 0;
-    if (!missing && !slots && !exLvl) return '';
-    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:rgba(255,255,255,0.03);border-radius:6px;margin-bottom:4px;font-size:11px">
-      <span style="color:#c8d8ff">${escHtml(c.name)}</span>
-      <span style="color:#4a7a5a">${missing?`+${missing} HP`:''} ${slots?`${slots} slots`:''} ${exLvl?`exhaust -1`:''}</span>
-    </div>`;
-  }).filter(Boolean).join('');
-  el.innerHTML = rows ? `<div style="color:#6a9a7a;font-size:11px;margin-bottom:6px;font-style:italic">Will restore:</div>${rows}` : `<div style="color:#4a7a5a;font-size:11px;text-align:center;padding:8px">Everyone is already at full HP and spell slots.</div>`;
-}
-
-function rollHitDie(name) {
-  const char = UNIQUE_CHARS.find(c => c.name === name);
-  if (!char) return;
-  const maxHp = parseInt(char.hp || '1');
-  const currHp = getCharHP(name, maxHp);
-  if (currHp >= maxHp) return;
-  const hd = getHitDiceType(name);
-  const conMod = getConMod(char);
-  const roll = Math.floor(Math.random() * hd) + 1;
-  const heal = Math.max(1, roll + conMod);
-  const newHp = Math.min(maxHp, currHp + heal);
-  hpState[name] = newHp;
-  saveHp();
-  logEntry('roll', `<strong>${escHtml(name)}</strong> spent a hit die: rolled ${roll} (d${hd})${conMod>=0?'+':''}${conMod} = <strong>+${heal} HP</strong> → ${newHp}/${maxHp}`);
-  playSound?.('heal');
-  const sid = safeId(name);
-  const res = document.getElementById('hdResult_' + sid);
-  if (res) { res.textContent = `Rolled ${roll}${conMod>=0?'+':''}${conMod} = +${heal} HP (${newHp}/${maxHp})`; }
-  renderRestShortTab();
-  if (typeof renderGrid === 'function') renderGrid();
-}
-
-function doShortRestAll() {
-  const party = getPartyChars();
-  party.forEach(c => rollHitDie(c.name));
-}
-
-function doLongRest() {
-  const party = getPartyChars();
-  let hpRestored = 0, slotsCleared = 0, exhaustReduced = 0;
-  party.forEach(c => {
-    const maxHp = parseInt(c.hp || '1');
-    const currHp = getCharHP(c.name, maxHp);
-    if (currHp < maxHp) { hpState[c.name] = maxHp; hpRestored++; }
-    if (slotState[c.name]) { delete slotState[c.name]; slotsCleared++; }
-    const exLvl = typeof getExhaustLevel === 'function' ? getExhaustLevel(c.name) : 0;
-    if (exLvl > 0) { if (typeof setExhaustLevel === 'function') setExhaustLevel(c.name, exLvl - 1); exhaustReduced++; }
-  });
-  saveHp();
-  if (typeof saveSlots === 'function') saveSlots();
-  logEntry('roll', `🌙 <strong>Long Rest</strong> — ${party.length} party members. HP restored: ${hpRestored}, spell slots refreshed: ${slotsCleared}, exhaustion reduced: ${exhaustReduced}.`);
-  playSound?.('heal');
-  if (typeof renderGrid === 'function') renderGrid();
-  renderRestLongTab();
-  const btn = document.getElementById('longRestBtn');
-  if (btn) { const orig = btn.textContent; btn.textContent = '✓ Long Rest Complete!'; btn.style.background = 'rgba(35,180,120,0.3)'; setTimeout(() => { btn.textContent = orig; btn.style.background = ''; }, 2500); }
 }
 
 function toggleLootPanel() {
