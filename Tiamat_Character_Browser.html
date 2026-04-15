@@ -29401,6 +29401,555 @@ function _wishRender() {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 187: Ability Score Improvement (ASI) & Feat Log
+const ASI_KEY = 'tiamat_asi_log';
+function _asiLoad() { try { return JSON.parse(localStorage.getItem(ASI_KEY)||'{}'); } catch(e){return{};} }
+function _asiSave(d) { localStorage.setItem(ASI_KEY, JSON.stringify(d)); }
+
+const ASI_ABILITY_LIST = ['STR','DEX','CON','INT','WIS','CHA'];
+const ASI_FEATS = ['Alert','Athlete','Actor','Charger','Crossbow Expert','Defensive Duelist',
+  'Dual Wielder','Dungeon Delver','Durable','Elemental Adept','Grappler','Great Weapon Master',
+  'Healer','Heavily Armored','Heavy Armor Master','Inspiring Leader','Keen Mind','Lightly Armored',
+  'Lucky','Mage Slayer','Magic Initiate','Martial Adept','Medium Armor Master','Mobile',
+  'Moderately Armored','Mounted Combatant','Observant','Polearm Master','Resilient','Ritual Caster',
+  'Savage Attacker','Sentinel','Sharpshooter','Shield Master','Skilled','Skulker','Spell Sniper',
+  'Tavern Brawler','Tough','War Caster','Weapon Master'];
+
+function openAsiLog() {
+  document.getElementById('asiOverlay')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'asiOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9300;display:flex;align-items:center;justify-content:center';
+
+  const chars = (window.CHARS||window.UNIQUE_CHARS||[]);
+  const charOpts = chars.map(c=>`<option value="${escHtml(c.name)}">${escHtml(c.name)}</option>`).join('');
+  const abilOpts = ['(Feat only)',...ASI_ABILITY_LIST,...ASI_ABILITY_LIST.map(a=>a+' (×2)')].map(a=>`<option value="${a}">${a}</option>`).join('');
+  const featOpts = ['none',...ASI_FEATS].map(f=>`<option value="${f}">${f}</option>`).join('');
+
+  ov.innerHTML = `
+    <div style="background:#10102a;border:1px solid #c9a227;border-radius:12px;padding:24px;max-width:680px;width:95%;max-height:90vh;overflow-y:auto;font-family:inherit">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <h2 style="margin:0;color:#c9a227;font-size:1.3rem">⭐ ASI & Feat History</h2>
+        <button onclick="document.getElementById('asiOverlay').remove()" style="background:none;border:none;color:#aaa;font-size:1.4rem;cursor:pointer">✕</button>
+      </div>
+      <div style="background:rgba(201,162,39,0.07);border:1px solid #c9a22733;border-radius:8px;padding:12px;margin-bottom:14px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          <select id="asiChar" style="flex:2;padding:6px 8px;background:#1a1a3a;border:1px solid #c9a22744;border-radius:6px;color:#c9a227;min-width:120px">${charOpts}</select>
+          <input id="asiLevel" type="number" min="1" max="20" placeholder="Level" value="4" style="width:70px;padding:6px 8px;background:#1a1a3a;border:1px solid #333;border-radius:6px;color:#fff">
+          <select id="asiAbil" style="flex:1.5;padding:6px 8px;background:#1a1a3a;border:1px solid #333;border-radius:6px;color:#aaa;min-width:100px">${abilOpts}</select>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <select id="asiFeat" style="flex:2;padding:6px 8px;background:#1a1a3a;border:1px solid #333;border-radius:6px;color:#aaa;min-width:140px">${featOpts}</select>
+          <input id="asiNote" placeholder="Optional notes..." style="flex:2;padding:6px 8px;background:#1a1a3a;border:1px solid #333;border-radius:6px;color:#fff">
+          <button onclick="_asiAdd()" style="padding:6px 14px;background:rgba(201,162,39,0.15);border:1px solid #c9a227;border-radius:6px;color:#c9a227;cursor:pointer;font-weight:700">+ Log</button>
+        </div>
+      </div>
+      <div id="asiBody"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _asiRender();
+}
+
+function _asiAdd() {
+  const char = document.getElementById('asiChar')?.value;
+  const level = parseInt(document.getElementById('asiLevel')?.value||'4');
+  const abil = document.getElementById('asiAbil')?.value || '';
+  const feat = document.getElementById('asiFeat')?.value || 'none';
+  const note = document.getElementById('asiNote')?.value?.trim() || '';
+  if (!char) return;
+  const d = _asiLoad();
+  if (!d[char]) d[char] = [];
+  d[char].push({ level, abil, feat: feat==='none'?'':feat, note, ts: new Date().toLocaleDateString() });
+  d[char].sort((a,b)=>a.level-b.level);
+  _asiSave(d);
+  if (document.getElementById('asiNote')) document.getElementById('asiNote').value='';
+  _asiRender();
+}
+
+function _asiDeleteEntry(char, idx) {
+  const d = _asiLoad();
+  if (d[char]) d[char].splice(idx,1);
+  _asiSave(d);
+  _asiRender();
+}
+
+function _asiRender() {
+  const body = document.getElementById('asiBody');
+  if (!body) return;
+  const d = _asiLoad();
+  const chars = Object.keys(d).filter(k=>d[k].length);
+  if (!chars.length) { body.innerHTML='<p style="color:#666;text-align:center;font-size:0.85rem">No ASI history yet.</p>'; return; }
+  body.innerHTML = chars.map(char => {
+    const entries = d[char];
+    const rows = entries.map((e,i) => {
+      const parts = [];
+      if (e.abil && e.abil !== '(Feat only)') parts.push(`<span style="color:#c9a227">${escHtml(e.abil)} +2</span>`);
+      if (e.feat) parts.push(`<span style="color:#9b6dff">Feat: ${escHtml(e.feat)}</span>`);
+      return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid #1a1a3a">
+        <span style="min-width:50px;color:#4488ff;font-weight:700;font-size:0.85rem">Lvl ${e.level}</span>
+        <span style="flex:1;font-size:0.85rem">${parts.join(' <span style="color:#555">+</span> ')||'<span style="color:#666">—</span>'}</span>
+        ${e.note?`<span style="color:#888;font-size:0.78rem;font-style:italic">${escHtml(e.note)}</span>`:''}
+        <span style="color:#555;font-size:0.75rem">${e.ts||''}</span>
+        <button onclick="_asiDeleteEntry('${char.replace(/'/g,"\\'")}',${i})" style="padding:1px 5px;background:none;border:1px solid #ff5050;border-radius:4px;color:#ff5050;cursor:pointer;font-size:0.72rem">✕</button>
+      </div>`;
+    }).join('');
+    return `<div style="background:rgba(201,162,39,0.05);border:1px solid #c9a22722;border-radius:8px;padding:12px;margin-bottom:10px">
+      <div style="color:#c9a227;font-weight:700;font-size:0.95rem;margin-bottom:8px">${escHtml(char)}</div>
+      ${rows}
+    </div>`;
+  }).join('');
+}
+
+// Add ASI Log button
+(function() {
+  const allBtns = document.querySelectorAll('.filter-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.title = 'ASI & Feat History — log ability score improvements and feats per level';
+    btn.style.cssText = 'border-color:#c9a227;color:#c9a227';
+    btn.textContent = '⭐ ASI Log';
+    btn.onclick = openAsiLog;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 188: Magic Item Identifier & Attunement Dashboard
+const IDENT_KEY = 'tiamat_item_ident';
+function _identLoad() { try { return JSON.parse(localStorage.getItem(IDENT_KEY)||'[]'); } catch(e){return[];} }
+function _identSave(d) { localStorage.setItem(IDENT_KEY, JSON.stringify(d)); }
+
+const MAGIC_ITEM_TABLE = [
+  { name:'Bag of Holding', rarity:'Uncommon', attune:false, prop:'Extradimensional container. Holds 500 lbs / 64 cubic ft. Weighs 15 lbs.', curse:false },
+  { name:'Cloak of Elvenkind', rarity:'Uncommon', attune:true, prop:'Adv on Stealth checks; Perc checks against you at disadv while hood up.', curse:false },
+  { name:'Boots of Speed', rarity:'Uncommon', attune:true, prop:'Bonus action: double speed 1 min; opportunity attacks disadv against you.', curse:false },
+  { name:'Ring of Protection', rarity:'Rare', attune:true, prop:'+1 AC and saving throws.', curse:false },
+  { name:'Staff of the Magi', rarity:'Legendary', attune:true, prop:'50 charges. +2 spell atk. Store spells. Retributive Strike.', curse:false },
+  { name:'Vorpal Sword', rarity:'Legendary', attune:true, prop:'+3. Ignores resistance. 20 = decapitate (no legendary resistance).', curse:false },
+  { name:'Sword of Life Stealing', rarity:'Rare', attune:true, prop:'+3. Crit: target non-undead loses 10 HP max and you gain 10 THP.', curse:false },
+  { name:'Gauntlets of Ogre Power', rarity:'Uncommon', attune:true, prop:'STR = 19 while attuned.', curse:false },
+  { name:'Headband of Intellect', rarity:'Uncommon', attune:true, prop:'INT = 19.', curse:false },
+  { name:'Amulet of Health', rarity:'Rare', attune:true, prop:'CON = 19.', curse:false },
+  { name:'Ioun Stone of Fortitude', rarity:'Rare', attune:true, prop:'CON +2 (max 20).', curse:false },
+  { name:'Periapt of Wound Closure', rarity:'Uncommon', attune:true, prop:'Stable auto on death saves. Double HD healing.', curse:false },
+  { name:'Ring of Regeneration', rarity:'Very Rare', attune:true, prop:'Regain 1d6 HP / 10 min. Regen severed limbs in 1d6+1 days.', curse:false },
+  { name:'Cloak of Displacement', rarity:'Rare', attune:true, prop:'Attackers have disadv until you take damage each turn.', curse:false },
+  { name:'Necklace of Fireballs', rarity:'Rare', attune:false, prop:'9 beads. Throw: 5d6 fire in 20-ft sphere (Dex DC 15 half).', curse:false },
+  { name:'Wand of Magic Missiles', rarity:'Uncommon', attune:false, prop:'7 charges. Expend 1-3: cast Magic Missile at that level. Regains 1d6+1 dawn.', curse:false },
+  { name:'Sword of Sharpness', rarity:'Very Rare', attune:true, prop:'+3. Crit: sever a limb. Objects auto-crit.', curse:false },
+  { name:'Rod of Lordly Might', rarity:'Legendary', attune:true, prop:'6 buttons: +3 sword, spear of paralyzing, climbstaff, hammer of thunder, ladder.', curse:false },
+  { name:'Horn of Blasting', rarity:'Rare', attune:false, prop:'5d6 thunder in 30-ft cone, Con DC 15 or Stunned. 20% chance shatters.', curse:false },
+  { name:'Portable Hole', rarity:'Rare', attune:false, prop:'6ft deep extradimensional space. Combo with Bag of Holding = astral suck.', curse:false },
+];
+
+function openMagicIdentifier() {
+  document.getElementById('identOverlay')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'identOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9300;display:flex;align-items:center;justify-content:center';
+
+  const chars = (window.CHARS||window.UNIQUE_CHARS||[]);
+  const charOpts = chars.map(c=>`<option value="${escHtml(c.name)}">${escHtml(c.name)}</option>`).join('');
+  const itemOpts = MAGIC_ITEM_TABLE.map(it=>`<option value="${escHtml(it.name)}">${it.name} (${it.rarity})</option>`).join('');
+
+  ov.innerHTML = `
+    <div style="background:#10102a;border:1px solid #c9a227;border-radius:12px;padding:24px;max-width:720px;width:95%;max-height:90vh;overflow-y:auto;font-family:inherit">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <h2 style="margin:0;color:#c9a227;font-size:1.3rem">⚗ Magic Item Identifier & Attunement</h2>
+        <button onclick="document.getElementById('identOverlay').remove()" style="background:none;border:none;color:#aaa;font-size:1.4rem;cursor:pointer">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div>
+          <h3 style="color:#9b6dff;font-size:0.95rem;margin:0 0 10px">Identify an Item</h3>
+          <select id="identItemSel" onchange="_identPreview()" style="width:100%;padding:7px 8px;background:#1a1a3a;border:1px solid #33333344;border-radius:6px;color:#aaa;margin-bottom:8px">${itemOpts}</select>
+          <div id="identPreviewBox" style="background:rgba(155,109,255,0.07);border:1px solid #9b6dff33;border-radius:6px;padding:10px;font-size:0.82rem;min-height:60px;margin-bottom:8px;color:#ccc"></div>
+          <select id="identCharSel" style="width:100%;padding:7px 8px;background:#1a1a3a;border:1px solid #c9a22733;border-radius:6px;color:#c9a227;margin-bottom:8px">${charOpts}</select>
+          <button onclick="_identAssign()" style="width:100%;padding:8px;background:rgba(201,162,39,0.15);border:1px solid #c9a227;border-radius:6px;color:#c9a227;cursor:pointer;font-weight:700">Assign to Character</button>
+        </div>
+        <div>
+          <h3 style="color:#c9a227;font-size:0.95rem;margin:0 0 10px">Attunement Dashboard</h3>
+          <div id="identAttuneBox"></div>
+        </div>
+      </div>
+      <div style="margin-top:16px">
+        <h3 style="color:#aaa;font-size:0.9rem;margin:0 0 8px">All Assigned Items</h3>
+        <div id="identAllItems"></div>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _identPreview();
+  _identRender();
+}
+
+function _identPreview() {
+  const sel = document.getElementById('identItemSel');
+  const box = document.getElementById('identPreviewBox');
+  if (!sel || !box) return;
+  const it = MAGIC_ITEM_TABLE.find(i=>i.name===sel.value);
+  if (!it) { box.innerHTML=''; return; }
+  const rarityColors = {Common:'#aaa',Uncommon:'#44bb88',Rare:'#4488ff','Very Rare':'#9b6dff',Legendary:'#c9a227'};
+  const col = rarityColors[it.rarity]||'#aaa';
+  box.innerHTML = `<div style="color:${col};font-weight:700;margin-bottom:4px">${escHtml(it.name)} <span style="font-size:0.75rem">(${it.rarity})</span></div>
+    <div style="color:#aaa;margin-bottom:4px">${it.attune?'<span style="color:#ff88cc">Requires Attunement</span>':'No attunement'}</div>
+    <div style="color:#ccc;font-size:0.8rem">${escHtml(it.prop)}</div>`;
+}
+
+function _identAssign() {
+  const itemSel = document.getElementById('identItemSel');
+  const charSel = document.getElementById('identCharSel');
+  if (!itemSel||!charSel) return;
+  const it = MAGIC_ITEM_TABLE.find(i=>i.name===itemSel.value);
+  if (!it) return;
+  const char = charSel.value;
+  const d = _identLoad();
+  // Check attunement limit
+  if (it.attune) {
+    const attuned = d.filter(e=>e.char===char&&e.attuned).length;
+    if (attuned >= 3) { showToast(char+' already has 3 attuned items!','#cc4444'); return; }
+  }
+  d.push({ char, name:it.name, rarity:it.rarity, attune:it.attune, prop:it.prop, attuned:it.attune, ts:new Date().toLocaleDateString() });
+  _identSave(d);
+  showToast(it.name+' assigned to '+char,'#c9a227');
+  _identRender();
+}
+
+function _identRemove(idx) { const d=_identLoad(); d.splice(idx,1); _identSave(d); _identRender(); }
+function _identToggleAttune(idx) { const d=_identLoad(); if(d[idx]) d[idx].attuned=!d[idx].attuned; _identSave(d); _identRender(); }
+
+function _identRender() {
+  const d = _identLoad();
+  // Attunement dashboard by character
+  const atBox = document.getElementById('identAttuneBox');
+  if (atBox) {
+    const chars = [...new Set(d.map(i=>i.char))];
+    if (!chars.length) { atBox.innerHTML='<p style="color:#666;font-size:0.82rem">No items assigned yet.</p>'; }
+    else {
+      atBox.innerHTML = chars.map(char => {
+        const attuned = d.filter(i=>i.char===char&&i.attuned).length;
+        const pct = (attuned/3)*100;
+        const col = attuned===3?'#cc4444':attuned===2?'#ff8844':'#44bb88';
+        return `<div style="margin-bottom:8px">
+          <div style="color:#c9a227;font-size:0.82rem;margin-bottom:4px">${escHtml(char)}: <span style="color:${col}">${attuned}/3 attuned</span></div>
+          <div style="background:#1a1a3a;border-radius:4px;height:6px"><div style="background:${col};height:6px;border-radius:4px;width:${pct}%"></div></div>
+        </div>`;
+      }).join('');
+    }
+  }
+  // All items
+  const allBox = document.getElementById('identAllItems');
+  if (allBox) {
+    if (!d.length) { allBox.innerHTML='<p style="color:#666;font-size:0.82rem">No items assigned.</p>'; return; }
+    const rarityColors = {Common:'#aaa',Uncommon:'#44bb88',Rare:'#4488ff','Very Rare':'#9b6dff',Legendary:'#c9a227'};
+    allBox.innerHTML = `<div style="display:flex;flex-direction:column;gap:5px">${d.map((it,i) => {
+      const col = rarityColors[it.rarity]||'#aaa';
+      return `<div style="display:flex;align-items:center;gap:8px;background:rgba(0,0,0,0.3);border-radius:6px;padding:6px 10px">
+        <span style="color:${col};font-weight:700;min-width:160px;font-size:0.82rem">${escHtml(it.name)}</span>
+        <span style="color:#888;font-size:0.75rem;flex:1">${escHtml(it.char)}</span>
+        ${it.attune?`<button onclick="_identToggleAttune(${i})" style="padding:2px 7px;font-size:0.72rem;border-radius:4px;cursor:pointer;border:1px solid ${it.attuned?'#9b6dff':'#555'};background:${it.attuned?'rgba(155,109,255,0.15)':'transparent'};color:${it.attuned?'#9b6dff':'#666'}">${it.attuned?'⚡ Attuned':'Attune'}</button>`:'<span style="font-size:0.72rem;color:#555">—</span>'}
+        <button onclick="_identRemove(${i})" style="padding:2px 6px;background:none;border:1px solid #ff5050;border-radius:4px;color:#ff5050;cursor:pointer;font-size:0.72rem">✕</button>
+      </div>`;
+    }).join('')}</div>`;
+  }
+}
+
+// Add Magic Identifier button
+(function() {
+  const allBtns = document.querySelectorAll('.filter-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.title = 'Magic Item Identifier & Attunement Manager';
+    btn.style.cssText = 'border-color:#c9a227;color:#c9a227';
+    btn.textContent = '⚗ Item ID';
+    btn.onclick = openMagicIdentifier;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 189: Concentration Tracker (per-character, party-wide view with conflict warnings)
+const CONC_TRACK_KEY = 'tiamat_conc_track';
+function _concLoad() { try { return JSON.parse(localStorage.getItem(CONC_TRACK_KEY)||'{}'); } catch(e){return{};} }
+function _concSave(d) { localStorage.setItem(CONC_TRACK_KEY, JSON.stringify(d)); }
+
+// Pull concentration spells from FULL_SPELLS if available, or fall back to a short list
+const CONC_SPELL_LIST = [
+  'Bless','Bane','Faerie Fire','Hunter\'s Mark','Hex','Spirit Guardians','Web','Hold Person',
+  'Banishment','Concentration: Other','Confusion','Slow','Polymorph','Wall of Fire',
+  'Hypnotic Pattern','Haste','Fly','Greater Invisibility','Dominate Person','Moonbeam',
+  'Call Lightning','Conjure Animals','Spike Growth','Heat Metal','Pass Without Trace',
+  'Entangle','Hold Monster','Power Word Stun','Wall of Force','Forcecage','Disintegrate',
+  'Finger of Death','Reverse Gravity','Sunbeam','Foresight','True Polymorph',
+];
+
+function openConcTracker() {
+  document.getElementById('concOverlay')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'concOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9300;display:flex;align-items:center;justify-content:center';
+
+  const chars = (window.CHARS||window.UNIQUE_CHARS||[]);
+  const charOpts = chars.map(c=>`<option value="${escHtml(c.name)}">${escHtml(c.name)}</option>`).join('');
+  const spellOpts = [...(typeof FULL_SPELLS!=='undefined'?FULL_SPELLS.filter(s=>s.conc).map(s=>s.name):[]),...CONC_SPELL_LIST]
+    .filter((v,i,a)=>a.indexOf(v)===i).sort().map(s=>`<option value="${escHtml(s)}">${escHtml(s)}</option>`).join('');
+
+  ov.innerHTML = `
+    <div style="background:#10102a;border:1px solid #9b6dff;border-radius:12px;padding:24px;max-width:640px;width:95%;max-height:90vh;overflow-y:auto;font-family:inherit">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <h2 style="margin:0;color:#9b6dff;font-size:1.3rem">🔵 Party Concentration Tracker</h2>
+        <button onclick="document.getElementById('concOverlay').remove()" style="background:none;border:none;color:#aaa;font-size:1.4rem;cursor:pointer">✕</button>
+      </div>
+      <p style="color:#aaa;font-size:0.82rem;margin:0 0 12px">Each character can only concentrate on <b style="color:#9b6dff">one spell</b> at a time. Setting a new spell drops the old one.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+        <select id="concCharSel" style="flex:2;padding:7px 8px;background:#1a1a3a;border:1px solid #9b6dff44;border-radius:6px;color:#c9a227;min-width:130px">${charOpts}</select>
+        <select id="concSpellSel" style="flex:2;padding:7px 8px;background:#1a1a3a;border:1px solid #33333344;border-radius:6px;color:#aaa;min-width:150px">${spellOpts}</select>
+        <input id="concRounds" type="number" min="1" max="100" value="10" placeholder="Rounds" style="width:80px;padding:7px 8px;background:#1a1a3a;border:1px solid #333;border-radius:6px;color:#fff" title="Remaining rounds">
+        <button onclick="_concSet()" style="padding:7px 14px;background:rgba(155,109,255,0.15);border:1px solid #9b6dff;border-radius:6px;color:#9b6dff;cursor:pointer;font-weight:700">🔵 Set</button>
+      </div>
+      <div id="concBody"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _concRender();
+}
+
+function _concSet() {
+  const char = document.getElementById('concCharSel')?.value;
+  const spell = document.getElementById('concSpellSel')?.value;
+  const rounds = parseInt(document.getElementById('concRounds')?.value||'10');
+  if (!char || !spell) return;
+  const d = _concLoad();
+  const old = d[char];
+  d[char] = { spell, rounds, maxRounds:rounds };
+  _concSave(d);
+  if (old) showToast(`${char}: dropped ${old.spell}, concentrating on ${spell}`,'#9b6dff');
+  else showToast(`${char}: concentrating on ${spell}`,'#9b6dff');
+  logEntry('magic', `${char} began concentrating on ${spell}`);
+  _concRender();
+}
+
+function _concDrop(char) { const d=_concLoad(); delete d[char]; _concSave(d); _concRender(); }
+function _concTickAll() {
+  const d=_concLoad();
+  let dropped = [];
+  Object.keys(d).forEach(char => {
+    d[char].rounds = Math.max(0, d[char].rounds-1);
+    if (d[char].rounds===0) dropped.push(char);
+  });
+  dropped.forEach(char => { logEntry('magic',`${char}'s ${d[char].spell} concentration expired`); delete d[char]; });
+  _concSave(d);
+  _concRender();
+  if (dropped.length) showToast(dropped.join(', ')+': concentration ended','#cc4444');
+}
+
+function _concRender() {
+  const body = document.getElementById('concBody');
+  if (!body) return;
+  const d = _concLoad();
+  const keys = Object.keys(d);
+  let html = '';
+  if (keys.length) {
+    html += `<button onclick="_concTickAll()" style="width:100%;padding:7px;background:rgba(155,109,255,0.1);border:1px solid #9b6dff44;border-radius:6px;color:#9b6dff;cursor:pointer;margin-bottom:10px;font-size:0.82rem">⏱ Tick All — Advance 1 Round</button>`;
+    html += keys.map(char => {
+      const c = d[char];
+      const pct = (c.rounds/c.maxRounds)*100;
+      const col = c.rounds<=2?'#cc4444':c.rounds<=5?'#ff8844':'#9b6dff';
+      return `<div style="background:rgba(155,109,255,0.06);border:1px solid #9b6dff22;border-radius:8px;padding:10px 12px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="color:#c9a227;font-weight:700">${escHtml(char)}</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="color:${col};font-size:0.85rem">${c.rounds} round${c.rounds!==1?'s':''} left</span>
+            <button onclick="_concDrop('${char.replace(/'/g,"\\'")}') " style="padding:2px 7px;background:rgba(255,80,80,0.12);border:1px solid #ff5050;border-radius:4px;color:#ff5050;cursor:pointer;font-size:0.75rem">Drop</button>
+          </div>
+        </div>
+        <div style="color:#9b6dff;font-size:0.9rem;margin-bottom:6px">🔵 ${escHtml(c.spell)}</div>
+        <div style="background:#1a1a3a;border-radius:4px;height:5px"><div style="background:${col};height:5px;border-radius:4px;width:${Math.max(2,pct)}%;transition:width 0.3s"></div></div>
+      </div>`;
+    }).join('');
+  } else {
+    html = '<p style="color:#666;text-align:center;font-size:0.85rem">No one is concentrating. Select a character and spell above.</p>';
+  }
+  body.innerHTML = html;
+}
+
+// Add Concentration Tracker button
+(function() {
+  const allBtns = document.querySelectorAll('.encounter-open-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'Party Concentration Tracker — track who is concentrating on what';
+    btn.style.cssText = 'border-color:#9b6dff;color:#9b6dff';
+    btn.textContent = '🔵 Conc';
+    btn.onclick = openConcTracker;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 190: Random Encounter Generator by Terrain
+const RENC_TABLE = {
+  Forest: [
+    {e:'2d4 Wolves',cr:'1/4',xp:50,desc:'A pack hunting prey — they circle to flank.'},
+    {e:'1 Owlbear',cr:'3',xp:700,desc:'Territorial; charges anything in its den.'},
+    {e:'2d6 Bandits',cr:'1/8',xp:25,desc:'Armed with shortswords and hand crossbows.'},
+    {e:'1d4 Dryads',cr:'1',xp:200,desc:'Protecting a sacred grove; may trade info.'},
+    {e:'1 Green Dragon Wyrmling',cr:'2',xp:450,desc:'Young and territorial, demands tribute.'},
+    {e:'2d4 Goblins (ambush)',cr:'1/4',xp:50,desc:'Hidden in trees with shortbows ready.'},
+    {e:'1d6 Giant Spiders',cr:'1',xp:200,desc:'Web stretched between trees across path.'},
+    {e:'1 Treant (neutral)',cr:'9',xp:5000,desc:'Awakened ancient; may help if woods threatened.'},
+    {e:'Abandoned camp + 1 Troll',cr:'5',xp:1800,desc:'Troll feeding on remains. Camp has loot.'},
+    {e:'Fey Crossing',cr:'—',xp:0,desc:'Shimmering portal; successful Arcana DC 15 to identify.'},
+  ],
+  Dungeon: [
+    {e:'2d6 Skeletons',cr:'1/4',xp:50,desc:'Animated remains, drawn to sound.'},
+    {e:'1d4 Zombies',cr:'1/4',xp:50,desc:'Slow but relentless; attack nearest creature.'},
+    {e:'1 Gelatinous Cube',cr:'2',xp:450,desc:'Nearly invisible in corridor; DC 15 Perc to spot.'},
+    {e:'2d4 Ghouls',cr:'1',xp:200,desc:'Paralysis claws; led by a Ghast.'},
+    {e:'1 Mimic',cr:'2',xp:450,desc:'Disguised as chest. DC 18 Perception to spot.'},
+    {e:'1d4 Shadows',cr:'1/2',xp:100,desc:'STR drain attack; kill in shadow creates new shadow.'},
+    {e:'1 Wight + 2 Zombies',cr:'3/1/4',xp:950,desc:'Undead patrol protecting burial chamber.'},
+    {e:'1d6 Stirges',cr:'1/8',xp:25,desc:'Blood-drain swarm; multiple can attach same target.'},
+    {e:'Trapped Corridor',cr:'—',xp:0,desc:'Pressure plate: spike trap 4d6 piercing (Dex DC 14).'},
+    {e:'1 Wraith',cr:'5',xp:1800,desc:'Intangible, drain max HP, spawns spectres on kill.'},
+  ],
+  Mountains: [
+    {e:'2d4 Orcs',cr:'1/2',xp:100,desc:'Mountain tribe on war patrol.'},
+    {e:'1 Roc (distant)',cr:'11',xp:7200,desc:'Visible overhead; not attacking unless provoked.'},
+    {e:'1d4 Harpies',cr:'1',xp:200,desc:'Use luring song to draw party toward cliff edge.'},
+    {e:'2d6 Giant Eagles',cr:'1',xp:200,desc:'Patrol nesting area; will parley if approached carefully.'},
+    {e:'1 Stone Giant',cr:'7',xp:2900,desc:'Throwing boulders from high ground as sport.'},
+    {e:'1 Manticore',cr:'3',xp:700,desc:'Tail spike barrage from range, then dive attack.'},
+    {e:'2d4 Cultists + 1 Cult Fanatic',cr:'1/8+2',xp:400,desc:'Mountain shrine ritual; aggressive if interrupted.'},
+    {e:'Avalanche Risk',cr:'—',xp:0,desc:'DC 13 Nature/Survival to detect; 8d6 bludgeoning if triggered.'},
+    {e:'1d4 Griffons',cr:'2',xp:450,desc:'Protective of their young; swooping attacks.'},
+    {e:'1 Dragon Turtle (lake)',cr:'17',xp:18000,desc:'Surfaces to block mountain pass; demands toll.'},
+  ],
+  Swamp: [
+    {e:'2d6 Bullywugs',cr:'1/4',xp:50,desc:'Croaking ambush from murky water.'},
+    {e:'1d4 Will-o\'-Wisps',cr:'2',xp:450,desc:'Lead travelers into quicksand; resistant to most damage.'},
+    {e:'1 Black Dragon (juvenile)',cr:'7',xp:2900,desc:'Acid breath, swims under murky surface.'},
+    {e:'2d4 Lizardfolk',cr:'1/2',xp:100,desc:'Territorial; may parley if approached with fish.'},
+    {e:'1 Hydra',cr:'8',xp:3900,desc:'Emerging from hidden pool; regenerates heads.'},
+    {e:'Quicksand Pit',cr:'—',xp:0,desc:'DC 14 Survival to spot; Str DC 15 each round to escape.'},
+    {e:'1d6 Crocodiles',cr:'1/2',xp:100,desc:'Lurking beneath surface; Stealth +5.'},
+    {e:'2d4 Zombies (drowned)',cr:'1/4',xp:50,desc:'Waterlogged undead rising from flooded graves.'},
+    {e:'1 Hag (Night or Green)',cr:'3',xp:700,desc:'Tempts party with "helpful" bargains.'},
+    {e:'Plague Zone',cr:'—',xp:0,desc:'DC 14 Con save or gain Poisoned condition for 24 hrs.'},
+  ],
+  Coast: [
+    {e:'2d4 Pirates',cr:'1/8',xp:25,desc:'Longboat spotted approaching; flag unknown.'},
+    {e:'1d4 Merrow',cr:'2',xp:450,desc:'Corrupted merfolk; drag swimmers under.'},
+    {e:'1 Sea Hag',cr:'2',xp:450,desc:'Supernatural horror gaze; death bargains.'},
+    {e:'2d6 Sahuagin',cr:'1/2',xp:100,desc:'Raid party from beneath waves; blood frenzy.'},
+    {e:'1 Giant Shark',cr:'5',xp:1800,desc:'Drawn by blood; charges from deep.'},
+    {e:'Smuggler Cache',cr:'—',xp:0,desc:'Hidden stash: 2d6×50 gp + 1 uncommon item, guarded.'},
+    {e:'1d4 Harpies',cr:'1',xp:200,desc:'Nesting on sea cliff; lure sailors with song.'},
+    {e:'Storm Surge',cr:'—',xp:0,desc:'DC 12 Athletics to avoid being swept 10ft; difficult terrain.'},
+    {e:'1 Water Elemental',cr:'5',xp:1800,desc:'Bound to coastal shrine, attacks trespassers.'},
+    {e:'Beached Leviathan Bones',cr:'—',xp:0,desc:'Ancient remains. DC 16 Religion: undead rising at dusk.'},
+  ],
+  Desert: [
+    {e:'2d4 Gnolls',cr:'1/2',xp:100,desc:'Hyena-flanked war band, Flinds may be present.'},
+    {e:'1 Blue Dragon Wyrmling',cr:'3',xp:700,desc:'Surveying territory from oasis vantage.'},
+    {e:'1d6 Mummies',cr:'3',xp:700,desc:'Awakened by tomb disturbance; cursed rotting touch.'},
+    {e:'1d4 Phase Spiders',cr:'3',xp:700,desc:'Phase out of material plane to ambush.'},
+    {e:'1 Lamia',cr:'4',xp:1100,desc:'Illusions + wisdom drain; appears as lost traveler.'},
+    {e:'Sand Storm',cr:'—',xp:0,desc:'Heavily obscured, forced march Con DC 12 or Exhaustion 1.'},
+    {e:'2d6 Bandits (caravan)',cr:'1/8',xp:25,desc:'Rival caravan — might trade, might rob.'},
+    {e:'Mirage Oasis',cr:'—',xp:0,desc:'Wis DC 15 to not follow; false trail 2 hours wasted.'},
+    {e:'1 Purple Worm (distant)',cr:'15',xp:13000,desc:'Trail of sand-wave visible; not yet targeting party.'},
+    {e:'1d4 Yuan-ti Purebloods',cr:'1',xp:200,desc:'Ancient temple scouts; report intrusions to serpent lord.'},
+  ],
+};
+
+function openRandEncounter() {
+  document.getElementById('rencOverlay')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'rencOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9300;display:flex;align-items:center;justify-content:center';
+  const terrains = Object.keys(RENC_TABLE);
+  const terrOpts = terrains.map(t=>`<option value="${t}">${t}</option>`).join('');
+  ov.innerHTML = `
+    <div style="background:#10102a;border:1px solid #44bb88;border-radius:12px;padding:24px;max-width:620px;width:95%;max-height:90vh;overflow-y:auto;font-family:inherit">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <h2 style="margin:0;color:#44bb88;font-size:1.3rem">🎲 Random Encounter Generator</h2>
+        <button onclick="document.getElementById('rencOverlay').remove()" style="background:none;border:none;color:#aaa;font-size:1.4rem;cursor:pointer">✕</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <select id="rencTerrain" style="flex:1;padding:8px;background:#1a1a3a;border:1px solid #44bb8844;border-radius:6px;color:#44bb88;font-size:0.95rem">${terrOpts}</select>
+        <button onclick="_rencRoll()" style="flex:1;padding:8px;background:rgba(68,187,136,0.15);border:1px solid #44bb88;border-radius:6px;color:#44bb88;cursor:pointer;font-weight:700;font-size:1rem">🎲 Roll Encounter</button>
+      </div>
+      <div id="rencResult" style="display:none;background:rgba(0,0,0,0.4);border-radius:8px;padding:14px;margin-bottom:14px"></div>
+      <div>
+        <div id="rencTableToggle" onclick="this.nextSibling.style.display=this.nextSibling.style.display==='none'?'block':'none'" style="color:#aaa;font-size:0.82rem;cursor:pointer;user-select:none;margin-bottom:6px">▶ Show Full Table</div>
+        <div id="rencFullTable" style="display:none"></div>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  _rencBuildTable();
+}
+
+function _rencRoll() {
+  const terrain = document.getElementById('rencTerrain')?.value || 'Forest';
+  const table = RENC_TABLE[terrain];
+  const enc = table[Math.floor(Math.random()*table.length)];
+  const result = document.getElementById('rencResult');
+  if (!result) return;
+  result.style.display = 'block';
+  result.innerHTML = `
+    <div style="color:#44bb88;font-size:1.2rem;font-weight:700;margin-bottom:8px">${escHtml(enc.e)}</div>
+    <div style="display:flex;gap:16px;margin-bottom:8px">
+      ${enc.cr!=='—'?`<span style="color:#c9a227;font-size:0.85rem">CR: ${escHtml(enc.cr)}</span>`:''}
+      ${enc.xp?`<span style="color:#4488ff;font-size:0.85rem">${enc.xp.toLocaleString()} XP</span>`:''}
+      <span style="color:#888;font-size:0.85rem">${terrain}</span>
+    </div>
+    <div style="color:#ccc;font-size:0.87rem">${escHtml(enc.desc)}</div>`;
+  logEntry('encounter', `Random: ${enc.e} (${terrain})`);
+}
+
+function _rencBuildTable() {
+  const tableEl = document.getElementById('rencFullTable');
+  if (!tableEl) return;
+  const terrain = document.getElementById('rencTerrain')?.value || 'Forest';
+  const table = RENC_TABLE[terrain];
+  tableEl.innerHTML = table.map((e,i) => `
+    <div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid #1a1a3a;font-size:0.8rem">
+      <span style="color:#555;min-width:16px">${i+1}.</span>
+      <span style="color:#44bb88;flex:1">${escHtml(e.e)}</span>
+      <span style="color:#c9a227;min-width:40px">${e.cr!=='—'?'CR '+e.cr:''}</span>
+      <span style="color:#888">${escHtml(e.desc.substring(0,50))}…</span>
+    </div>`).join('');
+}
+
+// Rebuild table on terrain change
+document.addEventListener('change', e => {
+  if (e.target?.id === 'rencTerrain') _rencBuildTable();
+});
+
+// Add Random Encounter button
+(function() {
+  const allBtns = document.querySelectorAll('.filter-btn');
+  if (allBtns.length) {
+    const lastBtn = allBtns[allBtns.length - 1];
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.title = 'Random Encounter Generator — by terrain type with CR and XP';
+    btn.style.cssText = 'border-color:#44bb88;color:#44bb88';
+    btn.textContent = '🎲 Rand Enc';
+    btn.onclick = openRandEncounter;
+    lastBtn.parentNode.insertBefore(btn, lastBtn.nextSibling);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
