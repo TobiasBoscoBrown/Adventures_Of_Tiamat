@@ -3998,6 +3998,7 @@
     <button class="hp-popup-full" style="flex:1;font-size:11px" onclick="applyHpAction('full')">↺ Full HP</button>
   </div>
   <button class="hp-popup-full" style="background:rgba(68,136,255,.08);border-color:#336699;color:#6699cc;font-size:11px;margin-top:4px;width:100%" onclick="longRest()" title="Long Rest: full HP + all spell slots restored">☀ Long Rest (All Slots)</button>
+  <button class="hp-popup-full" style="background:rgba(155,109,255,.08);border-color:#5a3099;color:#9b6dff;font-size:11px;margin-top:4px;width:100%" onclick="openLevelUp(popupCharName)" title="Level Up — increase character level, roll HP, see new features">⬆ Level Up</button>
   <!-- Death Saves (shown only at 0 HP) -->
   <div class="death-saves-section" id="deathSavesSection">
     <div class="death-saves-label">💀 Death Saving Throws</div>
@@ -25732,6 +25733,154 @@ function _rollLoc() {
       <button onclick="logEntry('note','🏠 Location: <strong>${escHtml(name)}</strong> (${t})')" style="background:rgba(68,136,255,0.08);border:1px solid rgba(68,136,255,0.2);color:#4488ff88;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:11px">📋 Log</button>
       <button onclick="navigator.clipboard?.writeText(${JSON.stringify(`${name}\n\n${atmo}\n\nNPC: ${npc}\n\nRumor: ${rumor}\n\nHook: ${hook}`)}).then(()=>showToast('Copied','#c9a227'))" style="background:rgba(68,204,136,0.08);border:1px solid rgba(68,204,136,0.2);color:#44cc8888;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:11px">📋 Copy</button>
     </div>`;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 160: Character Level-Up Workflow — the last major DND Beyond feature on
+//   the checklist. Track custom level per character (separate from CR). Level Up
+//   button in HP popup shows: HP gain (roll/average), new proficiency bonus,
+//   ASI reminder, and class feature notes. Stored in tiamat_char_level.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CHAR_LEVEL_KEY = 'tiamat_char_level';
+function getCharLevel(name) { try { return JSON.parse(localStorage.getItem(CHAR_LEVEL_KEY)||'{}')[name]||null; } catch { return null; } }
+function setCharLevel(name, lv) {
+  const all = (() => { try { return JSON.parse(localStorage.getItem(CHAR_LEVEL_KEY)||'{}'); } catch { return {}; } })();
+  all[name] = lv;
+  localStorage.setItem(CHAR_LEVEL_KEY, JSON.stringify(all));
+}
+
+// Standard proficiency bonus by level
+function profByLevel(lv) { return lv >= 17 ? 6 : lv >= 13 ? 5 : lv >= 9 ? 4 : lv >= 5 ? 3 : 2; }
+// ASI levels (all classes): 4,8,12,16,19 (fighters also get 6,14; rogues also 10)
+const ASI_LEVELS = new Set([4,6,8,10,12,14,16,18,19,20]);
+// Hit dice by class detection
+function hitDieFromTitle(title) {
+  const t = (title||'').toLowerCase();
+  if (/barbarian/.test(t)) return 12;
+  if (/fighter|paladin|ranger/.test(t)) return 10;
+  if (/bard|cleric|druid|monk|rogue|warlock/.test(t)) return 8;
+  if (/sorcerer|wizard/.test(t)) return 6;
+  return 8; // default
+}
+// Key features gained at each level (generic, not class-specific)
+function levelFeatures(lv) {
+  const feats = [];
+  if (ASI_LEVELS.has(lv)) feats.push('Ability Score Improvement (or Feat)');
+  if ([5,11,20].includes(lv)) feats.push('Extra Attack (if martial class)');
+  if (lv === 4) feats.push('First ASI: consider +2 to a key stat');
+  if (lv === 5) feats.push('Proficiency bonus increases to +3');
+  if (lv === 9) feats.push('Proficiency bonus increases to +4');
+  if (lv === 13) feats.push('Proficiency bonus increases to +5');
+  if (lv === 17) feats.push('Proficiency bonus increases to +6');
+  return feats;
+}
+
+function openLevelUp(charName) {
+  if (!charName) return;
+  // Close HP popup
+  const popup = document.getElementById('hpPopupWrapper');
+  if (popup) popup.style.display = 'none';
+
+  const c = UNIQUE_CHARS.find(x => x.name === charName);
+  if (!c) return;
+  const currentLv = getCharLevel(charName) || crToLevel(c.cr);
+  const newLv = currentLv + 1;
+  if (newLv > 20) { showToast('Already at max level 20!', '#cc4444'); return; }
+
+  const hd = hitDieFromTitle(c.title);
+  const conMod = (() => { const a = (c.abilities||[]).find(a=>a[0]==='CON'); return a ? Math.floor((a[1]-10)/2) : 0; })();
+  const avgHp = Math.floor(hd/2) + 1 + conMod;
+  const rollHp = () => Math.floor(Math.random() * hd) + 1 + conMod;
+  const newProf = profByLevel(newLv);
+  const oldProf = profByLevel(currentLv);
+  const profChanged = newProf !== oldProf;
+  const features = levelFeatures(newLv);
+  const xpNeeded = XP_LEVEL_THRESHOLDS[newLv] || 0;
+
+  const ex = document.getElementById('levelUpOverlay');
+  if (ex) ex.remove();
+  const ov = document.createElement('div');
+  ov.id = 'levelUpOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9200;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML = `
+    <div style="background:linear-gradient(160deg,#0e0820,#180e30);border:2px solid rgba(155,109,255,0.6);border-radius:16px;width:460px;max-width:100%;padding:24px;color:#c8d0e8;font-family:'Inter',sans-serif;box-shadow:0 0 40px rgba(155,109,255,0.2)">
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="font-size:32px;margin-bottom:6px">⬆️</div>
+        <div style="font-size:20px;font-weight:700;font-family:'Cinzel',serif;color:#9b6dff">${escHtml(charName)}</div>
+        <div style="font-size:13px;color:#6a5aaa;margin-top:4px">Level ${currentLv} → <span style="color:#9b6dff;font-weight:700;font-size:16px">Level ${newLv}</span></div>
+      </div>
+      <!-- HP gain -->
+      <div style="background:rgba(0,0,0,0.3);border:1px solid rgba(155,109,255,0.25);border-radius:10px;padding:14px;margin-bottom:12px">
+        <div style="font-size:10px;color:#6a5aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Hit Points</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <div style="font-size:12px;color:#9098b8">Hit Die: d${hd} (CON ${conMod>=0?'+'+conMod:conMod})</div>
+          <button id="lvRollBtn" onclick="_lvRollHp(${hd},${conMod})" style="background:rgba(155,109,255,0.12);border:1px solid rgba(155,109,255,0.35);color:#9b6dff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:700">🎲 Roll HP</button>
+          <button onclick="_lvTakeAvg(${avgHp})" style="background:rgba(68,170,68,0.12);border:1px solid rgba(68,170,68,0.35);color:#44aa44;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px">≈ Take Average (+${avgHp})</button>
+        </div>
+        <div id="lvHpResult" style="margin-top:8px;font-size:22px;font-weight:700;font-family:'Cinzel',serif;color:#c8d0e8;text-align:center;min-height:28px"></div>
+      </div>
+      <!-- Proficiency change -->
+      <div style="background:rgba(0,0,0,0.3);border:1px solid rgba(155,109,255,0.15);border-radius:10px;padding:12px;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-size:12px;color:#9098b8">Proficiency Bonus</div>
+          <div style="font-size:16px;font-weight:700;color:${profChanged?'#c9a227':'#9b6dff'}">+${newProf}${profChanged?' ↑ (was +'+oldProf+')':''}</div>
+        </div>
+      </div>
+      <!-- Features -->
+      ${features.length ? `
+        <div style="background:rgba(0,0,0,0.3);border:1px solid rgba(201,162,39,0.2);border-radius:10px;padding:12px;margin-bottom:12px">
+          <div style="font-size:10px;color:#c9a22799;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">New at Level ${newLv}</div>
+          ${features.map(f=>`<div style="font-size:11px;color:#c9a227;padding:2px 0;display:flex;gap:6px"><span>⭐</span><span>${escHtml(f)}</span></div>`).join('')}
+        </div>` : ''}
+      <!-- XP info -->
+      <div style="font-size:10px;color:#4a5272;text-align:center;margin-bottom:16px">XP needed for Lv${newLv+1}: ${(XP_LEVEL_THRESHOLDS[newLv]||0).toLocaleString()}</div>
+      <!-- Confirm / Cancel -->
+      <div style="display:flex;gap:8px">
+        <button onclick="document.getElementById('levelUpOverlay').remove()" style="flex:1;background:none;border:1px solid #2a2040;color:#4a5272;border-radius:8px;padding:10px;cursor:pointer;font-size:13px">Cancel</button>
+        <button id="lvConfirmBtn" onclick="_confirmLevelUp('${charName.replace(/'/g,"\\'")}',${newLv})" style="flex:2;background:rgba(155,109,255,0.2);border:1px solid rgba(155,109,255,0.5);color:#9b6dff;border-radius:8px;padding:10px;cursor:pointer;font-size:13px;font-weight:700">✓ Confirm Level Up</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  window._pendingLvHp = 0;
+}
+
+function _lvRollHp(hd, conMod) {
+  const roll = Math.floor(Math.random() * hd) + 1;
+  const total = Math.max(1, roll + conMod);
+  window._pendingLvHp = total;
+  const el = document.getElementById('lvHpResult');
+  if (el) el.innerHTML = `<span style="color:#c9a227">d${hd}(${roll}) + ${conMod>=0?'+':''}${conMod} = <strong>+${total} HP</strong></span>`;
+}
+
+function _lvTakeAvg(avg) {
+  const total = Math.max(1, avg);
+  window._pendingLvHp = total;
+  const el = document.getElementById('lvHpResult');
+  if (el) el.innerHTML = `<span style="color:#44aa44">Average: <strong>+${total} HP</strong></span>`;
+}
+
+function _confirmLevelUp(charName, newLv) {
+  setCharLevel(charName, newLv);
+  const hpGain = window._pendingLvHp || 0;
+  if (hpGain > 0) {
+    const maxEl = document.getElementById('popupMaxHp');
+    if (maxEl && popupCharName === charName) {
+      const newMax = parseInt(maxEl.value||0) + hpGain;
+      maxEl.value = newMax;
+      const c = UNIQUE_CHARS.find(x=>x.name===charName);
+      if (c) c.hp = String(newMax);
+    }
+    // Update stored max HP
+    if (!hpState[charName]) hpState[charName] = {};
+    const curMax = hpState[charName].max || parseInt((UNIQUE_CHARS.find(x=>x.name===charName)||{}).hp||0);
+    hpState[charName].max = curMax + hpGain;
+    saveHp();
+  }
+  document.getElementById('levelUpOverlay')?.remove();
+  showToast(`${charName} is now Level ${newLv}!`, '#9b6dff');
+  logEntry('note', `⬆ <strong>${escHtml(charName)}</strong> leveled up to <strong>Level ${newLv}</strong>${hpGain>0?` (+${hpGain} HP)`:''}. Prof +${profByLevel(newLv)}.`);
+  renderGrid();
 }
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
