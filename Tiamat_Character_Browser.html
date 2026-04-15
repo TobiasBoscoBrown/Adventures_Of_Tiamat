@@ -3085,6 +3085,7 @@
   <button class="filter-btn" onclick="openCompareModal()" style="border-color:#4488ff;color:#9098b8;" title="Compare characters side-by-side" id="compareBtn">⚖ Compare <span id="compareCount" style="color:#4488ff"></span></button>
   <button class="filter-btn" onclick="openNpcBuilder()" style="border-color:#44aa44;color:#9098b8;" title="Create a custom NPC">+ NPC</button>
   <button class="filter-btn" onclick="openTagFilter(this)" id="tagFilterBtn" style="border-color:#ffaa44;color:#9098b8;" title="Filter by custom tag">🏷 Tags</button>
+  <button class="filter-btn" onclick="openAoeDmg()" style="border-color:#cc3333;color:#cc3333;" title="AoE damage/heal — apply to multiple characters at once">💥 AoE</button>
   <span style="color: #333; margin: 0 4px;">|</span>
   <span style="font-size:11px;color:#4a5272;margin-right:4px">View:</span>
   <button class="filter-btn view-btn active" id="viewGrid" onclick="setView('grid',this)" title="Grid view">⊞ Grid</button>
@@ -3740,6 +3741,30 @@
       <button onclick="addRelationship()" style="background:#4488ff22;border:1px solid #4488ff;color:#4488ff;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:13px">+ Add</button>
     </div>
     <div id="relEditorList" style="min-height:60px;max-height:280px;overflow-y:auto;border:1px solid #1e2040;border-radius:8px;padding:8px;background:#0a0a1a"></div>
+  </div>
+</div>
+
+<!-- AoE Damage/Heal Modal -->
+<div class="modal-backdrop" id="aoeDmgModal" onclick="if(event.target===this)closeAoeDmg()" style="display:none;align-items:center;justify-content:center">
+  <div class="session-manager-content" style="max-width:560px;width:96%">
+    <div class="session-manager-header">
+      <div class="session-manager-title">💥 AoE DAMAGE / HEAL</div>
+      <button class="modal-close" onclick="closeAoeDmg()">✕</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+      <input type="number" id="aoeAmount" placeholder="Amount" style="width:90px;background:#06061a;border:1px solid #2a2a50;border-radius:8px;padding:8px 12px;color:#e0e0ff;font-size:14px;outline:none" min="1">
+      <button onclick="applyAoe('dmg')" style="background:rgba(204,51,51,.15);border:1px solid #cc3333;color:#cc3333;border-radius:8px;padding:8px 16px;cursor:pointer;font-size:13px;font-weight:600">⚔ Damage All</button>
+      <button onclick="applyAoe('half')" style="background:rgba(204,51,51,.08);border:1px solid #cc333388;color:#cc333388;border-radius:8px;padding:8px 16px;cursor:pointer;font-size:13px">½ Half Dmg</button>
+      <button onclick="applyAoe('heal')" style="background:rgba(68,170,68,.15);border:1px solid #44aa44;color:#44aa44;border-radius:8px;padding:8px 16px;cursor:pointer;font-size:13px;font-weight:600">✚ Heal All</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <button onclick="aoeSelectAll(true)" style="background:none;border:1px solid #2a2a50;color:#7a7aaa;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">Select All</button>
+      <button onclick="aoeSelectAll(false)" style="background:none;border:1px solid #2a2a50;color:#7a7aaa;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">None</button>
+      <button onclick="aoeSelectCombat()" style="background:none;border:1px solid #dd6622;color:#dd6622;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">⚔ In Combat</button>
+      <span id="aoeSelCount" style="font-size:11px;color:#4a5272;margin-left:auto;align-self:center"></span>
+    </div>
+    <div id="aoeCharList" style="max-height:360px;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:4px"></div>
+    <div id="aoeResult" style="margin-top:10px;font-size:12px;color:#9098b8;min-height:20px"></div>
   </div>
 </div>
 
@@ -8470,6 +8495,93 @@ function renderQuestList() {
 }
 
 updateQuestBadge();
+// ────────────────────────────────────────────────────────
+
+// ── AoE DAMAGE / HEAL ────────────────────────────────────
+let aoeSelected = new Set();
+
+function openAoeDmg() {
+  aoeSelected = new Set(UNIQUE_CHARS.map(c => c.name)); // select all by default
+  document.getElementById('aoeDmgModal').style.display = 'flex';
+  renderAoeList();
+  document.getElementById('aoeResult').textContent = '';
+  setTimeout(() => document.getElementById('aoeAmount').focus(), 50);
+}
+function closeAoeDmg() {
+  document.getElementById('aoeDmgModal').style.display = 'none';
+}
+
+function renderAoeList() {
+  const el = document.getElementById('aoeCharList');
+  el.innerHTML = UNIQUE_CHARS.map(c => {
+    const maxHp = parseInt(c.hp) || 1;
+    const currHp = getCharHP(c.name, maxHp);
+    const pct = currHp / maxHp;
+    const selected = aoeSelected.has(c.name);
+    const t = getTheme(c.theme);
+    return `<label style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:6px;cursor:pointer;border:1px solid ${selected?t.accent+'44':'#1e2040'};background:${selected?t.accent+'08':'transparent'};transition:all .15s">
+      <input type="checkbox" ${selected?'checked':''} onchange="toggleAoeSel('${c.name}',this.checked)" style="accent-color:${t.accent};cursor:pointer">
+      <span style="flex:1;font-size:12px;color:${selected?'#e0e0ff':'#7a7aaa'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.name}</span>
+      <span style="font-size:10px;color:${hpBarColor(pct)}">${currHp}/${maxHp}</span>
+    </label>`;
+  }).join('');
+  document.getElementById('aoeSelCount').textContent = `${aoeSelected.size} selected`;
+}
+
+function toggleAoeSel(name, checked) {
+  if (checked) aoeSelected.add(name);
+  else aoeSelected.delete(name);
+  document.getElementById('aoeSelCount').textContent = `${aoeSelected.size} selected`;
+  // Update border of label
+  renderAoeList();
+}
+
+function aoeSelectAll(val) {
+  if (val) UNIQUE_CHARS.forEach(c => aoeSelected.add(c.name));
+  else aoeSelected.clear();
+  renderAoeList();
+}
+
+function aoeSelectCombat() {
+  aoeSelected.clear();
+  initiativeList.forEach(e => aoeSelected.add(e.name));
+  renderAoeList();
+}
+
+function applyAoe(type) {
+  const raw = parseInt(document.getElementById('aoeAmount').value) || 0;
+  if (!raw || !aoeSelected.size) return;
+  const amount = type === 'half' ? Math.floor(raw / 2) : raw;
+  const results = [];
+  aoeSelected.forEach(name => {
+    const char = UNIQUE_CHARS.find(c => c.name === name);
+    if (!char) return;
+    const maxHp = parseInt(char.hp) || 1;
+    const currHp = getCharHP(name, maxHp);
+    let newHp;
+    if (type === 'heal') {
+      newHp = Math.min(maxHp, currHp + amount);
+    } else {
+      newHp = Math.max(0, currHp - amount);
+    }
+    hpState[name] = newHp;
+    results.push({ name, from: currHp, to: newHp, maxHp });
+    if (type !== 'heal') {
+      logHpEvent(name, 'dmg', currHp - newHp, currHp, newHp, maxHp);
+      if (typeof checkConcOnDamage === 'function' && currHp !== newHp) checkConcOnDamage(name, currHp - newHp);
+    } else {
+      logHpEvent(name, 'heal', newHp - currHp, currHp, newHp, maxHp);
+    }
+  });
+  saveHp();
+  renderGrid();
+  renderAoeList();
+  const verb = type === 'heal' ? 'healed' : `took ${type === 'half' ? '½ ' : ''}`;
+  const downed = results.filter(r => r.to === 0).map(r => r.name);
+  const resultText = `${type === 'heal' ? '✚' : '⚔'} ${amount} ${verb} applied to ${results.length} chars${downed.length ? ` · ⚠ DOWN: ${downed.join(', ')}` : ''}`;
+  document.getElementById('aoeResult').textContent = resultText;
+  logEntry(type === 'heal' ? 'heal' : 'damage', `<strong>💥 AoE ${amount} ${type === 'heal' ? 'heal' : 'damage'}</strong> → ${results.map(r => `${r.name}: ${r.from}→${r.to}`).join(', ')}`);
+}
 // ────────────────────────────────────────────────────────
 
 // ── CHARACTER TAGS ────────────────────────────────────────
