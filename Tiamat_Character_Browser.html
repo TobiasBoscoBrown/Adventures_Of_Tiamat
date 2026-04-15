@@ -22583,6 +22583,134 @@ function setCharXpDirect(name) {
   const sec = document.getElementById('charXpSection_' + sid);
   if (sec) sec.outerHTML = buildCharXpSection(name);
 }
+// Iter 134: Command Palette — Ctrl+K opens a VS Code-style search over every feature
+// Type to filter; arrows to navigate; Enter to execute. ESC or click outside to close.
+// This makes the app significantly more usable with 30+ toolbar buttons.
+const COMMANDS = [
+  { label:'⚔ Initiative Tracker',     desc:'Open combat initiative',                fn:()=>{ openInitiativePanel?.(); document.getElementById('initiativePanel')?.classList.add('open'); } },
+  { label:'❤ Party HP',               desc:'Party health overview',                 fn:()=>toggleHealthPanel?.() },
+  { label:'⭐ XP Panel',               desc:'Party XP & level tracker',              fn:()=>toggleXpPanel?.() },
+  { label:'🌙 Rest',                   desc:'Short or long rest',                    fn:()=>toggleRestPanel?.() },
+  { label:'⚔ Encounter Builder',       desc:'Build and manage encounters',           fn:()=>openEncounterBuilder?.() },
+  { label:'📜 Quests',                 desc:'Quest tracker',                          fn:()=>openQuestTracker?.() },
+  { label:'🗺 World Map',              desc:'Interactive world map with pins',        fn:()=>openWorldMap?.() },
+  { label:'📚 Lore Browser',           desc:'Campaign lore library',                 fn:()=>openLoreBrowser?.() },
+  { label:'💾 Session Manager',        desc:'Save/load session state',               fn:()=>openSessionManager?.() },
+  { label:'📅 Calendar',               desc:'Campaign calendar',                     fn:()=>openCalendar?.() },
+  { label:'☁ Weather',                 desc:'Weather tracker',                       fn:()=>openWeather?.() },
+  { label:'🎭 Theater Mode',           desc:'Fullscreen battle board',               fn:()=>openTheaterMode?.() },
+  { label:'💰 Loot & Treasury',        desc:'Party loot and currency',               fn:()=>toggleLootPanel?.() },
+  { label:'📝 DM Notes',               desc:'Quick session notes',                   fn:()=>toggleDmNotes?.() },
+  { label:'🎲 Dice Roller',            desc:'Roll any dice combination',             fn:()=>toggleDicePanel?.() },
+  { label:'📖 Spell Search',           desc:'Search spells by name or school',       fn:()=>toggleSpellSearch?.() },
+  { label:'🃏 Random Tables',          desc:'Encounter hooks, names, events',         fn:()=>openRandomTables?.() },
+  { label:'📊 Campaign Dashboard',     desc:'Full campaign state at a glance',       fn:()=>openCampaignDashboard?.() },
+  { label:'⚡ Condition Picker',       desc:'Apply conditions to characters',         fn:()=>openCondPicker?.() },
+  { label:'⚡ Quick Reference',        desc:'Actions, conditions, DCs, skills',      fn:()=>toggleQRef?.() },
+  { label:'🔮 Concentration Dashboard',desc:'See who is concentrating',              fn:()=>openConcDashboard?.() },
+  { label:'✦ Spell Slots Dashboard',   desc:'All casters spell slots at a glance',   fn:()=>toggleSlotDashboard?.() },
+  { label:'👁 Passive Skills',         desc:'Party passive perception/investigation', fn:()=>togglePassivesPanel?.() },
+  { label:'🎲 Group Roll',             desc:'Roll for all visible characters',        fn:()=>toggleGroupRoll?.() },
+  { label:'⚡ Skill Challenge',        desc:'Track successes & failures',             fn:()=>toggleSkillChallenge?.() },
+  { label:'⭐ Awards & Inspiration',   desc:'Grant inspiration, log heroic moments',  fn:()=>toggleAwardsPanel?.() },
+  { label:'⚖ XP Budget',              desc:'Encounter XP budget calculator',         fn:()=>openXpBudget?.() },
+  { label:'📄 Print Party Sheet',      desc:'Print all party members on one page',    fn:()=>printPartySheet?.() },
+  { label:'⚔ Quick Damage Calc',      desc:'Roll attack + damage vs AC in one click',fn:()=>openQuickDamageCalc?.() },
+  { label:'⚡ Custom Conditions',      desc:'Create homebrew conditions',             fn:()=>openCustomCondManager?.() },
+  { label:'🔗 Relationship Map',       desc:'Open SVG relationship visualization',    fn:()=>{ if(currentModalIdx>=0) openRelationshipMap(filteredChars[currentModalIdx]?.name); else alert('Open a character first'); } },
+];
+let _cmdOpen = false, _cmdSelIdx = 0;
+
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); _cmdOpen ? _closeCmd() : _openCmd(); }
+});
+
+function _openCmd() {
+  _cmdOpen = true;
+  let ov = document.getElementById('cmdPaletteOv');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'cmdPaletteOv';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(4,6,14,0.8);display:flex;align-items:flex-start;justify-content:center;padding-top:72px;backdrop-filter:blur(6px)';
+    ov.onclick = e => { if (e.target === ov) _closeCmd(); };
+    document.body.appendChild(ov);
+  }
+  ov.style.display = 'flex';
+  ov.innerHTML = `
+    <div style="background:#0d0f1e;border:1px solid rgba(155,109,255,0.5);border-radius:14px;width:min(580px,94vw);max-height:72vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,0.97);overflow:hidden">
+      <div style="padding:14px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #1e2040;background:rgba(155,109,255,0.04)">
+        <span style="font-size:18px;color:#9b6dff;opacity:0.7">⌘</span>
+        <input id="cmdIn" type="text" placeholder="Search features… (Ctrl+K, Esc to close)"
+          style="flex:1;background:none;border:none;outline:none;color:#e0e0ff;font-size:15px;font-family:'Inter',sans-serif;letter-spacing:0.2px"
+          oninput="_renderCmd(this.value)" onkeydown="_cmdKey(event)" autocomplete="off">
+        <kbd style="font-size:10px;color:#3a3a5a;background:#0a0a1a;border:1px solid #1e2040;border-radius:4px;padding:2px 6px">ESC</kbd>
+      </div>
+      <div id="cmdRes" style="overflow-y:auto;padding:6px 8px"></div>
+      <div style="padding:6px 14px;border-top:1px solid #1e2040;background:#08091a;font-size:10px;color:#2a2a50;display:flex;gap:12px">
+        <span>↑↓ navigate</span><span>↵ run</span><span>Esc close</span>
+      </div>
+    </div>`;
+  const inp = document.getElementById('cmdIn');
+  if (inp) { inp.focus(); _renderCmd(''); }
+  document.addEventListener('keydown', _cmdEsc);
+}
+
+function _cmdEsc(e) { if (e.key === 'Escape') _closeCmd(); }
+
+function _closeCmd() {
+  _cmdOpen = false;
+  const el = document.getElementById('cmdPaletteOv');
+  if (el) el.style.display = 'none';
+  document.removeEventListener('keydown', _cmdEsc);
+}
+
+function _renderCmd(q) {
+  const lo = q.toLowerCase().trim();
+  const list = lo ? COMMANDS.filter(c => c.label.toLowerCase().includes(lo) || c.desc.toLowerCase().includes(lo)) : COMMANDS;
+  _cmdSelIdx = 0;
+  const el = document.getElementById('cmdRes');
+  if (!el) return;
+  el._list = list;
+  if (!list.length) {
+    el.innerHTML = '<div style="text-align:center;padding:24px;color:#2a2a50;font-size:13px">No commands match</div>';
+    return;
+  }
+  el.innerHTML = list.map((c, i) => {
+    const [icon, ...rest] = c.label.split(' ');
+    return `<div onclick="event.stopPropagation();_runCmd(${i})" onmouseover="_cmdSel(${i})"
+      style="display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:8px;cursor:pointer;transition:background .08s;
+             background:${i===0?'rgba(155,109,255,0.12)':'transparent'};border:1px solid ${i===0?'rgba(155,109,255,0.25)':'transparent'};margin:1px 0">
+      <span style="font-size:18px;min-width:24px;text-align:center">${icon}</span>
+      <div>
+        <div style="font-size:13px;color:${i===0?'#c8d0f8':'#b0b8d8'};font-weight:${i===0?'600':'400'}">${rest.join(' ')}</div>
+        <div style="font-size:11px;color:#4a5272">${c.desc}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function _cmdSel(idx) {
+  _cmdSelIdx = idx;
+  document.querySelectorAll('#cmdRes > div').forEach((el, i) => {
+    el.style.background = i===idx ? 'rgba(155,109,255,0.12)' : 'transparent';
+    el.style.borderColor = i===idx ? 'rgba(155,109,255,0.25)' : 'transparent';
+    if (i===idx) el.scrollIntoView({block:'nearest'});
+  });
+}
+
+function _cmdKey(e) {
+  const res = document.getElementById('cmdRes');
+  const count = res?.querySelectorAll('div').length || 0;
+  if (e.key === 'ArrowDown') { e.preventDefault(); _cmdSel(Math.min(_cmdSelIdx + 1, count - 1)); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); _cmdSel(Math.max(_cmdSelIdx - 1, 0)); }
+  else if (e.key === 'Enter') { e.preventDefault(); _runCmd(_cmdSelIdx); }
+}
+
+function _runCmd(idx) {
+  const res = document.getElementById('cmdRes');
+  const list = res?._list;
+  if (list && list[idx]) { _closeCmd(); list[idx].fn(); }
+}
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
 
