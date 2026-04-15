@@ -3270,6 +3270,7 @@
         <div class="modal-tab" data-tab="story" onclick="switchModalTab('story', this)">Story</div>
         <div class="modal-tab" data-tab="sheet" onclick="switchModalTab('sheet', this)">Sheet</div>
       </div>
+      <button onclick="exportCharacter()" style="background:none;border:1px solid #2a2a50;color:#7a7aaa;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:12px;margin-right:4px;transition:all 0.15s" onmouseover="this.style.borderColor='#44cc88';this.style.color='#44cc88'" onmouseout="this.style.borderColor='#2a2a50';this.style.color='#7a7aaa'" title="Export character state as JSON">⬇ Export</button>
       <button onclick="printCharCard()" style="background:none;border:1px solid #2a2a50;color:#7a7aaa;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:12px;margin-right:10px;transition:all 0.15s" onmouseover="this.style.borderColor='#4488ff';this.style.color='#4488ff'" onmouseout="this.style.borderColor='#2a2a50';this.style.color='#7a7aaa'">🖨 Print Card</button>
     </div>
     <div id="modalTabStats" class="modal-tab-content active">
@@ -8757,6 +8758,48 @@ function clearTagFilter(dropdown) {
   renderGrid();
 }
 // ────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// ITERATION 37: Character Export/Import — Backup full state
+//   per character as JSON. Includes HP, conditions, notes,
+//   currency, inspiration, exhaustion, hit dice, tags.
+// ══════════════════════════════════════════════════════════
+function exportCharacter() {
+  if (currentModalIdx < 0) return;
+  const c = filteredChars[currentModalIdx];
+  const name = c.name;
+  const maxHp = parseInt(c.hp) || 1;
+  const data = {
+    exportedAt: new Date().toISOString(),
+    version: '1.0',
+    character: {
+      name, title: c.title, cr: c.cr, hp: c.hp, ac: c.ac,
+      theme: c.theme, group: c.group,
+    },
+    state: {
+      hp: getCharHP(name, maxHp),
+      maxHp,
+      tempHp: getTempHP(name),
+      conditions: getCharConditions(name),
+      inspiration: getInspiration(name),
+      exhaustion: getExhaustion(name),
+      currency: getCoins(name),
+      hitDice: { remaining: getRemainingHD(name, getMaxHitDice(c)), max: getMaxHitDice(c), die: getHitDieType(c) },
+      notes: (loadAllNotes()[name] || {}).text || '',
+      tags: getCharTags(name),
+    }
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name.replace(/\s+/g, '_') + '_tiamat_export.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast(`Exported ${name}`, '#44cc88');
+}
+
 // ══════════════════════════════════════════════════════════
 // ITERATION 36: Proficiency & Languages Panel — auto-infer
 //   armor/weapon/tool/language proficiencies from theme,
