@@ -1264,11 +1264,21 @@
     background: #1e2040;
     border-radius: 3px;
     overflow: hidden;
+    position: relative;
   }
   .hp-fill {
     height: 100%;
     border-radius: 3px;
     transition: width 0.4s ease, background 0.4s ease;
+  }
+  .temp-hp-fill {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    background: rgba(221,136,34,0.75);
+    border-radius: 0 3px 3px 0;
+    transition: width 0.4s, left 0.4s;
+    pointer-events: none;
   }
   .hp-lbl {
     font-size: 10px;
@@ -1720,6 +1730,8 @@
   .cond-status  { background: rgba(201,162,39,0.2); border: 1px solid #c9a227; color: #c9a227; }
   .cond-movement{ background: rgba(34,153,187,0.2); border: 1px solid #2299bb; color: #2299bb; }
   .condition-badge:hover { opacity: 0.9; transform: scale(1.05); }
+  .condition-badge.cond-expired { animation: condExpired 0.6s ease-in-out infinite; border-style: dashed !important; }
+  @keyframes condExpired { 0%,100% { opacity:1 } 50% { opacity:0.4 } }
 
   /* Crit/Fumble flash overlay */
   @keyframes critFlash {
@@ -1795,6 +1807,20 @@
     0%,100% { box-shadow: 0 0 4px rgba(201,162,39,0.3); }
     50% { box-shadow: 0 0 10px rgba(201,162,39,0.6); }
   }
+  /* Damage Type Badges */
+  .dmg-badge { display:inline-flex;align-items:center;gap:2px;font-size:9px;padding:1px 5px;border-radius:8px;cursor:default;border:1px solid;letter-spacing:0.2px;margin:1px; }
+  .dmg-badge.immune  { background:rgba(60,60,80,0.5); border-color:#555; color:#aaa; }
+  .dmg-badge.resist  { background:rgba(30,80,120,0.4); border-color:#2299bb; color:#66ccee; }
+  .dmg-badge.vuln    { background:rgba(160,40,30,0.3); border-color:#cc3333; color:#ff6666; }
+  .dmg-type-picker { position:fixed;z-index:900;background:#0a0a1a;border:1px solid #2a2a50;border-radius:12px;padding:12px 14px;width:280px;box-shadow:0 8px 40px rgba(0,0,0,0.9);max-height:70vh;overflow-y:auto; }
+  .dmg-type-picker h4 { font-family:'Cinzel',serif;color:#9b6dff;font-size:11px;margin:0 0 8px;letter-spacing:1px; }
+  .dmg-type-row { display:grid;grid-template-columns:80px 1fr;align-items:center;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04); }
+  .dmg-type-name { font-size:11px;color:#8888aa;text-transform:capitalize; }
+  .dmg-type-btns { display:flex;gap:4px; }
+  .dmg-type-btn { padding:2px 7px;border-radius:10px;border:1px solid #2a2a50;background:transparent;color:#4a5272;cursor:pointer;font-size:10px;transition:all .15s; }
+  .dmg-type-btn.active-immune { background:rgba(60,60,80,0.7);border-color:#555;color:#bbb; }
+  .dmg-type-btn.active-resist { background:rgba(30,80,120,0.6);border-color:#2299bb;color:#66ccee; }
+  .dmg-type-btn.active-vuln  { background:rgba(160,40,30,0.5);border-color:#cc3333;color:#ff6666; }
   /* Concentration modal button */
   .conc-set-btn {
     background: rgba(201,162,39,0.1);
@@ -3200,6 +3226,40 @@
   .loot-panel-body { flex:1; overflow-y:auto; padding:12px 14px; }
   .loot-panel-body::-webkit-scrollbar { width:4px; }
   .loot-panel-body::-webkit-scrollbar-thumb { background:#2a2a50; border-radius:2px; }
+  .rest-panel {
+    position: fixed;
+    top: 60px;
+    right: 20px;
+    width: 340px;
+    max-height: 78vh;
+    background: linear-gradient(160deg,#061209,#0c1a10);
+    border: 1px solid rgba(35,180,120,0.4);
+    border-radius: 14px;
+    z-index: 349;
+    display: none;
+    flex-direction: column;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.9), 0 0 20px rgba(35,180,120,0.1);
+    overflow: hidden;
+  }
+  .rest-panel.open { display: flex; }
+  .rest-panel-header {
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(35,180,120,0.25);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(35,180,120,0.05);
+    flex-shrink: 0;
+  }
+  .rest-panel-title { font-family:'Cinzel',serif; color:#23b478; font-size:13px; font-weight:700; letter-spacing:1px; }
+  .rest-panel-body { flex:1; overflow-y:auto; padding:12px 14px; }
+  .rest-panel-body::-webkit-scrollbar { width:4px; }
+  .rest-panel-body::-webkit-scrollbar-thumb { background:#1a3a28; border-radius:2px; }
+  .rest-tab-bar { display:flex; gap:4px; margin-bottom:12px; }
+  .rest-tab { flex:1; padding:6px; background:#0a1a0f; border:1px solid #1a3a28; color:#4a7a5a; border-radius:6px; cursor:pointer; font-size:12px; text-align:center; transition:all .2s; }
+  .rest-tab.active { background:rgba(35,180,120,0.15); border-color:#23b478; color:#23b478; }
+  .rest-char-row { background:rgba(255,255,255,0.03); border:1px solid #1a3a28; border-radius:8px; padding:10px; margin-bottom:8px; }
+  .rest-char-row .roll-result { color:#23b478; font-size:11px; text-align:center; margin-top:4px; min-height:14px; }
 
   .loot-currency-grid {
     display: grid;
@@ -3343,8 +3403,11 @@
     <button class="encounter-open-btn" onclick="toggleHealthPanel()" style="border-color:#cc3333;color:#cc3333" id="healthPanelBtn">❤ Party HP</button>
     <button class="encounter-open-btn" onclick="openQuestTracker()" style="border-color:#ffaa44;color:#ffaa44" id="questBtn">📜 Quests</button>
     <button class="encounter-open-btn" onclick="openTheaterMode()" style="border-color:#44aacc;color:#44aacc" title="Theater mode — fullscreen battle board for second screen">🎭 Theater</button>
+    <button class="encounter-open-btn" onclick="toggleXpPanel()" style="border-color:#c9a227;color:#c9a227" id="xpTrackerBtn" title="Party XP & Level Tracker">⭐ XP</button>
+    <button class="encounter-open-btn" onclick="toggleRestPanel()" style="border-color:#23b478;color:#23b478" id="restBtn" title="Short Rest / Long Rest">🌙 Rest</button>
     <button class="encounter-open-btn" onclick="toggleLootPanel()" style="border-color:#c9a227;color:#c9a227" id="lootBtn" title="Party Loot & Treasury">💰 Loot</button>
     <button class="encounter-open-btn" onclick="toggleDmNotes()" style="border-color:#9b6dff;color:#9b6dff" id="dmNotesBtn" title="DM Session Notes">📝 DM Notes</button>
+    <button class="encounter-open-btn" onclick="toggleSound()" id="soundToggleBtn" style="padding:6px 10px;font-size:16px;border-color:#2a2a50;color:#4a5272" title="Sound on — click to mute">🔊</button>
     <div class="stat-badge"><strong id="totalCount">0</strong> Characters</div>
     <div class="stat-badge"><strong id="visibleCount">0</strong> Showing</div>
     <div class="stat-badge stat-live" id="statDown" onclick="filterToDown()" title="Click to show downed characters" style="display:none"><strong id="downCount">0</strong> ⚠ Down</div>
@@ -4226,6 +4289,52 @@
   </div>
 </div>
 
+<!-- XP & Level Tracker Panel -->
+<div id="xpTrackerPanel" style="position:fixed;top:60px;right:20px;width:300px;max-height:70vh;background:linear-gradient(160deg,#0d0b00,#1a1400);border:1px solid rgba(201,162,39,0.4);border-radius:14px;z-index:348;display:none;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.9),0 0 20px rgba(201,162,39,0.08);overflow:hidden">
+  <div style="padding:10px 14px;border-bottom:1px solid rgba(201,162,39,0.25);display:flex;justify-content:space-between;align-items:center;background:rgba(201,162,39,0.04);flex-shrink:0">
+    <span style="font-family:'Cinzel',serif;color:#c9a227;font-size:13px;font-weight:700;letter-spacing:1px">⭐ PARTY XP & LEVEL</span>
+    <button onclick="toggleXpPanel()" style="background:none;border:1px solid #3a2a00;color:#6a5020;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px">✕</button>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:14px">
+    <div id="xpLevelDisplay"></div>
+    <div style="display:flex;gap:6px;margin-top:10px">
+      <input type="number" id="xpAwardInput" placeholder="XP to award" min="0" style="flex:1;background:#0d0b00;border:1px solid #3a2a00;color:#c9a227;border-radius:6px;padding:6px 8px;font-size:13px;outline:none" onfocus="this.style.borderColor='#c9a227'" onblur="this.style.borderColor='#3a2a00'" onkeydown="if(event.key==='Enter')awardXp()">
+      <button onclick="awardXp()" style="background:rgba(201,162,39,0.15);border:1px solid #c9a227;color:#c9a227;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px">Award</button>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:6px">
+      <button onclick="awardMilestone()" style="flex:1;background:rgba(201,162,39,0.05);border:1px solid #3a2a00;color:#6a5020;border-radius:6px;padding:5px;cursor:pointer;font-size:11px" title="Award XP for current encounter from initiative tracker">📜 Award Encounter XP</button>
+      <button onclick="resetPartyXp()" style="background:rgba(204,51,51,0.1);border:1px solid #442222;color:#884444;border-radius:6px;padding:5px 8px;cursor:pointer;font-size:11px" title="Reset XP to 0">✕ Reset</button>
+    </div>
+    <div style="margin-top:10px;font-size:11px;color:#4a3a10" id="xpLog"></div>
+  </div>
+</div>
+
+<!-- Short / Long Rest Panel -->
+<div class="rest-panel" id="restPanel">
+  <div class="rest-panel-header">
+    <span class="rest-panel-title">🌙 PARTY REST</span>
+    <button onclick="toggleRestPanel()" style="background:none;border:1px solid #1a3a28;color:#4a7a5a;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px">✕</button>
+  </div>
+  <div class="rest-panel-body">
+    <div class="rest-tab-bar">
+      <button class="rest-tab active" id="restTab0" onclick="switchRestTab(0)">🛖 Short Rest</button>
+      <button class="rest-tab" id="restTab1" onclick="switchRestTab(1)">🌙 Long Rest</button>
+    </div>
+    <!-- Short Rest Tab -->
+    <div id="restTabShort">
+      <div style="color:#6a9a7a;font-size:11px;margin-bottom:10px">Spend Hit Dice to recover HP. CON modifier added to each roll.</div>
+      <div id="restCharList"></div>
+    </div>
+    <!-- Long Rest Tab -->
+    <div id="restTabLong" style="display:none">
+      <div style="color:#6a9a7a;font-size:11px;margin-bottom:12px">Restore all HP, spell slots, and reduce exhaustion by 1 for all non-evil party members.</div>
+      <div id="longRestPreview" style="margin-bottom:12px"></div>
+      <button id="longRestBtn" onclick="doLongRest()" style="width:100%;background:rgba(35,180,120,0.1);border:1px solid #23b478;color:#23b478;border-radius:8px;padding:10px;cursor:pointer;font-size:14px;font-weight:bold">🌙 Take Long Rest</button>
+      <button onclick="doShortRestAll()" style="width:100%;margin-top:8px;background:rgba(35,180,120,0.05);border:1px solid #1a3a28;color:#4a7a5a;border-radius:8px;padding:7px;cursor:pointer;font-size:12px" title="Roll one hit die for each party member automatically">🎲 Auto Short Rest (Roll 1 Hit Die Each)</button>
+    </div>
+  </div>
+</div>
+
 <!-- DM Session Notes Panel -->
 <div id="dmNotesPanel" style="position:fixed;top:60px;left:50%;transform:translateX(-50%);width:min(520px,94vw);max-height:80vh;background:linear-gradient(160deg,#07101a,#0c1620);border:1px solid rgba(155,109,255,0.35);border-radius:14px;z-index:350;display:none;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.9)">
   <div style="padding:10px 14px;border-bottom:1px solid rgba(155,109,255,0.2);display:flex;justify-content:space-between;align-items:center;background:rgba(155,109,255,0.04);flex-shrink:0">
@@ -4604,10 +4713,12 @@ function applyHpAction(type) {
     logEntry('damage', `<strong>${popupCharName}</strong> took <strong>${dmg} damage</strong> → ${newHp}/${maxHp} HP${newHp===0?' <strong style="color:#cc3333">⚠ DOWN</strong>':''}`);
     logHpEvent(popupCharName, 'dmg', dmg, currHp, newHp, maxHp);
     if (typeof checkConcOnDamage === 'function') checkConcOnDamage(popupCharName, dmg);
+    if (typeof playSound === 'function') { if (newHp === 0) playSound('down'); else playSound('dmg'); }
   } else if (type === 'heal' && newHp !== currHp) {
     const healed = newHp - currHp;
     logEntry('heal', `<strong>${popupCharName}</strong> healed <strong>${healed} HP</strong> → ${newHp}/${maxHp} HP`);
     logHpEvent(popupCharName, 'heal', healed, currHp, newHp, maxHp);
+    if (typeof playSound === 'function') playSound('heal');
   } else if (type === 'full') {
     logEntry('heal', `<strong>${popupCharName}</strong> restored to full HP (${maxHp})`);
     logHpEvent(popupCharName, 'full', maxHp - currHp, currHp, maxHp, maxHp);
@@ -4644,6 +4755,24 @@ function updateTempHpDisplay(name) {
   if (badge) {
     badge.textContent = tempHp > 0 ? `⬡ +${tempHp}` : '';
     badge.style.display = tempHp > 0 ? '' : 'none';
+  }
+  // Update visual bar overlay
+  const barBg = document.querySelector(`[data-sid="${sid}"] .hp-bar-bg`);
+  if (barBg) {
+    let fill = barBg.querySelector('.temp-hp-fill');
+    const char = UNIQUE_CHARS.find(c => c.name === name);
+    const maxHp = parseInt(char?.hp || '1');
+    const currHp = getCharHP(name, maxHp);
+    const hpPct = maxHp > 0 ? currHp / maxHp : 0;
+    if (tempHp > 0) {
+      const tPct = Math.min(100 - Math.round(hpPct * 100), Math.round(tempHp / maxHp * 100));
+      if (!fill) { fill = document.createElement('div'); fill.className = 'temp-hp-fill'; barBg.appendChild(fill); }
+      fill.style.left = Math.round(hpPct * 100) + '%';
+      fill.style.width = tPct + '%';
+      fill.style.display = '';
+    } else if (fill) {
+      fill.style.display = 'none';
+    }
   }
 }
 
@@ -4937,17 +5066,19 @@ function renderGrid() {
             </div>
           </div>
           ${c.quote ? `<div class="card-quote">"${c.quote}"</div>` : ''}
-          <div class="conditions-row" onclick="event.stopPropagation()">${getConditionBadgesHtml(c.name)}${getConcBadgeHtml(c.name)}${getTagBadgesHtml(c.name)}${getExhaustBadgeHtml(c.name)}</div>
+          <div class="conditions-row" onclick="event.stopPropagation()" data-char-name="${c.name}">${getConditionBadgesHtml(c.name)}${getConcBadgeHtml(c.name)}${getTagBadgesHtml(c.name)}${getExhaustBadgeHtml(c.name)}${getDmgTypeBadgesHtml(c.name)}</div>
           <div style="display:flex;gap:8px;align-items:center;margin-top:3px" onclick="event.stopPropagation()">
             <button class="card-cond-btn ${hasConditions(c.name)?'has-conds':''}" onclick="openCondPopup(${JSON.stringify(c.name)},event)">⚡ ${hasConditions(c.name)?'Conds':'Condition'}</button>
             <button class="card-enc-btn ${isInActiveEncounter(c.name)?'in-enc':''}" onclick="addCharToActiveEncounter(${JSON.stringify(c.name)},${maxHp})">☩ ${isInActiveEncounter(c.name)?'In Enc':'Encounter'}</button>
             <button class="card-notes-btn ${hasNotes(c.name)?'has-notes':''}" onclick="openNotes(${JSON.stringify(c.name)},${JSON.stringify(c.title)})">${hasNotes(c.name)?'✎':'✎'}</button>
+            <button onclick="openDmgTypePicker(${JSON.stringify(c.name)},this,event)" title="Set damage immunities, resistances, vulnerabilities" style="background:none;border:1px solid #2a2a50;color:#4a5272;border-radius:4px;padding:1px 5px;cursor:pointer;font-size:10px;line-height:1.4" onmouseover="this.style.borderColor='#6688bb';this.style.color='#88aacc'" onmouseout="this.style.borderColor='#2a2a50';this.style.color='#4a5272'">⚔DR</button>
             <span class="insp-star${hasInspiration(c.name)?' active':''}" onclick="event.stopPropagation();toggleInspiration(${JSON.stringify(c.name)})" title="${hasInspiration(c.name)?'Has Inspiration — click to remove':'Click to grant Inspiration'}" id="insp_${sid}">★</span>
           </div>
           <div class="hp-tracker" data-sid="${sid}" onclick="event.stopPropagation()">
             <div class="hp-row" onclick="openHpPopup(${JSON.stringify(c.name)},${maxHp},event)" title="Click to adjust HP">
               <div class="hp-bar-bg">
                 <div class="hp-fill" style="width:${Math.round(hpPct*100)}%;background:${hpFill}"></div>
+                ${(()=>{ const tmp=getTempHP(c.name); const tPct=tmp>0?Math.min(100-Math.round(hpPct*100), Math.round(tmp/maxHp*100)):0; return tmp>0?`<div class="temp-hp-fill" style="left:${Math.round(hpPct*100)}%;width:${tPct}%"></div>`:''; })()}
               </div>
               <span class="hp-lbl">${currHp}/${maxHp}</span>
             </div>
@@ -6115,6 +6246,22 @@ const TRAIT_RULES = {
   'multiattack': { type:'active', icon:'⚔', rule:'This creature can attack multiple times when it takes the Attack action on its turn.' },
   'relentless': { type:'passive', icon:'🛡', rule:'If damage reduces to 0 HP, make a Constitution save (DC 5 + damage taken). On success, drop to 1 HP instead.' },
   'aggressive': { type:'bonus', icon:'⚡', rule:'Bonus action: Move up to your speed toward a hostile creature you can see.' },
+  'pack tactics': { type:'passive', icon:'🐺', rule:'Advantage on attack rolls against a creature if at least one of the creature\'s allies is within 5 ft and not incapacitated.' },
+  'sunlight sensitivity': { type:'passive', icon:'☀', rule:'Disadvantage on attack rolls and Perception checks that rely on sight when in sunlight.' },
+  'spider climb': { type:'passive', icon:'🕷', rule:'Can climb difficult surfaces, including upside down on ceilings, without ability checks.' },
+  'web sense': { type:'passive', icon:'🕸', rule:'While in contact with a web, can pinpoint the location of any other creature in contact with the same web.' },
+  'undead fortitude': { type:'passive', icon:'💀', rule:'If damage reduces to 0 HP, must make CON save (DC 5 + damage taken) unless damage was radiant or from a critical hit. On success, drop to 1 HP.' },
+  'reckless': { type:'active', icon:'⚡', rule:'At the start of its turn, can gain advantage on all melee weapon attack rolls during that turn, but attack rolls against it also have advantage until the start of its next turn.' },
+  'evasion': { type:'passive', icon:'💨', rule:'When subjected to an effect allowing a DEX save for half damage, takes no damage on success and half on failure.' },
+  'sneak attack': { type:'passive', icon:'🗡', rule:'Once per turn, deal extra damage if advantage on the attack or an ally is adjacent to the target and you don\'t have disadvantage.' },
+  'divine grace': { type:'passive', icon:'✦', rule:'Add Charisma modifier to saving throws (in addition to the usual modifier).' },
+  'keen smell': { type:'passive', icon:'👃', rule:'Advantage on Wisdom (Perception) checks that rely on smell.' },
+  'amphibious': { type:'passive', icon:'🌊', rule:'Can breathe both air and water.' },
+  'flyby': { type:'passive', icon:'🦅', rule:'Doesn\'t provoke opportunity attacks when it flies out of an enemy\'s reach.' },
+  'brute': { type:'passive', icon:'⚒', rule:'A melee weapon deals one extra die of its damage when it hits.' },
+  'ram': { type:'active', icon:'🐏', rule:'If the creature moves at least 20 ft in a straight line before hitting with a horn attack, the target must succeed on a STR save or be knocked prone.' },
+  'charge': { type:'active', icon:'⚡', rule:'If moves at least 20 ft in a straight line before attacking, deal extra damage. Target may be knocked prone on failed STR save.' },
+  'counterspell': { type:'reaction', icon:'⚡', rule:'Reaction: Interrupt a creature casting a spell. Automatically negates spells of 3rd level or lower. Higher levels require a spellcasting check.' },
   'poison': { type:'active', icon:'☠', rule:'Creature is poisoned until end of next turn unless they succeed on a DC 15 CON save.' },
   'invisible': { type:'active', icon:'👁', rule:'Cannot be targeted by attacks. Attacks against invisible creatures have disadvantage.' },
   'charm': { type:'active', icon:'💫', rule:'Charmed creature cannot attack the charmer. Charmer has advantage on Persuasion checks against charmed creature.' },
@@ -6127,6 +6274,14 @@ const TRAIT_RULES = {
   'immune': { type:'passive', icon:'◆', rule:'Take no damage from this damage type or are unaffected by this condition.' },
   'darkvision': { type:'passive', icon:'👁', rule:'Can see in dim light within range as if bright light, in darkness as if dim light. Cannot discern color in darkness.' },
   'magic resistance': { type:'passive', icon:'✦', rule:'Advantage on saving throws against spells and other magical effects.' },
+  'spellcasting': { type:'active', icon:'✨', rule:'Uses a spell ability score (INT, WIS, or CHA) to cast spells. Spell save DC = 8 + proficiency + ability modifier.' },
+  'innate spellcasting': { type:'active', icon:'✨', rule:'Can cast spells without material components. Uses natural magical ability rather than a prepared spell list.' },
+  'frightful presence': { type:'active', icon:'😨', rule:'Each creature of choice within 120 ft that is aware of it must succeed on WIS save or be frightened for 1 minute. Repeat save at end of each turn.' },
+  'telepathy': { type:'passive', icon:'🧠', rule:'Can communicate telepathically with any creature within range that has a language.' },
+  'regeneration': { type:'passive', icon:'💚', rule:'Regains hit points at the start of its turn. Certain damage types may negate this.' },
+  'stone camouflage': { type:'passive', icon:'🪨', rule:'Advantage on Dexterity (Stealth) checks made to hide in rocky terrain.' },
+  'siege monster': { type:'passive', icon:'🏰', rule:'Deals double damage to objects and structures.' },
+  'swarm': { type:'passive', icon:'🐜', rule:'Can occupy another creature\'s space. Resistance to bludgeoning, piercing, slashing from nonmagical attacks. Immune to conditions: charmed, frightened, grappled, paralyzed, petrified, prone, restrained, stunned.' },
 };
 
 function enrichTrait(traitStr) {
@@ -6632,7 +6787,7 @@ document.getElementById('searchBox').addEventListener('input', (e) => {
 
 document.addEventListener('keydown', (e) => {
   const isTyping = document.activeElement && ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName);
-  if (e.key === 'Escape') { closeModal(); closeHpPopup(); closeAoeDmg?.(); closeQuestTracker?.(); document.querySelectorAll('.rel-map-overlay,.session-stats-overlay,.exhaust-menu,.passive-skills-overlay').forEach(e=>e.remove()); }
+  if (e.key === 'Escape') { closeModal(); closeHpPopup(); closeAoeDmg?.(); closeQuestTracker?.(); if (restPanelOpen) toggleRestPanel(); document.querySelectorAll('.rel-map-overlay,.session-stats-overlay,.exhaust-menu,.passive-skills-overlay').forEach(e=>e.remove()); }
   if (e.key === 'ArrowLeft' && currentModalIdx >= 0) navChar(-1);
   if (e.key === 'ArrowRight' && currentModalIdx >= 0) navChar(1);
   if (e.key === '/' && currentModalIdx < 0 && !isTyping) {
@@ -6750,7 +6905,39 @@ const CONDITIONS = [
 ];
 
 const COND_KEY = 'tiamat_conditions';
+const CUSTOM_COND_KEY = 'tiamat_custom_conditions';
 let condPopupChar = '';
+
+function loadCustomConditions() { try { return JSON.parse(localStorage.getItem(CUSTOM_COND_KEY)) || []; } catch { return []; } }
+function saveCustomConditions(arr) { localStorage.setItem(CUSTOM_COND_KEY, JSON.stringify(arr)); }
+function getAllConditions() { return [...CONDITIONS, ...loadCustomConditions()]; }
+
+function addCustomCondition(name, icon, effectText) {
+  if (!name.trim()) return false;
+  const existing = loadCustomConditions();
+  if (getAllConditions().some(c => c.name.toLowerCase() === name.trim().toLowerCase())) return false;
+  existing.push({ name: name.trim(), type: 'custom', icon: icon || '✦', color: '#9b6dff', effects: effectText ? [effectText.trim()] : [], custom: true });
+  saveCustomConditions(existing);
+  return true;
+}
+
+function removeCustomCondition(condName) {
+  const arr = loadCustomConditions().filter(c => c.name !== condName);
+  saveCustomConditions(arr);
+}
+
+function promptAddCustomCondition(reopenFor) {
+  const name = prompt('Custom condition name (e.g. "Cursed", "Marked", "Bleeding Out"):');
+  if (!name?.trim()) return;
+  const icon = prompt('Icon/emoji (leave blank for ✦):', '✦') || '✦';
+  const effect = prompt('Effect description (optional):') || '';
+  if (addCustomCondition(name, icon, effect)) {
+    logEntry('note', `✦ Custom condition created: <strong>${escHtml(name)}</strong>`);
+    if (reopenFor) openCondPopup(reopenFor, { stopPropagation:()=>{}, clientX: window.innerWidth/2, clientY: 200 });
+  } else {
+    alert('A condition with that name already exists.');
+  }
+}
 
 function loadAllConditions() {
   try { return JSON.parse(localStorage.getItem(COND_KEY)) || {}; } catch { return {}; }
@@ -6770,13 +6957,62 @@ function getCondClass(type) {
   return map[type] || 'cond-debuff';
 }
 
+// Condition Duration Tracking
+const COND_DUR_KEY = 'tiamat_cond_durations';
+function loadCondDurations() { try { return JSON.parse(localStorage.getItem(COND_DUR_KEY)) || {}; } catch { return {}; } }
+function saveCondDurations(d) { localStorage.setItem(COND_DUR_KEY, JSON.stringify(d)); }
+function getCondDuration(charName, condName) { return (loadCondDurations()[charName] || {})[condName] ?? null; }
+function setCondDuration(charName, condName, rounds) {
+  const d = loadCondDurations();
+  if (!d[charName]) d[charName] = {};
+  if (rounds === null || rounds === '' || isNaN(rounds)) delete d[charName][condName];
+  else d[charName][condName] = Math.max(0, parseInt(rounds));
+  if (d[charName] && !Object.keys(d[charName]).length) delete d[charName];
+  saveCondDurations(d);
+}
+function tickCondDurations(charName) {
+  // Called at start/end of character's turn; decrement their condition durations
+  const all = loadAllConditions();
+  const conds = all[charName] || [];
+  const d = loadCondDurations();
+  let expired = [];
+  conds.forEach(cname => {
+    const dur = (d[charName] || {})[cname];
+    if (dur !== null && dur !== undefined) {
+      const newDur = dur - 1;
+      if (newDur <= 0) {
+        expired.push(cname);
+        delete d[charName][cname];
+      } else {
+        d[charName][cname] = newDur;
+      }
+    }
+  });
+  saveCondDurations(d);
+  // Remove expired conditions
+  if (expired.length) {
+    expired.forEach(cname => {
+      const idx = (all[charName] || []).indexOf(cname);
+      if (idx >= 0) all[charName].splice(idx, 1);
+    });
+    if (!all[charName]?.length) delete all[charName];
+    saveAllConditions(all);
+    logEntry('cond', `⏱ <strong>${escHtml(charName)}</strong>: condition(s) expired — ${expired.map(escHtml).join(', ')}`);
+    updateHeaderStats();
+    playSound?.('heal');
+  }
+  renderInitiative();
+}
+
 function getConditionBadgesHtml(name) {
   const conds = getCharConditions(name);
   if (!conds.length) return '';
   return conds.map(cname => {
-    const cd = CONDITIONS.find(c => c.name === cname);
+    const cd = getAllConditions().find(c => c.name === cname);
     const cls = cd ? getCondClass(cd.type) : 'cond-debuff';
-    return `<span class="condition-badge ${cls}" onclick="openCondPopup(${JSON.stringify(name)},event)" title="Click to manage conditions">${cname}</span>`;
+    const dur = getCondDuration(name, cname);
+    const durBadge = dur !== null ? `<span style="font-size:8px;background:rgba(0,0,0,0.4);border-radius:6px;padding:0 3px;margin-left:2px;color:${dur<=1?'#ff4444':'#c9a227'}">${dur}</span>` : '';
+    return `<span class="condition-badge ${cls}${dur===0?' cond-expired':''}" onclick="openCondPopup(${JSON.stringify(name)},event)" title="${cname}${dur!==null?' ('+dur+' rounds)':''} — Click to manage">${cname}${durBadge}</span>`;
   }).join('');
 }
 
@@ -6794,19 +7030,30 @@ function openCondPopup(name, event) {
     </div>
     ${exLvl > 0 ? `<div style="font-size:10px;color:#9098b8;margin-top:5px">${EXHAUST_EFFECTS[exLvl]}</div>` : ''}
   </div>`;
-  document.getElementById('condGrid').innerHTML = exhaustRow + CONDITIONS.map(c => {
+  const customConds = loadCustomConditions();
+  const allConds = getAllConditions();
+  document.getElementById('condGrid').innerHTML = exhaustRow + allConds.map(c => {
     const isActive = active.includes(c.name);
-    const typeClass = {debuff:'cond-debuff',control:'cond-control',status:'cond-status',movement:'cond-movement'}[c.type]||'cond-debuff';
+    const typeClass = {debuff:'cond-debuff',control:'cond-control',status:'cond-status',movement:'cond-movement',custom:'cond-status'}[c.type]||'cond-debuff';
     const effectsHtml = (c.effects || []).map(e => `<li>${e}</li>`).join('');
+    const deleteBtn = c.custom ? `<span onclick="event.stopPropagation();removeCustomCondition(${JSON.stringify(c.name)});openCondPopup(${JSON.stringify(name)},{stopPropagation:()=>{},clientX:${Math.round(window?.innerWidth/2||300)},clientY:200})" style="margin-left:auto;color:#4a5272;cursor:pointer;font-size:10px;padding:1px 4px;border-radius:3px" title="Delete custom condition">✕</span>` : '';
+    const dur = isActive ? getCondDuration(name, c.name) : null;
+    const durInput = isActive ? `<div onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;margin-top:5px">
+      <span style="font-size:9px;color:#4a5272">⏱ Rounds:</span>
+      <input type="number" min="0" max="99" placeholder="∞" value="${dur !== null ? dur : ''}" onchange="setCondDuration(${JSON.stringify(name)},${JSON.stringify(c.name)},this.value||null);event.stopPropagation()" onclick="event.stopPropagation()" style="width:40px;background:#0a0a1a;border:1px solid #2a2a50;color:#c9a227;border-radius:4px;padding:1px 4px;font-size:10px;text-align:center">
+      ${dur!==null?`<span style="font-size:9px;color:${dur<=1?'#ff4444':'#8888aa'}">${dur} left</span>`:''}
+    </div>` : '';
     return `<div class="cond-card ${isActive?'cond-card-active':''}" onclick="toggleCondition(${JSON.stringify(c.name)});this.classList.toggle('cond-card-active')" style="border-color:${isActive?c.color:'#1e2040'}">
       <div class="cond-card-header">
         <span class="cond-card-icon">${c.icon||'◆'}</span>
         <span class="cond-card-name" style="color:${isActive?c.color:'#9098b8'}">${c.name}</span>
         <span class="cond-card-type ${typeClass}">${c.type}</span>
+        ${deleteBtn}
       </div>
       ${c.effects && c.effects.length ? `<ul class="cond-card-effects">${effectsHtml}</ul>` : ''}
+      ${durInput}
     </div>`;
-  }).join('');
+  }).join('') + `<div style="grid-column:1/-1;margin-top:4px"><button onclick="promptAddCustomCondition(${JSON.stringify(name)})" style="width:100%;background:rgba(155,109,255,0.08);border:1px dashed rgba(155,109,255,0.3);color:#6a4aaa;border-radius:8px;padding:7px;cursor:pointer;font-size:12px">✦ Add Custom Condition…</button></div>`;
   const popup = document.getElementById('condPopup');
   const x = Math.min(Math.max(event.clientX - 130, 10), window.innerWidth - 280);
   const y = Math.min(Math.max(event.clientY + 8, 10), window.innerHeight - 320);
@@ -7939,6 +8186,19 @@ loadEncounters();
 
 // ── INITIATIVE TRACKER ──────────────────────────────────
 let initiativeList = [];
+const INIT_NOTES_KEY = 'tiamat_init_notes';
+function loadInitNotes() { try { return JSON.parse(localStorage.getItem(INIT_NOTES_KEY)) || {}; } catch { return {}; } }
+function saveInitNotes(d) { localStorage.setItem(INIT_NOTES_KEY, JSON.stringify(d)); }
+function getInitNote(name) { return loadInitNotes()[name] || ''; }
+function setInitNote(name, text) { const d = loadInitNotes(); if (text) d[name] = text; else delete d[name]; saveInitNotes(d); }
+function promptInitNote(name, event) {
+  if (event) event.stopPropagation();
+  const cur = getInitNote(name);
+  const val = prompt(`Combat note for ${name} (leave blank to clear):`, cur);
+  if (val === null) return;
+  setInitNote(name, val.trim());
+  renderInitiative();
+}
 let currentTurnIdx = 0;
 let currentRound = 1;
 
@@ -8184,6 +8444,7 @@ function removeFromInitiative(name) {
   if (idx < 0) return;
   initiativeList.splice(idx, 1);
   if (currentTurnIdx >= initiativeList.length) currentTurnIdx = 0;
+  setInitNote(name, ''); // clear note
   renderInitiative();
   renderGrid();
   updateHeaderStats();
@@ -8191,9 +8452,10 @@ function removeFromInitiative(name) {
 
 function nextTurn() {
   if (!initiativeList.length) return;
+  if (typeof playSound === 'function') playSound('next');
   // Clear action state for the character whose turn is ending
   const endingChar = initiativeList[currentTurnIdx];
-  if (endingChar) delete turnActionState[endingChar.name];
+  if (endingChar) { delete turnActionState[endingChar.name]; tickCondDurations(endingChar.name); }
   currentTurnIdx = (currentTurnIdx + 1) % initiativeList.length;
   if (currentTurnIdx === 0) {
     currentRound++;
@@ -8234,6 +8496,51 @@ function toggleTurnAction(name, type, event) {
   renderInitiative();
 }
 function clearTurnActions() { turnActionState = {}; }
+
+// ── INITIATIVE REORDER ────────────────────────────────────
+let initDragName = null;
+function initDragStart(event, name) { initDragName = name; event.dataTransfer.effectAllowed = 'move'; }
+function initDragOver(event) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }
+function initDrop(event, targetName) {
+  event.preventDefault();
+  if (!initDragName || initDragName === targetName) return;
+  const fromIdx = initiativeList.findIndex(e => e.name === initDragName);
+  const toIdx = initiativeList.findIndex(e => e.name === targetName);
+  if (fromIdx < 0 || toIdx < 0) return;
+  const [moved] = initiativeList.splice(fromIdx, 1);
+  initiativeList.splice(toIdx, 0, moved);
+  // Adjust currentTurnIdx if needed
+  if (currentTurnIdx === fromIdx) currentTurnIdx = toIdx;
+  else if (fromIdx < currentTurnIdx && toIdx >= currentTurnIdx) currentTurnIdx--;
+  else if (fromIdx > currentTurnIdx && toIdx <= currentTurnIdx) currentTurnIdx++;
+  renderInitiative();
+  initDragName = null;
+}
+
+function moveInInitiative(name, dir, event) {
+  if (event) event.stopPropagation();
+  const idx = initiativeList.findIndex(e => e.name === name);
+  const newIdx = idx + dir;
+  if (idx < 0 || newIdx < 0 || newIdx >= initiativeList.length) return;
+  [initiativeList[idx], initiativeList[newIdx]] = [initiativeList[newIdx], initiativeList[idx]];
+  if (currentTurnIdx === idx) currentTurnIdx = newIdx;
+  else if (currentTurnIdx === newIdx) currentTurnIdx = idx;
+  renderInitiative();
+}
+
+function editInitiativeScore(name, event) {
+  if (event) event.stopPropagation();
+  const entry = initiativeList.find(e => e.name === name);
+  if (!entry) return;
+  const newVal = prompt(`Edit initiative for ${name}:`, entry.initiative);
+  const parsed = parseInt(newVal);
+  if (isNaN(parsed)) return;
+  entry.initiative = parsed;
+  // Re-sort by initiative value
+  initiativeList.sort((a, b) => b.initiative - a.initiative);
+  currentTurnIdx = 0;
+  renderInitiative();
+}
 
 let lairActionEnabled = false;
 let lairActionDescription = '';
@@ -8282,13 +8589,22 @@ function renderInitiative() {
       const used = ts[type];
       return `<button class="init-action-pip ${used?'used':''}" onclick="toggleTurnAction(${JSON.stringify(e.name)},'${type}',event)" title="${type} — click to toggle" style="border-color:${used?'#2a2a50':color};color:${used?'#2a2a50':color};background:${used?'transparent':'rgba(0,0,0,0)'};">${used?'○':label}</button>`;
     };
-    return `<div class="init-entry ${isActive ? 'active-turn' : ''} ${isDefeated ? 'defeated' : ''}" title="${e.name}">
-      <div class="init-score">${e.initiative}</div>
-      <div class="init-name">${e.name}</div>
+    const note = getInitNote(e.name);
+    return `<div class="init-entry ${isActive ? 'active-turn' : ''} ${isDefeated ? 'defeated' : ''} ${note?'has-init-note':''}" title="${e.name}" draggable="true" data-init-name="${e.name.replace(/"/g,'&quot;')}" ondragstart="initDragStart(event,${JSON.stringify(e.name)})" ondragover="initDragOver(event)" ondrop="initDrop(event,${JSON.stringify(e.name)})">
+      <div class="init-score" onclick="editInitiativeScore(${JSON.stringify(e.name)},event)" title="Click to edit initiative score" style="cursor:pointer;user-select:none" onmouseover="this.style.color='#c9a227'" onmouseout="this.style.color=''">${e.initiative}</div>
+      <div style="display:flex;flex-direction:column;gap:1px;margin-right:2px">
+        <button onclick="moveInInitiative(${JSON.stringify(e.name)},-1,event)" style="background:none;border:none;color:#3a3a60;cursor:pointer;padding:0 2px;font-size:9px;line-height:1" title="Move up">▲</button>
+        <button onclick="moveInInitiative(${JSON.stringify(e.name)},1,event)" style="background:none;border:none;color:#3a3a60;cursor:pointer;padding:0 2px;font-size:9px;line-height:1" title="Move down">▼</button>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div class="init-name">${e.name}</div>
+        ${note ? `<div style="font-size:9px;color:#6677aa;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px" onclick="promptInitNote(${JSON.stringify(e.name)},event)" title="${escHtml(note)} (click to edit)">${escHtml(note)}</div>` : ''}
+      </div>
       <div style="display:flex;gap:3px;margin-left:auto;margin-right:4px">
         ${actionBtn('action','A','#4488ff')}
         ${actionBtn('bonus','B','#88aa22')}
         ${actionBtn('reaction','R','#dd6622')}
+        <button onclick="promptInitNote(${JSON.stringify(e.name)},event)" style="background:none;border:1px solid ${note?'#4455aa':'#2a2a50'};color:${note?'#6677aa':'#2a2a50'};border-radius:3px;padding:1px 4px;cursor:pointer;font-size:9px" title="${note?'Edit note: '+note:'Add note'}">✎</button>
       </div>
       ${hpText ? `<div class="init-hp-mini">${hpText}</div>` : ''}
       <button class="init-remove-btn" onclick="removeFromInitiative(${JSON.stringify(e.name)})">✕</button>
@@ -8484,8 +8800,9 @@ function showDiceResult(total, detail, isCrit, isFumble) {
   void mainEl.offsetWidth; // force reflow
   mainEl.style.animation = 'diceRoll 0.3s ease';
   document.getElementById('diceResultDetail').textContent = detail;
-  if (isCrit) showCritFlash(true);
-  else if (isFumble) showCritFlash(false);
+  if (isCrit) { showCritFlash(true); if (typeof playSound === 'function') playSound('crit'); }
+  else if (isFumble) { showCritFlash(false); if (typeof playSound === 'function') playSound('fumble'); }
+  else { if (typeof playSound === 'function') playSound('roll'); }
 }
 
 function showCritFlash(isCrit) {
@@ -9675,6 +9992,58 @@ function renderTheaterGrid() {
 }
 // ────────────────────────────────────────────────────────
 
+// ── SOUND EFFECTS ────────────────────────────────────────
+let soundEnabled = localStorage.getItem('tiamat_sound') !== 'off';
+let audioCtx = null;
+
+function getAudioCtx() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+  }
+  return audioCtx;
+}
+
+function playTone(freq, duration, type='sine', volume=0.3, decay=0.5) {
+  if (!soundEnabled) return;
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  try {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    gain.gain.setValueAtTime(volume, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + decay);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + decay);
+  } catch(e) {}
+}
+
+function playSound(name) {
+  if (!soundEnabled) return;
+  switch(name) {
+    case 'roll':   playTone(440, 0.1, 'triangle', 0.2, 0.15); setTimeout(()=>playTone(520,0.1,'triangle',0.15,0.1), 50); break;
+    case 'crit':   [0,80,160,240].forEach((d,i)=>setTimeout(()=>playTone(550+i*200,0.15,'square',0.15,0.2),d)); break;
+    case 'fumble': [0,100].forEach((d,i)=>setTimeout(()=>playTone(200-i*60,0.15,'sawtooth',0.12,0.25),d)); break;
+    case 'next':   playTone(660, 0.1, 'sine', 0.2, 0.12); break;
+    case 'dmg':    playTone(150, 0.15, 'sawtooth', 0.18, 0.3); break;
+    case 'heal':   playTone(523, 0.1, 'sine', 0.15, 0.2); setTimeout(()=>playTone(659,0.1,'sine',0.1,0.2), 80); break;
+    case 'down':   [0,150,300].forEach((d,i)=>setTimeout(()=>playTone(300-i*60,0.15,'sawtooth',0.12,0.3),d)); break;
+    case 'quest':  [0,100,200].forEach((d,i)=>setTimeout(()=>playTone(440+i*100,0.1,'sine',0.15,0.15),d)); break;
+  }
+}
+
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  localStorage.setItem('tiamat_sound', soundEnabled ? 'on' : 'off');
+  const btn = document.getElementById('soundToggleBtn');
+  if (btn) { btn.textContent = soundEnabled ? '🔊' : '🔇'; btn.title = soundEnabled ? 'Sound on — click to mute' : 'Sound off — click to unmute'; }
+  if (soundEnabled) { playSound('roll'); } // preview
+}
+// ────────────────────────────────────────────────────────
+
 // ── STAT BLOCK MARKDOWN EXPORT ───────────────────────────
 function copyStatBlockMarkdown() {
   const c = UNIQUE_CHARS[currentModalIdx];
@@ -10225,6 +10594,120 @@ function toggleInspiration(name) {
 }
 // ────────────────────────────────────────────────────────
 
+// ── DAMAGE TYPE TRACKER ──────────────────────────────────
+const DMG_TYPES_KEY = 'tiamat_damage_types';
+const DMG_TYPE_LIST = ['acid','bludgeoning','cold','fire','force','lightning','necrotic','piercing','poison','psychic','radiant','slashing','thunder'];
+const DMG_TYPE_ICONS = { acid:'🧪',bludgeoning:'🔨',cold:'❄',fire:'🔥',force:'💥',lightning:'⚡',necrotic:'💀',piercing:'🗡',poison:'☠',psychic:'🌀',radiant:'✨',slashing:'⚔',thunder:'🌩' };
+
+function loadDmgTypes() { try { return JSON.parse(localStorage.getItem(DMG_TYPES_KEY)) || {}; } catch { return {}; } }
+function saveDmgTypes(d) { localStorage.setItem(DMG_TYPES_KEY, JSON.stringify(d)); }
+
+function getDmgType(name, dtype) {
+  const all = loadDmgTypes();
+  return (all[name] || {})[dtype] || null; // null | 'immune' | 'resist' | 'vuln'
+}
+function setDmgType(name, dtype, state) {
+  const all = loadDmgTypes();
+  if (!all[name]) all[name] = {};
+  if (!state) delete all[name][dtype];
+  else all[name][dtype] = state;
+  if (all[name] && !Object.keys(all[name]).length) delete all[name];
+  saveDmgTypes(all);
+  refreshDmgBadges(name);
+}
+function cycleDmgType(name, dtype, event) {
+  if (event) event.stopPropagation();
+  const cur = getDmgType(name, dtype);
+  const next = cur === null ? 'immune' : cur === 'immune' ? 'resist' : cur === 'resist' ? 'vuln' : null;
+  setDmgType(name, dtype, next);
+  // Update picker button
+  const btn = document.getElementById(`dmgbtn_${safeId(name)}_${dtype}`);
+  if (btn) {
+    btn.classList.remove('active-immune','active-resist','active-vuln');
+    if (next) btn.classList.add(`active-${next}`);
+    btn.textContent = next ? next.charAt(0).toUpperCase()+next.slice(1) : 'None';
+  }
+}
+
+function getDmgTypeBadgesHtml(name) {
+  const data = (loadDmgTypes()[name]) || {};
+  const types = Object.keys(data);
+  if (!types.length) return '';
+  return types.map(dtype => {
+    const state = data[dtype];
+    const icon = DMG_TYPE_ICONS[dtype] || '◆';
+    const label = state === 'immune' ? '◆' : state === 'resist' ? '½' : '2×';
+    return `<span class="dmg-badge ${state}" title="${state.toUpperCase()}: ${dtype}">${icon} ${label}</span>`;
+  }).join('');
+}
+
+function refreshDmgBadges(name) {
+  const condRow = [...document.querySelectorAll('.conditions-row')].find(el => el.dataset.charName === name);
+  if (condRow) {
+    // Rebuild entire conditions row
+    const badges = getConditionBadgesHtml(name) + getConcBadgeHtml(name) + getTagBadgesHtml(name) + getExhaustBadgeHtml(name) + getDmgTypeBadgesHtml(name);
+    condRow.innerHTML = badges;
+  }
+}
+
+function openDmgTypePicker(charName, anchorEl, event) {
+  if (event) event.stopPropagation();
+  document.querySelectorAll('.dmg-type-picker').forEach(e => e.remove());
+  const data = loadDmgTypes()[charName] || {};
+  const sid = safeId(charName);
+  const rows = DMG_TYPE_LIST.map(dtype => {
+    const cur = data[dtype] || null;
+    const mkBtn = (state, label) => `<button id="dmgbtn_${sid}_${dtype}_${state}" class="dmg-type-btn${cur===state?` active-${state}`:''}" onclick="setDmgTypeFull(${JSON.stringify(charName)},${JSON.stringify(dtype)},${JSON.stringify(state)},event)">${label}</button>`;
+    return `<div class="dmg-type-row">
+      <div class="dmg-type-name">${DMG_TYPE_ICONS[dtype]||''} ${dtype}</div>
+      <div class="dmg-type-btns">
+        <button class="dmg-type-btn${!cur?' active-immune':''}" style="${!cur?'background:rgba(255,255,255,0.06);color:#8888aa;border-color:#3a3a5a':''}" onclick="setDmgTypeFull(${JSON.stringify(charName)},${JSON.stringify(dtype)},null,event)">—</button>
+        ${mkBtn('immune','Immune')}
+        ${mkBtn('resist','Resist')}
+        ${mkBtn('vuln','Vuln')}
+      </div>
+    </div>`;
+  }).join('');
+  const rect = anchorEl ? anchorEl.getBoundingClientRect() : { left:200, bottom:200 };
+  const picker = document.createElement('div');
+  picker.className = 'dmg-type-picker';
+  picker.style.left = Math.min(rect.left, window.innerWidth - 300) + 'px';
+  picker.style.top = (rect.bottom + 4) + 'px';
+  picker.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <h4>⚔ DAMAGE TYPES — ${escHtml(charName)}</h4>
+    <button onclick="this.closest('.dmg-type-picker').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:14px">✕</button>
+  </div>
+  <div style="font-size:10px;color:#4a5272;margin-bottom:8px">Set immunity, resistance, or vulnerability for each damage type.</div>
+  ${rows}`;
+  document.body.appendChild(picker);
+  const close = e => { if (!picker.contains(e.target)) { picker.remove(); document.removeEventListener('mousedown', close); } };
+  setTimeout(() => document.addEventListener('mousedown', close), 100);
+}
+
+function setDmgTypeFull(name, dtype, state, event) {
+  if (event) event.stopPropagation();
+  const all = loadDmgTypes();
+  if (!all[name]) all[name] = {};
+  if (!state) delete all[name][dtype];
+  else all[name][dtype] = state;
+  if (!Object.keys(all[name]).length) delete all[name];
+  saveDmgTypes(all);
+  // Refresh all buttons in picker
+  const sid = safeId(name);
+  const states = ['immune','resist','vuln'];
+  ['immune','resist','vuln',null].forEach(s => {
+    const btn = document.getElementById(`dmgbtn_${sid}_${dtype}_${s}`);
+    if (btn) { btn.classList.remove('active-immune','active-resist','active-vuln'); btn.style.background=''; btn.style.color=''; btn.style.borderColor=''; }
+  });
+  const nullBtn = document.querySelector(`.dmg-type-picker [onclick*="${CSS.escape(dtype)}"][onclick*="null,event"]`);
+  if (!state && nullBtn) { nullBtn.style.background='rgba(255,255,255,0.06)'; nullBtn.style.color='#8888aa'; nullBtn.style.borderColor='#3a3a5a'; }
+  if (state) {
+    const activeBtn = document.getElementById(`dmgbtn_${sid}_${dtype}_${state}`);
+    if (activeBtn) activeBtn.classList.add(`active-${state}`);
+  }
+  refreshDmgBadges(name);
+}
+
 // ── DEATH SAVE TRACKER ───────────────────────────────────
 const DS_KEY = 'tiamat_death_saves';
 
@@ -10444,6 +10927,16 @@ function updateDmNotesBadge() {
 (function initDmNotes() {
   updateDmNotesBadge();
 })();
+// Initialize sound toggle button state
+(function initSoundBtn() {
+  const btn = document.getElementById('soundToggleBtn');
+  if (btn) {
+    btn.textContent = soundEnabled ? '🔊' : '🔇';
+    btn.title = soundEnabled ? 'Sound on — click to mute' : 'Sound off — click to unmute';
+    btn.style.color = soundEnabled ? '#2299bb' : '#4a5272';
+    btn.style.borderColor = soundEnabled ? '#2299bb' : '#2a2a50';
+  }
+})();
 // ────────────────────────────────────────────────────────
 
 // ── PARTY LOOT & TREASURY TRACKER ────────────────────────
@@ -10459,6 +10952,247 @@ function saveLoot() {
   const l = loadLoot();
   l.notes = document.getElementById('lootNotes')?.value || l.notes;
   localStorage.setItem(LOOT_KEY, JSON.stringify(l));
+}
+
+// ===================== XP & LEVEL TRACKER =====================
+const PARTY_XP_KEY = 'tiamat_party_xp';
+const LEVEL_XP_THRESHOLDS = [0,300,900,2700,6500,14000,23000,34000,48000,64000,85000,100000,120000,140000,165000,195000,225000,265000,305000,355000];
+const PROF_BONUS = [0,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,6,6,6,6]; // index = level
+let xpPanelOpen = false;
+
+function getPartyXp() { return parseInt(localStorage.getItem(PARTY_XP_KEY)) || 0; }
+function savePartyXp(xp) { localStorage.setItem(PARTY_XP_KEY, Math.max(0, xp)); }
+
+function getPartyLevelFromXp(xp) {
+  let level = 1;
+  for (let i = 1; i < LEVEL_XP_THRESHOLDS.length; i++) { if (xp >= LEVEL_XP_THRESHOLDS[i]) level = i + 1; else break; }
+  return Math.min(level, 20);
+}
+
+function toggleXpPanel() {
+  xpPanelOpen = !xpPanelOpen;
+  const panel = document.getElementById('xpTrackerPanel');
+  const btn = document.getElementById('xpTrackerBtn');
+  if (!panel) return;
+  panel.style.display = xpPanelOpen ? 'flex' : 'none';
+  btn.style.background = xpPanelOpen ? 'rgba(201,162,39,0.15)' : '';
+  if (xpPanelOpen) renderXpPanel();
+}
+
+function renderXpPanel() {
+  const el = document.getElementById('xpLevelDisplay');
+  if (!el) return;
+  const xp = getPartyXp();
+  const level = getPartyLevelFromXp(xp);
+  const nextLvl = level < 20 ? LEVEL_XP_THRESHOLDS[level] : null;
+  const prevLvl = LEVEL_XP_THRESHOLDS[level - 1] || 0;
+  const pct = nextLvl ? Math.round((xp - prevLvl) / (nextLvl - prevLvl) * 100) : 100;
+  const prof = PROF_BONUS[level] || 2;
+  const xpToNext = nextLvl ? (nextLvl - xp).toLocaleString() : '—';
+  el.innerHTML = `
+    <div style="text-align:center;margin-bottom:10px">
+      <div style="font-size:28px;font-weight:bold;color:#c9a227;font-family:'Cinzel',serif">Level ${level}</div>
+      <div style="font-size:11px;color:#6a5020;margin-top:2px">Proficiency Bonus: <strong style="color:#c9a227">+${prof}</strong></div>
+    </div>
+    <div style="background:#0d0b00;border-radius:6px;height:8px;overflow:hidden;margin-bottom:6px;border:1px solid #3a2a00">
+      <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#a07010,#c9a227);border-radius:6px;transition:width .4s"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:#4a3a10;margin-bottom:8px">
+      <span>${xp.toLocaleString()} XP</span>
+      <span>${nextLvl ? xpToNext + ' XP to level ' + (level+1) : 'MAX LEVEL'}</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+      ${LEVEL_XP_THRESHOLDS.map((thresh, i) => {
+        const lvl = i + 1; if (lvl > 20) return '';
+        const reached = xp >= thresh;
+        const active = lvl === level;
+        return `<div style="padding:3px 6px;border-radius:4px;font-size:10px;background:${active?'rgba(201,162,39,0.2)':reached?'rgba(201,162,39,0.06)':'transparent'};border:1px solid ${active?'#c9a227':reached?'#3a2a00':'#1a1400'};color:${active?'#c9a227':reached?'#6a5020':'#2a2000'}">
+          Lv${lvl} <span style="float:right">${thresh.toLocaleString()}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function awardXp() {
+  const input = document.getElementById('xpAwardInput');
+  const amount = parseInt(input?.value) || 0;
+  if (amount <= 0) return;
+  const prev = getPartyXp();
+  const newXp = prev + amount;
+  savePartyXp(newXp);
+  const prevLevel = getPartyLevelFromXp(prev);
+  const newLevel = getPartyLevelFromXp(newXp);
+  const levelUp = newLevel > prevLevel;
+  logEntry('roll', `⭐ <strong>+${amount.toLocaleString()} XP</strong> awarded — Party now at ${newXp.toLocaleString()} XP${levelUp ? ` 🎉 <strong>LEVEL UP! Now Level ${newLevel}</strong>` : ''}`);
+  if (levelUp) playSound?.('crit');
+  if (input) input.value = '';
+  renderXpPanel();
+  const xpLog = document.getElementById('xpLog');
+  if (xpLog) { const li = document.createElement('div'); li.textContent = `+${amount.toLocaleString()} XP`; li.style.padding = '2px 0'; xpLog.prepend(li); }
+}
+
+function awardMilestone() {
+  // Sum XP from current encounter monsters
+  const totalXp = initiativeList.reduce((sum, e) => {
+    const char = UNIQUE_CHARS.find(c => c.name === e.name);
+    if (!char) return sum;
+    const isMonster = !char.alignment || /evil/i.test(char.alignment);
+    return isMonster ? sum + (XP_BY_CR[char.cr] || 0) : sum;
+  }, 0);
+  if (!totalXp) { logEntry('note', '⭐ No monsters in initiative — no XP to award'); return; }
+  const input = document.getElementById('xpAwardInput');
+  if (input) input.value = totalXp;
+  logEntry('note', `⭐ Loaded ${totalXp.toLocaleString()} XP from encounter — click Award to confirm`);
+  renderXpPanel();
+}
+
+function resetPartyXp() {
+  if (!confirm('Reset party XP to 0?')) return;
+  savePartyXp(0);
+  logEntry('note', '⭐ Party XP reset to 0');
+  renderXpPanel();
+}
+
+// ===================== SHORT / LONG REST =====================
+const REST_DICE_KEY = 'tiamat_hit_dice';
+let restPanelOpen = false;
+let restActiveTab = 0;
+
+function getHitDiceType(name) {
+  try { return parseInt(JSON.parse(localStorage.getItem(REST_DICE_KEY) || '{}')[name]) || 8; } catch { return 8; }
+}
+function setHitDiceType(name, val) {
+  try { const d = JSON.parse(localStorage.getItem(REST_DICE_KEY) || '{}'); d[name] = parseInt(val); localStorage.setItem(REST_DICE_KEY, JSON.stringify(d)); renderRestShortTab(); } catch {}
+}
+function getConMod(char) {
+  const con = (char.abilities || []).find(a => a[0] === 'CON');
+  return con ? parseInt(con[2]) || 0 : 0;
+}
+function getPartyChars() {
+  return UNIQUE_CHARS.filter(c => c.alignment && /good|neutral/i.test(c.alignment) && !/evil/i.test(c.alignment));
+}
+
+function toggleRestPanel() {
+  restPanelOpen = !restPanelOpen;
+  const panel = document.getElementById('restPanel');
+  const btn = document.getElementById('restBtn');
+  if (restPanelOpen) {
+    panel.classList.add('open');
+    btn.style.background = 'rgba(35,180,120,0.15)';
+    switchRestTab(0);
+  } else {
+    panel.classList.remove('open');
+    btn.style.background = '';
+  }
+}
+
+function switchRestTab(idx) {
+  restActiveTab = idx;
+  document.getElementById('restTabShort').style.display = idx === 0 ? 'block' : 'none';
+  document.getElementById('restTabLong').style.display = idx === 1 ? 'block' : 'none';
+  document.getElementById('restTab0').classList.toggle('active', idx === 0);
+  document.getElementById('restTab1').classList.toggle('active', idx === 1);
+  if (idx === 0) renderRestShortTab();
+  else renderRestLongTab();
+}
+
+function renderRestShortTab() {
+  const party = getPartyChars();
+  const el = document.getElementById('restCharList');
+  if (!el) return;
+  if (!party.length) { el.innerHTML = '<div style="color:#4a7a5a;text-align:center;padding:16px;font-size:12px">No good/neutral aligned characters found.<br>Add characters with a good or neutral alignment to use rest.</div>'; return; }
+  el.innerHTML = party.map(c => {
+    const maxHp = parseInt(c.hp || '1');
+    const currHp = getCharHP(c.name, maxHp);
+    const pct = maxHp > 0 ? Math.round(currHp / maxHp * 100) : 0;
+    const hpColor = pct <= 25 ? '#e05050' : pct <= 60 ? '#c9a227' : '#23b478';
+    const conMod = getConMod(c);
+    const hd = getHitDiceType(c.name);
+    const sid = safeId(c.name);
+    const full = currHp >= maxHp;
+    return `<div class="rest-char-row">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+        <span style="font-weight:bold;color:#c8d8ff;font-size:13px;flex:1">${escHtml(c.name)}</span>
+        <span style="font-size:11px;color:${hpColor}">${currHp}/${maxHp}</span>
+        <select onchange="setHitDiceType(${JSON.stringify(c.name)},this.value)" style="background:#061209;border:1px solid #1a3a28;color:#6a9a7a;border-radius:4px;padding:1px 3px;font-size:11px;cursor:pointer" title="Hit die size">
+          ${[6,8,10,12].map(d=>`<option value="${d}"${hd===d?' selected':''}>d${d}</option>`).join('')}
+        </select>
+      </div>
+      <div style="height:3px;background:#0a1a0f;border-radius:2px;margin-bottom:6px"><div style="height:100%;width:${pct}%;background:${hpColor};border-radius:2px;transition:width .3s"></div></div>
+      <button onclick="rollHitDie(${JSON.stringify(c.name)})" ${full?'disabled':''}
+        style="width:100%;background:${full?'#0a1a0f':'rgba(35,180,120,0.1)'};border:1px solid ${full?'#1a3a28':'#23b478'};color:${full?'#2a4a30':'#23b478'};border-radius:6px;padding:5px 8px;cursor:${full?'default':'pointer'};font-size:12px">
+        ${full ? '✓ Full HP' : `🎲 Roll d${hd}${conMod>=0?'+':''}${conMod} Hit Die`}
+      </button>
+      <div class="roll-result" id="hdResult_${sid}"></div>
+    </div>`;
+  }).join('');
+}
+
+function renderRestLongTab() {
+  const party = getPartyChars();
+  const el = document.getElementById('longRestPreview');
+  if (!el) return;
+  const rows = party.map(c => {
+    const maxHp = parseInt(c.hp || '1');
+    const currHp = getCharHP(c.name, maxHp);
+    const missing = maxHp - currHp;
+    const exLvl = typeof getExhaustLevel === 'function' ? getExhaustLevel(c.name) : 0;
+    const slots = slotState[c.name] ? Object.values(slotState[c.name]).reduce((a,b)=>a+b,0) : 0;
+    if (!missing && !slots && !exLvl) return '';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:rgba(255,255,255,0.03);border-radius:6px;margin-bottom:4px;font-size:11px">
+      <span style="color:#c8d8ff">${escHtml(c.name)}</span>
+      <span style="color:#4a7a5a">${missing?`+${missing} HP`:''} ${slots?`${slots} slots`:''} ${exLvl?`exhaust -1`:''}</span>
+    </div>`;
+  }).filter(Boolean).join('');
+  el.innerHTML = rows ? `<div style="color:#6a9a7a;font-size:11px;margin-bottom:6px;font-style:italic">Will restore:</div>${rows}` : `<div style="color:#4a7a5a;font-size:11px;text-align:center;padding:8px">Everyone is already at full HP and spell slots.</div>`;
+}
+
+function rollHitDie(name) {
+  const char = UNIQUE_CHARS.find(c => c.name === name);
+  if (!char) return;
+  const maxHp = parseInt(char.hp || '1');
+  const currHp = getCharHP(name, maxHp);
+  if (currHp >= maxHp) return;
+  const hd = getHitDiceType(name);
+  const conMod = getConMod(char);
+  const roll = Math.floor(Math.random() * hd) + 1;
+  const heal = Math.max(1, roll + conMod);
+  const newHp = Math.min(maxHp, currHp + heal);
+  hpState[name] = newHp;
+  saveHp();
+  logEntry('roll', `<strong>${escHtml(name)}</strong> spent a hit die: rolled ${roll} (d${hd})${conMod>=0?'+':''}${conMod} = <strong>+${heal} HP</strong> → ${newHp}/${maxHp}`);
+  playSound?.('heal');
+  const sid = safeId(name);
+  const res = document.getElementById('hdResult_' + sid);
+  if (res) { res.textContent = `Rolled ${roll}${conMod>=0?'+':''}${conMod} = +${heal} HP (${newHp}/${maxHp})`; }
+  renderRestShortTab();
+  if (typeof renderGrid === 'function') renderGrid();
+}
+
+function doShortRestAll() {
+  const party = getPartyChars();
+  party.forEach(c => rollHitDie(c.name));
+}
+
+function doLongRest() {
+  const party = getPartyChars();
+  let hpRestored = 0, slotsCleared = 0, exhaustReduced = 0;
+  party.forEach(c => {
+    const maxHp = parseInt(c.hp || '1');
+    const currHp = getCharHP(c.name, maxHp);
+    if (currHp < maxHp) { hpState[c.name] = maxHp; hpRestored++; }
+    if (slotState[c.name]) { delete slotState[c.name]; slotsCleared++; }
+    const exLvl = typeof getExhaustLevel === 'function' ? getExhaustLevel(c.name) : 0;
+    if (exLvl > 0) { if (typeof setExhaustLevel === 'function') setExhaustLevel(c.name, exLvl - 1); exhaustReduced++; }
+  });
+  saveHp();
+  if (typeof saveSlots === 'function') saveSlots();
+  logEntry('roll', `🌙 <strong>Long Rest</strong> — ${party.length} party members. HP restored: ${hpRestored}, spell slots refreshed: ${slotsCleared}, exhaustion reduced: ${exhaustReduced}.`);
+  playSound?.('heal');
+  if (typeof renderGrid === 'function') renderGrid();
+  renderRestLongTab();
+  const btn = document.getElementById('longRestBtn');
+  if (btn) { const orig = btn.textContent; btn.textContent = '✓ Long Rest Complete!'; btn.style.background = 'rgba(35,180,120,0.3)'; setTimeout(() => { btn.textContent = orig; btn.style.background = ''; }, 2500); }
 }
 
 function toggleLootPanel() {
