@@ -3556,6 +3556,7 @@
   <button class="filter-btn" onclick="openTagFilter(this)" id="tagFilterBtn" style="border-color:#ffaa44;color:#9098b8;" title="Filter by custom tag">🏷 Tags</button>
   <button class="filter-btn" onclick="openAoeDmg()" style="border-color:#cc3333;color:#cc3333;" title="AoE damage/heal — apply to multiple characters at once">💥 AoE</button>
   <button class="filter-btn" onclick="showPassiveSkills()" style="border-color:#2299bb;color:#2299bb;" title="Party passive Perception, Investigation & Insight">👁 Passives</button>
+  <button class="filter-btn" onclick="openGroupHpDashboard()" style="border-color:#44aa44;color:#44aa44;" title="Group HP Dashboard — all characters at a glance">❤ Group HP</button>
   <button class="filter-btn" onclick="openTreasureGenerator()" style="border-color:#c9a227;color:#c9a227;" title="Random treasure generator by CR">💎 Treasure</button>
   <button class="filter-btn" onclick="openRandomEncTable()" style="border-color:#cc8844;color:#cc8844;" title="Random Encounter Table — roll by terrain">🎲 Enc Table</button>
   <button class="filter-btn" onclick="openCampaignTimeline()" style="border-color:#44cc88;color:#44cc88;" title="Campaign timeline — track key events">📅 Timeline</button>
@@ -8710,6 +8711,75 @@ function clearInitiative() {
   renderInitiative();
   renderGrid();
   updateHud();
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 83: Group HP Dashboard — compact overlay showing
+//   all characters' HP bars at a glance. Filter by group.
+//   Click any character to open their modal.
+// ══════════════════════════════════════════════════════════
+function openGroupHpDashboard() {
+  const existing = document.getElementById('groupHpOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'groupHpOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:9500;display:flex;align-items:flex-start;justify-content:center;padding-top:4vh;overflow-y:auto';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  // Group characters
+  const groups = {};
+  UNIQUE_CHARS.forEach(c => {
+    const g = c.group || 'Unknown';
+    if (!groups[g]) groups[g] = [];
+    groups[g].push(c);
+  });
+
+  const groupSections = Object.entries(groups).map(([grp, chars]) => {
+    const rows = chars.map(c => {
+      const maxHp = parseInt(c.hp) || 1;
+      const currHp = getCharHP(c.name, maxHp);
+      const pct = currHp / maxHp;
+      const col = hpBarColor(pct);
+      const conditions = getCharConditions(c.name);
+      const isDead = isDeceased(c.name);
+      const idx = filteredChars.findIndex(fc => fc.name === c.name);
+      return `<div onclick="${idx>=0?`document.getElementById('groupHpOverlay').remove();openModal(${idx})`:'showToast(\\'Not in current filter\\',\\'#cc4444\\')'}" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:4px 8px;border-radius:6px;border:1px solid ${isDead?'#333':'#1e2040'};margin-bottom:3px;${isDead?'opacity:0.5;filter:grayscale(1)':''}" onmouseover="this.style.borderColor='${col}'" onmouseout="this.style.borderColor='${isDead?'#333':'#1e2040'}'">
+        <span style="font-size:11px;color:#c8d0e8;width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0">${isDead?'💀 ':''} ${c.name}</span>
+        <div style="flex:1;height:6px;border-radius:3px;background:#1e2040;min-width:60px">
+          <div style="height:100%;border-radius:3px;background:${col};width:${Math.round(pct*100)}%"></div>
+        </div>
+        <span style="font-size:10px;color:${col};width:50px;text-align:right;flex-shrink:0">${currHp}/${maxHp}</span>
+        ${conditions.length ? `<span style="font-size:9px;color:#dd8822">${conditions.slice(0,2).join(',')}</span>` : ''}
+      </div>`;
+    }).join('');
+
+    const groupDownCount = chars.filter(c => getCharHP(c.name, parseInt(c.hp)||1) === 0 && !isDeceased(c.name)).length;
+    const totalHp = chars.reduce((s, c) => s + getCharHP(c.name, parseInt(c.hp)||1), 0);
+    const maxTotalHp = chars.reduce((s, c) => s + (parseInt(c.hp)||1), 0);
+    const groupPct = maxTotalHp > 0 ? totalHp / maxTotalHp : 1;
+    const t = getTheme(chars[0]?.theme || 'warrior');
+    return `<div style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-size:12px;font-weight:700;color:${t.accent}">${grp}</span>
+        <div style="flex:1;height:3px;border-radius:2px;background:#1e2040"><div style="height:100%;border-radius:2px;background:${hpBarColor(groupPct)};width:${Math.round(groupPct*100)}%"></div></div>
+        <span style="font-size:10px;color:#4a5272">${chars.length} chars${groupDownCount?` · ⚠ ${groupDownCount} down`:''}</span>
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
+
+  overlay.innerHTML = `
+    <div style="background:#0d0d1a;border:1px solid rgba(68,170,68,0.4);border-radius:14px;padding:24px;width:680px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.7)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:700;color:#44aa44">❤ Group HP Dashboard</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11px;color:#4a5272">${UNIQUE_CHARS.length} characters · click to open</span>
+          <button onclick="document.getElementById('groupHpOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">${groupSections}</div>
+    </div>`;
+  document.body.appendChild(overlay);
 }
 
 // ══════════════════════════════════════════════════════════
