@@ -8396,6 +8396,51 @@ function toggleTurnAction(name, type, event) {
 }
 function clearTurnActions() { turnActionState = {}; }
 
+// ── INITIATIVE REORDER ────────────────────────────────────
+let initDragName = null;
+function initDragStart(event, name) { initDragName = name; event.dataTransfer.effectAllowed = 'move'; }
+function initDragOver(event) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }
+function initDrop(event, targetName) {
+  event.preventDefault();
+  if (!initDragName || initDragName === targetName) return;
+  const fromIdx = initiativeList.findIndex(e => e.name === initDragName);
+  const toIdx = initiativeList.findIndex(e => e.name === targetName);
+  if (fromIdx < 0 || toIdx < 0) return;
+  const [moved] = initiativeList.splice(fromIdx, 1);
+  initiativeList.splice(toIdx, 0, moved);
+  // Adjust currentTurnIdx if needed
+  if (currentTurnIdx === fromIdx) currentTurnIdx = toIdx;
+  else if (fromIdx < currentTurnIdx && toIdx >= currentTurnIdx) currentTurnIdx--;
+  else if (fromIdx > currentTurnIdx && toIdx <= currentTurnIdx) currentTurnIdx++;
+  renderInitiative();
+  initDragName = null;
+}
+
+function moveInInitiative(name, dir, event) {
+  if (event) event.stopPropagation();
+  const idx = initiativeList.findIndex(e => e.name === name);
+  const newIdx = idx + dir;
+  if (idx < 0 || newIdx < 0 || newIdx >= initiativeList.length) return;
+  [initiativeList[idx], initiativeList[newIdx]] = [initiativeList[newIdx], initiativeList[idx]];
+  if (currentTurnIdx === idx) currentTurnIdx = newIdx;
+  else if (currentTurnIdx === newIdx) currentTurnIdx = idx;
+  renderInitiative();
+}
+
+function editInitiativeScore(name, event) {
+  if (event) event.stopPropagation();
+  const entry = initiativeList.find(e => e.name === name);
+  if (!entry) return;
+  const newVal = prompt(`Edit initiative for ${name}:`, entry.initiative);
+  const parsed = parseInt(newVal);
+  if (isNaN(parsed)) return;
+  entry.initiative = parsed;
+  // Re-sort by initiative value
+  initiativeList.sort((a, b) => b.initiative - a.initiative);
+  currentTurnIdx = 0;
+  renderInitiative();
+}
+
 let lairActionEnabled = false;
 let lairActionDescription = '';
 
@@ -8443,8 +8488,12 @@ function renderInitiative() {
       const used = ts[type];
       return `<button class="init-action-pip ${used?'used':''}" onclick="toggleTurnAction(${JSON.stringify(e.name)},'${type}',event)" title="${type} — click to toggle" style="border-color:${used?'#2a2a50':color};color:${used?'#2a2a50':color};background:${used?'transparent':'rgba(0,0,0,0)'};">${used?'○':label}</button>`;
     };
-    return `<div class="init-entry ${isActive ? 'active-turn' : ''} ${isDefeated ? 'defeated' : ''}" title="${e.name}">
-      <div class="init-score">${e.initiative}</div>
+    return `<div class="init-entry ${isActive ? 'active-turn' : ''} ${isDefeated ? 'defeated' : ''}" title="${e.name}" draggable="true" data-init-name="${e.name.replace(/"/g,'&quot;')}" ondragstart="initDragStart(event,${JSON.stringify(e.name)})" ondragover="initDragOver(event)" ondrop="initDrop(event,${JSON.stringify(e.name)})">
+      <div class="init-score" onclick="editInitiativeScore(${JSON.stringify(e.name)},event)" title="Click to edit initiative score" style="cursor:pointer;user-select:none" onmouseover="this.style.color='#c9a227'" onmouseout="this.style.color=''">${e.initiative}</div>
+      <div style="display:flex;flex-direction:column;gap:1px;margin-right:2px">
+        <button onclick="moveInInitiative(${JSON.stringify(e.name)},-1,event)" style="background:none;border:none;color:#3a3a60;cursor:pointer;padding:0 2px;font-size:9px;line-height:1" title="Move up">▲</button>
+        <button onclick="moveInInitiative(${JSON.stringify(e.name)},1,event)" style="background:none;border:none;color:#3a3a60;cursor:pointer;padding:0 2px;font-size:9px;line-height:1" title="Move down">▼</button>
+      </div>
       <div class="init-name">${e.name}</div>
       <div style="display:flex;gap:3px;margin-left:auto;margin-right:4px">
         ${actionBtn('action','A','#4488ff')}
