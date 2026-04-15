@@ -3840,6 +3840,7 @@
       <button class="init-ctrl-btn" onclick="toggleGroupRoll()" title="Group saving throw / ability check" style="border-color:#aa66dd;color:#aa66dd">⚔ Save</button>
       <button class="init-ctrl-btn" onclick="toggleBulkCond(event)" title="Apply condition to all in initiative" style="border-color:#dd8822;color:#dd8822">⚡ Bulk</button>
       <button class="init-ctrl-btn" id="lairActionBtn" onclick="toggleLairAction()" title="Toggle Lair Action at Init 20" style="border-color:#2a2a50;color:#4a5272">🏰 Lair</button>
+      <button class="init-ctrl-btn" onclick="toggleSceneEffects()" title="Scene Effects — track active area spells and environmental effects" style="border-color:#6699ff;color:#6699ff" id="sceneEffectsBtn">🌀 FX</button>
       <button class="init-ctrl-btn" onclick="saveInitiativeSnapshot()" title="Save combat snapshot — restore later" style="border-color:#44ccaa;color:#44ccaa">📸 Snap</button>
       <button class="init-ctrl-btn" onclick="openInitiativeSnapshots()" title="View &amp; restore saved snapshots" style="border-color:#44ccaa;color:#4a5272">📂</button>
       <button class="init-ctrl-btn" onclick="clearInitiative()" title="Clear initiative">✕</button>
@@ -3855,6 +3856,14 @@
   </div>
   <!-- Active Turn Stats Bar -->
   <div id="activeTurnBar" style="display:none;padding:6px 12px;border-bottom:1px solid #1e2040;background:rgba(240,192,96,.04)"></div>
+  <!-- Scene Effects Panel -->
+  <div id="sceneEffectsArea" style="display:none;padding:6px 10px;border-bottom:1px solid rgba(102,153,255,.2);background:rgba(102,153,255,.04)">
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:5px">
+      <span style="font-size:10px;color:#6699ff;letter-spacing:1px;font-family:'Cinzel',serif">🌀 SCENE EFFECTS</span>
+      <button onclick="addSceneEffect()" style="margin-left:auto;background:rgba(102,153,255,.1);border:1px solid rgba(102,153,255,.3);color:#6699ff;border-radius:5px;padding:1px 8px;cursor:pointer;font-size:10px">+ Add</button>
+    </div>
+    <div id="sceneEffectsList" style="display:flex;flex-wrap:wrap;gap:4px"></div>
+  </div>
   <!-- Group Roll Panel (collapsible) -->
   <div id="groupRollArea" style="display:none;padding:8px 10px;border-bottom:1px solid #1e2040;background:rgba(170,102,221,.05)">
     <div style="font-size:10px;color:#aa66dd;letter-spacing:1px;margin-bottom:6px;font-family:'Cinzel',serif">⚔ GROUP CHECK / SAVE</div>
@@ -9312,6 +9321,8 @@ function nextTurn() {
     if (typeof tickCondDurations === 'function') tickCondDurations();
     // Reset legendary actions for all legendary creatures
     if (typeof resetLegendaryActions === 'function') resetLegendaryActions();
+    // Tick scene effects at round start
+    if (typeof tickSceneEffects === 'function') tickSceneEffects();
   }
   const active = initiativeList[currentTurnIdx];
   if (active) {
@@ -10838,6 +10849,67 @@ function initDrop(event, targetName) {
   renderInitiative();
   _initDragName = null;
 }
+
+// ── SCENE EFFECTS TRACKER ────────────────────────────────
+let sceneEffects = []; // [{id, name, rounds, desc, source}]
+let sceneEffectsVisible = false;
+
+function toggleSceneEffects() {
+  sceneEffectsVisible = !sceneEffectsVisible;
+  const area = document.getElementById('sceneEffectsArea');
+  const btn = document.getElementById('sceneEffectsBtn');
+  if (area) area.style.display = sceneEffectsVisible ? 'block' : 'none';
+  if (btn) { btn.style.background = sceneEffectsVisible ? 'rgba(102,153,255,.15)' : ''; btn.style.color = sceneEffectsVisible ? '#88aaff' : '#6699ff'; }
+  renderSceneEffects();
+}
+
+function addSceneEffect() {
+  const name = prompt('Effect name (e.g. Darkness, Wall of Force, Fog Cloud):');
+  if (!name || !name.trim()) return;
+  const roundsStr = prompt('Duration in rounds (blank = permanent):', '10');
+  const rounds = parseInt(roundsStr);
+  const desc = prompt('Description (optional):') || '';
+  sceneEffects.push({ id: Date.now().toString(36), name: name.trim(), rounds: isNaN(rounds) ? null : rounds, desc });
+  renderSceneEffects();
+  logEntry('roll', `🌀 Scene effect: <strong>${escHtml(name.trim())}</strong>${!isNaN(rounds)?` (${rounds} rounds)`:'(permanent)'}`);
+}
+
+function removeSceneEffect(id) {
+  const e = sceneEffects.find(x=>x.id===id);
+  if (e) logEntry('roll', `🌀 Scene effect ended: <em>${escHtml(e.name)}</em>`);
+  sceneEffects = sceneEffects.filter(x=>x.id!==id);
+  renderSceneEffects();
+}
+
+function tickSceneEffects() {
+  // Called at start of each new round
+  sceneEffects = sceneEffects.map(e => {
+    if (e.rounds === null) return e; // permanent
+    return { ...e, rounds: e.rounds - 1 };
+  });
+  const expired = sceneEffects.filter(e => e.rounds !== null && e.rounds <= 0);
+  expired.forEach(e => logEntry('roll', `🌀 Scene effect expired: <strong>${escHtml(e.name)}</strong>`));
+  sceneEffects = sceneEffects.filter(e => e.rounds === null || e.rounds > 0);
+  renderSceneEffects();
+}
+
+function renderSceneEffects() {
+  const el = document.getElementById('sceneEffectsList');
+  if (!el) return;
+  if (!sceneEffects.length) {
+    el.innerHTML = '<span style="font-size:10px;color:#2a3060;font-style:italic">No active effects</span>';
+    return;
+  }
+  el.innerHTML = sceneEffects.map(e => {
+    const durStr = e.rounds === null ? '∞' : `${e.rounds}r`;
+    const col = e.rounds !== null && e.rounds <= 2 ? '#dd8822' : '#6699ff';
+    return `<span style="background:rgba(102,153,255,.08);border:1px solid rgba(102,153,255,.25);border-radius:6px;padding:2px 6px;font-size:10px;color:${col};display:inline-flex;align-items:center;gap:4px" title="${escHtml(e.desc||e.name)}">
+      🌀 ${escHtml(e.name)} <span style="color:#4a5272">${durStr}</span>
+      <button onclick="removeSceneEffect(${JSON.stringify(e.id)})" style="background:none;border:none;color:#2a3050;cursor:pointer;font-size:9px;padding:0;line-height:1">✕</button>
+    </span>`;
+  }).join('');
+}
+// ─────────────────────────────────────────────────────────
 
 function renderActiveTurnBar() {
   const bar = document.getElementById('activeTurnBar');
