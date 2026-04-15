@@ -3272,6 +3272,14 @@
       <button class="init-ctrl-btn" onclick="clearInitiative()" title="Clear initiative">✕</button>
     </div>
   </div>
+  <!-- Turn Timer -->
+  <div id="turnTimerRow" style="padding:6px 14px;border-bottom:1px solid #1e2040;background:rgba(221,102,34,.04);display:flex;align-items:center;gap:8px">
+    <button onclick="toggleTimer()" id="timerPlayBtn" style="background:rgba(221,102,34,.15);border:1px solid #dd6622;color:#dd6622;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;min-width:28px">▶</button>
+    <div id="timerDisplay" style="font-family:'Cinzel',serif;font-size:18px;font-weight:700;color:#dd6622;min-width:52px;text-align:center">0:30</div>
+    <input type="range" id="timerDuration" min="10" max="120" step="5" value="30" oninput="setTimerDuration(this.value)" style="flex:1;accent-color:#dd6622;cursor:pointer" title="Turn duration">
+    <span id="timerDurLabel" style="font-size:10px;color:#4a5272;min-width:28px">30s</span>
+    <button onclick="resetTimer()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:12px;padding:0 2px" title="Reset timer">↺</button>
+  </div>
   <!-- Group Roll Panel (collapsible) -->
   <div id="groupRollArea" style="display:none;padding:8px 10px;border-bottom:1px solid #1e2040;background:rgba(170,102,221,.05)">
     <div style="font-size:10px;color:#aa66dd;letter-spacing:1px;margin-bottom:6px;font-family:'Cinzel',serif">⚔ GROUP CHECK / SAVE</div>
@@ -7306,6 +7314,72 @@ function renderHealthPanel() {
 
 // Health panel is refreshed via updateHeaderStats hook in saveHp
 
+// ── TURN TIMER ───────────────────────────────────────────
+let timerInterval = null;
+let timerSeconds = 30;
+let timerMaxSeconds = 30;
+let timerRunning = false;
+
+function setTimerDuration(val) {
+  timerMaxSeconds = parseInt(val);
+  timerSeconds = timerMaxSeconds;
+  document.getElementById('timerDurLabel').textContent = val + 's';
+  renderTimerDisplay();
+  if (timerRunning) stopTimer();
+}
+
+function renderTimerDisplay() {
+  const el = document.getElementById('timerDisplay');
+  if (!el) return;
+  const m = Math.floor(timerSeconds / 60);
+  const s = timerSeconds % 60;
+  el.textContent = `${m}:${s.toString().padStart(2, '0')}`;
+  const pct = timerSeconds / timerMaxSeconds;
+  el.style.color = pct > 0.5 ? '#dd6622' : pct > 0.25 ? '#c9a227' : '#cc3333';
+  if (timerSeconds <= 0) el.style.animation = 'statPulse 0.5s ease-in-out infinite';
+  else el.style.animation = '';
+}
+
+function toggleTimer() {
+  if (timerRunning) stopTimer();
+  else startTimer();
+}
+
+function startTimer() {
+  timerRunning = true;
+  document.getElementById('timerPlayBtn').textContent = '⏸';
+  document.getElementById('timerPlayBtn').style.background = 'rgba(204,51,51,.2)';
+  timerInterval = setInterval(() => {
+    timerSeconds = Math.max(0, timerSeconds - 1);
+    renderTimerDisplay();
+    if (timerSeconds <= 0) {
+      stopTimer();
+      logEntry('combat', `⏱ <strong>TURN TIMER EXPIRED</strong> — time's up!`);
+    }
+  }, 1000);
+}
+
+function stopTimer() {
+  timerRunning = false;
+  clearInterval(timerInterval);
+  timerInterval = null;
+  const btn = document.getElementById('timerPlayBtn');
+  if (btn) { btn.textContent = '▶'; btn.style.background = 'rgba(221,102,34,.15)'; }
+}
+
+function resetTimer() {
+  stopTimer();
+  timerSeconds = timerMaxSeconds;
+  renderTimerDisplay();
+}
+
+function autoStartTimer() {
+  // Called by nextTurn to auto-reset and start timer for new turn
+  resetTimer();
+  startTimer();
+}
+// ────────────────────────────────────────────────────────
+
 function toggleGroupRoll() {
   const el = document.getElementById('groupRollArea');
   el.style.display = el.style.display === 'none' ? '' : 'none';
@@ -7401,6 +7475,9 @@ function nextTurn() {
   if (active) logEntry('combat', `<strong>${active.name}</strong>'s turn (Init: ${active.initiative})`);
   renderInitiative();
   updateHud();
+  // Auto-reset & restart turn timer if it was running
+  if (typeof timerRunning !== 'undefined' && timerRunning) autoStartTimer();
+  else if (typeof resetTimer === 'function') resetTimer();
 }
 
 function clearInitiative() {
