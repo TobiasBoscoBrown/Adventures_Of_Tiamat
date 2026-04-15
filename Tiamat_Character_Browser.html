@@ -3591,10 +3591,17 @@
   <button class="filter-btn" onclick="openTagFilter(this)" id="tagFilterBtn" style="border-color:#ffaa44;color:#9098b8;" title="Filter by custom tag">🏷 Tags</button>
   <button class="filter-btn" onclick="openAoeDmg()" style="border-color:#cc3333;color:#cc3333;" title="AoE damage/heal — apply to multiple characters at once">💥 AoE</button>
   <button class="filter-btn" onclick="showPassiveSkills()" style="border-color:#2299bb;color:#2299bb;" title="Party passive Perception, Investigation & Insight">👁 Passives</button>
+  <button class="filter-btn" onclick="openGroupHpDashboard()" style="border-color:#44aa44;color:#44aa44;" title="Group HP Dashboard — all characters at a glance">❤ Group HP</button>
   <button class="filter-btn" onclick="openTreasureGenerator()" style="border-color:#c9a227;color:#c9a227;" title="Random treasure generator by CR">💎 Treasure</button>
+  <button class="filter-btn" onclick="openRandomEncTable()" style="border-color:#cc8844;color:#cc8844;" title="Random Encounter Table — roll by terrain">🎲 Enc Table</button>
   <button class="filter-btn" onclick="openCampaignTimeline()" style="border-color:#44cc88;color:#44cc88;" title="Campaign timeline — track key events">📅 Timeline</button>
   <button class="filter-btn" onclick="openWeatherPanel()" style="border-color:#2299bb;color:#2299bb;" title="Weather &amp; Environment — ambient conditions affecting gameplay">🌤 Weather</button>
+  <button class="filter-btn" onclick="openFactionMap()" style="border-color:#9b6dff;color:#9b6dff;" title="Faction Allegiance Map — overview of all groups">⚑ Factions</button>
+  <button class="filter-btn" onclick="openEncounterBuilder()" style="border-color:#cc3333;color:#cc3333;" title="Encounter Builder — build &amp; balance encounters by CR/XP">🐉 Build Enc</button>
   <button class="filter-btn" onclick="openGraveyardPanel()" style="border-color:#555;color:#888;" title="Character graveyard — fallen heroes and villains">💀 Graveyard</button>
+  <button class="filter-btn" onclick="openSessionPrep()" style="border-color:#44cc88;color:#44cc88;" title="Session Prep Checklist — track DM readiness tasks">📋 Prep</button>
+  <button class="filter-btn" onclick="openLairNotes()" style="border-color:#aa6644;color:#aa6644;" title="Lair Map Notes — describe rooms, traps, and areas">🗺 Lair</button>
+  <button class="filter-btn" onclick="openRulesPanel()" style="border-color:#4488ff;color:#4488ff;" title="Quick Reference Rules — searchable 5e rules lookup">📚 Rules</button>
   <button class="filter-btn" onclick="openShortcutsHelp()" style="border-color:#4488ff;color:#4488ff;" title="Keyboard shortcuts — press ? anytime">⌨ ?</button>
   <button class="filter-btn" onclick="openGlobalSearch()" style="border-color:#c9a227;color:#9098b8;" title="Global search — Ctrl+K">🔍 Search All</button>
   <button class="filter-btn" onclick="openDiceMacros()" style="border-color:#ff8822;color:#ff8822;" title="Quick Dice Macros — save &amp; replay dice rolls">🎲 Dice</button>
@@ -5607,7 +5614,31 @@ function printCharCard() {
     })()}
     ${c.lore ? `<div class="section-title">Lore</div><div class="lore">${c.lore}</div>` : ''}
     ${c.quote ? `<div class="quote">"${c.quote}"</div>` : ''}
-    <div style="margin-top:20px;font-size:10px;color:#aaa;text-align:right">Adventures of Tiamat · Printed ${new Date().toLocaleDateString()}</div>
+    ${(()=>{
+      const def = (typeof inferDamageDefenses==='function') ? inferDamageDefenses(c) : {immunities:[],resistances:[],vulnerabilities:[]};
+      const parts=[];
+      if(def.immunities.length) parts.push(`<strong>Immune:</strong> ${def.immunities.join(', ')}`);
+      if(def.resistances.length) parts.push(`<strong>Resist:</strong> ${def.resistances.join(', ')}`);
+      if(def.vulnerabilities.length) parts.push(`<strong>Vuln:</strong> ${def.vulnerabilities.join(', ')}`);
+      if(!parts.length) return '';
+      return `<div class="section-title">Damage Defenses</div><div style="font-size:12px;color:#444">${parts.join(' · ')}</div>`;
+    })()}
+    ${(()=>{
+      const spells = (typeof inferSpells==='function') ? inferSpells(c) : [];
+      if(!spells.length) return '';
+      return `<div class="section-title">Known Spells</div><div style="font-size:11px;color:#444;line-height:1.8">${spells.join(' · ')}</div>`;
+    })()}
+    ${(()=>{
+      try {
+        const bk = JSON.parse(localStorage.getItem('tiamat_backstory_'+c.name));
+        if(!bk) return '';
+        return `<div class="section-title">Backstory</div>
+          <div style="font-size:11px;color:#444;margin-bottom:4px"><strong>Childhood:</strong> ${bk.childhood}</div>
+          <div style="font-size:11px;color:#444;margin-bottom:4px"><strong>Motivation:</strong> ${bk.motivation}</div>
+          <div style="font-size:11px;color:#444"><strong>Secret:</strong> ${bk.secret}</div>`;
+      } catch(e) { return ''; }
+    })()}
+    <div style="margin-top:20px;font-size:10px;color:#aaa;text-align:right">Adventures of Tiamat · Full Sheet · Printed ${new Date().toLocaleDateString()}</div>
     <script>window.onload=()=>window.print()<\/script>
   </body></html>`);
   win.document.close();
@@ -5754,6 +5785,7 @@ function buildStatsPanel(c) {
         ).join('')}
       </div>
     </div>
+    ${buildAlignmentSection(c)}
     ${buildProficienciesSection(c)}
     ${buildTraitsSection(c)}
     ${isSpellcaster(c) ? `
@@ -5778,6 +5810,7 @@ function buildStatsPanel(c) {
       <div class="stats-section-title">Lore</div>
       <div class="lore-text">${c.lore}</div>
     </div>` : ''}
+    ${buildBackstorySection(c)}
     ${buildSeeAlso(c)}
     ${c.quote ? `<div class="modal-quote">"${c.quote}"</div>` : ''}
   `;
@@ -8967,6 +9000,8 @@ function nextTurn() {
     clearTurnActions();
     // Tick down condition durations
     if (typeof tickCondDurations === 'function') tickCondDurations();
+    // Reset legendary actions for all legendary creatures
+    if (typeof resetLegendaryActions === 'function') resetLegendaryActions();
   }
   const active = initiativeList[currentTurnIdx];
   if (active) logEntry('combat', `<strong>${active.name}</strong>'s turn (Init: ${active.initiative})`);
@@ -8987,6 +9022,1013 @@ function clearInitiative() {
   renderInitiative();
   renderGrid();
   updateHud();
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 83: Group HP Dashboard — compact overlay showing
+//   all characters' HP bars at a glance. Filter by group.
+//   Click any character to open their modal.
+// ══════════════════════════════════════════════════════════
+function openGroupHpDashboard() {
+  const existing = document.getElementById('groupHpOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'groupHpOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:9500;display:flex;align-items:flex-start;justify-content:center;padding-top:4vh;overflow-y:auto';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  // Group characters
+  const groups = {};
+  UNIQUE_CHARS.forEach(c => {
+    const g = c.group || 'Unknown';
+    if (!groups[g]) groups[g] = [];
+    groups[g].push(c);
+  });
+
+  const groupSections = Object.entries(groups).map(([grp, chars]) => {
+    const rows = chars.map(c => {
+      const maxHp = parseInt(c.hp) || 1;
+      const currHp = getCharHP(c.name, maxHp);
+      const pct = currHp / maxHp;
+      const col = hpBarColor(pct);
+      const conditions = getCharConditions(c.name);
+      const isDead = isDeceased(c.name);
+      const idx = filteredChars.findIndex(fc => fc.name === c.name);
+      return `<div onclick="${idx>=0?`document.getElementById('groupHpOverlay').remove();openModal(${idx})`:'showToast(\\'Not in current filter\\',\\'#cc4444\\')'}" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:4px 8px;border-radius:6px;border:1px solid ${isDead?'#333':'#1e2040'};margin-bottom:3px;${isDead?'opacity:0.5;filter:grayscale(1)':''}" onmouseover="this.style.borderColor='${col}'" onmouseout="this.style.borderColor='${isDead?'#333':'#1e2040'}'">
+        <span style="font-size:11px;color:#c8d0e8;width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0">${isDead?'💀 ':''} ${c.name}</span>
+        <div style="flex:1;height:6px;border-radius:3px;background:#1e2040;min-width:60px">
+          <div style="height:100%;border-radius:3px;background:${col};width:${Math.round(pct*100)}%"></div>
+        </div>
+        <span style="font-size:10px;color:${col};width:50px;text-align:right;flex-shrink:0">${currHp}/${maxHp}</span>
+        ${conditions.length ? `<span style="font-size:9px;color:#dd8822">${conditions.slice(0,2).join(',')}</span>` : ''}
+      </div>`;
+    }).join('');
+
+    const groupDownCount = chars.filter(c => getCharHP(c.name, parseInt(c.hp)||1) === 0 && !isDeceased(c.name)).length;
+    const totalHp = chars.reduce((s, c) => s + getCharHP(c.name, parseInt(c.hp)||1), 0);
+    const maxTotalHp = chars.reduce((s, c) => s + (parseInt(c.hp)||1), 0);
+    const groupPct = maxTotalHp > 0 ? totalHp / maxTotalHp : 1;
+    const t = getTheme(chars[0]?.theme || 'warrior');
+    return `<div style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-size:12px;font-weight:700;color:${t.accent}">${grp}</span>
+        <div style="flex:1;height:3px;border-radius:2px;background:#1e2040"><div style="height:100%;border-radius:2px;background:${hpBarColor(groupPct)};width:${Math.round(groupPct*100)}%"></div></div>
+        <span style="font-size:10px;color:#4a5272">${chars.length} chars${groupDownCount?` · ⚠ ${groupDownCount} down`:''}</span>
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
+
+  overlay.innerHTML = `
+    <div style="background:#0d0d1a;border:1px solid rgba(68,170,68,0.4);border-radius:14px;padding:24px;width:680px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.7)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:700;color:#44aa44">❤ Group HP Dashboard</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11px;color:#4a5272">${UNIQUE_CHARS.length} characters · click to open</span>
+          <button onclick="document.getElementById('groupHpOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">${groupSections}</div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 82: Random Encounter Table — terrain-based preset
+//   encounters + custom user encounters. Roll d6/d8/d10/d12.
+// ══════════════════════════════════════════════════════════
+const RAND_ENC_PRESETS = {
+  Forest:    ['1d4 Wolves','2d6 Goblins','1 Brown Bear','1d4 Bandits','1 Green Hag + 1d4 Twig Blights','1 Owlbear','1d8 Giant Spiders','3 Ettercaps','1d4 Dryads (hostile)','1 Treant (awakened)','1d6 Vine Blights','2d4 Pixies + 1 Sprite'],
+  Dungeon:   ['1d4 Skeletons','1d6 Giant Rats','1d4 Zombies','1 Mimic','2d4 Kobolds + 1 Wyrmling','1 Gelatinous Cube','1d4 Shadows','1 Basilisk','1d4 Darkmantles','1 Roper','2d6 Troglodytes','1 Beholder Zombie'],
+  Mountain:  ['1d4 Orcs','1 Mountain Lion','2d4 Giant Eagles','1 Stone Giant','1d6 Duergar','1 Frost Giant','1d4 Hippogriffs','1 Roc','3 Yeti','1 Manticore','2d4 Dwarven Miners (neutral)','1 Purple Worm'],
+  Swamp:     ['1d6 Bullywugs','1 Lizardfolk Shaman + 2d4 Lizardfolk','1 Black Dragon Wyrmling','2d4 Giant Frogs','1 Will-o-Wisp','1d4 Crocodiles','1 Hag (night hag)','1d6 Zombies','1 Giant Crocodile','2d4 Stirges','1 Yuan-ti Pureblood','1 Hydra'],
+  Coast:     ['1d4 Merfolk','1d6 Sahuagin','1 Sea Hag','2d6 Commoners (fishermen)','1 Plesiosaurus','1d4 Reef Sharks','1 Water Elemental','1d4 Pirates (bandit stats)','1 Marid','1 Giant Shark','1d6 Harpies','1 Dragon Turtle'],
+  Underdark: ['1d6 Drow Scouts','1d4 Mind Flayers','2d6 Myconids','1 Beholder','1d8 Quaggoth','1 Umber Hulk','1d4 Cloakers','1 Orc War Chief + 2d6 Orcs','1 Aboleth','3 Drow Elite Warriors','1d6 Phase Spiders','1 Purple Worm'],
+  Urban:     ['1d4 Thugs','2d6 Commoners + 1 Spy','1 Doppelganger','1d4 Cultists + 1 Cult Fanatic','1 Vampire Spawn','1d6 City Watch','1 Assassin','2d4 Bandits + 1 Bandit Captain','1 Wererat','1 Rakshasa (disguised)','1d4 Kenku','1 Shapechanger (in disguise)'],
+  Desert:    ['1d6 Gnolls','1 Lamia','2d4 Giant Scorpions','1 Blue Dragon Wyrmling','1d4 Yuan-ti Purebloods','1 Androsphinx','2d6 Thri-kreen','1 Mummy','1d4 Fire Elementals','1 Efreeti','2d4 Sand Nadders','1 Sandworm (Purple Worm)'],
+};
+const RAND_ENC_KEY = 'tiamat_rand_enc';
+
+function loadCustomEncs() {
+  try { return JSON.parse(localStorage.getItem(RAND_ENC_KEY)) || {}; }
+  catch(e) { return {}; }
+}
+function saveCustomEncs(d) { localStorage.setItem(RAND_ENC_KEY, JSON.stringify(d)); }
+
+function openRandomEncTable() {
+  const existing = document.getElementById('randEncOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'randEncOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:9500;display:flex;align-items:flex-start;justify-content:center;padding-top:5vh;overflow-y:auto';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  const terrains = Object.keys(RAND_ENC_PRESETS);
+  overlay.innerHTML = `
+    <div style="background:#0d0d1a;border:1px solid rgba(136,68,68,0.4);border-radius:14px;padding:24px;width:600px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.7)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:700;color:#cc8844">🎲 Random Encounter Table</div>
+        <button onclick="document.getElementById('randEncOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <!-- Terrain + dice -->
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+        <select id="encTerrain" style="flex:1;min-width:120px;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:7px 8px;font-size:12px;cursor:pointer">
+          ${terrains.map(t => `<option value="${t}">${t}</option>`).join('')}
+          <option value="Custom">Custom</option>
+        </select>
+        <select id="encDice" style="width:80px;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:7px 8px;font-size:12px;cursor:pointer">
+          <option>d6</option><option>d8</option><option>d10</option><option selected>d12</option>
+        </select>
+        <button onclick="rollRandomEnc()" style="background:rgba(204,136,68,0.15);border:1px solid rgba(204,136,68,0.4);color:#cc8844;border-radius:6px;padding:7px 18px;cursor:pointer;font-size:13px;font-weight:700">🎲 Roll!</button>
+      </div>
+      <!-- Result -->
+      <div id="randEncResult" style="background:#06061a;border:1px solid #1e2040;border-radius:8px;padding:14px;margin-bottom:14px;min-height:50px;font-size:13px;color:#c8d0e8;text-align:center">
+        <span style="color:#4a5272">Click Roll! to generate an encounter</span>
+      </div>
+      <!-- Table preview -->
+      <div id="randEncTable" style="max-height:200px;overflow-y:auto;margin-bottom:12px"></div>
+      <!-- Custom encounter add -->
+      <div style="border-top:1px solid #1e2040;padding-top:12px">
+        <div style="font-size:10px;color:#4a5272;letter-spacing:.5px;margin-bottom:6px">ADD TO CUSTOM TABLE</div>
+        <div style="display:flex;gap:8px">
+          <input id="customEncText" placeholder="e.g. 2d4 Bandits + 1 Captain" style="flex:1;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:6px 10px;font-size:12px;font-family:inherit">
+          <button onclick="addCustomEnc()" style="background:rgba(204,136,68,0.1);border:1px solid rgba(204,136,68,0.3);color:#cc8844;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:11px">+ Add</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  renderEncTable('Forest');
+  document.getElementById('encTerrain').addEventListener('change', e => renderEncTable(e.target.value));
+}
+
+function getEncTableForTerrain(terrain) {
+  const custom = loadCustomEncs();
+  if (terrain === 'Custom') return custom['Custom'] || [];
+  return [...(RAND_ENC_PRESETS[terrain] || []), ...(custom[terrain] || [])];
+}
+
+function renderEncTable(terrain) {
+  const el = document.getElementById('randEncTable');
+  if (!el) return;
+  const table = getEncTableForTerrain(terrain);
+  el.innerHTML = `<div style="font-size:10px;color:#4a5272;letter-spacing:.5px;margin-bottom:4px">TABLE (${table.length} entries)</div>
+    ${table.map((enc, i) => `<div style="font-size:11px;color:#9098b8;padding:3px 0;border-bottom:1px solid #0e0e20">${i+1}. ${enc}</div>`).join('')}`;
+}
+
+function rollRandomEnc() {
+  const terrain = document.getElementById('encTerrain')?.value || 'Forest';
+  const diceStr = document.getElementById('encDice')?.value || 'd12';
+  const sides = parseInt(diceStr.slice(1)) || 12;
+  const table = getEncTableForTerrain(terrain);
+  if (!table.length) { document.getElementById('randEncResult').innerHTML = '<span style="color:#cc4444">No encounters in this table.</span>'; return; }
+  const roll = Math.floor(Math.random() * Math.min(sides, table.length));
+  const result = table[roll];
+  document.getElementById('randEncResult').innerHTML = `
+    <div style="font-size:10px;color:#4a5272;margin-bottom:4px">🎲 d${sides} → ${roll+1} | ${terrain}</div>
+    <div style="font-size:16px;font-weight:700;color:#cc8844">${result}</div>
+    <button onclick="addRandEncToInitiative(${JSON.stringify(result)})" style="margin-top:8px;background:rgba(201,162,39,0.1);border:1px solid rgba(201,162,39,0.3);color:#c9a227;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:11px">⚔ Add to Initiative</button>`;
+  renderEncTable(terrain);
+}
+
+function addCustomEnc() {
+  const text = (document.getElementById('customEncText')?.value || '').trim();
+  if (!text) return;
+  const terrain = document.getElementById('encTerrain')?.value || 'Custom';
+  const custom = loadCustomEncs();
+  if (!custom[terrain]) custom[terrain] = [];
+  custom[terrain].push(text);
+  saveCustomEncs(custom);
+  document.getElementById('customEncText').value = '';
+  renderEncTable(terrain);
+  showToast(`Added to ${terrain} table`, '#cc8844');
+}
+
+function addRandEncToInitiative(text) {
+  // Parse "NdX CreatureName" and add to initiative
+  const match = text.match(/(\d+d?\d*)\s+(.+)/);
+  const name = match ? match[2].split('+')[0].trim() : text;
+  const count = match ? (match[1].includes('d') ? Math.floor(Math.random() * parseInt(match[1].split('d')[1] || 1)) + parseInt(match[1].split('d')[0] || 1) : parseInt(match[1])) : 1;
+  for (let i = 0; i < Math.min(count, 10); i++) {
+    const eName = count > 1 ? `${name} #${i+1}` : name;
+    initiativeList.push({ name: eName, maxHp: 30, initiative: Math.floor(Math.random()*20)+1, isNpc:false });
+  }
+  initiativeList.sort((a,b)=>b.initiative-a.initiative);
+  renderInitiative();
+  document.getElementById('initiativePanel')?.classList.add('open');
+  showToast(`Added ${count}x ${name} to initiative`, '#c9a227');
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 81: Alignment Tracker — 9-alignment moral compass
+//   shown in character modal. DM can track moral drift via notes.
+//   Auto-infers starting alignment from lore/traits text.
+// ══════════════════════════════════════════════════════════
+const ALIGNMENT_GRID = [
+  ['Lawful Good',    'Neutral Good',   'Chaotic Good'],
+  ['Lawful Neutral', 'True Neutral',   'Chaotic Neutral'],
+  ['Lawful Evil',    'Neutral Evil',   'Chaotic Evil'],
+];
+const ALIGNMENT_COLORS = {
+  'Lawful Good':'#4488ff', 'Neutral Good':'#44aa44', 'Chaotic Good':'#88bb22',
+  'Lawful Neutral':'#9098b8', 'True Neutral':'#666', 'Chaotic Neutral':'#888',
+  'Lawful Evil':'#cc6622', 'Neutral Evil':'#aa2222', 'Chaotic Evil':'#cc0000',
+};
+const ALIGNMENT_ICONS = {
+  'Lawful Good':'⚖✨', 'Neutral Good':'✨', 'Chaotic Good':'⚡✨',
+  'Lawful Neutral':'⚖', 'True Neutral':'◈', 'Chaotic Neutral':'⚡',
+  'Lawful Evil':'⚖☠', 'Neutral Evil':'☠', 'Chaotic Evil':'⚡☠',
+};
+
+function extractAlignment(c) {
+  const text = ((c.lore||'') + ' ' + (c.traits||[]).join(' ') + ' ' + (c.title||'')).toLowerCase();
+  if (text.includes('lawful good') || text.includes('paladin') || text.includes('holy knight')) return 'Lawful Good';
+  if (text.includes('chaotic good') || text.includes('robin hood') || text.includes('free spirit')) return 'Chaotic Good';
+  if (text.includes('neutral good')) return 'Neutral Good';
+  if (text.includes('lawful evil') || text.includes('tyrant') || text.includes('devil')) return 'Lawful Evil';
+  if (text.includes('chaotic evil') || text.includes('demon') || text.includes('destruction')) return 'Chaotic Evil';
+  if (text.includes('neutral evil') || text.includes('assassin') || text.includes('self-serving')) return 'Neutral Evil';
+  if (text.includes('lawful neutral') || text.includes('judge') || text.includes('soldier')) return 'Lawful Neutral';
+  if (text.includes('chaotic neutral') || text.includes('wanderer') || text.includes('unpredictable')) return 'Chaotic Neutral';
+  if (text.includes('evil')) return 'Neutral Evil';
+  if (text.includes('good')) return 'Neutral Good';
+  return 'True Neutral';
+}
+
+function getCharAlignment(charName) {
+  try {
+    const stored = JSON.parse(localStorage.getItem('tiamat_alignment') || '{}');
+    return stored[charName] || null;
+  } catch(e) { return null; }
+}
+function setCharAlignment(charName, alignment) {
+  let stored = {};
+  try { stored = JSON.parse(localStorage.getItem('tiamat_alignment') || '{}'); } catch(e) {}
+  stored[charName] = alignment;
+  localStorage.setItem('tiamat_alignment', JSON.stringify(stored));
+}
+
+function buildAlignmentSection(c) {
+  const stored = getCharAlignment(c.name);
+  const inferred = extractAlignment(c);
+  const current = stored || inferred;
+  const t = getTheme(c.theme);
+  const acol = ALIGNMENT_COLORS[current] || '#9098b8';
+  const grid = ALIGNMENT_GRID.map(row =>
+    `<div style="display:flex;gap:4px">${row.map(al => {
+      const isActive = al === current;
+      const acl = ALIGNMENT_COLORS[al] || '#9098b8';
+      return `<button onclick="setCharAlignment(${JSON.stringify(c.name)},${JSON.stringify(al)});if(currentModalIdx>=0)document.getElementById('statsPanel').innerHTML=buildStatsPanel(filteredChars[currentModalIdx])" title="${al}" style="flex:1;padding:5px 2px;background:${isActive?acl+'22':'none'};border:1px solid ${isActive?acl:'#1e2040'};color:${isActive?acl:'#4a5272'};border-radius:5px;cursor:pointer;font-size:9px;letter-spacing:.2px;font-weight:${isActive?'700':'400'}">${al.replace('Neutral','Neut').replace('Chaotic','Chaot').replace('Lawful','Law')}</button>`;
+    }).join('')}</div>`
+  ).join('');
+  return `<div class="stats-section">
+    <div class="stats-section-title">⚖ Alignment</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <span style="font-size:14px">${ALIGNMENT_ICONS[current]||'◈'}</span>
+      <span style="font-size:13px;font-weight:700;color:${acol}">${current}</span>
+      ${!stored ? `<span style="font-size:9px;color:#4a5272">(inferred — click to set)</span>` : ''}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px">${grid}</div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 79: Quick Reference Rules Panel — searchable 5e rules
+//   across categories: conditions, actions, spellcasting, combat,
+//   movement, resting, death saves, concentration, etc.
+// ══════════════════════════════════════════════════════════
+const RULES_DB = [
+  // Actions
+  { cat:'Actions', name:'Attack', text:'Make one melee or ranged attack. With Extra Attack, you can attack multiple times.' },
+  { cat:'Actions', name:'Cast a Spell', text:'Cast a spell with a casting time of 1 action. Bonus action spells allow only cantrips as your action spell.' },
+  { cat:'Actions', name:'Dash', text:'Move up to your speed again this turn (double movement).' },
+  { cat:'Actions', name:'Disengage', text:'Your movement does not provoke opportunity attacks for the rest of the turn.' },
+  { cat:'Actions', name:'Dodge', text:'Until your next turn: attacks against you have disadvantage (if you can see attacker), and you have advantage on DEX saves.' },
+  { cat:'Actions', name:'Help', text:'Give an ally advantage on their next attack roll or ability check before your next turn.' },
+  { cat:'Actions', name:'Hide', text:'Make a DEX (Stealth) check. Succeed to be hidden — attackers have disadvantage, you have advantage attacking.' },
+  { cat:'Actions', name:'Ready', text:'Choose a trigger and an action/movement. When trigger occurs, use your reaction to execute it.' },
+  { cat:'Actions', name:'Search', text:'Devote attention to finding something (Perception or Investigation).' },
+  { cat:'Actions', name:'Use Object', text:'Interact with a second object (your free interaction already used), or interact with objects that require your full attention.' },
+  // Bonus Actions
+  { cat:'Bonus Actions', name:'Off-Hand Attack', text:'After Attack action with light weapon, attack with another light weapon in other hand (no ability mod to damage unless negative).' },
+  { cat:'Bonus Actions', name:'Shove (BA)', text:'Only available via specific class features or Polearm Master feat.' },
+  // Reactions
+  { cat:'Reactions', name:'Opportunity Attack', text:'When a creature moves out of your reach, use your reaction to make one melee attack against it.' },
+  { cat:'Reactions', name:'Counterspell', text:'React when a creature within 60ft casts a spell. Spell of level ≤ 3 automatically fails. Higher level: DC 10+spell level check.' },
+  { cat:'Reactions', name:'Shield (Spell)', text:'React when hit by attack or targeted by magic missile: +5 AC until start of next turn. Magic missile has no effect.' },
+  // Conditions
+  { cat:'Conditions', name:'Blinded', text:'Automatically fails checks requiring sight. Attack rolls against have advantage. Own attacks have disadvantage.' },
+  { cat:'Conditions', name:'Charmed', text:'Cannot attack charmer or target with harmful abilities. Charmer has advantage on social checks with target.' },
+  { cat:'Conditions', name:'Deafened', text:'Automatically fails checks requiring hearing. Cannot be affected by sound-based effects.' },
+  { cat:'Conditions', name:'Exhaustion', text:'1:Disadv checks 2:Disadv saves+Speed halved 3:Disadv attacks 4:HP max halved 5:Speed 0 6:Death. Remove one level with long rest.' },
+  { cat:'Conditions', name:'Frightened', text:'Cannot willingly move closer to source of fear. Disadvantage on ability checks and attack rolls while source in line of sight.' },
+  { cat:'Conditions', name:'Grappled', text:'Speed becomes 0, no bonuses to speed. Ends if grappler is incapacitated, or target is moved beyond reach.' },
+  { cat:'Conditions', name:'Incapacitated', text:'Cannot take actions or reactions.' },
+  { cat:'Conditions', name:'Invisible', text:'Impossible to see without magic. Attacks against have disadvantage. Own attacks have advantage. Doesn\'t reveal location.' },
+  { cat:'Conditions', name:'Paralyzed', text:'Incapacitated. Can\'t move or speak. Auto-fail STR and DEX saves. Attacks against have advantage. Melee hits within 5ft = critical.' },
+  { cat:'Conditions', name:'Petrified', text:'Transformed to stone. Incapacitated, can\'t move/speak. Attacks against have advantage. Auto-fail STR/DEX saves. Resist all damage. Immune to poison/disease (existing suspended).' },
+  { cat:'Conditions', name:'Poisoned', text:'Disadvantage on attack rolls and ability checks.' },
+  { cat:'Conditions', name:'Prone', text:'Can only crawl (costs 1ft extra per 1ft moved). Disadvantage on attacks. Attacks against: melee = advantage, ranged = disadvantage.' },
+  { cat:'Conditions', name:'Restrained', text:'Speed 0. Attacks against have advantage. Own attacks have disadvantage. Disadvantage on DEX saves.' },
+  { cat:'Conditions', name:'Stunned', text:'Incapacitated. Can\'t move. Can only speak falteringly. Auto-fail STR and DEX saves. Attacks against have advantage.' },
+  { cat:'Conditions', name:'Unconscious', text:'Incapacitated. Drops held items, falls prone. Auto-fail STR/DEX saves. Attacks against have advantage. Melee hits within 5ft = crit.' },
+  // Spellcasting
+  { cat:'Spellcasting', name:'Concentration', text:'Maintain by not being incapacitated. When you take damage: CON save DC = max(10, half damage). Fail = spell ends.' },
+  { cat:'Spellcasting', name:'Verbal Components', text:'Silenced or Silence spell areas prevent verbal components. Deafness does not affect your own casting.' },
+  { cat:'Spellcasting', name:'Counterspell Range', text:'60ft. Must see or have line of effect to caster. Automatically counters spells level 3 or lower. Higher: DC 10+spell level INT (spellcasting modifier) check.' },
+  { cat:'Spellcasting', name:'Spell Save DC', text:'DC = 8 + proficiency bonus + spellcasting ability modifier.' },
+  { cat:'Spellcasting', name:'Upcasting', text:'You can cast a lower level spell using a higher level slot. Some spells improve; some don\'t (e.g. Magic Missile adds 1 dart per level).' },
+  // Combat
+  { cat:'Combat', name:'Grapple', text:'Attack action: STR (Athletics) check contested by STR (Athletics) or DEX (Acrobatics). Success: target grappled, one hand used.' },
+  { cat:'Combat', name:'Shove', text:'Attack action: STR (Athletics) check contested by STR (Athletics) or DEX (Acrobatics). Push 5ft away or knock prone.' },
+  { cat:'Combat', name:'Cover', text:'Half: +2 AC/DEX saves. Three-quarters: +5 AC/DEX saves. Total: can\'t be targeted directly (must use indirect effects).' },
+  { cat:'Combat', name:'Critical Hit', text:'Natural 20: roll all damage dice twice + modifiers. Some abilities grant crit on 19 or 18.' },
+  { cat:'Combat', name:'Death Saves', text:'3 successes = stable. 3 failures = dead. Nat 20 = regain 1 HP. Nat 1 = counts as 2 failures. Taking damage adds 1 failure (or 2 if crit).' },
+  { cat:'Combat', name:'Healing', text:'You can receive healing when unconscious (0 HP) — you regain that many HP and regain consciousness.' },
+  { cat:'Combat', name:'Massive Damage', text:'If damage from a single hit equals or exceeds your HP maximum, you die instantly (e.g., a Stone Giant crushes a rat).' },
+  // Movement
+  { cat:'Movement', name:'Difficult Terrain', text:'Every foot of movement in difficult terrain costs 1 extra foot. This applies to all movement types (walk, fly, swim, etc.).' },
+  { cat:'Movement', name:'Climbing/Swimming', text:'Costs 1 extra foot per foot traveled, unless the creature has a climb/swim speed.' },
+  { cat:'Movement', name:'Jumping', text:'Long: up to your STR score in feet (running start) or half (standing). High: 3 + STR modifier (running start) or half (standing).' },
+  // Resting
+  { cat:'Resting', name:'Short Rest', text:'1+ hour. Spend Hit Dice to recover HP (roll die + CON mod per die spent). Some class features recover.' },
+  { cat:'Resting', name:'Long Rest', text:'8+ hours sleep. Regain all HP, half Hit Dice (max = HD total), class features marked "long rest". Must not have had one in the last 24h.' },
+  // Multiattack/Special
+  { cat:'Special', name:'Two-Weapon Fighting', text:'When you take the Attack action with a light melee weapon, you can use a bonus action to attack with a different light weapon in your other hand. Don\'t add ability modifier to the damage unless negative.' },
+  { cat:'Special', name:'Flanking (Variant)', text:'If using optional flanking rule: creatures on opposite sides of an enemy grant advantage on attack rolls against it.' },
+  { cat:'Special', name:'Inspiration', text:'Roll with advantage on one attack, save, or check. Granted by DM for exceptional roleplay, heroism, or character consistency.' },
+];
+
+function openRulesPanel() {
+  const existing = document.getElementById('rulesPanelOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'rulesPanelOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:9500;display:flex;align-items:flex-start;justify-content:center;padding-top:4vh;overflow-y:auto';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  const cats = [...new Set(RULES_DB.map(r => r.cat))];
+  overlay.innerHTML = `
+    <div style="background:#0d0d1a;border:1px solid rgba(68,136,255,0.4);border-radius:14px;padding:24px;width:660px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.7)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div style="font-size:16px;font-weight:700;color:#4488ff">📚 Quick Rules Reference</div>
+        <button onclick="document.getElementById('rulesPanelOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <input id="rulesSearch" type="text" placeholder="🔍 Search rules..." style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:8px 12px;font-size:12px;box-sizing:border-box;margin-bottom:12px;font-family:inherit" oninput="filterRules(this.value)">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px" id="rulesCatBtns">
+        <button onclick="filterRulesCat('')" id="rcAll" style="background:rgba(68,136,255,0.15);border:1px solid rgba(68,136,255,0.4);color:#4488ff;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:11px">All</button>
+        ${cats.map(c => `<button onclick="filterRulesCat('${c}')" id="rc_${c.replace(/\s/g,'_')}" style="background:none;border:1px solid #2a2a50;color:#9098b8;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:11px">${c}</button>`).join('')}
+      </div>
+      <div id="rulesResults" style="max-height:450px;overflow-y:auto"></div>
+    </div>`;
+  document.body.appendChild(overlay);
+  renderRules('', '');
+}
+
+function renderRules(query, cat) {
+  const el = document.getElementById('rulesResults');
+  if (!el) return;
+  const q = query.toLowerCase();
+  const results = RULES_DB.filter(r =>
+    (!q || r.name.toLowerCase().includes(q) || r.text.toLowerCase().includes(q) || r.cat.toLowerCase().includes(q)) &&
+    (!cat || r.cat === cat)
+  );
+  const byCat = {};
+  results.forEach(r => { if (!byCat[r.cat]) byCat[r.cat] = []; byCat[r.cat].push(r); });
+  if (!results.length) { el.innerHTML = '<div style="color:#4a5272;text-align:center;padding:20px;font-size:12px">No rules found for that search.</div>'; return; }
+  el.innerHTML = Object.entries(byCat).map(([catName, rules]) => `
+    <div style="margin-bottom:14px">
+      <div style="font-size:10px;color:#4488ff;letter-spacing:1px;font-weight:700;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid rgba(68,136,255,0.2)">${catName.toUpperCase()}</div>
+      ${rules.map(r => `<div style="margin-bottom:8px">
+        <div style="font-size:12px;font-weight:700;color:#c8d0e8;margin-bottom:2px">${r.name}</div>
+        <div style="font-size:11px;color:#9098b8;line-height:1.6">${r.text}</div>
+      </div>`).join('')}
+    </div>`).join('');
+}
+
+function filterRules(q) { renderRules(q, window._rulesActiveCat || ''); }
+function filterRulesCat(cat) {
+  window._rulesActiveCat = cat;
+  document.querySelectorAll('[id^="rc"]').forEach(b => {
+    const isActive = (cat === '' && b.id === 'rcAll') || b.id === 'rc_' + cat.replace(/\s/g,'_');
+    b.style.background = isActive ? 'rgba(68,136,255,0.15)' : 'none';
+    b.style.borderColor = isActive ? 'rgba(68,136,255,0.4)' : '#2a2a50';
+    b.style.color = isActive ? '#4488ff' : '#9098b8';
+  });
+  renderRules(document.getElementById('rulesSearch')?.value || '', cat);
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 77: Monster Lair Map Notes — DM can create named
+//   "rooms/areas" with description, traps, exits, and notes.
+//   Persistent in localStorage. Quick reference during play.
+// ══════════════════════════════════════════════════════════
+const LAIR_NOTES_KEY = 'tiamat_lair_notes';
+
+function loadLairNotes() {
+  try { return JSON.parse(localStorage.getItem(LAIR_NOTES_KEY)) || []; }
+  catch(e) { return []; }
+}
+function saveLairNotes(notes) { localStorage.setItem(LAIR_NOTES_KEY, JSON.stringify(notes)); }
+
+function openLairNotes() {
+  const existing = document.getElementById('lairNotesOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'lairNotesOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:9500;display:flex;align-items:flex-start;justify-content:center;padding-top:4vh;overflow-y:auto';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  overlay.innerHTML = `
+    <div style="background:#0d0d1a;border:1px solid rgba(136,68,68,0.5);border-radius:14px;padding:24px;width:640px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.7)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:700;color:#aa6644">🗺 Lair Map Notes</div>
+        <button onclick="document.getElementById('lairNotesOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <div id="lairRoomList" style="margin-bottom:14px;max-height:400px;overflow-y:auto"></div>
+      <div style="border-top:1px solid #1e2040;padding-top:12px">
+        <div style="font-size:11px;color:#4a5272;margin-bottom:6px;letter-spacing:.5px">ADD NEW ROOM/AREA</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+          <input id="lairRoomName" placeholder="Room name (e.g. Throne Room)" style="flex:2;min-width:140px;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:6px 10px;font-size:12px;font-family:inherit">
+          <select id="lairRoomType" style="width:120px;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:6px 8px;font-size:11px;cursor:pointer">
+            <option>Combat</option><option>Exploration</option><option>Social</option><option>Trap</option><option>Treasure</option><option>Boss</option><option>Entrance</option><option>Secret</option>
+          </select>
+        </div>
+        <textarea id="lairRoomDesc" placeholder="Description, traps, exits, monsters present..." style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:7px 10px;font-size:11px;resize:vertical;min-height:60px;font-family:inherit;box-sizing:border-box;margin-bottom:6px"></textarea>
+        <button onclick="addLairRoom()" style="background:rgba(170,102,68,0.15);border:1px solid rgba(170,102,68,0.4);color:#aa6644;border-radius:6px;padding:7px 18px;cursor:pointer;font-size:12px">+ Add Room</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  renderLairRooms();
+}
+
+const LAIR_ROOM_ICONS = { Combat:'⚔', Exploration:'🔍', Social:'💬', Trap:'⚙', Treasure:'💰', Boss:'👹', Entrance:'🚪', Secret:'🔒' };
+
+function renderLairRooms() {
+  const el = document.getElementById('lairRoomList');
+  if (!el) return;
+  const notes = loadLairNotes();
+  if (!notes.length) { el.innerHTML = '<div style="color:#4a5272;font-size:12px;text-align:center;padding:20px">No rooms yet — add the first room below.</div>'; return; }
+  el.innerHTML = notes.map((r, i) => {
+    const icon = LAIR_ROOM_ICONS[r.type] || '📍';
+    const typeColors = { Combat:'#cc4444', Boss:'#cc2222', Trap:'#cc8822', Treasure:'#c9a227', Exploration:'#4488ff', Social:'#44aa88', Entrance:'#9098b8', Secret:'#9b6dff' };
+    const col = typeColors[r.type] || '#9098b8';
+    const isOpen = r.open;
+    return `<div style="border:1px solid ${col}33;border-radius:8px;margin-bottom:6px;overflow:hidden">
+      <div onclick="toggleLairRoom(${i})" style="display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;background:${col}0a">
+        <span style="font-size:14px">${icon}</span>
+        <span style="flex:1;font-size:12px;font-weight:600;color:${col}">${r.name}</span>
+        <span style="font-size:9px;padding:1px 6px;border:1px solid ${col}55;border-radius:8px;color:${col}">${r.type}</span>
+        <span style="font-size:12px;color:#4a5272">${isOpen?'▲':'▼'}</span>
+        <button onclick="event.stopPropagation();deleteLairRoom(${i})" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:11px">✕</button>
+      </div>
+      ${isOpen ? `<div style="padding:8px 12px;border-top:1px solid ${col}22">
+        <textarea onchange="updateLairRoom(${i},this.value)" style="width:100%;background:#06061a;border:1px solid #1e2040;color:#c8d0e8;border-radius:5px;padding:6px;font-size:11px;resize:vertical;min-height:80px;font-family:inherit;box-sizing:border-box">${r.desc||''}</textarea>
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function addLairRoom() {
+  const name = (document.getElementById('lairRoomName')?.value || '').trim();
+  const type = document.getElementById('lairRoomType')?.value || 'Exploration';
+  const desc = (document.getElementById('lairRoomDesc')?.value || '').trim();
+  if (!name) { showToast('Enter a room name', '#cc4444'); return; }
+  const notes = loadLairNotes();
+  notes.push({ name, type, desc, open: false });
+  saveLairNotes(notes);
+  document.getElementById('lairRoomName').value = '';
+  document.getElementById('lairRoomDesc').value = '';
+  renderLairRooms();
+}
+function toggleLairRoom(idx) {
+  const notes = loadLairNotes();
+  notes[idx].open = !notes[idx].open;
+  saveLairNotes(notes);
+  renderLairRooms();
+}
+function deleteLairRoom(idx) {
+  const notes = loadLairNotes();
+  notes.splice(idx, 1);
+  saveLairNotes(notes);
+  renderLairRooms();
+}
+function updateLairRoom(idx, desc) {
+  const notes = loadLairNotes();
+  if (notes[idx]) notes[idx].desc = desc;
+  saveLairNotes(notes);
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 76: Session Prep Checklist — DM todo list for session
+//   readiness. Default tasks + custom tasks. Tracks completion.
+//   Resets are manual (archived per session).
+// ══════════════════════════════════════════════════════════
+const SESSION_PREP_KEY = 'tiamat_session_prep';
+const DEFAULT_PREP_TASKS = [
+  'Review last session notes and recap',
+  'Check player character HP/resources',
+  'Prepare 3 potential NPC voices',
+  'Set weather and environmental conditions',
+  'Review faction standings and allegiances',
+  'Prepare 2-3 encounter options for likely paths',
+  'Have backup random encounter table ready',
+  'Review PCs\' outstanding plot hooks',
+  'Confirm magic item availability in nearby shops',
+  'Set mood lighting / background music playlist',
+];
+
+function loadPrepTasks() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(SESSION_PREP_KEY));
+    if (stored) return stored;
+  } catch(e) {}
+  return DEFAULT_PREP_TASKS.map((text, i) => ({ id: i, text, done: false }));
+}
+function savePrepTasks(tasks) { localStorage.setItem(SESSION_PREP_KEY, JSON.stringify(tasks)); }
+
+function openSessionPrep() {
+  const existing = document.getElementById('sessionPrepOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'sessionPrepOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.65);z-index:9500;display:flex;align-items:flex-start;justify-content:center;padding-top:6vh;overflow-y:auto';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  overlay.innerHTML = `
+    <div style="background:#0d0d1a;border:1px solid rgba(68,204,136,0.4);border-radius:14px;padding:24px;width:520px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.7)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:700;color:#44cc88">📋 Session Prep Checklist</div>
+        <button onclick="document.getElementById('sessionPrepOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <div id="prepTaskList" style="margin-bottom:14px"></div>
+      <div style="display:flex;gap:8px;border-top:1px solid #1e2040;padding-top:12px">
+        <input id="prepNewTask" placeholder="Add new prep task..." style="flex:1;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:7px 10px;font-size:12px;font-family:inherit" onkeydown="if(event.key==='Enter')addPrepTask()">
+        <button onclick="addPrepTask()" style="background:rgba(68,204,136,0.15);border:1px solid rgba(68,204,136,0.4);color:#44cc88;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:12px">+ Add</button>
+        <button onclick="resetPrepTasks()" style="background:none;border:1px solid #2a2a50;color:#4a5272;border-radius:6px;padding:7px 10px;cursor:pointer;font-size:11px" title="Reset all tasks to unchecked">↻</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  renderPrepTaskList();
+}
+
+function renderPrepTaskList() {
+  const el = document.getElementById('prepTaskList');
+  if (!el) return;
+  const tasks = loadPrepTasks();
+  const done = tasks.filter(t => t.done).length;
+  const pct = tasks.length ? Math.round(done / tasks.length * 100) : 0;
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <div style="flex:1;height:4px;border-radius:2px;background:#1e2040">
+        <div style="height:100%;border-radius:2px;background:#44cc88;width:${pct}%;transition:width .3s"></div>
+      </div>
+      <span style="font-size:11px;color:#44cc88">${done}/${tasks.length}</span>
+    </div>
+    ${tasks.map((t, i) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #0e0e20">
+        <input type="checkbox" ${t.done?'checked':''} onchange="togglePrepTask(${i})" style="accent-color:#44cc88;cursor:pointer;width:14px;height:14px">
+        <span style="flex:1;font-size:12px;color:${t.done?'#4a5272':'#c8d0e8'};text-decoration:${t.done?'line-through':'none'}">${t.text}</span>
+        <button onclick="deletePrepTask(${i})" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:11px;padding:0" title="Remove task">✕</button>
+      </div>`).join('')}`;
+}
+
+function togglePrepTask(idx) {
+  const tasks = loadPrepTasks();
+  tasks[idx].done = !tasks[idx].done;
+  savePrepTasks(tasks);
+  renderPrepTaskList();
+}
+function addPrepTask() {
+  const input = document.getElementById('prepNewTask');
+  const text = (input?.value || '').trim();
+  if (!text) return;
+  const tasks = loadPrepTasks();
+  tasks.push({ id: Date.now(), text, done: false });
+  savePrepTasks(tasks);
+  input.value = '';
+  renderPrepTaskList();
+}
+function deletePrepTask(idx) {
+  const tasks = loadPrepTasks();
+  tasks.splice(idx, 1);
+  savePrepTasks(tasks);
+  renderPrepTaskList();
+}
+function resetPrepTasks() {
+  const tasks = loadPrepTasks().map(t => ({ ...t, done: false }));
+  savePrepTasks(tasks);
+  renderPrepTaskList();
+  showToast('Prep checklist reset', '#44cc88');
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 75: Legendary Action Tracker — tracks legendary action
+//   charges for CR 17+ monsters in initiative. 3 charges per round,
+//   reset at start of each round.
+// ══════════════════════════════════════════════════════════
+let legendaryState = {}; // { charName: chargesRemaining }
+
+function getLegendaryMax(charName) {
+  const c = UNIQUE_CHARS.find(ch => ch.name === charName);
+  if (!c) return 0;
+  const cr = parseFloat(c.cr) || 0;
+  if (cr >= 24) return 4;
+  if (cr >= 17) return 3;
+  if (cr >= 11) return 2;
+  return 0; // Non-legendary
+}
+
+function getLegendaryCharges(charName) {
+  const max = getLegendaryMax(charName);
+  if (max === 0) return 0;
+  if (legendaryState[charName] === undefined) legendaryState[charName] = max;
+  return legendaryState[charName];
+}
+
+function spendLegendaryAction(charName) {
+  const charges = getLegendaryCharges(charName);
+  if (charges <= 0) { showToast(`${charName}: No legendary actions remaining!`, '#cc4444'); return; }
+  legendaryState[charName] = charges - 1;
+  renderInitiative();
+  showToast(`${charName}: Used legendary action (${legendaryState[charName]} left)`, '#c9a227');
+}
+
+function resetLegendaryActions() {
+  // Called at end of each round (start of character's turn in the next round)
+  Object.keys(legendaryState).forEach(name => {
+    const max = getLegendaryMax(name);
+    if (max > 0) legendaryState[name] = max;
+  });
+}
+
+// Hook legendary reset into the round transition (called by nextTurn)
+const _origNextTurn = typeof nextTurn === 'function' ? nextTurn : null;
+// We'll call resetLegendaryActions in the nextTurn wrap at the start of each round (see the tickCondDurations hook)
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 74: Loot Distribution Tracker — assign gold and items
+//   from treasure generation to specific party members.
+//   Tracks cumulative received loot per character.
+// ══════════════════════════════════════════════════════════
+const LOOT_DIST_KEY = 'tiamat_loot_dist';
+
+function loadLootDist() {
+  try { return JSON.parse(localStorage.getItem(LOOT_DIST_KEY)) || {}; }
+  catch(e) { return {}; }
+}
+function saveLootDist(d) { localStorage.setItem(LOOT_DIST_KEY, JSON.stringify(d)); }
+
+function openLootDistributor(lootBundle) {
+  // lootBundle: { gp, items:[] } from treasure generator, or manual
+  const existing = document.getElementById('lootDistOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'lootDistOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:9600;display:flex;align-items:flex-start;justify-content:center;padding-top:6vh;overflow-y:auto';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  const dist = loadLootDist();
+  const partyChars = UNIQUE_CHARS.slice(0, 12); // First 12 chars or all
+  const bundle = lootBundle || { gp: 0, items: [] };
+
+  const charRows = partyChars.map(c => {
+    const totalGp = (dist[c.name]?.gp || 0);
+    const itemCount = (dist[c.name]?.items || []).length;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #1e2040">
+      <span style="flex:1;font-size:12px;color:#c8d0e8">${c.name}</span>
+      <span style="font-size:10px;color:#c9a227">${totalGp.toLocaleString()} gp</span>
+      <span style="font-size:10px;color:#4a5272">${itemCount} items</span>
+      <button onclick="assignLootGp(${JSON.stringify(c.name)},${bundle.gp},${partyChars.length})" style="background:rgba(201,162,39,0.1);border:1px solid rgba(201,162,39,0.3);color:#c9a227;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:10px" title="Give equal share">+${Math.floor(bundle.gp/partyChars.length)} gp</button>
+      <button onclick="openCharLootLog(${JSON.stringify(c.name)})" style="background:none;border:1px solid #2a2a50;color:#4a5272;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:10px">Log</button>
+    </div>`;
+  }).join('');
+
+  overlay.innerHTML = `
+    <div style="background:#0d0d1a;border:1px solid rgba(201,162,39,0.4);border-radius:14px;padding:24px;width:560px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.7)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div style="font-size:16px;font-weight:700;color:#c9a227">💰 Loot Distribution</div>
+        <button onclick="document.getElementById('lootDistOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <!-- Bundle summary -->
+      <div style="background:#06061a;border:1px solid #1e2040;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px">
+        <div style="color:#c9a227;font-weight:600;margin-bottom:4px">This Haul</div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap">
+          <span style="color:#c8d0e8">💰 ${bundle.gp.toLocaleString()} gp</span>
+          ${bundle.items?.length ? bundle.items.map(it => `<span style="color:#9b6dff">✦ ${it}</span>`).join('') : '<span style="color:#4a5272">No magic items</span>'}
+        </div>
+      </div>
+      <!-- Manual gold distribution -->
+      <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center">
+        <input type="number" id="lootManualGp" placeholder="GP amount" style="width:100px;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:6px 8px;font-size:12px">
+        <select id="lootManualChar" style="flex:1;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:6px 8px;font-size:11px;cursor:pointer">
+          ${partyChars.map(c => `<option value="${c.name}">${c.name}</option>`).join('')}
+        </select>
+        <button onclick="assignLootManual()" style="background:rgba(201,162,39,0.15);border:1px solid rgba(201,162,39,0.4);color:#c9a227;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:11px">Assign GP</button>
+        <button onclick="splitLootEvenly(${bundle.gp},${partyChars.length})" style="background:rgba(68,170,68,0.1);border:1px solid #44aa44;color:#44aa44;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:11px">÷ Split All</button>
+      </div>
+      <!-- Character rows -->
+      <div style="max-height:300px;overflow-y:auto">${charRows}</div>
+      <div style="margin-top:10px;text-align:right">
+        <button onclick="clearLootDist()" style="background:none;border:1px solid #cc3333;color:#cc3333;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:11px">🗑 Clear All Loot History</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function assignLootGp(charName, totalGp, count) {
+  const share = Math.floor(totalGp / count);
+  const dist = loadLootDist();
+  if (!dist[charName]) dist[charName] = { gp: 0, items: [] };
+  dist[charName].gp += share;
+  saveLootDist(dist);
+  showToast(`${charName} received ${share.toLocaleString()} gp`, '#c9a227');
+  openLootDistributor({ gp: totalGp, items: [] });
+}
+
+function assignLootManual() {
+  const gp   = parseInt(document.getElementById('lootManualGp')?.value) || 0;
+  const name = document.getElementById('lootManualChar')?.value;
+  if (!gp || !name) return;
+  const dist = loadLootDist();
+  if (!dist[name]) dist[name] = { gp: 0, items: [] };
+  dist[name].gp += gp;
+  saveLootDist(dist);
+  // Also add to currency tracker
+  if (typeof getCoins === 'function') {
+    const coins = getCoins(name);
+    coins.gp = (coins.gp || 0) + gp;
+    if (typeof currencyState !== 'undefined') {
+      currencyState[name] = coins;
+      if (typeof saveCurrency === 'function') saveCurrency();
+    }
+  }
+  showToast(`${name} +${gp.toLocaleString()} gp`, '#c9a227');
+  document.getElementById('lootManualGp').value = '';
+}
+
+function splitLootEvenly(totalGp, count) {
+  const share = Math.floor(totalGp / count);
+  const dist = loadLootDist();
+  UNIQUE_CHARS.slice(0, count).forEach(c => {
+    if (!dist[c.name]) dist[c.name] = { gp: 0, items: [] };
+    dist[c.name].gp += share;
+  });
+  saveLootDist(dist);
+  showToast(`Split ${totalGp.toLocaleString()} gp evenly — ${share.toLocaleString()} gp each`, '#c9a227');
+  document.getElementById('lootDistOverlay')?.remove();
+}
+
+function clearLootDist() {
+  saveLootDist({});
+  showToast('Loot history cleared', '#4a5272');
+  document.getElementById('lootDistOverlay')?.remove();
+}
+
+function openCharLootLog(charName) {
+  const dist = loadLootDist();
+  const rec  = dist[charName] || { gp: 0, items: [] };
+  showToast(`${charName}: ${rec.gp.toLocaleString()} gp total · ${rec.items.length} items`, '#c9a227');
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 73: Backstory Generator — random NPC backstory hooks
+//   by theme. Shown in character modal as collapsible section.
+// ══════════════════════════════════════════════════════════
+const BACKSTORY_HOOKS = {
+  fire:   { childhood:['Survived a village fire that killed their family','Raised by a fire cult as a chosen vessel','Spent childhood near volcanic vents, touched by elemental power'], motivation:['Seeks to destroy the one who burned their homeland','Wants to control fire before it controls them','Dedicated to protecting others from the flames they fear'], secret:['Is slowly being consumed by their own fire magic','Their "power" is actually a curse from a fire demon','Once burned an innocent by accident — carries the guilt always'] },
+  shadow: { childhood:['Grew up in a city that never saw sunlight','Was recruited by a shadow assassin guild at age 8','Had their shadow stolen as a child — it walks independently'], motivation:['Hunts those who abuse darkness as cover for cruelty','Wants to find a cure for the shadow corruption inside them','Searches for the being that stole their shadow'], secret:['Is slowly fading from reality — becoming a shadow themselves','Works for two opposing factions without either knowing','Their closest ally is actually their shadow, given sentience'] },
+  ocean:  { childhood:['Shipwrecked as a child, raised by sea elves','Born during a kraken attack — marked by the sea','Grew up on a floating city, never touched dry land until age 15'], motivation:['Seeks the sunken temple where their ancestors rest','Wants to free the imprisoned sea god they accidentally awakened','Follows a prophecy written in whale-song'], secret:['Can breathe underwater but hides it — afraid of what it means','Made a pact with something deep and old that calls to them','The sea speaks to them in dreams, and it is angry'] },
+  arcane: { childhood:['Discovered they could read ancient spellbooks at age 4','Attended a magic academy but was expelled for "too much curiosity"','Was a magical experiment — created, not born'], motivation:['Seeks a spell that can reverse time to save a loved one','Wants to unify all schools of magic into a single unified theory','Hunts the mage who stole their spellbook — and their memories'], secret:['Every spell they cast steals a minute of their life','Their "magical talent" is actually leaking power from another plane','They are the reincarnation of the mage who created their school'] },
+  warrior:{ childhood:['Raised as a gladiator slave since childhood','Trained in a secret order of warriors who serve no king','Was the sole survivor of a battle that killed their entire unit'], motivation:['Seeks justice for the fallen soldiers they commanded','Wants to die in battle worthy of their ancestors','Fights to prove that might without honor is nothing'], secret:['Won their greatest battle by retreating, not fighting','The sword they carry is cursed — it whispers to kill allies','Suffered a debilitating wound hidden under their armor'] },
+  nature: { childhood:['Raised by druids after being found abandoned in the forest','Was transformed into a wolf for 10 years — only recently restored','The forest itself taught them to speak'], motivation:['Seeks to stop the corruption spreading through sacred groves','Wants to find the last uncorrupted ley line and protect it','Fulfills a druid prophecy: "The last voice of the dying forest"'], secret:['Slowly transforming into a tree — it started with their feet','Is bonded to a dying treant whose death will kill them too','The animals they speak to carry secrets of the gods'] },
+  royal:  { childhood:['Born to a fallen noble house, raised in poverty','Was switched at birth — their "royal" birth is a lie','Spent childhood as a hostage in a rival court'], motivation:['Seeks to reclaim their family\'s stolen title and lands','Wants to rebuild the court their ancestors destroyed through greed','Hunts the advisor who betrayed their family to the enemy'], secret:['Is actually the illegitimate child of the enemy king','The throne they seek would destroy them — they secretly know it','Forged the documents proving their noble birth themselves'] },
+  stone:  { childhood:['Grew up in the deepest underdark mines','Was petrified for 100 years and only recently thawed','Remembers being mortal stone — shaped by a sculptor\'s hands'], motivation:['Seeks the forge where living stone weapons are crafted','Wants to understand why the mountains are dying','Protects the mineral veins that carry the earth\'s memories'], secret:['Their "stone skin" is spreading — they will become pure stone','Is being slowly possessed by an earth elemental','Absorbs memories of anyone they kill, and it\'s getting crowded'] },
+  orc:    { childhood:['Raised among humans after their clan was slaughtered','Was the weakest orc in their tribe — survived by being clever','Grew up with a half-orc scholar who taught them forbidden history'], motivation:['Seeks to prove orcs are more than the stereotype placed on them','Wants to unite the fractured orc clans before they destroy each other','Hunts the warlord who ordered their clan\'s massacre'], secret:['Their "orcish rage" is actually a divine blessing they deny','Speaks fluent elvish but refuses to let anyone know','Once showed mercy to a great enemy — regrets it every day'] },
+  pink:   { childhood:['Grew up in the enchanted fields of the Feywild','Was traded by their parents to the Summer Court as a tithe','Raised by a bard troupe, never knowing their true parentage'], motivation:['Seeks joy — genuinely, against all adversity','Wants to make the world as light as their heart feels','Hunts the being who cursed their town with permanent sadness'], secret:['Their cheer is a mask over an old wound that never healed','Can see people\'s true desires but pretends they can\'t','Once was the most feared assassin in the realm — retired to kindness'] },
+};
+
+function buildBackstorySection(c) {
+  const hooks = BACKSTORY_HOOKS[c.theme] || BACKSTORY_HOOKS.warrior;
+  const STORED_KEY = `tiamat_backstory_${c.name}`;
+  let stored;
+  try { stored = JSON.parse(localStorage.getItem(STORED_KEY)); } catch(e) { stored = null; }
+  if (!stored) {
+    stored = {
+      childhood:   pick(hooks.childhood),
+      motivation:  pick(hooks.motivation),
+      secret:      pick(hooks.secret),
+    };
+    localStorage.setItem(STORED_KEY, JSON.stringify(stored));
+  }
+  const t = getTheme(c.theme);
+  const row = (label, icon, text) =>
+    `<div style="margin-bottom:8px">
+      <span style="font-size:10px;letter-spacing:.8px;color:${t.accent}88;font-weight:600">${icon} ${label}</span>
+      <div style="font-size:12px;color:#c8d0e8;margin-top:3px;line-height:1.6">${text}</div>
+    </div>`;
+  return `<div class="stats-section">
+    <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>📖 Backstory Hooks</span>
+      <button onclick="rerollBackstory(${JSON.stringify(c.name)},${JSON.stringify(c.theme)})" style="background:none;border:1px solid #2a2a50;color:#4a5272;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:10px" title="Reroll backstory">↻ Reroll</button>
+    </div>
+    ${row('CHILDHOOD', '🌱', stored.childhood)}
+    ${row('MOTIVATION', '⚡', stored.motivation)}
+    ${row('SECRET', '🔒', stored.secret)}
+  </div>`;
+}
+
+function rerollBackstory(charName, theme) {
+  const hooks = BACKSTORY_HOOKS[theme] || BACKSTORY_HOOKS.warrior;
+  const stored = {
+    childhood:   pick(hooks.childhood),
+    motivation:  pick(hooks.motivation),
+    secret:      pick(hooks.secret),
+  };
+  localStorage.setItem(`tiamat_backstory_${charName}`, JSON.stringify(stored));
+  if (currentModalIdx >= 0 && filteredChars[currentModalIdx]?.name === charName) {
+    document.getElementById('statsPanel').innerHTML = buildStatsPanel(filteredChars[currentModalIdx]);
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 72: Encounter Builder — add monsters, calc XP budget,
+//   difficulty rating, and push directly to initiative.
+// ══════════════════════════════════════════════════════════
+const ENC_BUILD_KEY = 'tiamat_enc_builder';
+let encBuilderMonsters = [];
+function loadEncBuilder() { try { encBuilderMonsters = JSON.parse(localStorage.getItem(ENC_BUILD_KEY)) || []; } catch(e) { encBuilderMonsters = []; } }
+function saveEncBuilder() { localStorage.setItem(ENC_BUILD_KEY, JSON.stringify(encBuilderMonsters)); }
+loadEncBuilder();
+
+function openEncounterBuilder() {
+  const existing = document.getElementById('encBuilderOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'encBuilderOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:9500;display:flex;align-items:flex-start;justify-content:center;padding-top:4vh;overflow-y:auto';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  overlay.innerHTML = `<div style="background:#0d0d1a;border:1px solid rgba(204,51,51,0.4);border-radius:14px;padding:24px;width:680px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.7)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="font-size:16px;font-weight:700;color:#cc3333">⚔ Encounter Builder</div>
+      <button onclick="document.getElementById('encBuilderOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+      <select id="encPickChar" style="flex:2;min-width:160px;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:6px 8px;font-size:11px;cursor:pointer">
+        <option value="">— pick a character —</option>
+        ${UNIQUE_CHARS.slice().sort((a,b)=>{const o=['0','1/8','1/4','1/2','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25','26','27','28','29','30'];return o.indexOf(b.cr)-o.indexOf(a.cr);}).map(c=>`<option value="${c.name}|${c.cr}">CR ${c.cr} — ${c.name}</option>`).join('')}
+      </select>
+      <input type="number" id="encPickCount" value="1" min="1" max="20" style="width:55px;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:6px;padding:6px 8px;font-size:12px">
+      <button onclick="encAddMonster()" style="background:rgba(204,51,51,0.15);border:1px solid rgba(204,51,51,0.4);color:#cc3333;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:12px">+ Add</button>
+      <button onclick="encClear()" style="background:none;border:1px solid #2a2a50;color:#4a5272;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:11px">Clear</button>
+    </div>
+    <div style="display:flex;gap:12px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+      <span style="font-size:11px;color:#4a5272">Party:</span>
+      <label style="font-size:11px;color:#9098b8">Lv <input type="number" id="encPartyLevel" value="${getPartySettings().level}" min="1" max="20" style="width:40px;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:4px;padding:3px 5px;font-size:11px" oninput="renderEncBuilderCalc()"></label>
+      <label style="font-size:11px;color:#9098b8">Size <input type="number" id="encPartySize" value="${getPartySettings().size}" min="1" max="10" style="width:38px;background:#06061a;border:1px solid #2a2a50;color:#c8d0e8;border-radius:4px;padding:3px 5px;font-size:11px" oninput="renderEncBuilderCalc()"></label>
+      <button onclick="encPushToInitiative()" style="margin-left:auto;background:rgba(201,162,39,0.15);border:1px solid rgba(201,162,39,0.4);color:#c9a227;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:11px">⚔ Push to Initiative</button>
+    </div>
+    <div id="encMonsterList" style="min-height:60px;margin-bottom:12px"></div>
+    <div id="encDiffSummary" style="border-top:1px solid #1e2040;padding-top:10px"></div>
+  </div>`;
+  document.body.appendChild(overlay);
+  renderEncBuilderList(); renderEncBuilderCalc();
+}
+function encAddMonster() {
+  const sel = document.getElementById('encPickChar')?.value;
+  const count = parseInt(document.getElementById('encPickCount')?.value) || 1;
+  if (!sel) return;
+  const [name, cr] = sel.split('|');
+  const ex = encBuilderMonsters.find(m => m.name === name);
+  if (ex) ex.count = Math.min(20, ex.count + count);
+  else encBuilderMonsters.push({ name, cr, count });
+  saveEncBuilder(); renderEncBuilderList(); renderEncBuilderCalc();
+}
+function encRemoveMonster(name) { encBuilderMonsters = encBuilderMonsters.filter(m => m.name !== name); saveEncBuilder(); renderEncBuilderList(); renderEncBuilderCalc(); }
+function encChangeCount(name, delta) { const m = encBuilderMonsters.find(m=>m.name===name); if(m){m.count=Math.max(1,Math.min(20,m.count+delta)); saveEncBuilder(); renderEncBuilderList(); renderEncBuilderCalc();} }
+function encClear() { encBuilderMonsters = []; saveEncBuilder(); renderEncBuilderList(); renderEncBuilderCalc(); }
+function renderEncBuilderList() {
+  const el = document.getElementById('encMonsterList'); if(!el) return;
+  if (!encBuilderMonsters.length) { el.innerHTML='<div style="color:#4a5272;font-size:12px;text-align:center;padding:14px">No monsters yet.</div>'; return; }
+  el.innerHTML = `<div style="display:flex;flex-direction:column;gap:5px">${encBuilderMonsters.map(m=>{
+    const xp=CR_XP_VALS[m.cr]||0; const c=UNIQUE_CHARS.find(ch=>ch.name===m.name); const t=c?getTheme(c.theme):{accent:'#9098b8'};
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid ${t.accent}33;border-radius:7px">
+      <span style="font-size:11px;color:${t.accent};flex:1">${m.name}</span>
+      <span style="font-size:10px;color:#4a5272">CR ${m.cr} · ${xp.toLocaleString()} ea</span>
+      <button onclick="encChangeCount('${m.name}',-1)" style="background:none;border:1px solid #2a2a50;color:#9098b8;border-radius:4px;width:20px;height:20px;cursor:pointer;font-size:11px;padding:0">-</button>
+      <span style="font-size:12px;color:#c8d0e8;min-width:16px;text-align:center">${m.count}</span>
+      <button onclick="encChangeCount('${m.name}',1)" style="background:none;border:1px solid #2a2a50;color:#9098b8;border-radius:4px;width:20px;height:20px;cursor:pointer;font-size:11px;padding:0">+</button>
+      <span style="font-size:10px;color:#c9a227">${(xp*m.count).toLocaleString()}</span>
+      <button onclick="encRemoveMonster('${m.name}')" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:11px">✕</button>
+    </div>`;}).join('')}</div>`;
+}
+function renderEncBuilderCalc() {
+  const el = document.getElementById('encDiffSummary'); if(!el) return;
+  if (!encBuilderMonsters.length) { el.innerHTML=''; return; }
+  const level = parseInt(document.getElementById('encPartyLevel')?.value)||5;
+  const size  = parseInt(document.getElementById('encPartySize')?.value)||4;
+  savePartySettings({level,size});
+  let rawXp=0, totalCount=0;
+  encBuilderMonsters.forEach(m=>{rawXp+=(CR_XP_VALS[m.cr]||0)*m.count; totalCount+=m.count;});
+  const multTable=[[1,1],[2,1.5],[6,2],[10,2],[14,2.5],[999,3]];
+  let mult=1; for(const[t,m] of multTable){if(totalCount<=t){mult=m;break;}}
+  const adj=Math.round(rawXp*mult);
+  const thr=XP_THRESHOLDS[Math.min(level,20)];
+  const [easy,medium,hard,deadly]=thr?thr.map(t=>t*size):[0,0,0,0];
+  let label,color;
+  if(adj<easy){label='TRIVIAL';color='#44aa44';}
+  else if(adj<medium){label='EASY';color='#44aa44';}
+  else if(adj<hard){label='MEDIUM';color='#c9a227';}
+  else if(adj<deadly){label='HARD';color='#dd6622';}
+  else{label='DEADLY';color='#cc3333';}
+  const pct=deadly>0?Math.min(100,Math.round(adj/deadly*100)):0;
+  el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <span style="font-size:20px;font-weight:800;color:${color}">${label}</span>
+    <span style="font-size:11px;color:#4a5272">${adj.toLocaleString()} adj XP · raw ${rawXp.toLocaleString()} · ×${mult} mult</span>
+  </div>
+  <div style="height:6px;border-radius:3px;background:#1e2040;margin-bottom:4px">
+    <div style="height:100%;border-radius:3px;background:${color};width:${pct}%"></div>
+  </div>
+  <div style="display:flex;justify-content:space-between;font-size:9px;color:#2a2a50">
+    <span>Easy ${easy.toLocaleString()}</span><span>Med ${medium.toLocaleString()}</span><span>Hard ${hard.toLocaleString()}</span><span>Deadly ${deadly.toLocaleString()}</span>
+  </div>`;
+}
+function encPushToInitiative() {
+  if (!encBuilderMonsters.length) return;
+  encBuilderMonsters.forEach(m=>{
+    for(let i=0;i<m.count;i++){
+      const name=m.count>1?`${m.name} #${i+1}`:m.name;
+      const c=UNIQUE_CHARS.find(ch=>ch.name===m.name);
+      const maxHp=c?parseInt(c.hp)||10:10;
+      if(!initiativeList.find(e=>e.name===name)) initiativeList.push({name,maxHp,initiative:Math.floor(Math.random()*20)+1,isNpc:false});
+    }
+  });
+  initiativeList.sort((a,b)=>b.initiative-a.initiative);
+  renderInitiative();
+  document.getElementById('initiativePanel')?.classList.add('open');
+  document.getElementById('encBuilderOverlay')?.remove();
+  showToast(`Pushed ${encBuilderMonsters.length} monster type(s) to initiative`,'#c9a227');
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 71: Faction Allegiance Map — visual overview of all
+//   factions/groups with member counts, average CR, HP status.
+//   Clicking a faction filters the grid to that group.
+// ══════════════════════════════════════════════════════════
+function openFactionMap() {
+  const existing = document.getElementById('factionMapOverlay');
+  if (existing) { existing.remove(); return; }
+  const factions = {};
+  UNIQUE_CHARS.forEach(c => {
+    const grp = c.group || 'Unknown';
+    if (!factions[grp]) factions[grp] = { name: grp, chars: [], totalHp: 0, maxHp: 0, cr: 0 };
+    factions[grp].chars.push(c);
+    const maxHp = parseInt(c.hp) || 1;
+    const currHp = getCharHP(c.name, maxHp);
+    factions[grp].totalHp += currHp;
+    factions[grp].maxHp += maxHp;
+    factions[grp].cr += parseFloat(c.cr) || 0;
+  });
+  const crOrder = ['0','1/8','1/4','1/2','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25','26','27','28','29','30'];
+  const factionCards = Object.values(factions).sort((a, b) => b.cr - a.cr).map(f => {
+    const hpPct = f.maxHp > 0 ? f.totalHp / f.maxHp : 1;
+    const hpCol = hpBarColor(hpPct);
+    const avgCr = f.cr / f.chars.length;
+    const crLabel = avgCr < 1 ? '< 1' : avgCr.toFixed(1);
+    const down = f.chars.filter(c => getCharHP(c.name, parseInt(c.hp)||1) === 0).length;
+    const inInit = f.chars.filter(c => isInInitiative(c.name)).length;
+    const t = getTheme(f.chars[0]?.theme || 'warrior');
+    const top = f.chars.slice().sort((a, b) => crOrder.indexOf(b.cr) - crOrder.indexOf(a.cr)).slice(0, 3);
+    return `<div onclick="filterToFaction(${JSON.stringify(f.name)})" style="cursor:pointer;background:#06061a;border:1px solid ${t.accent}44;border-radius:10px;padding:12px 14px" onmouseover="this.style.borderColor='${t.accent}'" onmouseout="this.style.borderColor='${t.accent}44'">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:13px;font-weight:700;color:${t.accent}">${f.name}</div>
+        <div style="font-size:10px;color:#4a5272">${f.chars.length} members · Avg CR ${crLabel}</div>
+      </div>
+      <div style="height:4px;border-radius:2px;background:#1e2040;margin-bottom:8px">
+        <div style="height:100%;border-radius:2px;background:${hpCol};width:${Math.round(hpPct*100)}%"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:6px;font-size:10px">
+        <span style="color:${hpCol}">❤ ${Math.round(hpPct*100)}% HP</span>
+        ${down ? `<span style="color:#cc4444">⚠ ${down} down</span>` : ''}
+        ${inInit ? `<span style="color:#c9a227">⚔ ${inInit} in combat</span>` : ''}
+      </div>
+      <div style="font-size:10px;color:#4a5272">${top.map(c => `<span style="color:#9098b8">${c.name}</span>`).join(', ')}${f.chars.length > 3 ? ` +${f.chars.length - 3} more` : ''}</div>
+    </div>`;
+  }).join('');
+  const overlay = document.createElement('div');
+  overlay.id = 'factionMapOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.65);z-index:9500;display:flex;align-items:flex-start;justify-content:center;padding-top:6vh;overflow-y:auto';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  overlay.innerHTML = `<div style="background:#0d0d1a;border:1px solid rgba(155,109,255,0.4);border-radius:14px;padding:24px;width:700px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.7)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="font-size:16px;font-weight:700;color:#9b6dff">⚑ Faction Allegiance Map</div>
+      <button onclick="document.getElementById('factionMapOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+    </div>
+    <div style="font-size:11px;color:#4a5272;margin-bottom:14px">${UNIQUE_CHARS.length} characters across ${Object.keys(factions).length} factions. Click a faction to filter.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${factionCards}</div>
+  </div>`;
+  document.body.appendChild(overlay);
+}
+function filterToFaction(factionName) {
+  document.getElementById('factionMapOverlay')?.remove();
+  currentFilter = factionName;
+  renderGrid();
+  showToast(`Filtered to: ${factionName}`, '#9b6dff');
 }
 
 // ══════════════════════════════════════════════════════════
@@ -9449,6 +10491,7 @@ function renderInitiative() {
       ${hpText ? `<div class="init-hp-mini">${hpText}</div>` : ''}
       <button class="init-remove-btn" onclick="removeFromInitiative(${JSON.stringify(e.name)})">✕</button>
       ${durBadges ? `<div style="width:100%;padding:0 8px 4px;display:flex;gap:3px;flex-wrap:wrap">${durBadges}</div>` : ''}
+      ${(()=>{const legMax=getLegendaryMax(e.name);if(!legMax)return '';const legCur=getLegendaryCharges(e.name);const pips=Array.from({length:legMax},(_,i)=>`<span onclick="spendLegendaryAction(${JSON.stringify(e.name)})" title="Legendary Action — click to spend" style="cursor:pointer;display:inline-block;width:10px;height:10px;border-radius:50%;border:1px solid #c9a227;background:${i<legCur?'#c9a227':'transparent'};margin-right:2px"></span>`).join('');return `<div style="width:100%;padding:0 8px 4px;display:flex;align-items:center;gap:4px"><span style="font-size:9px;color:#c9a227;letter-spacing:.3px">LEG</span>${pips}</div>`;})()}
     </div>`;
   };
 
@@ -11720,7 +12763,10 @@ function rollTreasure() {
     </div>
     ${t.gems.length ? `<div style="margin-bottom:8px"><div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:4px">💎 GEMS</div>${t.gems.map(([n,v]) => `<span style="background:#0a0a1e;border:1px solid rgba(68,136,255,0.3);color:#88bbff;border-radius:6px;padding:2px 8px;font-size:11px;margin:2px;display:inline-block">${n} (${v} gp)</span>`).join('')}</div>` : ''}
     ${t.magicItems.length ? `<div><div style="font-size:10px;color:#4a5272;letter-spacing:1px;margin-bottom:4px">✨ MAGIC ITEMS</div>${t.magicItems.map(m => `<div style="background:rgba(201,162,39,0.08);border:1px solid rgba(201,162,39,0.3);border-radius:6px;padding:4px 10px;font-size:12px;color:#c9a227;margin:3px 0">${m}</div>`).join('')}</div>` : '<div style="font-size:11px;color:#4a5272">No magic items this time</div>'}
-    <button onclick="rollTreasure()" style="margin-top:10px;background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.3);color:#c9a227;border-radius:6px;padding:5px 20px;cursor:pointer;font-size:11px">Roll Again</button>`;
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:10px">
+      <button onclick="rollTreasure()" style="background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.3);color:#c9a227;border-radius:6px;padding:5px 16px;cursor:pointer;font-size:11px">Roll Again</button>
+      <button onclick="openLootDistributor({gp:${t.gp},items:${JSON.stringify(t.magicItems)}})" style="background:rgba(68,170,68,.1);border:1px solid #44aa44;color:#44aa44;border-radius:6px;padding:5px 16px;cursor:pointer;font-size:11px">💰 Distribute</button>
+    </div>`;
 }
 
 // ══════════════════════════════════════════════════════════
