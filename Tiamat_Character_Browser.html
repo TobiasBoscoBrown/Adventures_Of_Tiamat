@@ -4192,6 +4192,7 @@
     <div class="log-title">✦ Session Log</div>
     <div class="log-controls">
       <button class="log-ctrl-btn" onclick="showSessionStats()" title="Session combat statistics">📊 Stats</button>
+      <button class="log-ctrl-btn" onclick="openSessionRecap()" title="Generate session recap summary">📋 Recap</button>
       <button class="log-ctrl-btn" onclick="exportLog()">⬇ Export</button>
       <button class="log-ctrl-btn" onclick="clearLog()">✕ Clear</button>
     </div>
@@ -8600,6 +8601,141 @@ function exportLog() {
   a.href = URL.createObjectURL(blob);
   a.download = `tiamat_session_${date}.txt`;
   a.click();
+}
+
+// ══════════════════════════════════════════════════════════
+// ITERATION 79: Session Recap Generator — auto-generate a
+//   formatted session summary from the session log: combat
+//   events, HP changes, rolls, notable moments, conditions.
+// ══════════════════════════════════════════════════════════
+function openSessionRecap() {
+  const existing = document.getElementById('recapOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'recapOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.75);z-index:9700;display:flex;align-items:flex-start;justify-content:center;padding:4vh 10px;overflow-y:auto';
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  const recap = generateSessionRecap();
+  overlay.innerHTML = `
+    <div style="background:#0a0808;border:1px solid rgba(201,162,39,0.5);border-radius:14px;padding:24px;width:min(640px,95vw);box-shadow:0 8px 40px rgba(0,0,0,.9)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:#c9a227">📋 Session Recap</div>
+        <div style="display:flex;gap:8px">
+          <button onclick="copyRecapToClipboard()" style="background:rgba(201,162,39,.1);border:1px solid rgba(201,162,39,.4);color:#c9a227;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:11px">📋 Copy</button>
+          <button onclick="document.getElementById('recapOverlay').remove()" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:18px">✕</button>
+        </div>
+      </div>
+      <div id="recapContent" style="font-size:12px;line-height:1.8;color:#c8d0e8">${recap.html}</div>
+      <div style="margin-top:16px;padding-top:12px;border-top:1px solid #1a1200">
+        <div style="font-size:10px;color:#4a5272;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Add DM Summary Note</div>
+        <textarea id="recapDmNote" rows="3" placeholder="What do you want to remember about this session?" style="width:100%;background:#06060a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px 10px;font-size:12px;box-sizing:border-box;font-family:inherit;resize:vertical;outline:none"></textarea>
+        <button onclick="saveRecapNote()" style="margin-top:8px;background:rgba(201,162,39,.1);border:1px solid rgba(201,162,39,.4);color:#c9a227;border-radius:6px;padding:6px 16px;cursor:pointer;font-size:12px">💾 Save Recap Note</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function generateSessionRecap() {
+  const now = new Date().toLocaleDateString();
+  const log = sessionLog || [];
+  if (!log.length) return { html: '<div style="color:#4a5272;font-style:italic">No session log entries yet. Play some D&D first!</div>', text: 'Empty session' };
+
+  // Categorize entries
+  const combatEntries = log.filter(e => e.type === 'combat');
+  const dmgEntries = log.filter(e => e.type === 'dmg');
+  const healEntries = log.filter(e => e.type === 'heal');
+  const rollEntries = log.filter(e => e.type === 'roll');
+  const noteEntries = log.filter(e => e.type === 'note');
+
+  // Extract character names that appeared in combat
+  const charMentions = {};
+  log.forEach(e => {
+    const m = (e.msg || '').match(/<strong>([^<]+)<\/strong>/g);
+    if (m) m.forEach(match => {
+      const name = match.replace(/<\/?strong>/g, '').trim();
+      if (name && name.length < 40 && !/^Round|^Group|^Long|^Short/i.test(name)) {
+        charMentions[name] = (charMentions[name] || 0) + 1;
+      }
+    });
+  });
+  const topChars = Object.entries(charMentions).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([n])=>n);
+
+  // Count rounds
+  const rounds = (log.filter(e => /Round \d+ begins/.test(e.msg || '')).length) || 0;
+
+  // Find notable events
+  const deathEvents = log.filter(e => /dead|died|0 HP|death save|DEAD/i.test(e.msg||''));
+  const critEvents = log.filter(e => /CRIT|nat 20|Natural 20/i.test(e.msg||''));
+  const spellEvents = log.filter(e => /concentrat|learned|spell/i.test(e.msg||''));
+
+  // Find healing events
+  const longRestEvents = log.filter(e => /long rest/i.test(e.msg||''));
+
+  const sections = [];
+
+  sections.push(`<div style="margin-bottom:14px;padding:12px;background:#0d0800;border:1px solid rgba(201,162,39,0.2);border-radius:8px">
+    <div style="font-family:'Cinzel',serif;font-size:11px;color:#c9a227;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">📅 Session Overview — ${now}</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center">
+      <div><div style="font-size:20px;color:#9b6dff;font-weight:700;font-family:'Cinzel',serif">${log.length}</div><div style="font-size:9px;color:#4a5272;text-transform:uppercase">Events</div></div>
+      <div><div style="font-size:20px;color:#cc6666;font-weight:700;font-family:'Cinzel',serif">${dmgEntries.length}</div><div style="font-size:9px;color:#4a5272;text-transform:uppercase">Hits</div></div>
+      <div><div style="font-size:20px;color:#4cdf88;font-weight:700;font-family:'Cinzel',serif">${healEntries.length}</div><div style="font-size:9px;color:#4a5272;text-transform:uppercase">Heals</div></div>
+      <div><div style="font-size:20px;color:#4488ff;font-weight:700;font-family:'Cinzel',serif">${rounds}</div><div style="font-size:9px;color:#4a5272;text-transform:uppercase">Rounds</div></div>
+    </div>
+  </div>`);
+
+  if (topChars.length) {
+    sections.push(`<div style="margin-bottom:12px">
+      <div style="font-size:10px;color:#9b6dff;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">👥 Most Active Characters</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${topChars.map(n => `<span style="background:rgba(155,109,255,.1);border:1px solid rgba(155,109,255,.3);border-radius:20px;padding:3px 10px;font-size:11px;color:#c8b8ff">${n}</span>`).join('')}</div>
+    </div>`);
+  }
+
+  if (combatEntries.length) {
+    const recent = combatEntries.slice(-5).map(e => `<div style="font-size:11px;color:#9098b8;padding:3px 0;border-bottom:1px solid #0a0a18">${e.ts} ${e.msg.replace(/<[^>]*>/g,'')}</div>`).join('');
+    sections.push(`<div style="margin-bottom:12px">
+      <div style="font-size:10px;color:#cc6666;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">⚔ Combat Events (last 5)</div>
+      ${recent}
+    </div>`);
+  }
+
+  if (deathEvents.length) {
+    sections.push(`<div style="margin-bottom:12px;padding:8px 12px;background:rgba(204,51,51,.06);border:1px solid rgba(204,51,51,.25);border-radius:8px">
+      <div style="font-size:10px;color:#cc4444;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">⚠ Near-Death Moments (${deathEvents.length})</div>
+      ${deathEvents.slice(0,3).map(e=>`<div style="font-size:11px;color:#9098b8">${e.ts} ${e.msg.replace(/<[^>]*>/g,'')}</div>`).join('')}
+    </div>`);
+  }
+
+  if (critEvents.length) {
+    sections.push(`<div style="margin-bottom:12px;padding:8px 12px;background:rgba(68,200,100,.05);border:1px solid rgba(68,200,100,.2);border-radius:8px">
+      <div style="font-size:10px;color:#4cdf88;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">★ Critical Hits (${critEvents.length})</div>
+      ${critEvents.slice(0,3).map(e=>`<div style="font-size:11px;color:#9098b8">${e.ts} ${e.msg.replace(/<[^>]*>/g,'')}</div>`).join('')}
+    </div>`);
+  }
+
+  if (noteEntries.length) {
+    sections.push(`<div style="margin-bottom:12px">
+      <div style="font-size:10px;color:#c9a227;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">📝 DM Notes (${noteEntries.length})</div>
+      ${noteEntries.map(e=>`<div style="font-size:11px;color:#c8d0e8;padding:3px 0">${e.ts} — ${e.msg.replace(/<[^>]*>/g,'')}</div>`).join('')}
+    </div>`);
+  }
+
+  return { html: sections.join('') };
+}
+
+function copyRecapToClipboard() {
+  const el = document.getElementById('recapContent');
+  if (!el) return;
+  const text = el.innerText || el.textContent;
+  navigator.clipboard.writeText(text).then(() => showToast('📋 Recap copied!', '#c9a227')).catch(() => showToast('Copy failed', '#cc3333'));
+}
+
+function saveRecapNote() {
+  const note = (document.getElementById('recapDmNote')?.value || '').trim();
+  if (!note) return;
+  logEntry('note', `📋 <strong>Session Recap Note:</strong> ${note}`);
+  showToast('💾 Recap note saved to session log', '#c9a227');
+  document.getElementById('recapOverlay')?.remove();
 }
 
 function showSessionStats() {
