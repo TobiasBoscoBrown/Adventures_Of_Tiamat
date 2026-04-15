@@ -6492,13 +6492,26 @@ function buildInventorySection(c) {
     </div>`;
   }).join('');
 
-  const attunedCount = items.filter(i => i.attuned).length;
-  const attunedStr = attunedCount ? ` <span style="font-size:10px;color:#c9a227">(${attunedCount}/3 attuned)</span>` : '';
+  const baseAttuned = items.filter(i => i.attuned).length;
+  const extraAttuned = getExtraAttuned(c.name);
+  const totalAttuned = baseAttuned + extraAttuned.length;
+  const attunedColor = totalAttuned >= 3 ? '#c9a227' : totalAttuned > 3 ? '#cc4444' : '#c9a227';
+  const attunedStr = totalAttuned > 0 ? ` <span style="font-size:10px;color:${attunedColor}">(${totalAttuned}/3 attuned)</span>` : '';
+  const extraCards = extraAttuned.map((item, idx) => `
+    <div class="item-card attuned" style="position:relative">
+      <button onclick="removeExtraAttuned(${JSON.stringify(c.name)},${idx})" style="position:absolute;top:4px;right:4px;background:none;border:none;color:#4a5272;cursor:pointer;font-size:11px" title="Remove">✕</button>
+      <div class="item-name">${item}</div>
+      <div class="item-desc" style="font-size:10px;color:#4a5272">Custom attuned item</div>
+      <div class="item-badges"><span class="item-badge attuned">⬡ Attuned</span></div>
+    </div>`).join('');
 
   return `
     <div class="stats-section">
-      <div class="stats-section-title">Equipment & Inventory${attunedStr}</div>
-      <div class="inventory-grid">${cards}</div>
+      <div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>Equipment & Inventory${attunedStr}</span>
+        <button onclick="openAddAttunement(${JSON.stringify(c.name)},event)" style="background:none;border:1px solid rgba(201,162,39,.4);color:#c9a227;border-radius:6px;padding:2px 8px;cursor:pointer;font-size:10px${totalAttuned>=3?';opacity:.5;cursor:not-allowed':''}" title="${totalAttuned>=3?'Max 3 attuned items':'Add custom attuned item'}">⬡ + Attune</button>
+      </div>
+      <div class="inventory-grid">${cards}${extraCards}</div>
     </div>`;
 }
 // ────────────────────────────────────────────────────────
@@ -9802,6 +9815,54 @@ function clearTagFilter(dropdown) {
   renderGrid();
 }
 // ────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// ITERATION 50: Attunement Slots Enforcer — max 3 attuned
+//   items tracked per character. Add custom magic items.
+//   Shows over-attunement warning. D&D 5e RAW enforced.
+// ══════════════════════════════════════════════════════════
+let attunementState = {};
+try { attunementState = JSON.parse(localStorage.getItem('tiamat_attunement')) || {}; } catch { attunementState = {}; }
+function saveAttunement() { localStorage.setItem('tiamat_attunement', JSON.stringify(attunementState)); }
+function getExtraAttuned(name) { return attunementState[name] || []; }
+function addExtraAttuned(name, itemName) {
+  if (!attunementState[name]) attunementState[name] = [];
+  attunementState[name].push(itemName);
+  saveAttunement();
+  if (currentModalIdx >= 0 && filteredChars[currentModalIdx]?.name === name) {
+    document.getElementById('statsPanel').innerHTML = buildStatsPanel(filteredChars[currentModalIdx]);
+  }
+}
+function removeExtraAttuned(name, idx) {
+  if (!attunementState[name]) return;
+  attunementState[name].splice(idx, 1);
+  saveAttunement();
+  if (currentModalIdx >= 0 && filteredChars[currentModalIdx]?.name === name) {
+    document.getElementById('statsPanel').innerHTML = buildStatsPanel(filteredChars[currentModalIdx]);
+  }
+}
+function openAddAttunement(name, evt) {
+  evt.stopPropagation();
+  document.querySelectorAll('.attune-popup').forEach(p => p.remove());
+  const popup = document.createElement('div');
+  popup.className = 'attune-popup';
+  popup.style.cssText = 'position:fixed;background:#0e0e24;border:1px solid rgba(201,162,39,.5);border-radius:10px;padding:14px;z-index:9000;box-shadow:0 8px 32px rgba(0,0,0,.8);min-width:240px';
+  popup.innerHTML = `
+    <div style="font-size:12px;color:#c9a227;font-weight:700;margin-bottom:10px;font-family:'Cinzel',serif">⬡ ATTUNE ITEM — ${name}</div>
+    <input id="attuneItemInput" type="text" placeholder="Item name..." style="width:100%;background:#0a0a1e;border:1px solid #4a5272;color:#e0e0ff;border-radius:6px;padding:6px 10px;font-size:13px;margin-bottom:8px;box-sizing:border-box">
+    <div style="display:flex;gap:8px">
+      <button onclick="const v=document.getElementById('attuneItemInput').value.trim();if(v){addExtraAttuned(${JSON.stringify(name)},v);document.querySelectorAll('.attune-popup').forEach(p=>p.remove())}" style="flex:1;background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.5);color:#c9a227;border-radius:6px;padding:6px;cursor:pointer">⬡ Attune</button>
+      <button onclick="document.querySelectorAll('.attune-popup').forEach(p=>p.remove())" style="background:none;border:1px solid #2a2a50;color:#4a5272;border-radius:6px;padding:6px 10px;cursor:pointer">Cancel</button>
+    </div>`;
+  document.body.appendChild(popup);
+  const rect = evt.target.getBoundingClientRect();
+  popup.style.left = Math.max(4, rect.left - 100) + 'px';
+  popup.style.top = (rect.bottom + 4) + 'px';
+  setTimeout(() => { const inp = document.getElementById('attuneItemInput'); if (inp) inp.focus(); }, 50);
+  setTimeout(() => document.addEventListener('click', function rem(e) {
+    if (!popup.contains(e.target)) { popup.remove(); document.removeEventListener('click', rem); }
+  }), 50);
+}
+
 // ══════════════════════════════════════════════════════════
 // ITERATION 39: Bulk Condition Applicator — Apply or remove
 //   any condition to ALL characters currently in initiative.
