@@ -3573,6 +3573,7 @@
       <button class="init-ctrl-btn" onclick="rollAllInitiative()" title="Roll initiative for all NPCs">⚄ Roll All</button>
       <button class="init-ctrl-btn next-btn" onclick="nextTurn()" title="Next turn">Next ▶</button>
       <button class="init-ctrl-btn" onclick="toggleGroupRoll()" title="Group saving throw / ability check" style="border-color:#aa66dd;color:#aa66dd">⚔ Save</button>
+      <button class="init-ctrl-btn" id="lairActionBtn" onclick="toggleLairAction()" title="Toggle Lair Action at Init 20" style="border-color:#2a2a50;color:#4a5272">🏰 Lair</button>
       <button class="init-ctrl-btn" onclick="clearInitiative()" title="Clear initiative">✕</button>
     </div>
   </div>
@@ -8157,13 +8158,44 @@ function toggleTurnAction(name, type, event) {
 }
 function clearTurnActions() { turnActionState = {}; }
 
+let lairActionEnabled = false;
+let lairActionDescription = '';
+
+function toggleLairAction() {
+  lairActionEnabled = !lairActionEnabled;
+  const btn = document.getElementById('lairActionBtn');
+  if (btn) {
+    btn.style.borderColor = lairActionEnabled ? '#c9a227' : '#2a2a50';
+    btn.style.color = lairActionEnabled ? '#c9a227' : '#4a5272';
+    btn.style.background = lairActionEnabled ? 'rgba(201,162,39,0.1)' : '';
+  }
+  if (lairActionEnabled) {
+    // Find a legendary char in initiative to suggest lair actions
+    const legendChar = initiativeList.map(e => UNIQUE_CHARS.find(c => c.name === e.name)).find(c => c && parseFloat(c.cr||0) >= 15);
+    if (legendChar) {
+      const lairTraits = (legendChar.traits || []).filter(t => /lair action/i.test(t));
+      lairActionDescription = lairTraits.join(' | ') || `${legendChar.name}'s lair action`;
+    } else {
+      lairActionDescription = 'Lair Action (custom)';
+    }
+    logEntry('roll', `🏰 <strong>Lair Action activated</strong> — fires at Initiative 20 each round`);
+  } else {
+    logEntry('roll', '🏰 Lair Action deactivated');
+  }
+  renderInitiative();
+}
+
 function renderInitiative() {
   const el = document.getElementById('initiativeList');
   if (!initiativeList.length) {
     el.innerHTML = '<div style="text-align:center;color:#4a5272;font-size:12px;padding:20px">Add characters via the ⚔ button on their cards</div>';
     return;
   }
-  el.innerHTML = initiativeList.map((e, i) => {
+
+  // Build display list: insert Lair Action "slot" at init 20 if enabled
+  let displayList = [...initiativeList];
+
+  const renderEntry = (e, i) => {
     const isActive = i === currentTurnIdx;
     const currHp = e.maxHp > 0 ? getCharHP(e.name, e.maxHp) : null;
     const hpText = currHp !== null ? `${currHp}/${e.maxHp}` : '';
@@ -8184,7 +8216,48 @@ function renderInitiative() {
       ${hpText ? `<div class="init-hp-mini">${hpText}</div>` : ''}
       <button class="init-remove-btn" onclick="removeFromInitiative(${JSON.stringify(e.name)})">✕</button>
     </div>`;
-  }).join('');
+  };
+
+  let html = '';
+  let lairInserted = false;
+  displayList.forEach((e, i) => {
+    // Insert lair action row before the first entry with initiative < 20
+    if (lairActionEnabled && !lairInserted && e.initiative < 20) {
+      const isLairActive = currentTurnIdx === -20; // special sentinel
+      html += `<div class="init-entry" style="background:rgba(201,162,39,0.08);border-color:rgba(201,162,39,0.4);cursor:pointer" onclick="showLairActionMenu()" title="Click to see lair action options">
+        <div class="init-score" style="color:#c9a227">20</div>
+        <div class="init-name" style="color:#c9a227;font-style:italic">🏰 Lair Action</div>
+        <div style="font-size:9px;color:#4a5272;margin-left:auto;margin-right:4px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lairActionDescription.split(' ').slice(0,4).join(' ')}…</div>
+      </div>`;
+      lairInserted = true;
+    }
+    html += renderEntry(e, i);
+  });
+  if (lairActionEnabled && !lairInserted) {
+    html += `<div class="init-entry" style="background:rgba(201,162,39,0.08);border-color:rgba(201,162,39,0.4);cursor:pointer" onclick="showLairActionMenu()" title="Lair Action at init 20">
+      <div class="init-score" style="color:#c9a227">20</div>
+      <div class="init-name" style="color:#c9a227;font-style:italic">🏰 Lair Action</div>
+    </div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+function showLairActionMenu() {
+  const desc = lairActionDescription || 'No lair actions defined';
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center';
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `<div style="background:#0c0c20;border:1px solid rgba(201,162,39,0.4);border-radius:12px;padding:20px;max-width:500px;width:94%">
+    <div style="font-family:'Cinzel',serif;color:#c9a227;font-size:14px;margin-bottom:12px">🏰 LAIR ACTION — Initiative 20</div>
+    <div style="font-size:12px;color:#9098b8;line-height:1.7;margin-bottom:12px">${desc}</div>
+    <div style="display:flex;gap:8px">
+      <input type="text" id="lairDescInput" value="${lairActionDescription}" placeholder="Describe lair actions..." style="flex:1;background:#06061a;border:1px solid #2a2a50;border-radius:6px;padding:6px 10px;color:#e0e0ff;font-size:11px;font-family:inherit;outline:none">
+      <button onclick="lairActionDescription=document.getElementById('lairDescInput').value;logEntry('roll','🏰 <strong>LAIR ACTION</strong> triggered! '+lairActionDescription);this.closest('[style]').remove()" style="background:rgba(201,162,39,0.15);border:1px solid #c9a227;color:#c9a227;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:11px">✓ Trigger</button>
+      <button onclick="this.closest('[style]').remove()" style="background:none;border:1px solid #2a2a50;color:#4a5272;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:11px">✕</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
 }
 // ────────────────────────────────────────────────────────
 
