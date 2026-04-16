@@ -37491,6 +37491,166 @@ window._i242ClearAll = function(condName, event) {
   else window.addEventListener('load', inject);
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 243: Environmental Hazards Quick Reference
+// Rules for falling, drowning, fire, poison, extreme cold/heat, suffocation
+// With quick roll buttons for damage; DM notes for each hazard
+
+const _i243HAZARDS = [
+  {
+    name: 'Falling',
+    icon: '⬇',
+    color: '#cc6622',
+    rule: 'Fall damage: 1d6 bludgeoning per 10 ft (max 20d6). DC 15 DEX save to reduce by half if grasping object. Lands prone unless passes DC 15 DEX Acrobatics.',
+    dice: ['1d6','2d6','3d6','5d6','10d6','20d6'],
+    dmgType: 'bludgeoning',
+    extra: 'Common heights: 10ft=1d6, 20ft=2d6, 30ft=3d6, 50ft=5d6, 100ft=10d6, 200ft+=20d6',
+  },
+  {
+    name: 'Fire',
+    icon: '🔥',
+    color: '#ff5544',
+    rule: 'Catching fire: 1d10 fire/start of turn until action to extinguish (drop & roll or pour water). Flammable objects ignite.',
+    dice: ['1d10'],
+    dmgType: 'fire',
+    extra: 'Extinguish: Use action (stop, drop & roll). Doused by water (bucket, Create or Destroy Water).',
+  },
+  {
+    name: 'Suffocation',
+    icon: '💨',
+    color: '#4a5272',
+    rule: 'Can hold breath for CON mod+1 minutes (min 30 sec). After that: 0 HP + dying. DC 10 CON save each round while holding; fail = fail death save.',
+    dice: [],
+    dmgType: '',
+    extra: 'If forced underwater in armor: Athletics/Acrobatics DC 10 + armor penalty to stay afloat.',
+  },
+  {
+    name: 'Drowning',
+    icon: '🌊',
+    color: '#4488ff',
+    rule: 'Can survive underwater for CON modifier + 1 minutes (min 30 sec). After time runs out: 0 HP at start of next turn. Unconscious characters are immediately drowning.',
+    dice: [],
+    dmgType: '',
+    extra: 'Creature without a swimming speed must succeed Athletics to swim. DC set by DM (usually 10-15 for calm water).',
+  },
+  {
+    name: 'Extreme Cold',
+    icon: '❄',
+    color: '#44ddff',
+    rule: 'No cold resistance/immunity: DC 10 CON save each hour (DC increases by 5 per previous fail). Fail = gain Exhaustion level.',
+    dice: [],
+    dmgType: 'cold',
+    extra: 'Protection: winter clothing advantage on save. Thasha\'s Refreshing Cold Wine ignores for 1 hour.',
+  },
+  {
+    name: 'Extreme Heat',
+    icon: '☀',
+    color: '#ffcc00',
+    rule: 'No fire resistance/immunity: DC 5+1 per previous save CON save each hour. Fail = Exhaustion level. Heavy armor: disadvantage.',
+    dice: [],
+    dmgType: 'fire',
+    extra: 'Protection: water (1/hour), cool shelter. Endure Elements (2nd level) ignores natural environmental extremes.',
+  },
+  {
+    name: 'Poison',
+    icon: '☠',
+    color: '#44cc88',
+    rule: 'Ingested: varies. Contact: varies. Inhaled: DC varies CON save, 2d6 poison damage. Applies Poisoned condition on fail.',
+    dice: ['2d6','4d6'],
+    dmgType: 'poison',
+    extra: 'Common poisons: Essence of Ether (inhaled, DC 15, unconscious 8hr), Malice (inhaled, DC 15, blinded 1hr), Oil of Taggit (contact, DC 13, unconscious 24hr).',
+  },
+  {
+    name: 'Acid Splash',
+    icon: '💧',
+    color: '#aaff44',
+    rule: 'Improvised acid hazard: 1d4 acid/round in pool, more from vat or trap. Burning clothes: disadvantage until wiped off.',
+    dice: ['1d4','2d4','4d4','6d4'],
+    dmgType: 'acid',
+    extra: 'Acid dissolves non-magical metal in 1 hour (1 gallon). Magical items: DC CON save or take acid damage.',
+  },
+  {
+    name: 'Lightning Trap',
+    icon: '⚡',
+    color: '#ffff44',
+    rule: 'Electrical hazard: 3d6–8d6 lightning damage. Wet creatures: vulnerability. Metal armor: disadvantage on save.',
+    dice: ['3d6','5d6','8d6'],
+    dmgType: 'lightning',
+    extra: 'Being in water with active electricity: full damage, DEX save halves.',
+  },
+  {
+    name: 'Thunderwave / Sonic',
+    icon: '🌩',
+    color: '#9988ff',
+    rule: 'Sonic damage from explosions/collapses: 1d6–3d6 thunder. Creatures in range: CON save or knocked prone.',
+    dice: ['1d6','2d6','3d6'],
+    dmgType: 'thunder',
+    extra: 'Cave-in: 4d6 bludgeoning + prone. Reinforced structures may collapse after 2d6 rounds of combat.',
+  },
+];
+
+function openHazardRef() {
+  const ex = document.getElementById('i243HazardRef');
+  if (ex) { ex.remove(); return; }
+
+  const ov = document.createElement('div');
+  ov.id = 'i243HazardRef';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:9300;display:flex;align-items:center;justify-content:center';
+
+  const cards = _i243HAZARDS.map(h => {
+    const diceBtns = h.dice.map(d =>
+      `<button onclick="_i243RollHazard('${d}','${h.dmgType}','${h.name}',event)" style="background:rgba(0,0,0,.3);border:1px solid ${h.color}66;color:${h.color};border-radius:4px;padding:2px 7px;cursor:pointer;font-size:10px">${d}</button>`
+    ).join('');
+    return `<div style="background:rgba(0,0,0,.3);border:1px solid ${h.color}44;border-radius:8px;padding:10px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+        <span style="font-size:16px">${h.icon}</span>
+        <span style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:${h.color}">${h.name}</span>
+        ${diceBtns}
+      </div>
+      <div style="font-size:10px;color:#c0c0e0;margin-bottom:4px;line-height:1.5">${escHtml(h.rule)}</div>
+      ${h.extra ? `<div style="font-size:9px;color:#4a5272;font-style:italic">${escHtml(h.extra)}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  ov.innerHTML = `
+    <div style="background:#0a0a1e;border:1px solid rgba(201,162,39,.4);border-radius:12px;padding:18px;width:min(580px,95vw);max-height:88vh;overflow-y:auto;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <span style="font-family:'Cinzel',serif;color:#c9a227;font-weight:700">⚠ Environmental Hazards</span>
+        <button onclick="document.getElementById('i243HazardRef').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+      </div>
+      ${cards}
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+window._i243RollHazard = function(dice, dmgType, hazardName, event) {
+  if (event) event.stopPropagation();
+  const result = (typeof rollDiceExpr === 'function') ? rollDiceExpr(dice) : null;
+  if (result) {
+    const total = result.total;
+    if (typeof showToast === 'function') showToast(`${hazardName}: ${dice} = ${total} ${dmgType}`, '#c9a227', 2500);
+    if (typeof logEntry === 'function') logEntry('roll', `🌍 <strong>${escHtml(hazardName)}</strong>: ${dice}[${result.rolls.join('+')}] = <strong>${total}</strong> ${dmgType}`);
+  }
+};
+
+(function() {
+  const inject = () => {
+    if (document.getElementById('i243HazardBtn')) return;
+    const tb = document.querySelector('.toolbar-buttons') || document.querySelector('#toolbar') || document.querySelector('.toolbar');
+    if (!tb) return;
+    const btn = document.createElement('button');
+    btn.id = 'i243HazardBtn';
+    btn.innerHTML = '🌍 Hazards';
+    btn.title = 'Environmental hazard rules quick reference';
+    btn.style.cssText = 'background:rgba(201,162,39,.06);border:1px solid rgba(201,162,39,.2);color:rgba(201,162,39,.6);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;font-family:"Inter",sans-serif';
+    btn.onclick = () => openHazardRef();
+    tb.appendChild(btn);
+  };
+  if (document.readyState === 'complete') inject();
+  else window.addEventListener('load', inject);
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
