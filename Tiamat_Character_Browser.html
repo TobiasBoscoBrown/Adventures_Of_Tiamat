@@ -35286,6 +35286,123 @@ function _i228InjectCardBadges() {
   });
 }
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 229: Spell Upcast Slot Picker
+// When clicking a leveled spell in the quick-cast bar (Iter 212), show a mini slot picker
+// so the DM can choose to cast at a higher slot level (upcast).
+// Also shows upcast damage scaling for damage spells.
+
+function _i229ShowUpcaster(charName, spellName, minLevel, event) {
+  if (event) event.stopPropagation();
+  const ex = document.getElementById('i229Upcaster');
+  if (ex) { ex.remove(); return; }
+
+  // Get available slots for this character
+  const usedSlots = (typeof getUsedSlots === 'function') ? getUsedSlots(charName) : {};
+  const slotState_ = (typeof slotState !== 'undefined') ? slotState : {};
+  const charSlots = slotState_[charName] || {};
+
+  // Find spell in library
+  const spell = (typeof SPELL_LIBRARY !== 'undefined') ? SPELL_LIBRARY.find(s =>
+    s.name.toLowerCase() === spellName.toLowerCase()
+  ) : null;
+
+  // Determine available slots (level >= minLevel with uses remaining)
+  const availSlots = [];
+  for (let lvl = minLevel; lvl <= 9; lvl++) {
+    const total = charSlots[lvl] || 0;
+    const used = usedSlots[lvl] || 0;
+    const remaining = total - used;
+    if (remaining > 0 || lvl === minLevel) {
+      availSlots.push({ lvl, total, used, remaining });
+    }
+  }
+
+  if (!availSlots.length) {
+    if (typeof showToast === 'function') showToast(`No available slots to cast ${spellName}!`, '#cc3333', 2000);
+    return;
+  }
+
+  // Figure out damage scaling hint
+  let scalingHint = '';
+  if (spell?.damage) {
+    const baseDmg = spell.damage;
+    scalingHint = `<div style="font-size:9px;color:#4a5272;margin:4px 0">Base damage: ${escHtml(baseDmg)}</div>`;
+  }
+  if (spell?.upcast) {
+    scalingHint += `<div style="font-size:9px;color:#9b6dff;margin-bottom:6px">Upcast: ${escHtml(spell.upcast)}</div>`;
+  }
+
+  // Position near the click
+  const rect = event?.target?.getBoundingClientRect?.() || {bottom: 200, left: 100};
+  const ov = document.createElement('div');
+  ov.id = 'i229Upcaster';
+  ov.style.cssText = `position:fixed;top:${Math.min(rect.bottom + 8, window.innerHeight - 220)}px;left:${Math.max(10, Math.min(rect.left, window.innerWidth - 260))}px;z-index:9800;background:#0a0a1e;border:2px solid rgba(155,109,255,.5);border-radius:10px;padding:12px;width:240px;box-shadow:0 0 20px rgba(155,109,255,.3);font-family:'Inter',sans-serif`;
+
+  const slotBtns = availSlots.map(s => {
+    const hasSlots = s.remaining > 0;
+    return `<button onclick="_i229CastAtSlot('${charName.replace(/'/g,"\\'")}','${spellName.replace(/'/g,"\\'")}',${s.lvl},event)"
+      style="background:${hasSlots ? 'rgba(155,109,255,.2)' : 'rgba(0,0,0,.2)'};border:1px solid ${hasSlots ? '#9b6dff' : '#2a2a50'};color:${hasSlots ? '#9b6dff' : '#4a5272'};border-radius:6px;padding:6px 10px;cursor:${hasSlots ? 'pointer' : 'not-allowed'};font-size:11px;${hasSlots ? '' : 'opacity:.5'}"
+      ${hasSlots ? '' : 'disabled'}>
+      Level ${s.lvl} (${s.remaining}/${s.total} left)
+    </button>`;
+  }).join('');
+
+  ov.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-family:'Cinzel',serif;color:#9b6dff;font-size:11px;font-weight:700">✨ ${escHtml(spellName)}</span>
+      <button onclick="document.getElementById('i229Upcaster').remove()" style="background:none;border:none;color:#555;cursor:pointer;font-size:14px">✕</button>
+    </div>
+    ${scalingHint}
+    <div style="font-size:9px;color:#4a5272;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Choose Slot Level</div>
+    <div style="display:flex;flex-direction:column;gap:4px">${slotBtns}</div>`;
+  document.body.appendChild(ov);
+
+  // Click outside to dismiss
+  const dismiss = (e) => {
+    if (!ov.contains(e.target)) {
+      ov.remove();
+      document.removeEventListener('click', dismiss);
+    }
+  };
+  setTimeout(() => document.addEventListener('click', dismiss), 100);
+}
+
+window._i229CastAtSlot = function(charName, spellName, slotLevel, event) {
+  if (event) event.stopPropagation();
+  document.getElementById('i229Upcaster')?.remove();
+
+  // Delegate to _i212Cast if it exists
+  if (typeof _i212Cast === 'function') {
+    _i212Cast(charName, spellName, slotLevel, event);
+  } else {
+    // Fallback: manually decrement slot
+    if (typeof slotState !== 'undefined' && typeof saveSlots === 'function') {
+      if (!slotState[charName]) slotState[charName] = {};
+      slotState[charName][slotLevel] = (slotState[charName][slotLevel] || 0) + 1;
+      saveSlots();
+    }
+    if (typeof logEntry === 'function') logEntry('spell', `<strong>${escHtml(charName)}</strong> cast <em>${escHtml(spellName)}</em> at level ${slotLevel}`);
+    if (typeof showToast === 'function') showToast(`${spellName} cast at level ${slotLevel}!`, '#9b6dff', 2000);
+    if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+  }
+};
+
+// Override the onclick for leveled spells in the quick-cast bar to show the slot picker first
+// We do this by patching the _i212SpellRow output via a global click interceptor
+// Since _i212Cast is called by name in HTML, we wrap it
+if (typeof _i212Cast === 'function') {
+  const _orig212Cast = _i212Cast;
+  window._i212Cast = function(charName, spellName, level, event) {
+    if (event) event.stopPropagation();
+    if (level <= 0) {
+      // Cantrip — cast directly, no slot picker needed
+      return _orig212Cast(charName, spellName, level, event);
+    }
+    // Show upcast picker for leveled spells
+    _i229ShowUpcaster(charName, spellName, level, event);
+  };
+}
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
