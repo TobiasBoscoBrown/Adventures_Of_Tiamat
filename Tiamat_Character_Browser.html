@@ -38614,6 +38614,205 @@ window._i250SetAll = function(enabled) {
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Iter 262: Character Tag System
+// Add custom DM tags to any character (e.g. "quest giver", "enemy", "dead", "captured").
+// Tags appear as colored badges on character cards and in the modal.
+// Filter the character grid by tag. Predefined + custom tags supported.
+(function() {
+  const _i262KEY = 'tiamat_char_tags';
+
+  const PRESET_TAGS = [
+    { label: 'Quest Giver',  color: '#c9a227', bg: 'rgba(201,162,39,.12)' },
+    { label: 'Ally',         color: '#44cc88', bg: 'rgba(68,204,136,.1)' },
+    { label: 'Enemy',        color: '#cc4444', bg: 'rgba(204,68,68,.1)' },
+    { label: 'Neutral',      color: '#8888aa', bg: 'rgba(100,100,140,.1)' },
+    { label: 'Dead',         color: '#3a3a5a', bg: 'rgba(40,40,60,.2)' },
+    { label: 'Captured',     color: '#ff9944', bg: 'rgba(255,153,68,.1)' },
+    { label: 'Missing',      color: '#7a5aff', bg: 'rgba(122,90,255,.1)' },
+    { label: 'Party Member', color: '#4488ff', bg: 'rgba(68,136,255,.1)' },
+    { label: 'Villain',      color: '#cc44aa', bg: 'rgba(204,68,170,.1)' },
+    { label: 'Minion',       color: '#aa4422', bg: 'rgba(170,68,34,.1)' },
+    { label: 'Informant',    color: '#44aadd', bg: 'rgba(68,170,221,.1)' },
+    { label: 'Merchant',     color: '#aabb44', bg: 'rgba(170,187,68,.1)' },
+  ];
+
+  function _i262Load() { try { return JSON.parse(localStorage.getItem(_i262KEY) || '{}'); } catch { return {}; } }
+  function _i262Save(d) { localStorage.setItem(_i262KEY, JSON.stringify(d)); }
+
+  function _i262GetTags(charName) { return _i262Load()[charName] || []; }
+
+  function _i262GetTagStyle(label) {
+    const p = PRESET_TAGS.find(t => t.label === label);
+    return p ? { color: p.color, bg: p.bg } : { color: '#9b6dff', bg: 'rgba(155,109,255,.1)' };
+  }
+
+  // Render tag badges for a character
+  window._i262RenderBadges = function(charName) {
+    const tags = _i262GetTags(charName);
+    return tags.map(tag => {
+      const { color, bg } = _i262GetTagStyle(tag);
+      return `<span style="display:inline-block;font-size:9px;color:${color};background:${bg};border:1px solid ${color}33;border-radius:4px;padding:1px 5px;margin:1px;cursor:pointer" onclick="event.stopPropagation();_i262OpenTagEditor('${charName.replace(/'/g,"\\'")}',event)" title="Edit tags">${escHtml(tag)}</span>`;
+    }).join('');
+  };
+
+  // Open tag editor popup near a character
+  window._i262OpenTagEditor = function(charName, event) {
+    document.querySelectorAll('.i262TagPopup').forEach(e => e.remove());
+    const tags = _i262GetTags(charName);
+    const all = _i262Load();
+
+    const presetBtns = PRESET_TAGS.map(p => {
+      const hasTag = tags.includes(p.label);
+      return `<button onclick="_i262ToggleTag('${charName.replace(/'/g,"\\'")}','${p.label.replace(/'/g,"\\'")}',this)" title="${p.label}"
+        style="padding:3px 7px;font-size:10px;cursor:pointer;border-radius:4px;margin:2px;
+          border:1px solid ${hasTag ? p.color : '#2a2a4a'};
+          background:${hasTag ? p.bg : 'rgba(255,255,255,.02)'};
+          color:${hasTag ? p.color : '#5a5a7a'}">${p.label}</button>`;
+    }).join('');
+
+    const pop = document.createElement('div');
+    pop.className = 'i262TagPopup';
+    pop.style.cssText = 'position:fixed;background:#0a0a1e;border:1px solid rgba(155,109,255,.35);border-radius:10px;padding:10px;z-index:9800;width:240px;box-shadow:0 8px 30px rgba(0,0,0,.8)';
+    if (event) {
+      const r = event.target.getBoundingClientRect();
+      pop.style.left = Math.min(r.left, window.innerWidth - 260) + 'px';
+      pop.style.top = (r.bottom + 4) + 'px';
+    } else {
+      pop.style.left = '50%'; pop.style.top = '50%'; pop.style.transform = 'translate(-50%,-50%)';
+    }
+    pop.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:11px;color:#9b6dff;font-weight:700">Tags: ${escHtml(charName)}</span>
+        <button onclick="this.closest('.i262TagPopup').remove()" style="background:none;border:none;color:#555;cursor:pointer;font-size:12px">✕</button>
+      </div>
+      <div style="margin-bottom:8px;display:flex;flex-wrap:wrap">${presetBtns}</div>
+      <div style="display:flex;gap:4px">
+        <input id="i262CustomTag" placeholder="Custom tag" style="flex:1;background:#06061a;border:1px solid #1e2040;color:#c0c0e0;border-radius:5px;padding:3px 6px;font-size:10px;outline:none" onkeydown="if(event.key==='Enter')_i262AddCustom('${charName.replace(/'/g,"\\'")}')">
+        <button onclick="_i262AddCustom('${charName.replace(/'/g,"\\'")}',this)" style="background:rgba(155,109,255,.08);border:1px solid rgba(155,109,255,.25);color:#9b6dff;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:10px">+</button>
+      </div>
+      ${tags.length ? `<div style="margin-top:6px;font-size:9px;color:#3a3a60"><button onclick="_i262ClearAll('${charName.replace(/'/g,"\\'")}',this)" style="background:none;border:none;color:#3a3a60;cursor:pointer;font-size:9px">↺ Clear all tags</button></div>` : ''}`;
+    document.body.appendChild(pop);
+    // Close on outside click
+    setTimeout(() => {
+      const handler = (e) => { if (!pop.contains(e.target)) { pop.remove(); document.removeEventListener('click', handler); } };
+      document.addEventListener('click', handler);
+    }, 10);
+  };
+
+  window._i262ToggleTag = function(charName, tag, btn) {
+    const all = _i262Load();
+    const tags = all[charName] || [];
+    const idx = tags.indexOf(tag);
+    if (idx >= 0) tags.splice(idx, 1);
+    else tags.push(tag);
+    all[charName] = tags;
+    _i262Save(all);
+    // Update button appearance
+    const p = PRESET_TAGS.find(t => t.label === tag);
+    if (btn && p) {
+      const hasTag = tags.includes(tag);
+      btn.style.border = `1px solid ${hasTag ? p.color : '#2a2a4a'}`;
+      btn.style.background = hasTag ? p.bg : 'rgba(255,255,255,.02)';
+      btn.style.color = hasTag ? p.color : '#5a5a7a';
+    }
+    _i262RefreshCards(charName);
+  };
+
+  window._i262AddCustom = function(charName, btn) {
+    const inp = document.getElementById('i262CustomTag');
+    const tag = (inp?.value || '').trim();
+    if (!tag) return;
+    const all = _i262Load();
+    const tags = all[charName] || [];
+    if (!tags.includes(tag)) tags.push(tag);
+    all[charName] = tags;
+    _i262Save(all);
+    if (inp) inp.value = '';
+    _i262RefreshCards(charName);
+    document.querySelector('.i262TagPopup')?.remove();
+    if (typeof showToast === 'function') showToast(`Tagged ${charName}: "${tag}"`);
+  };
+
+  window._i262ClearAll = function(charName, btn) {
+    const all = _i262Load();
+    delete all[charName];
+    _i262Save(all);
+    _i262RefreshCards(charName);
+    document.querySelector('.i262TagPopup')?.remove();
+  };
+
+  function _i262RefreshCards(charName) {
+    // Refresh tag badges in all visible card containers
+    document.querySelectorAll('[data-char-tag-host]').forEach(el => {
+      if (el.dataset.charTagHost === charName) {
+        el.innerHTML = _i262RenderBadges(charName);
+      }
+    });
+    if (typeof renderGrid === 'function') renderGrid();
+  }
+
+  // Inject a toolbar button for "Filter by Tag"
+  function _i262InjectBtn() {
+    if (document.getElementById('i262TagFilterBtn')) return;
+    const ref = document.getElementById('i261CurrBtn') || document.getElementById('passivesBtn');
+    if (!ref) return;
+    const btn = document.createElement('button');
+    btn.id = 'i262TagFilterBtn';
+    btn.className = 'encounter-open-btn';
+    btn.textContent = '🏷 Tags';
+    btn.title = 'Character Tag System — add/filter tags like Quest Giver, Enemy, Dead';
+    btn.style.cssText = 'border-color:#9b6dff;color:#9b6dff';
+    btn.onclick = () => _i262OpenFilterPanel();
+    ref.insertAdjacentElement('afterend', btn);
+  }
+  document.addEventListener('DOMContentLoaded', _i262InjectBtn);
+  setTimeout(_i262InjectBtn, 3000);
+
+  window._i262OpenFilterPanel = function() {
+    const ex = document.getElementById('i262FilterPanel');
+    if (ex) { ex.remove(); return; }
+    const all = _i262Load();
+    // Find all tags in use
+    const allTags = new Set();
+    Object.values(all).forEach(tags => tags.forEach(t => allTags.add(t)));
+    const chars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+
+    const tagGroups = [...allTags].map(tag => {
+      const charList = chars.filter(c => (_i262GetTags(c.name) || []).includes(tag));
+      const { color, bg } = _i262GetTagStyle(tag);
+      return { tag, charList, color, bg };
+    });
+
+    const ov = document.createElement('div');
+    ov.id = 'i262FilterPanel';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9700;display:flex;align-items:center;justify-content:center';
+    ov.innerHTML = `
+      <div style="background:#0a0a1e;border:1px solid rgba(155,109,255,.35);border-radius:12px;padding:18px;width:min(480px,96vw);max-height:85vh;overflow-y:auto;font-family:'Inter',sans-serif">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <span style="font-family:'Cinzel',serif;color:#9b6dff;font-weight:700;font-size:15px">🏷 Character Tags</span>
+          <button onclick="document.getElementById('i262FilterPanel').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+        </div>
+        ${tagGroups.length ? tagGroups.map(({ tag, charList, color, bg }) => `
+          <div style="margin-bottom:10px">
+            <div style="font-size:11px;font-weight:700;color:${color};background:${bg};border:1px solid ${color}33;border-radius:5px;padding:3px 8px;display:inline-block;margin-bottom:5px">${escHtml(tag)}</div>
+            <div style="padding-left:8px">${charList.map(c =>
+              `<span style="font-size:11px;color:#c0c0e0;margin-right:10px;cursor:pointer" onclick="document.getElementById('i262FilterPanel').remove();_i262OpenTagEditor('${c.name.replace(/'/g,"\\'")}',null)">${escHtml(c.name)}</span>`
+            ).join('')}</div>
+          </div>`
+        ).join('') : '<div style="color:#3a3a60;text-align:center;padding:20px">No tags assigned yet.<br><br>Open a character and click ✎ or use the character modal to add tags.</div>'}
+        <div style="margin-top:12px;border-top:1px solid #1e2040;padding-top:10px;font-size:10px;color:#3a3a60">
+          To add tags: search for a character, open their modal, look for the 🏷 button. Or use the tag system on character cards.
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  };
+
+  // Expose helper for other features to inject tags into character cards
+  window._i262GetTags = _i262GetTags;
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Iter 261: Currency Exchange Calculator
 // Quick panel to convert between CP/SP/EP/GP/PP.
 // Enter any amount in any denomination, see all equivalent values instantly.
