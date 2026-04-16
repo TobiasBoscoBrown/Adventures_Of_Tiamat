@@ -34021,6 +34021,128 @@ function openInspirationPanel() {
   else window.addEventListener('load', injectInsp);
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 220: Concentration Save Prompt on Damage
+// When HP is reduced and the character has concentration, auto-prompt for CON save
+// DC = max(10, half the damage taken). Shows pass/fail, drops concentration on fail.
+// Triggered from quick-HP buttons and any HP change via a patched applyHpChange
+
+function _i220ConSavePrompt(charName, damageTaken) {
+  if (!damageTaken || damageTaken <= 0) return;
+  // Check concentration
+  const concSpell = (typeof getConcSpell === 'function') ? getConcSpell(charName) : null;
+  if (!concSpell) return;
+
+  const dc = Math.max(10, Math.floor(damageTaken / 2));
+
+  // Find CON modifier
+  const char = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS.find(c => c.name === charName) : null;
+  let conMod = 0;
+  if (char && char.abilities) {
+    const conAbility = char.abilities.find(a => a[0] === 'CON' || a[0] === 'Constitution');
+    if (conAbility) conMod = conAbility[2] ? parseInt(conAbility[2]) : Math.floor((conAbility[1] - 10) / 2);
+  }
+  const conModStr = conMod >= 0 ? `+${conMod}` : `${conMod}`;
+
+  // Show a floating prompt
+  const ex = document.getElementById('i220ConSavePrompt');
+  if (ex) ex.remove();
+
+  const prompt = document.createElement('div');
+  prompt.id = 'i220ConSavePrompt';
+  prompt.style.cssText = 'position:fixed;bottom:80px;right:20px;z-index:9600;background:#0a0a1e;border:2px solid #9b6dff;border-radius:10px;padding:14px 16px;width:240px;box-shadow:0 0 20px rgba(155,109,255,.4);font-family:"Inter",sans-serif;animation:slideUp .3s ease';
+
+  prompt.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-family:'Cinzel',serif;color:#9b6dff;font-size:11px;font-weight:700">⚡ CONCENTRATION SAVE</span>
+      <button onclick="document.getElementById('i220ConSavePrompt')?.remove()" style="background:none;border:none;color:#555;cursor:pointer;font-size:14px;line-height:1">✕</button>
+    </div>
+    <div style="font-size:11px;color:#c0c0e0;margin-bottom:6px">
+      <strong style="color:#e0e0ff">${escHtml(charName)}</strong> took <strong style="color:#ff6644">${damageTaken} damage</strong><br>
+      Concentrating: <em style="color:#9b6dff">${escHtml(concSpell)}</em>
+    </div>
+    <div style="font-size:10px;color:#c9a227;margin-bottom:10px">DC ${dc} CON save (CON ${conModStr})</div>
+    <div style="display:flex;gap:6px">
+      <button onclick="_i220RollConSave('${charName.replace(/'/g,"\\'")}','${concSpell.replace(/'/g,"\\'")}',${dc},${conMod},event)"
+        style="flex:1;background:rgba(155,109,255,.15);border:1px solid #9b6dff;color:#9b6dff;border-radius:7px;padding:7px;cursor:pointer;font-size:12px;font-weight:700">
+        🎲 Roll Save
+      </button>
+      <button onclick="_i220ManualResult('${charName.replace(/'/g,"\\'")}','${concSpell.replace(/'/g,"\\'")}',true,event)"
+        style="flex:1;background:rgba(68,204,136,.1);border:1px solid #44cc88;color:#44cc88;border-radius:7px;padding:7px;cursor:pointer;font-size:11px">
+        ✓ Pass
+      </button>
+      <button onclick="_i220ManualResult('${charName.replace(/'/g,"\\'")}','${concSpell.replace(/'/g,"\\'")}',false,event)"
+        style="flex:1;background:rgba(204,51,51,.1);border:1px solid #cc3333;color:#cc3333;border-radius:7px;padding:7px;cursor:pointer;font-size:11px">
+        ✗ Fail
+      </button>
+    </div>`;
+  document.body.appendChild(prompt);
+
+  // Auto-remove after 30s
+  setTimeout(() => document.getElementById('i220ConSavePrompt')?.remove(), 30000);
+}
+
+function _i220RollConSave(charName, concSpell, dc, conMod, event) {
+  if (event) event.stopPropagation();
+  const die = Math.floor(Math.random() * 20) + 1;
+  const total = die + conMod;
+  const passed = die === 20 || (die !== 1 && total >= dc);
+  const modStr = conMod >= 0 ? `+${conMod}` : `${conMod}`;
+  const detailStr = `d20(${die})${modStr}=${total} vs DC ${dc}`;
+
+  const color = passed ? '#44cc88' : '#cc3333';
+  const label = die === 20 ? '★ NAT 20 — PASS!' : die === 1 ? '☠ NAT 1 — FAIL!' : passed ? `PASS (${total} ≥ ${dc})` : `FAIL (${total} < ${dc})`;
+
+  if (typeof logEntry === 'function') {
+    logEntry('roll', `<strong>${escHtml(charName)}</strong> Concentration save (${escHtml(concSpell)}): ${detailStr} — <strong style="color:${color}">${label}</strong>`);
+  }
+
+  document.getElementById('i220ConSavePrompt')?.remove();
+
+  if (!passed) {
+    if (typeof clearConc === 'function') clearConc(charName);
+    if (typeof showToast === 'function') showToast(`💔 ${charName} lost concentration on ${concSpell}!`, '#cc3333', 3500);
+    if (typeof renderInitiative === 'function') renderInitiative();
+  } else {
+    if (typeof showToast === 'function') showToast(`✓ ${charName} maintained ${concSpell} (${total} ≥ DC ${dc})`, '#44cc88', 2500);
+  }
+}
+
+function _i220ManualResult(charName, concSpell, passed, event) {
+  if (event) event.stopPropagation();
+  document.getElementById('i220ConSavePrompt')?.remove();
+  if (!passed) {
+    if (typeof clearConc === 'function') clearConc(charName);
+    if (typeof showToast === 'function') showToast(`💔 ${charName} lost concentration on ${concSpell}!`, '#cc3333', 3000);
+    if (typeof logEntry === 'function') logEntry('system', `<strong>${escHtml(charName)}</strong> failed concentration — <em>${escHtml(concSpell)}</em> ended`);
+    if (typeof renderInitiative === 'function') renderInitiative();
+  } else {
+    if (typeof showToast === 'function') showToast(`✓ ${charName} kept concentration on ${concSpell}`, '#44cc88', 2000);
+  }
+}
+
+// Patch HP delta application to trigger concentration prompt
+// Hook into the quick-hp +/- button handlers by watching hpState changes
+(function() {
+  // Intercept saveHp to detect damage (negative delta)
+  if (typeof saveHp !== 'function') return;
+  const _origSaveHp = saveHp;
+  saveHp = function(charName, newHp) {
+    // Compute delta from current HP
+    const oldHp = (typeof getCharHP === 'function') ? getCharHP(charName) : null;
+    const result = _origSaveHp.apply(this, arguments);
+    if (oldHp !== null) {
+      const newHpVal = (typeof getCharHP === 'function') ? getCharHP(charName) : newHp;
+      const delta = (typeof newHpVal === 'number' ? newHpVal : 0) - (typeof oldHp === 'number' ? oldHp : 0);
+      if (delta < 0) {
+        // Small delay so HP is saved before prompt appears
+        setTimeout(() => _i220ConSavePrompt(charName, Math.abs(delta)), 150);
+      }
+    }
+    return result;
+  };
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
