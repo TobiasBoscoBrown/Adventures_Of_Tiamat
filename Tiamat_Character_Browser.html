@@ -6191,6 +6191,17 @@ function buildStatsPanel(c) {
         <span class="stat-chip" onclick="i272OpenAcPopup(${JSON.stringify(c.name)},${JSON.stringify(c.ac)},${JSON.stringify(dex.mod)},event)" title="Click to view AC breakdown" style="cursor:pointer" onmouseover="this.style.background='rgba(68,136,255,.1)'" onmouseout="this.style.background=''"><strong>AC</strong> ${(() => { const bonus = typeof i272GetAcBonus === 'function' ? i272GetAcBonus(c.name) : 0; return bonus !== 0 ? '<span style="color:#4488ff">' + (parseInt(c.ac)+bonus) + '</span><span style="font-size:9px;color:#4a5272"> ('+c.ac+(bonus>0?'+'+bonus:bonus)+')</span>' : c.ac; })()}</span>
         <span class="stat-chip" onclick="i275OpenProfEdit(${JSON.stringify(c.name)},${_crProf},event)" style="cursor:pointer" title="Click to override proficiency bonus (set character level)" onmouseover="this.style.background='rgba(155,109,255,.1)'" onmouseout="this.style.background=''"><strong>Prof</strong> +${prof}${typeof i275GetOverride === 'function' && i275GetOverride(c.name) ? '<span style="font-size:9px;color:#9b6dff;margin-left:2px">✎</span>' : ''}</span>
         <span class="stat-chip"><strong>Passive Perc</strong> ${passivePerc}</span>
+        ${(() => {
+          const speeds = c.speeds || inferSpeed(c);
+          const walk = speeds.find(s => s.label === 'Walk');
+          const fly = speeds.find(s => s.label === 'Fly');
+          const swim = speeds.find(s => s.label === 'Swim');
+          const extras = [fly, swim].filter(Boolean).map(s => s.icon + s.value.replace(' ft','')).join(' ');
+          return '<span class="stat-chip" title="Movement speeds — ' + speeds.map(s=>s.label+': '+s.value).join(', ') + '">'
+            + '<strong>Speed</strong> ' + (walk ? walk.value : '30 ft')
+            + (extras ? '<span style="font-size:9px;color:#4a5272;margin-left:3px">' + extras + '</span>' : '')
+            + '</span>';
+        })()}
         <span class="stat-chip" onclick="i270RollInitiative(${JSON.stringify(c.name)},${JSON.stringify(dex.mod)})" title="Click to roll initiative (d20${dex.mod})" style="cursor:pointer;border-color:rgba(201,162,39,.4);color:#c9a227;user-select:none" onmouseover="this.style.background='rgba(201,162,39,.1)'" onmouseout="this.style.background=''"><strong>Init</strong> ${dex.mod}</span>
         ${isSpellcaster(c) ? (() => {
           const spMod = Math.max(parseInt(int_.mod)||0, parseInt(wis.mod)||0, parseInt(cha.mod)||0);
