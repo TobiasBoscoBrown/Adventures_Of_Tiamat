@@ -33315,6 +33315,160 @@ function _i215ApplyAoe() {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 216: Custom Attack Macros per Character
+// Define specific attacks (e.g. "Greatsword +12, 2d6+8 slashing") for any NPC.
+// Macros appear as quick-roll buttons in the active turn bar, giving DMs exact
+// attack stats instead of generic Melee/Ranged buttons. Persists across sessions.
+// ─────────────────────────────────────────────────────────────────────────────
+const _i216MacroKey = 'tiamat_attack_macros';
+function _i216LoadMacros() { try { return JSON.parse(localStorage.getItem(_i216MacroKey) || '{}'); } catch { return {}; } }
+function _i216SaveMacros(d) { localStorage.setItem(_i216MacroKey, JSON.stringify(d)); }
+function _i216GetMacros(charName) { return _i216LoadMacros()[charName] || []; }
+function _i216SetMacros(charName, list) { const d = _i216LoadMacros(); if (list.length) d[charName] = list; else delete d[charName]; _i216SaveMacros(d); }
+
+(function() {
+  const _orig216 = renderActiveTurnBar;
+  renderActiveTurnBar = function() {
+    _orig216();
+    _i216MacroRow();
+  };
+})();
+
+function _i216MacroRow() {
+  const bar = document.getElementById('activeTurnBar');
+  if (!bar || bar.style.display === 'none') return;
+  if (!initiativeList || !initiativeList.length || currentTurnIdx < 0) return;
+  const e = initiativeList[currentTurnIdx];
+  if (!e) return;
+  const macros = _i216GetMacros(e.name);
+  if (!macros.length) {
+    // Just show the "+" button to add macros
+    const addSpan = document.createElement('span');
+    addSpan.style.cssText = 'display:inline-block;margin-top:3px;';
+    addSpan.innerHTML = `<button onclick="_i216OpenEditor(${JSON.stringify(e.name)},event)" style="background:none;border:1px dashed rgba(255,255,255,.1);color:#3a3a60;border-radius:4px;padding:1px 7px;cursor:pointer;font-size:9px" title="Add custom attack macros for ${e.name}">+ Custom Attacks</button>`;
+    bar.appendChild(addSpan);
+    return;
+  }
+
+  let h = `<div style="margin-top:4px;border-top:1px solid rgba(200,160,60,.15);padding-top:4px">`;
+  h += `<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">`;
+  h += `<span style="font-size:9px;color:#c9a227;letter-spacing:.5px;min-width:34px">ATTACKS</span>`;
+  h += `<button onclick="_i216OpenEditor(${JSON.stringify(e.name)},event)" style="background:none;border:1px solid rgba(201,162,39,.2);color:#6a5a20;border-radius:3px;padding:0 5px;cursor:pointer;font-size:8px" title="Edit attack macros">✎ Edit</button>`;
+  h += `</div><div style="display:flex;flex-wrap:wrap;gap:3px;">`;
+
+  macros.forEach((m, i) => {
+    const hitStr = m.hit >= 0 ? `+${m.hit}` : `${m.hit}`;
+    h += `<button onclick="_i216RollMacro(${JSON.stringify(e.name)},${i},event)"
+      title="${m.name}: d20${hitStr} to hit, ${m.dmg} ${m.type} damage"
+      style="background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.2);color:#c9a227;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:9px;line-height:1.5">
+      ⚔ ${escHtml(m.name.length>14?m.name.slice(0,13)+'…':m.name)}<span style="font-size:8px;opacity:.6"> ${hitStr}</span>
+    </button>`;
+  });
+  h += `</div></div>`;
+  bar.innerHTML += h;
+}
+
+function _i216RollMacro(charName, idx, event) {
+  if (event) event.stopPropagation();
+  const macros = _i216GetMacros(charName);
+  const m = macros[idx];
+  if (!m) return;
+
+  const rvResult = (typeof rollWithAdv === 'function') ? rollWithAdv(charName, m.hit) : {die: Math.floor(Math.random()*20)+1, detail: null};
+  const die = rvResult.die, detail = rvResult.detail;
+  const total = die + m.hit;
+  const isCrit = die === 20, isFumble = die === 1;
+  const hitStr = m.hit >= 0 ? `+${m.hit}` : `${m.hit}`;
+
+  // Check vs target if set
+  const target = (typeof _i213Targets !== 'undefined') ? _i213Targets[charName] : null;
+  let hitMissLabel = '';
+  if (target) {
+    const hit = isCrit || (!isFumble && total >= target.ac);
+    hitMissLabel = ` — <strong style="color:${isCrit?'#ffcc00':hit?'#44cc88':'#cc3333'}">${isCrit?'★ CRIT!':isFumble?'☠ MISS':hit?'HIT!':'MISS'}</strong>${target?' vs '+escHtml(target.name)+' AC'+target.ac:''}`;
+  }
+
+  // Roll damage
+  let dmgHtml = '';
+  if ((isCrit || (target ? (isCrit || (!isFumble && total >= target.ac)) : true)) && !isFumble) {
+    const dmgResult = (typeof rollDiceExpr === 'function') ? rollDiceExpr(m.dmg) : null;
+    if (dmgResult) {
+      const diceCount = isCrit ? 2 : 1;
+      let critExtra = '';
+      if (isCrit) {
+        const extra = (typeof rollDiceExpr === 'function') ? rollDiceExpr(m.dmg) : null;
+        if (extra) {
+          const combined = dmgResult.total + extra.total;
+          critExtra = ` 💥 CRIT: [${dmgResult.rolls.join('+')}]+[${extra.rolls.join('+')}] = ${combined} ${m.type}`;
+          dmgHtml = ` → <strong style="color:#ff6644">${combined} ${m.type}</strong>`;
+          if (typeof logEntry === 'function') logEntry('roll', `  → Crit Dmg: ${critExtra}`);
+        }
+      } else {
+        dmgHtml = ` → <strong style="color:#ff6644">${dmgResult.total} ${m.type}</strong>`;
+        if (typeof logEntry === 'function') logEntry('roll', `  → Dmg: ${m.dmg}[${dmgResult.rolls.join('+')}] = ${dmgResult.total} ${m.type}`);
+      }
+    }
+  }
+
+  if (typeof logEntry === 'function') logEntry('roll', `<strong>${escHtml(charName)}</strong> ⚔ ${escHtml(m.name)}: d20${detail||'('+die+')'}${hitStr}=<strong>${total}</strong>${isCrit?'★':isFumble?'☠':''}${hitMissLabel}${dmgHtml}`);
+  if (typeof showToast === 'function') showToast(`${m.name}: ${total}${isCrit?' ★':isFumble?' ☠':''}${dmgHtml?dmgHtml.replace(/<[^>]+>/g,''):''}`, isCrit?'#ffcc00':isFumble?'#cc3333':'#c9a227', 3000);
+  if (typeof playSound === 'function') playSound(isCrit ? 'crit' : 'roll');
+}
+
+function _i216OpenEditor(charName, event) {
+  if (event) event.stopPropagation();
+  const ex = document.getElementById('i216EditorOverlay');
+  if (ex) { ex.remove(); return; }
+  const macros = _i216GetMacros(charName);
+
+  const ov = document.createElement('div');
+  ov.id = 'i216EditorOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9500;display:flex;align-items:center;justify-content:center;font-family:"Inter",sans-serif';
+
+  const dmgTypes = ['slashing','piercing','bludgeoning','fire','cold','lightning','acid','poison','necrotic','radiant','thunder','force','psychic'];
+  const macroRows = macros.map((m, i) =>
+    `<div style="display:flex;gap:6px;align-items:center;margin-bottom:5px">
+      <input value="${escHtml(m.name)}" onchange="window._i216editMacros[${i}].name=this.value" style="flex:1.5;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:5px;padding:4px 7px;font-size:11px;outline:none" placeholder="Attack name">
+      <input type="number" value="${m.hit}" onchange="window._i216editMacros[${i}].hit=parseInt(this.value)||0" style="width:50px;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:5px;padding:4px 6px;font-size:11px;text-align:center;outline:none" placeholder="+hit">
+      <input value="${escHtml(m.dmg)}" onchange="window._i216editMacros[${i}].dmg=this.value" style="width:70px;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:5px;padding:4px 6px;font-size:11px;outline:none" placeholder="2d6+5">
+      <select onchange="window._i216editMacros[${i}].type=this.value" style="flex:1;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:5px;padding:4px 5px;font-size:11px;outline:none">
+        ${dmgTypes.map(t => `<option value="${t}" ${t===m.type?'selected':''}>${t}</option>`).join('')}
+      </select>
+      <button onclick="window._i216editMacros.splice(${i},1);document.getElementById('i216EditorOverlay').remove();_i216OpenEditor(${JSON.stringify(charName)},null)" style="background:rgba(204,51,51,.1);border:1px solid #cc3333;color:#cc5555;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:11px">✕</button>
+    </div>`
+  ).join('');
+
+  window._i216editMacros = macros.map(m => ({...m}));
+
+  ov.innerHTML = `
+    <div style="background:#0a0a1e;border:1px solid rgba(201,162,39,.4);border-radius:12px;padding:18px;width:min(480px,95vw);max-height:80vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <span style="font-family:'Cinzel',serif;color:#c9a227;font-weight:700">⚔ ${escHtml(charName)} — Attack Macros</span>
+        <button onclick="document.getElementById('i216EditorOverlay').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+      </div>
+      <div style="font-size:10px;color:#4a5272;margin-bottom:10px">Define specific attacks — they appear as quick-roll buttons during this character's turn.</div>
+      <div style="font-size:9px;color:#4a5272;display:grid;grid-template-columns:1.5fr 50px 70px 1fr 28px;gap:6px;margin-bottom:4px;padding:0 0 4px;border-bottom:1px solid #1e2040">
+        <span>NAME</span><span style="text-align:center">+HIT</span><span>DAMAGE</span><span>TYPE</span><span></span>
+      </div>
+      <div id="i216MacroRows">${macroRows}</div>
+      <button onclick="window._i216editMacros.push({name:'Attack',hit:5,dmg:'1d8+3',type:'slashing'});document.getElementById('i216EditorOverlay').remove();_i216OpenEditor(${JSON.stringify(charName)},null)" style="margin:8px 0;background:rgba(201,162,39,.08);border:1px dashed rgba(201,162,39,.3);color:#c9a227;border-radius:6px;padding:6px;width:100%;cursor:pointer;font-size:12px">+ Add Attack</button>
+      <button onclick="_i216SaveEditor(${JSON.stringify(charName)})" style="width:100%;background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.5);color:#c9a227;border-radius:8px;padding:9px;cursor:pointer;font-size:13px;font-weight:700">💾 Save Macros</button>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', ev => { if (ev.target === ov) ov.remove(); });
+}
+
+function _i216SaveEditor(charName) {
+  const macros = (window._i216editMacros || []).filter(m => m.name && m.dmg);
+  _i216SetMacros(charName, macros);
+  document.getElementById('i216EditorOverlay')?.remove();
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+  if (typeof showToast === 'function') showToast(`${charName}: ${macros.length} attack macros saved!`, '#c9a227', 2500);
+}
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
