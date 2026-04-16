@@ -40959,6 +40959,106 @@ window._i250SetAll = function(enabled) {
   };
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 268: Roll DC Tracker — set a difficulty class before rolling
+// All ability/skill/save rolls in the modal show PASS/FAIL against the DC.
+// DC input appears in the Adv/Dis bar (Iter 266). Clears when modal closes.
+(function() {
+  window._i268DC = null; // null = no DC set
+
+  // Patch showModalRollResult to append PASS/FAIL
+  const _origShow = window.showModalRollResult;
+  window.showModalRollResult = function(msg, isCrit, isFumble, total) {
+    const dc = window._i268DC;
+    let finalMsg = msg;
+    let finalCrit = isCrit, finalFumble = isFumble;
+    if (dc !== null) {
+      const passed = total >= dc;
+      finalMsg = msg + (passed ? ' — ✅ PASS (DC ' + dc + ')' : ' — ❌ FAIL (DC ' + dc + ')');
+      if (!passed) finalCrit = false; // override color on fail
+    }
+    if (typeof _origShow === 'function') _origShow(finalMsg, finalCrit, finalFumble, total);
+    else {
+      let el = document.getElementById('modalRollBanner');
+      if (el) { el.textContent = finalMsg; el.style.opacity = '1'; }
+    }
+    // Update PASS/FAIL indicator in DC bar if present
+    const ind = document.getElementById('i268PassFailInd');
+    if (ind && dc !== null) {
+      const passed = total >= dc;
+      ind.textContent = passed ? '✅ PASS' : '❌ FAIL';
+      ind.style.color = passed ? '#44cc88' : '#cc4444';
+      ind.style.opacity = '1';
+      clearTimeout(ind._t);
+      ind._t = setTimeout(() => { if(ind) ind.style.opacity = '0.4'; }, 3000);
+    }
+  };
+
+  window.i268SetDC = function(val) {
+    window._i268DC = val === '' || val === null ? null : parseInt(val);
+    const inp = document.getElementById('i268DCInput');
+    if (inp && window._i268DC !== null) inp.value = window._i268DC;
+    const ind = document.getElementById('i268PassFailInd');
+    if (ind) {
+      ind.textContent = window._i268DC !== null ? 'DC ' + window._i268DC + ' set' : '';
+      ind.style.color = '#4a5272';
+      ind.style.opacity = window._i268DC !== null ? '1' : '0';
+    }
+  };
+
+  window.i268ClearDC = function() {
+    window._i268DC = null;
+    const inp = document.getElementById('i268DCInput');
+    if (inp) inp.value = '';
+    const ind = document.getElementById('i268PassFailInd');
+    if (ind) { ind.textContent = ''; ind.style.opacity = '0'; }
+  };
+
+  // Inject DC input into the Adv/Dis bar (Iter 266)
+  window.i268InjectDCInput = function() {
+    const bar = document.getElementById('i266AdvBar');
+    if (!bar || document.getElementById('i268DCInput')) return;
+    const dcGroup = document.createElement('div');
+    dcGroup.style.cssText = 'display:flex;align-items:center;gap:4px;margin-left:8px;border-left:1px solid #1e2040;padding-left:8px;';
+    dcGroup.innerHTML = '<label style="font-size:10px;color:#4a5272;white-space:nowrap">DC</label>'
+      + '<input id="i268DCInput" type="number" min="1" max="40" placeholder="–" '
+        + 'style="width:46px;background:#06061a;border:1px solid #2a2a50;color:#c9a227;border-radius:5px;padding:2px 5px;font-size:12px;font-weight:700;text-align:center;outline:none" '
+        + 'oninput="i268SetDC(this.value)" '
+        + 'title="Set target Difficulty Class — rolls will show PASS/FAIL">'
+      + '<button onclick="i268ClearDC()" title="Clear DC" '
+        + 'style="font-size:10px;background:none;border:1px solid #2a2a50;color:#4a5272;border-radius:4px;padding:2px 5px;cursor:pointer">✕</button>'
+      + '<span id="i268PassFailInd" style="font-size:11px;font-weight:700;opacity:0;transition:opacity .3s;min-width:60px"></span>';
+    // Insert before the status label
+    const statusLabel = document.getElementById('i266StatusLabel');
+    if (statusLabel) bar.insertBefore(dcGroup, statusLabel);
+    else bar.appendChild(dcGroup);
+    // Restore saved DC value if any
+    if (window._i268DC !== null) {
+      const inp = document.getElementById('i268DCInput');
+      if (inp) inp.value = window._i268DC;
+    }
+  };
+
+  // Hook into the Adv/Dis bar injection
+  const _origInject = window.i266InjectAdvBar;
+  window.i266InjectAdvBar = function() {
+    if (typeof _origInject === 'function') _origInject();
+    setTimeout(i268InjectDCInput, 20);
+  };
+
+  // Reset DC when modal closes
+  document.addEventListener('DOMContentLoaded', function() {
+    const closeBtn = document.querySelector('.modal-close');
+    if (closeBtn) {
+      const origOnclick = closeBtn.onclick;
+      closeBtn.onclick = function(e) {
+        window._i268DC = null;
+        if (origOnclick) origOnclick.call(this, e);
+      };
+    }
+  });
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
