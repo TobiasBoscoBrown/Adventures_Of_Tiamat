@@ -37185,6 +37185,139 @@ window._i240StabilizeChar = function(charName, event) {
   };
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 241: Encounter Combat Log Export
+// One-click copy of the full current combat state + log to clipboard
+// Formatted for Discord/Notes/Text with markdown-style formatting
+// Includes: round number, initiative order with HP/conditions, recent log entries
+
+function exportCombatLog() {
+  const lines = [];
+  const round = (typeof _i221GetRound === 'function') ? _i221GetRound() : 1;
+  const il = (typeof initiativeList !== 'undefined') ? initiativeList : [];
+  const currentIdx = (typeof currentTurnIdx !== 'undefined') ? currentTurnIdx : 0;
+
+  lines.push(`# Combat Log — Round ${round}`);
+  lines.push(`**${new Date().toLocaleTimeString()}**`);
+  lines.push('');
+
+  // Initiative order
+  lines.push('## Initiative Order');
+  il.forEach((c, i) => {
+    const name = c.name || c.charName;
+    const hp = (typeof getCharHP === 'function') ? getCharHP(name) : (c.hp || '?');
+    const maxHp = (typeof hpState !== 'undefined' && hpState[name]) ? (hpState[name].max || c.maxHp || '?') : (c.maxHp || '?');
+
+    // Get conditions
+    let conds = [];
+    try {
+      conds = JSON.parse(localStorage.getItem(`tiamat_conditions_${name}`) || '[]');
+    } catch(e) {}
+
+    const marker = i === currentIdx ? '▶ ' : '  ';
+    const condStr = conds.length ? ` [${conds.join(', ')}]` : '';
+    const hpStr = hp !== undefined && hp !== '?' ? `HP: ${hp}/${maxHp}` : '';
+    lines.push(`${marker}${i + 1}. **${name}** (Init: ${c.initiative || '?'}) ${hpStr}${condStr}`);
+
+    // Notes
+    const note = (typeof _i227GetNotes === 'function') ? _i227GetNotes(name) : '';
+    if (note) lines.push(`     📝 ${note}`);
+  });
+
+  lines.push('');
+
+  // Temp HP
+  const tempHpEntries = [];
+  il.forEach(c => {
+    const name = c.name || c.charName;
+    const temp = (typeof _i223GetTemp === 'function') ? _i223GetTemp(name) : 0;
+    if (temp > 0) tempHpEntries.push(`${name}: +${temp} temp HP`);
+  });
+  if (tempHpEntries.length) {
+    lines.push('## Temp HP');
+    tempHpEntries.forEach(e => lines.push(`  ${e}`));
+    lines.push('');
+  }
+
+  // XP Tally
+  const tally = (typeof _i236GetTally === 'function') ? _i236GetTally() : {total: 0};
+  if (tally.total > 0) {
+    lines.push(`## XP Earned This Encounter: ${tally.total.toLocaleString()} XP`);
+    lines.push('');
+  }
+
+  // Recent log entries (last 20 lines)
+  try {
+    const logKey = 'tiamat_session_log';
+    const logEntries = JSON.parse(localStorage.getItem(logKey) || '[]');
+    if (logEntries.length) {
+      lines.push('## Recent Actions');
+      const recent = logEntries.slice(-20).reverse();
+      recent.forEach(entry => {
+        const text = (entry.text || entry.message || String(entry)).replace(/<[^>]+>/g, ''); // Strip HTML
+        lines.push(`  ${text}`);
+      });
+    }
+  } catch(e) {}
+
+  const output = lines.join('\n');
+
+  try {
+    navigator.clipboard.writeText(output).then(() => {
+      if (typeof showToast === 'function') showToast('Combat log copied to clipboard!', '#c9a227', 2500);
+    }).catch(() => {
+      // Fallback: show in modal
+      _i241ShowLogModal(output);
+    });
+  } catch(e) {
+    _i241ShowLogModal(output);
+  }
+
+  if (typeof logEntry === 'function') logEntry('system', '📋 Combat log exported to clipboard');
+}
+
+function _i241ShowLogModal(text) {
+  const ex = document.getElementById('i241LogModal');
+  if (ex) { ex.remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'i241LogModal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:9500;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `
+    <div style="background:#0a0a1e;border:1px solid rgba(201,162,39,.4);border-radius:12px;padding:18px;width:min(600px,95vw);max-height:80vh;display:flex;flex-direction:column;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="font-family:'Cinzel',serif;color:#c9a227;font-weight:700">📋 Combat Export</span>
+        <button onclick="document.getElementById('i241LogModal').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+      </div>
+      <textarea readonly style="flex:1;min-height:300px;background:#06061a;border:1px solid #2a2a50;color:#c0c0e0;border-radius:6px;padding:10px;font-size:10px;font-family:monospace;resize:vertical;outline:none">${escHtml(text)}</textarea>
+      <div style="font-size:10px;color:#4a5272;margin-top:6px">Select All (Ctrl+A) then Copy (Ctrl+C) to paste into Discord or notes.</div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  // Select all text
+  setTimeout(() => {
+    const ta = ov.querySelector('textarea');
+    if (ta) { ta.focus(); ta.select(); }
+  }, 50);
+}
+
+// Add to toolbar
+(function() {
+  const inject = () => {
+    if (document.getElementById('i241ExportBtn')) return;
+    const tb = document.querySelector('.toolbar-buttons') || document.querySelector('#toolbar') || document.querySelector('.toolbar');
+    if (!tb) return;
+    const btn = document.createElement('button');
+    btn.id = 'i241ExportBtn';
+    btn.innerHTML = '📋 Export Log';
+    btn.title = 'Copy combat state + log to clipboard';
+    btn.style.cssText = 'background:rgba(201,162,39,.06);border:1px solid rgba(201,162,39,.2);color:rgba(201,162,39,.6);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;font-family:"Inter",sans-serif';
+    btn.onclick = () => exportCombatLog();
+    tb.appendChild(btn);
+  };
+  if (document.readyState === 'complete') inject();
+  else window.addEventListener('load', inject);
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
