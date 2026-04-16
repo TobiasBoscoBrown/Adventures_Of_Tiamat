@@ -38614,6 +38614,131 @@ window._i250SetAll = function(enabled) {
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Iter 252: Spell Save DC & Attack Bonus Dashboard
+// Quick overlay showing every caster's save DC + spell attack bonus.
+// DM can enter target save modifier and see who auto-succeeds/fails + roll for borderline.
+(function() {
+  function _i252InjectBtn() {
+    if (document.getElementById('i252SpellDCBtn')) return;
+    const ref = document.getElementById('i251StealthBtn') || document.getElementById('passivesBtn');
+    if (!ref) return;
+    const btn = document.createElement('button');
+    btn.id = 'i252SpellDCBtn';
+    btn.className = 'encounter-open-btn';
+    btn.textContent = '🔮 Save DC';
+    btn.title = 'Spell Save DC & Attack Bonus for all casters';
+    btn.style.cssText = 'border-color:#cc44ff;color:#cc44ff';
+    btn.onclick = () => _i252OpenPanel();
+    ref.insertAdjacentElement('afterend', btn);
+  }
+  document.addEventListener('DOMContentLoaded', _i252InjectBtn);
+  setTimeout(_i252InjectBtn, 1400);
+
+  function _i252GetCasterData(c) {
+    const ab = {};
+    (c.abilities || []).forEach(([n, s, m]) => { ab[n] = parseInt(m) || 0; });
+    const title = (c.title + ' ' + (c.lore || '')).toLowerCase();
+    const isWizard = /wizard|mage|artificer|sorcerer/.test(title);
+    const isWisdom = /cleric|druid|ranger|paladin/.test(title);
+    const castMod = isWizard ? (ab['INT'] || 0) : isWisdom ? (ab['WIS'] || 0) : (ab['CHA'] || 0);
+    const castAbName = isWizard ? 'INT' : isWisdom ? 'WIS' : 'CHA';
+
+    const lv = (() => { try { return JSON.parse(localStorage.getItem('tiamat_char_level') || '{}')[c.name] || 1; } catch { return 1; } })();
+    const prof = lv >= 17 ? 6 : lv >= 13 ? 5 : lv >= 9 ? 4 : lv >= 5 ? 3 : 2;
+
+    // Only include if they have spells field or title says caster
+    const hasCasting = c.spells || /wizard|mage|sorcerer|warlock|cleric|druid|bard|ranger|paladin|artificer|caster/i.test(title);
+    if (!hasCasting) return null;
+
+    return {
+      name: c.name,
+      castMod, castAbName,
+      prof,
+      saveDC: 8 + prof + castMod,
+      spellAtk: prof + castMod,
+    };
+  }
+
+  window._i252OpenPanel = function(targetMod) {
+    const ex = document.getElementById('i252Panel');
+    if (ex && targetMod === undefined) { ex.remove(); return; }
+    if (ex) ex.remove();
+
+    const chars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+    const casters = chars.map(_i252GetCasterData).filter(Boolean);
+    const tMod = targetMod !== undefined ? targetMod : null;
+
+    const modStr = tMod !== null ? (tMod >= 0 ? `+${tMod}` : `${tMod}`) : '';
+
+    const rows = casters.map(cd => {
+      let saveNote = '';
+      if (tMod !== null) {
+        const minRoll = cd.saveDC - tMod;
+        if (minRoll <= 1) saveNote = `<span style="color:#cc4444;font-size:10px"> ● Always fails</span>`;
+        else if (minRoll > 20) saveNote = `<span style="color:#44cc88;font-size:10px"> ● Always saves</span>`;
+        else {
+          const pct = Math.round(((21 - minRoll) / 20) * 100);
+          saveNote = `<span style="color:#c9a227;font-size:10px"> ● ${pct}% save (need ${minRoll}+)</span>`;
+        }
+      }
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;border-radius:6px;background:rgba(155,109,255,0.05);border:1px solid rgba(155,109,255,0.12);margin-bottom:4px">
+        <div>
+          <span style="font-size:12px;color:#c0c0e0;font-weight:600">${escHtml(cd.name)}</span>
+          <span style="font-size:10px;color:#4a5272;margin-left:6px">${cd.castAbName} +${cd.castMod} · Prof +${cd.prof}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="text-align:center">
+            <div style="font-size:9px;color:#5a5a8a;text-transform:uppercase;letter-spacing:0.5px">Save DC</div>
+            <div style="font-size:16px;color:#cc44ff;font-weight:700;line-height:1.1">${cd.saveDC}</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:9px;color:#5a5a8a;text-transform:uppercase;letter-spacing:0.5px">Spell Atk</div>
+            <div style="font-size:16px;color:#4488ff;font-weight:700;line-height:1.1">+${cd.spellAtk}</div>
+          </div>
+          <button onclick="_i252RollSave('${cd.name.replace(/'/g,"\\'")}',${cd.saveDC},${tMod !== null ? tMod : 0})"
+            title="Roll creature save vs this DC"
+            style="font-size:11px;background:rgba(204,68,255,0.08);border:1px solid rgba(204,68,255,.25);color:#cc44ff;border-radius:5px;padding:3px 8px;cursor:pointer">🎲</button>
+        </div>
+      </div>
+      ${saveNote ? `<div style="padding:1px 8px 5px;font-size:10px;color:#8888aa">${saveNote}</div>` : ''}`;
+    }).join('');
+
+    const ov = document.createElement('div');
+    ov.id = 'i252Panel';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9700;display:flex;align-items:center;justify-content:center';
+    ov.innerHTML = `
+      <div style="background:#0a0a1e;border:1px solid rgba(204,68,255,.35);border-radius:12px;padding:18px;width:min(420px,96vw);max-height:85vh;overflow-y:auto;font-family:'Inter',sans-serif">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <span style="font-family:'Cinzel',serif;color:#cc44ff;font-weight:700;font-size:15px">🔮 Spell Save DCs</span>
+          <button onclick="document.getElementById('i252Panel').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
+          <label style="font-size:11px;color:#8888aa;white-space:nowrap">Target Save Mod</label>
+          <input id="i252ModInput" type="number" min="-5" max="15" value="${tMod !== null ? tMod : ''}" placeholder="e.g. +2"
+            style="flex:1;background:#06061a;border:1px solid rgba(204,68,255,.3);color:#cc44ff;border-radius:6px;padding:5px 8px;font-size:14px;font-weight:700;text-align:center;outline:none"
+            oninput="_i252OpenPanel(this.value===''?undefined:parseInt(this.value))">
+          <span style="font-size:10px;color:#4a5272">DC - mod = roll needed</span>
+        </div>
+        <div style="font-size:10px;color:#4a5272;margin-bottom:10px">Spell Save DC = 8 + Prof + Casting Mod · Spell Attack = Prof + Casting Mod</div>
+        ${rows || '<div style="color:#4a5272;text-align:center;padding:20px">No casters found in character list</div>'}
+      </div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+    setTimeout(() => { const i = document.getElementById('i252ModInput'); if (i) i.focus(); }, 50);
+  };
+
+  window._i252RollSave = function(casterName, dc, targetMod) {
+    const roll = Math.ceil(Math.random() * 20);
+    const total = roll + targetMod;
+    const success = total >= dc;
+    const modStr = targetMod >= 0 ? `+${targetMod}` : `${targetMod}`;
+    const msg = `🎲 Save vs ${escHtml(casterName)} DC${dc}: d20(${roll})${modStr}=${total} — ${success ? '✅ SAVED' : '❌ FAILED'}`;
+    if (typeof logEntry === 'function') logEntry('roll', msg);
+    if (typeof showToast === 'function') showToast(msg);
+  };
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Iter 251: Stealth vs Passive Perception Checker
 // Enter a creature's stealth roll (or DC). Instantly see which characters
 // notice it (passive perception ≥ DC) vs. don't, plus option to roll active
