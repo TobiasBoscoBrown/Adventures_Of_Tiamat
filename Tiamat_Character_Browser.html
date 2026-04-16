@@ -40827,6 +40827,138 @@ window._i250SetAll = function(enabled) {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 267: Jack of All Trades & Reliable Talent Feature Toggles
+// Per-character class feature flags stored in localStorage:
+//   Jack of All Trades (Bard 2): +half prof to non-proficient skill checks
+//   Reliable Talent (Rogue 11): treat d20 < 10 as 10 for proficient skills
+// Toggles appear in the skills section header with gold/purple indicators.
+(function() {
+  const FEAT_KEY = name => 'tiamat_classfeats_' + name;
+
+  window.i267GetFeats = function(charName) {
+    try { return JSON.parse(localStorage.getItem(FEAT_KEY(charName))) || {}; }
+    catch { return {}; }
+  };
+
+  window.i267SaveFeats = function(charName, feats) {
+    localStorage.setItem(FEAT_KEY(charName), JSON.stringify(feats));
+  };
+
+  window.i267ToggleFeat = function(charName, feat) {
+    const f = i267GetFeats(charName);
+    f[feat] = !f[feat];
+    i267SaveFeats(charName, f);
+    const labels = { joat: 'Jack of All Trades', rt: 'Reliable Talent' };
+    if (typeof showToast === 'function') showToast((f[feat] ? '✅ ' : '✗ ') + labels[feat] + (f[feat] ? ' enabled' : ' disabled'));
+    // Refresh stats tab
+    const statsTab = document.getElementById('statsPanel');
+    if (statsTab) {
+      const char = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS.find(c => c.name === charName) : null;
+      if (char && typeof buildStatsPanel === 'function') statsTab.innerHTML = buildStatsPanel(char);
+    }
+  };
+
+  // Patch i265RollSkill to apply class features
+  const _origRoll = window.i265RollSkill;
+  window.i265RollSkill = function(charName, skillName, baseMod, isProf, profBonus) {
+    const feats = i267GetFeats(charName);
+    const pb = parseInt(profBonus) || 2;
+    const base = parseInt(baseMod) || 0;
+
+    // Calculate bonus with expertise (from Iter 265)
+    const exp = typeof i265GetExpertise === 'function' ? i265GetExpertise(charName) : new Set();
+    const hasExp = exp.has(skillName);
+    let bonus = base + (hasExp && isProf ? pb * 2 : isProf ? pb : 0);
+
+    // Jack of All Trades: add half prof to non-proficient skills (if not already proficient)
+    if (feats.joat && !isProf && !hasExp) {
+      bonus += Math.floor(pb / 2);
+    }
+
+    // Roll the dice (use _i266Roll for adv/dis)
+    const r = typeof _i266Roll === 'function' ? _i266Roll() : { roll: Math.floor(Math.random()*20)+1, r2: null, tag: '' };
+    let rollVal = r.roll;
+
+    // Reliable Talent: treat <10 as 10 for proficient skills
+    if (feats.rt && isProf && rollVal < 10) {
+      rollVal = 10;
+    }
+
+    const total = rollVal + bonus;
+    const isCrit = r.roll === 20, isFumble = r.roll === 1;
+    const bonusStr = bonus >= 0 ? '+' + bonus : '' + bonus;
+    const tag = hasExp ? ' ◈' : isProf ? ' ●' : (feats.joat && !isProf ? ' ½' : '');
+    const rtNote = (feats.rt && isProf && r.roll < 10) ? ' [RT→10]' : '';
+    const diceStr = r.r2 !== null ? 'd20(' + r.r1 + ',' + r.r2 + ')→' + rollVal : 'd20(' + rollVal + ')';
+
+    if (typeof showModalRollResult === 'function')
+      showModalRollResult(skillName + tag + r.tag + ': ' + diceStr + bonusStr + rtNote + ' = ' + total + (isCrit ? ' ★' : isFumble ? ' ☠' : ''), isCrit, isFumble, total);
+  };
+
+  // Patch buildSkillsSectionHtml to show feature toggle buttons
+  const _origBuild = window.buildSkillsSectionHtml;
+  window.buildSkillsSectionHtml = function(c, skills, prof) {
+    const feats = i267GetFeats(c.name);
+    const pb = parseInt(prof) || 2;
+    const halfPb = Math.floor(pb / 2);
+
+    // Rebuild skills with JOAT half-prof applied to display
+    const exp = typeof i265GetExpertise === 'function' ? i265GetExpertise(c.name) : new Set();
+    const rows = skills.map(function(s) {
+      const isProf = s.prof === 'proficient';
+      const hasExp = exp.has(s.name);
+      const joatActive = feats.joat && !isProf && !hasExp;
+      const bonus = (parseInt(s.mod) || 0)
+        + (hasExp && isProf ? pb * 2 : isProf ? pb : joatActive ? halfPb : 0);
+      const bStr = bonus >= 0 ? '+' + bonus : '' + bonus;
+      const dotCls = hasExp ? 'expertise' : s.prof;
+      const border = hasExp ? 'border-left:2px solid #c9a227;' : joatActive ? 'border-left:2px solid rgba(155,109,255,0.5);' : '';
+      const bg = hasExp ? 'background:rgba(201,162,39,0.07);' : joatActive ? 'background:rgba(155,109,255,0.05);' : '';
+      const valColor = hasExp ? '#c9a227' : joatActive ? '#9b6dff' : '';
+      return '<div class="skill-item' + (hasExp ? ' i265-expert' : '') + '" '
+        + 'style="' + border + bg + 'cursor:pointer" '
+        + 'onclick="i265RollSkill(' + JSON.stringify(c.name) + ',' + JSON.stringify(s.name) + ',' + JSON.stringify(s.mod) + ',' + isProf + ',' + pb + ')" '
+        + 'ondblclick="i265ToggleExpertise(' + JSON.stringify(c.name) + ',' + JSON.stringify(s.name) + ',event)" '
+        + 'title="' + s.name + (isProf ? ' (Prof)' : '') + (hasExp ? ' ◈ Expertise' : joatActive ? ' ½ JoAT' : '') + ' d20' + bStr + '">'
+        + '<div class="skill-prof-dot ' + dotCls + '"></div>'
+        + '<span class="skill-name">' + s.name
+          + (hasExp ? ' <span style="color:#c9a227;font-size:9px">EXP</span>' : '')
+          + (joatActive ? ' <span style="color:#9b6dff;font-size:9px">½</span>' : '')
+        + '</span>'
+        + '<span class="skill-ab-tag">' + s.ab + '</span>'
+        + '<span class="skill-val" style="' + (valColor ? 'color:' + valColor + ';font-weight:700' : '') + '">' + bStr + '</span>'
+        + '</div>';
+    }).join('');
+
+    const expCount = [...exp].filter(sk => skills.some(s => s.name === sk && s.prof === 'proficient')).length;
+    const subtitle = '— ● prof · <span style="color:#c9a227">◈ expertise</span> · click roll · dbl-click toggle expertise';
+
+    // Feature toggle buttons
+    const joatBtn = '<button onclick="i267ToggleFeat(' + JSON.stringify(c.name) + ',\'joat\')" '
+      + 'style="font-size:10px;border-radius:5px;padding:2px 8px;cursor:pointer;border:1px solid '
+      + (feats.joat ? 'rgba(155,109,255,.6)' : '#2a2a50') + ';'
+      + 'background:' + (feats.joat ? 'rgba(155,109,255,.12)' : 'none') + ';'
+      + 'color:' + (feats.joat ? '#9b6dff' : '#4a5272') + '" title="Bard: Jack of All Trades (+½ prof to non-proficient skills)">'
+      + (feats.joat ? '♪ JoAT ✓' : '♪ JoAT') + '</button>';
+
+    const rtBtn = '<button onclick="i267ToggleFeat(' + JSON.stringify(c.name) + ',\'rt\')" '
+      + 'style="font-size:10px;border-radius:5px;padding:2px 8px;cursor:pointer;border:1px solid '
+      + (feats.rt ? 'rgba(201,162,39,.6)' : '#2a2a50') + ';'
+      + 'background:' + (feats.rt ? 'rgba(201,162,39,.12)' : 'none') + ';'
+      + 'color:' + (feats.rt ? '#c9a227' : '#4a5272') + '" title="Rogue: Reliable Talent (min 10 on prof skills)">'
+      + (feats.rt ? '🗡 Reliable ✓' : '🗡 Reliable') + '</button>';
+
+    return '<div class="stats-section">'
+      + '<div class="stats-section-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px">'
+      + '<span>Skills <span style="font-size:10px;color:#4a5272;font-weight:400;font-family:\'Inter\',sans-serif">' + subtitle + '</span></span>'
+      + '<div style="display:flex;gap:4px">' + joatBtn + rtBtn + '</div>'
+      + '</div>'
+      + '<div class="skills-grid">' + rows + '</div>'
+      + '</div>';
+  };
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
