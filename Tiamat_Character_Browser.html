@@ -5827,7 +5827,7 @@ function renderGrid() {
             </div>
           </div>
           ${c.quote ? `<div class="card-quote">"${c.quote}"</div>` : ''}
-          <div class="conditions-row" onclick="event.stopPropagation()">${getInspirationBadgeHtml(c.name)}${getExhaustionBadgeHtml(c.name)}${getConditionBadgesHtml(c.name)}${getConcBadgeHtml(c.name)}${getTagBadgesHtml(c.name)}${getCardDmgBadgesHtml(c)}${typeof i284GetStatusBadge==='function'?i284GetStatusBadge(c.name):''}</div>
+          <div class="conditions-row" onclick="event.stopPropagation()">${getInspirationBadgeHtml(c.name)}${getExhaustionBadgeHtml(c.name)}${getConditionBadgesHtml(c.name)}${getConcBadgeHtml(c.name)}${getTagBadgesHtml(c.name)}${getCardDmgBadgesHtml(c)}${typeof i284GetStatusBadge==='function'?i284GetStatusBadge(c.name):''}${typeof i293GetPinNotes==='function'?i293GetPinNotes(c.name):''}</div>
           <div style="display:flex;gap:8px;align-items:center;margin-top:3px" onclick="event.stopPropagation()">
             <button class="card-cond-btn ${hasConditions(c.name)?'has-conds':''}" onclick="openCondPopup(${JSON.stringify(c.name)},event)">⚡ ${hasConditions(c.name)?'Conds':'Condition'}</button>
             <button class="card-enc-btn ${isInActiveEncounter(c.name)?'in-enc':''}" onclick="addCharToActiveEncounter(${JSON.stringify(c.name)},${maxHp})">☩ ${isInActiveEncounter(c.name)?'In Enc':'Encounter'}</button>
@@ -42843,6 +42843,77 @@ void 0;
       <span style="font-size:8px;color:#4a5272;letter-spacing:.04em;width:100%;margin-bottom:1px">✨ SLOTS</span>
       ${pips}
     </div>`;
+  };
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 293: Character Pin Notes — up to 3 short pinned reminders on each character card
+(function() {
+  const KEY = n => 'tiamat_pin_notes_' + n;
+  const PIN_COLORS = ['#c9a227','#4488ff','#44cc88'];
+  const MAX = 3;
+
+  function loadPins(name) {
+    try { return JSON.parse(localStorage.getItem(KEY(name)) || '[]').slice(0, MAX); } catch { return []; }
+  }
+  function savePins(name, pins) {
+    localStorage.setItem(KEY(name), JSON.stringify(pins.slice(0, MAX)));
+  }
+
+  window.i293GetPinNotes = function(name) {
+    const pins = loadPins(name);
+    if (!pins.length) return '';
+    return pins.map((text, i) =>
+      `<span onclick="event.stopPropagation();i293EditPins(${JSON.stringify(name)},event)"
+        title="${text} (click to edit pins)"
+        style="display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:600;cursor:pointer;
+          background:${PIN_COLORS[i]}18;border:1px solid ${PIN_COLORS[i]}55;color:${PIN_COLORS[i]};margin-right:2px;max-width:90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+        📌 ${text}
+      </span>`
+    ).join('');
+  };
+
+  window.i293EditPins = function(name, ev) {
+    const existing = document.getElementById('i293Editor');
+    if (existing) { existing.remove(); return; }
+    const pins = loadPins(name);
+    const popup = document.createElement('div');
+    popup.id = 'i293Editor';
+    const rect = ev?.target ? ev.target.getBoundingClientRect() : { left: 200, bottom: 200 };
+    popup.style.cssText = `position:fixed;left:${Math.min(rect.left, window.innerWidth-270)}px;top:${rect.bottom+6}px;z-index:9999;background:#0d0d24;border:1px solid rgba(201,162,39,.4);border-radius:10px;padding:12px;min-width:260px;box-shadow:0 8px 32px rgba(0,0,0,.8)`;
+
+    function buildEditor() {
+      const curPins = loadPins(name);
+      popup.innerHTML = `<div style="font-family:Cinzel,serif;color:#c9a227;font-size:11px;font-weight:700;margin-bottom:8px;letter-spacing:.06em">📌 PIN NOTES — ${name}</div>`
+        + Array.from({length:MAX}, (_, i) => {
+            const val = curPins[i] || '';
+            return `<div style="display:flex;gap:4px;margin-bottom:5px;align-items:center">
+              <div style="width:8px;height:8px;border-radius:50%;background:${PIN_COLORS[i]};flex-shrink:0"></div>
+              <input type="text" maxlength="40" value="${val.replace(/"/g,'&quot;')}"
+                placeholder="Pin note ${i+1} (max 40 chars)…"
+                style="flex:1;background:#06061a;border:1px solid ${PIN_COLORS[i]}44;border-radius:6px;padding:4px 8px;color:#c8d0e8;font-size:11px;outline:none;font-family:inherit"
+                onfocus="this.style.borderColor='${PIN_COLORS[i]}'" onblur="this.style.borderColor='${PIN_COLORS[i]}44'"
+                data-pin-idx="${i}">
+            </div>`;
+          }).join('')
+        + `<div style="display:flex;gap:6px;margin-top:8px">
+            <button id="i293SaveBtn" style="flex:1;background:rgba(201,162,39,.15);border:1px solid #c9a227;color:#c9a227;border-radius:6px;padding:5px;cursor:pointer;font-size:11px;font-weight:700">Save</button>
+            <button onclick="document.getElementById('i293Editor').remove()" style="background:none;border:1px solid #333;color:#666;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px">Cancel</button>
+          </div>`;
+      popup.querySelector('#i293SaveBtn').onclick = () => {
+        const inputs = popup.querySelectorAll('input[data-pin-idx]');
+        const newPins = [...inputs].map(el => el.value.trim()).filter(Boolean);
+        savePins(name, newPins);
+        popup.remove();
+        if (typeof renderGrid === 'function') renderGrid();
+      };
+    }
+
+    buildEditor();
+    document.body.appendChild(popup);
+    popup.querySelector('input').focus();
+    setTimeout(() => document.addEventListener('click', function rem(e) {
+      if (!popup.contains(e.target)) { popup.remove(); document.removeEventListener('click', rem); }
+    }), 50);
   };
 })();
 // ─────────────────────────────────────────────────────────────────────────────
