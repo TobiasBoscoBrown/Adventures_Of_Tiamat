@@ -41792,6 +41792,101 @@ void 0;
   };
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 281: NPC Morale Tracker
+// Track morale state (Brave/Steady/Scared/Fleeing) for NPCs during combat.
+// States have mechanical effects (Brave=fights normally, Steady=holding,
+// Scared=disadvantage on attack rolls, Fleeing=uses action to Disengage+Dash).
+// Quick toggle buttons in modal condition area. Shows badge on character cards.
+// Also includes a WIS morale save roller.
+(function() {
+  const KEY = 'tiamat_morale';
+  let _store = {};
+  try { _store = JSON.parse(localStorage.getItem(KEY)) || {}; } catch { _store = {}; }
+  function _save() { localStorage.setItem(KEY, JSON.stringify(_store)); }
+
+  const MORALE_STATES = [
+    { id:'brave',   label:'⚔ Brave',   color:'#44cc88', bg:'rgba(68,204,136,.1)',  effect:'Fights normally. No morale effects.' },
+    { id:'steady',  label:'🛡 Steady',  color:'#c9a227', bg:'rgba(201,162,39,.1)',  effect:'Holds position. May retreat if half their allies fall.' },
+    { id:'scared',  label:'😰 Scared',  color:'#cc8844', bg:'rgba(204,136,68,.1)',  effect:'Disadvantage on attack rolls. Might use Dodge action.' },
+    { id:'fleeing', label:'💨 Fleeing', color:'#cc4444', bg:'rgba(204,68,68,.1)',   effect:'Uses action to Disengage + Dash away from danger each turn.' },
+  ];
+
+  window.i281GetMorale = function(charName) { return _store[charName] || null; };
+
+  window.i281SetMorale = function(charName, state) {
+    if (state === null || _store[charName] === state) {
+      delete _store[charName];
+    } else {
+      _store[charName] = state;
+    }
+    _save();
+    const m = MORALE_STATES.find(s => s.id === _store[charName]);
+    if (typeof showToast === 'function')
+      showToast(charName + ': ' + (m ? m.label + ' — ' + m.effect : 'Morale cleared'), m ? m.color : '#4a5272', 2500);
+    if (typeof renderInitiative === 'function') renderInitiative();
+    // Refresh card if visible
+    if (typeof renderCards === 'function') renderCards();
+    // Refresh modal
+    const sp = document.getElementById('statsPanel');
+    const char = typeof filteredChars !== 'undefined' && typeof currentModalIdx !== 'undefined' ? filteredChars[currentModalIdx] : null;
+    if (sp && char && char.name === charName && typeof buildStatsPanel === 'function') sp.innerHTML = buildStatsPanel(char);
+  };
+
+  window.i281RollMorale = function(charName, wisMod) {
+    const r = Math.floor(Math.random() * 20) + 1;
+    const mod = parseInt(wisMod) || 0;
+    const total = r + mod;
+    const dc = 10; // Standard morale DC
+    const passed = total >= dc;
+    const current = i281GetMorale(charName);
+    let newState = current;
+    if (!passed && current !== 'fleeing') {
+      newState = current === 'brave' ? 'steady' : current === 'steady' ? 'scared' : 'fleeing';
+      i281SetMorale(charName, newState);
+    }
+    const msg = charName + ' Morale Save: d20(' + r + ')+' + mod + '=' + total + ' vs DC' + dc
+      + (passed ? ' — ✅ HOLDS' : ' — ❌ BREAKS → ' + (MORALE_STATES.find(s=>s.id===newState)?.label || ''));
+    if (typeof logEntry === 'function') logEntry('roll', msg);
+    if (typeof showToast === 'function') showToast(msg, passed ? '#44cc88' : '#cc4444', 3000);
+  };
+
+  // Inject morale section into stats panel (below conditions)
+  document.addEventListener('DOMContentLoaded', function() {
+    const panel = document.getElementById('statsPanel');
+    if (!panel) return;
+    const obs = new MutationObserver(function() {
+      if (document.getElementById('i281MoraleBar')) return;
+      const char = typeof filteredChars !== 'undefined' && typeof currentModalIdx !== 'undefined' ? filteredChars[currentModalIdx] : null;
+      if (!char) return;
+      const current = i281GetMorale(char.name);
+      const wis = (char.abilities || []).find(([n]) => n === 'WIS');
+      const wisMod = wis ? wis[2] : '+0';
+
+      const bar = document.createElement('div');
+      bar.id = 'i281MoraleBar';
+      bar.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:4px 12px 6px;';
+      bar.innerHTML = '<span style="font-size:9px;color:#4a5272;letter-spacing:.5px;margin-right:2px">MORALE</span>'
+        + MORALE_STATES.map(s => {
+          const active = current === s.id;
+          return '<button onclick="i281SetMorale(' + JSON.stringify(char.name) + ',\'' + s.id + '\')" '
+            + 'style="font-size:10px;border-radius:5px;padding:2px 8px;cursor:pointer;border:1px solid '
+            + (active ? s.color : '#2a2a50') + ';background:' + (active ? s.bg : 'none') + ';color:' + (active ? s.color : '#4a5272') + '" '
+            + 'title="' + s.effect + '">' + s.label + '</button>';
+        }).join('')
+        + '<button onclick="i281RollMorale(' + JSON.stringify(char.name) + ',' + JSON.stringify(wisMod) + ')" '
+          + 'style="font-size:10px;border-radius:5px;padding:2px 7px;cursor:pointer;border:1px solid #2a2a50;background:none;color:#4a5272;margin-left:4px" '
+          + 'title="Roll WIS morale save (DC 10)">🎲 Save</button>';
+
+      // Insert after notes wrapper or at beginning
+      const notesWrapper = document.getElementById('i273NotesWrapper');
+      if (notesWrapper) notesWrapper.insertAdjacentElement('afterend', bar);
+      else { const advBar = document.getElementById('i266AdvBar'); if (advBar) advBar.insertAdjacentElement('afterend', bar); else panel.prepend(bar); }
+    });
+    obs.observe(panel, { childList: true });
+  });
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
