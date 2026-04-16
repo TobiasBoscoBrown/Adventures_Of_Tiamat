@@ -41490,6 +41490,116 @@ window._i250SetAll = function(enabled) {
   };
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 273: Session Quick Notes Panel
+// A compact, always-visible sticky note field at the top of the character stats tab.
+// Separate from DM Notes (persisted long-term) — session notes are in-session only.
+// Also shows a "pinned reminders" feature: click + to add a reminder badge.
+// Session notes cleared on long rest or explicit clear; DM notes are in the bg tab.
+(function() {
+  const KEY = 'tiamat_session_notes';
+  let _store = {};
+  try { _store = JSON.parse(localStorage.getItem(KEY)) || {}; } catch { _store = {}; }
+  function _save() { localStorage.setItem(KEY, JSON.stringify(_store)); }
+
+  window.i273GetNotes = function(charName) { return _store[charName] || { text: '', pins: [] }; };
+
+  window.i273SaveNote = function(charName, text) {
+    _store[charName] = _store[charName] || { text: '', pins: [] };
+    _store[charName].text = text;
+    _save();
+    // Update character count display
+    const ct = document.getElementById('i273CharCount_' + CSS.escape(charName));
+    if (ct) ct.textContent = text.length + '/300';
+  };
+
+  window.i273AddPin = function(charName) {
+    const text = prompt('Add pinned reminder for ' + charName + ':');
+    if (!text || !text.trim()) return;
+    _store[charName] = _store[charName] || { text: '', pins: [] };
+    _store[charName].pins = (_store[charName].pins || []).concat([text.trim()]);
+    _save();
+    i273RefreshPanel(charName);
+  };
+
+  window.i273RemovePin = function(charName, idx) {
+    const d = _store[charName] || { text: '', pins: [] };
+    d.pins = (d.pins || []).filter((_, i) => i !== idx);
+    _store[charName] = d;
+    _save();
+    i273RefreshPanel(charName);
+  };
+
+  window.i273ClearNotes = function(charName) {
+    if (_store[charName]) _store[charName].text = '';
+    _save();
+    const ta = document.getElementById('i273NoteTA_' + CSS.escape(charName));
+    if (ta) ta.value = '';
+    const ct = document.getElementById('i273CharCount_' + CSS.escape(charName));
+    if (ct) ct.textContent = '0/300';
+  };
+
+  window.i273RefreshPanel = function(charName) {
+    const panel = document.getElementById('i273Panel_' + CSS.escape(charName));
+    if (panel) panel.outerHTML = i273BuildPanel(charName);
+  };
+
+  window.i273BuildPanel = function(charName) {
+    const d = i273GetNotes(charName);
+    const pins = (d.pins || []);
+    const safeId = CSS.escape(charName);
+    const pinBadges = pins.map((p, i) =>
+      '<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(201,162,39,.1);border:1px solid rgba(201,162,39,.3);border-radius:12px;padding:2px 8px;font-size:10px;color:#c9a227;max-width:160px">'
+      + '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px" title="' + escHtml(p) + '">' + escHtml(p) + '</span>'
+      + '<button onclick="i273RemovePin(' + JSON.stringify(charName) + ',' + i + ')" '
+        + 'style="background:none;border:none;color:#c9a227;cursor:pointer;font-size:10px;padding:0 0 0 2px;line-height:1;opacity:.6" title="Remove">✕</button>'
+      + '</span>'
+    ).join('');
+
+    return '<div id="i273Panel_' + safeId + '" style="background:#06061a;border:1px solid rgba(201,162,39,.2);border-radius:8px;padding:8px 10px;margin-bottom:8px">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">'
+        + '<span style="font-size:10px;color:#c9a227;font-weight:700;letter-spacing:.5px">📋 SESSION NOTES</span>'
+        + '<div style="display:flex;gap:4px">'
+          + '<button onclick="i273AddPin(' + JSON.stringify(charName) + ')" title="Add pinned reminder" '
+            + 'style="font-size:10px;background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.3);color:#c9a227;border-radius:4px;padding:1px 6px;cursor:pointer">+ Pin</button>'
+          + '<button onclick="i273ClearNotes(' + JSON.stringify(charName) + ')" title="Clear session notes" '
+            + 'style="font-size:10px;background:none;border:1px solid #2a2a50;color:#4a5272;border-radius:4px;padding:1px 6px;cursor:pointer">✕ Clear</button>'
+        + '</div>'
+      + '</div>'
+      + (pins.length ? '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">' + pinBadges + '</div>' : '')
+      + '<textarea id="i273NoteTA_' + safeId + '" maxlength="300" placeholder="Quick session note — what happened, what they said, status, objectives..." '
+        + 'style="width:100%;background:transparent;border:none;color:#c8d0e8;font-size:11px;line-height:1.5;resize:vertical;min-height:40px;max-height:100px;outline:none;font-family:Inter,sans-serif;box-sizing:border-box" '
+        + 'oninput="i273SaveNote(' + JSON.stringify(charName) + ',this.value)">' + escHtml(d.text || '') + '</textarea>'
+      + '<div id="i273CharCount_' + safeId + '" style="text-align:right;font-size:9px;color:#2a2a50">' + (d.text || '').length + '/300</div>'
+      + '</div>';
+  };
+
+  // Inject notes panel at top of stats panel (after adv/dis bar and before conditions)
+  document.addEventListener('DOMContentLoaded', function() {
+    const panel = document.getElementById('statsPanel');
+    if (!panel) return;
+    const obs = new MutationObserver(function() {
+      if (document.getElementById('i273NotesWrapper')) return;
+      const char = typeof filteredChars !== 'undefined' && typeof currentModalIdx !== 'undefined' ? filteredChars[currentModalIdx] : null;
+      if (!char) return;
+      const wrapper = document.createElement('div');
+      wrapper.id = 'i273NotesWrapper';
+      wrapper.style.cssText = 'padding:8px 12px 0';
+      wrapper.innerHTML = i273BuildPanel(char.name);
+      // Insert after the adv bar or at the beginning of statsPanel
+      const advBar = document.getElementById('i266AdvBar');
+      if (advBar) advBar.insertAdjacentElement('afterend', wrapper);
+      else panel.prepend(wrapper);
+    });
+    obs.observe(panel, { childList: true });
+  });
+
+  // Helper to escape HTML
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
