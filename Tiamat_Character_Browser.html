@@ -38254,6 +38254,102 @@ function _i247GrappleBtn() {
   </div>`;
 }
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 248: Party Combat Stats Overview
+// Compact table showing key combat stats for all party members:
+// HP, AC, Initiative, all 6 ability scores, speed
+// The DM's at-a-glance reference during combat
+
+function openPartyCombatStats() {
+  const ex = document.getElementById('i248StatsPanel');
+  if (ex) { ex.remove(); return; }
+
+  const chars = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS : [];
+
+  const abilities = ['STR','DEX','CON','INT','WIS','CHA'];
+  const abilityColors = {STR:'#cc6644',DEX:'#44cc88',CON:'#cc4444',INT:'#9b6dff',WIS:'#44ddff',CHA:'#ffcc00'};
+
+  function getMod(char, key) {
+    const entry = char?.abilities?.find(a => a[0] === key);
+    if (!entry) return 0;
+    return Math.floor(((entry[1] || 10) - 10) / 2);
+  }
+  function modStr(n) { return n >= 0 ? `+${n}` : `${n}`; }
+
+  const rows = chars.slice(0, 60).map(c => {
+    const currentHp = (typeof getCharHP === 'function') ? getCharHP(c.name) : parseInt(c.hp || 0);
+    const maxHp = parseInt(c.hp || 0);
+    const hpPct = maxHp > 0 ? currentHp / maxHp : 0;
+    const hpColor = hpPct > 0.5 ? '#44cc88' : hpPct > 0.25 ? '#c9a227' : '#cc3333';
+    const ac = c.ac || '—';
+    const dexMod = getMod(c, 'DEX');
+    const initStr = modStr(dexMod);
+
+    const abilScores = abilities.map(ab => {
+      const entry = c.abilities?.find(a => a[0] === ab);
+      const score = entry?.[1] || 10;
+      const mod = Math.floor((score - 10) / 2);
+      return `<td style="padding:3px 5px;text-align:center;font-size:10px">
+        <div style="font-weight:700;color:${abilityColors[ab]}">${modStr(mod)}</div>
+        <div style="font-size:8px;color:#4a5272">${score}</div>
+      </td>`;
+    }).join('');
+
+    return `<tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+      <td style="padding:4px 6px;font-size:11px;color:#c0c0e0;white-space:nowrap;font-weight:600">${escHtml(c.name)}</td>
+      <td style="padding:3px 5px;text-align:center">
+        <div style="font-size:12px;font-weight:700;color:${hpColor}">${currentHp !== null ? currentHp : maxHp}/${maxHp}</div>
+        <div style="background:rgba(0,0,0,.3);border-radius:2px;height:3px;width:40px;margin:1px auto"><div style="background:${hpColor};height:100%;width:${Math.max(0,hpPct*100)}%;border-radius:2px"></div></div>
+      </td>
+      <td style="padding:3px 5px;text-align:center;font-size:12px;font-weight:700;color:#4488ff">${ac}</td>
+      <td style="padding:3px 5px;text-align:center;font-size:11px;color:#44cc88;font-weight:700">${initStr}</td>
+      ${abilScores}
+    </tr>`;
+  }).join('');
+
+  const ov = document.createElement('div');
+  ov.id = 'i248StatsPanel';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:9300;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `
+    <div style="background:#0a0a1e;border:1px solid rgba(201,162,39,.4);border-radius:12px;padding:18px;width:min(700px,98vw);max-height:88vh;overflow:auto;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="font-family:'Cinzel',serif;color:#c9a227;font-weight:700">⚔ Party Combat Stats</span>
+        <button onclick="document.getElementById('i248StatsPanel').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;min-width:500px">
+          <thead><tr style="border-bottom:1px solid #1e2040;background:rgba(0,0,0,.3)">
+            <th style="font-size:9px;color:#4a5272;text-align:left;padding:4px 6px;min-width:100px">CHARACTER</th>
+            <th style="font-size:9px;color:#44cc88;text-align:center;padding:4px 5px">HP</th>
+            <th style="font-size:9px;color:#4488ff;text-align:center;padding:4px 5px">AC</th>
+            <th style="font-size:9px;color:#44cc88;text-align:center;padding:4px 5px">INIT</th>
+            ${abilities.map(ab => `<th style="font-size:9px;color:${abilityColors[ab]};text-align:center;padding:4px 5px">${ab}</th>`).join('')}
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+(function() {
+  const inject = () => {
+    if (document.getElementById('i248StatsBtn')) return;
+    const tb = document.querySelector('.toolbar-buttons') || document.querySelector('#toolbar') || document.querySelector('.toolbar');
+    if (!tb) return;
+    const btn = document.createElement('button');
+    btn.id = 'i248StatsBtn';
+    btn.innerHTML = '📊 Stats';
+    btn.title = 'Party combat stats overview (HP, AC, initiative, ability scores)';
+    btn.style.cssText = 'background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.3);color:#c9a227;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;font-family:"Inter",sans-serif';
+    btn.onclick = () => openPartyCombatStats();
+    tb.appendChild(btn);
+  };
+  if (document.readyState === 'complete') inject();
+  else window.addEventListener('load', inject);
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
