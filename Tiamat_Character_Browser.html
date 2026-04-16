@@ -36142,6 +36142,142 @@ window._i233NewCombat = function(event) {
   else window.addEventListener('load', inject);
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 234: Party Saving Throw Overview Table
+// Shows all 6 saving throws for all characters in one compact table
+// Color-coded by bonus; highlights proficiencies; shows best/worst per save
+// Accessible via toolbar button
+
+function _i234GetSaveMod(char, abilityKey) {
+  if (!char?.abilities) return 0;
+  const entry = char.abilities.find(a => a[0] === abilityKey);
+  if (!entry) return 0;
+  const score = entry[1] || 10;
+  const mod = Math.floor((score - 10) / 2);
+  // Check if proficient in this save (4th element of ability array = save proficiency flag)
+  const isProficient = !!(entry[3]);
+  if (isProficient) {
+    const profBonus = _i234GetProfBonus(char);
+    return mod + profBonus;
+  }
+  return mod;
+}
+
+function _i234IsProfSave(char, abilityKey) {
+  if (!char?.abilities) return false;
+  const entry = char.abilities.find(a => a[0] === abilityKey);
+  return !!(entry?.[3]);
+}
+
+function _i234GetProfBonus(char) {
+  try {
+    const xpData = JSON.parse(localStorage.getItem('tiamat_xp_tracker') || '{}');
+    const level = xpData[char?.name]?.level || 5;
+    return level <= 4 ? 2 : level <= 8 ? 3 : level <= 12 ? 4 : level <= 16 ? 5 : 6;
+  } catch(e) { return 2; }
+}
+
+function openSaveTable() {
+  const ex = document.getElementById('i234SaveTable');
+  if (ex) { ex.remove(); return; }
+
+  const chars = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS : [];
+  const abilities = [
+    {key:'STR', label:'STR', color:'#cc6644'},
+    {key:'DEX', label:'DEX', color:'#44cc88'},
+    {key:'CON', label:'CON', color:'#cc4444'},
+    {key:'INT', label:'INT', color:'#9b6dff'},
+    {key:'WIS', label:'WIS', color:'#44ddff'},
+    {key:'CHA', label:'CHA', color:'#ffcc00'},
+  ];
+
+  // Calculate all scores
+  const data = chars.slice(0, 60).map(c => {
+    const saves = {};
+    abilities.forEach(a => { saves[a.key] = _i234GetSaveMod(c, a.key); });
+    const profs = {};
+    abilities.forEach(a => { profs[a.key] = _i234IsProfSave(c, a.key); });
+    return { name: c.name, saves, profs };
+  });
+
+  // Find max per ability
+  const maxes = {};
+  abilities.forEach(a => {
+    maxes[a.key] = Math.max(...data.map(d => d.saves[a.key]));
+  });
+
+  const getValColor = (val, max, isProficient) => {
+    if (val >= max) return '#ffcc00';
+    if (val >= max - 1) return '#44cc88';
+    if (isProficient) return '#9b6dff';
+    if (val >= 0) return '#c0c0e0';
+    return '#cc4444';
+  };
+
+  const modStr = (v) => v >= 0 ? `+${v}` : `${v}`;
+
+  const rows = data.map(d => `<tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+    <td style="padding:4px 6px;font-size:11px;color:#c0c0e0;white-space:nowrap">${escHtml(d.name)}</td>
+    ${abilities.map(a => {
+      const v = d.saves[a.key];
+      const isProf = d.profs[a.key];
+      const color = getValColor(v, maxes[a.key], isProf);
+      return `<td style="padding:4px 8px;text-align:center;font-size:12px;font-weight:700;color:${color};background:${isProf ? 'rgba(155,109,255,.06)' : 'transparent'}" title="${a.key}: ${modStr(v)}${isProf ? ' (proficient)' : ''}">${modStr(v)}${isProf ? '●' : ''}</td>`;
+    }).join('')}
+  </tr>`).join('');
+
+  const ov = document.createElement('div');
+  ov.id = 'i234SaveTable';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:9300;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `
+    <div style="background:#0a0a1e;border:1px solid rgba(201,162,39,.4);border-radius:12px;padding:18px;width:min(580px,95vw);max-height:85vh;overflow-y:auto;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-family:'Cinzel',serif;color:#c9a227;font-weight:700">🛡 Saving Throw Overview</span>
+        <button onclick="document.getElementById('i234SaveTable').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+      </div>
+      <div style="font-size:10px;color:#4a5272;margin-bottom:10px">● = Proficient. Gold = highest in column. ● purple highlight = proficient. Red = negative modifier.</div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;min-width:380px">
+          <thead><tr style="border-bottom:1px solid #1e2040;background:rgba(0,0,0,.3)">
+            <th style="font-size:9px;color:#4a5272;text-align:left;padding:5px 6px">CHARACTER</th>
+            ${abilities.map(a => `<th style="font-size:10px;font-weight:700;color:${a.color};text-align:center;padding:5px 8px">${a.label}</th>`).join('')}
+          </tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot><tr style="border-top:1px solid #1e2040;background:rgba(0,0,0,.3)">
+            <td style="padding:5px 6px;font-size:10px;color:#4a5272;font-style:italic">Best</td>
+            ${abilities.map(a => `<td style="padding:5px 8px;text-align:center;font-size:13px;font-weight:700;color:#ffcc00">${modStr(maxes[a.key])}</td>`).join('')}
+          </tfoot>
+        </table>
+      </div>
+      <div style="margin-top:10px;padding:8px;background:rgba(0,0,0,.3);border-radius:6px;font-size:10px;color:#4a5272;line-height:1.6">
+        <strong style="color:#c9a227">DM Tips:</strong>
+        CON saves → concentration (Iter 220 auto-prompts) ·
+        WIS saves → charm/fear/mind control ·
+        DEX saves → AOE spells (fireball, lightning) ·
+        STR saves → grapple/push effects
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+(function() {
+  const inject = () => {
+    if (document.getElementById('i234SaveBtn')) return;
+    const tb = document.querySelector('.toolbar-buttons') || document.querySelector('#toolbar') || document.querySelector('.toolbar');
+    if (!tb) return;
+    const btn = document.createElement('button');
+    btn.id = 'i234SaveBtn';
+    btn.innerHTML = '🛡 Saves';
+    btn.title = 'Party saving throw overview — all 6 saves for all characters';
+    btn.style.cssText = 'background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.3);color:#c9a227;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;font-family:"Inter",sans-serif';
+    btn.onclick = () => openSaveTable();
+    tb.appendChild(btn);
+  };
+  if (document.readyState === 'complete') inject();
+  else window.addEventListener('load', inject);
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
