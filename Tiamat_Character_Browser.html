@@ -32837,6 +32837,638 @@ function _i212Cast(charName, spellName, level, event) {
   if (typeof renderInitiative === 'function') renderInitiative();
 }
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 213: Target Selector + Auto Hit/Miss in Active Turn Bar
+// Click any combatant to set as target — attack rolls auto-show HIT (green)
+// or MISS (red) vs their AC. Shows "need X+" threshold before rolling.
+// Auto-rolls damage on a hit. Better than DnD Beyond's manual AC lookup!
+// ─────────────────────────────────────────────────────────────────────────────
+let _i213Targets = {}; // {attackerName: {name, ac}}
+
+(function() {
+  const _orig213 = renderActiveTurnBar;
+  renderActiveTurnBar = function() {
+    _orig213();
+    _i213TargetRow();
+  };
+})();
+
+function _i213SetTarget(attackerName, targetName, ac) {
+  _i213Targets[attackerName] = {name: targetName, ac: parseInt(ac) || 0};
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+}
+function _i213ClearTarget(attackerName) {
+  delete _i213Targets[attackerName];
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+}
+
+function _i213TargetRow() {
+  const bar = document.getElementById('activeTurnBar');
+  if (!bar || bar.style.display === 'none') return;
+  if (!initiativeList || !initiativeList.length || currentTurnIdx < 0) return;
+  const e = initiativeList[currentTurnIdx];
+  if (!e) return;
+  const char = UNIQUE_CHARS.find(c => c.name === e.name);
+  if (!char) return;
+
+  const crN = parseFloat(char.cr || 0);
+  const p213 = crN>=17?6:crN>=13?5:crN>=9?4:crN>=5?3:2;
+  const sM = parseInt(((char.abilities||[]).find(a=>a[0]==='STR')||[])[2]) || 0;
+  const dM = parseInt(((char.abilities||[]).find(a=>a[0]==='DEX')||[])[2]) || 0;
+  const meleeB = p213 + Math.max(sM, dM);
+  const rangB  = p213 + dM;
+
+  const target = _i213Targets[char.name];
+  const tAc = target ? target.ac : 0;
+  const others = initiativeList.filter(c => c.name !== char.name);
+
+  let h = `<div style="margin-top:4px;border-top:1px solid rgba(255,100,68,.15);padding-top:4px">`;
+  h += `<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:3px">`;
+  h += `<span style="font-size:9px;color:#ff6644;letter-spacing:.5px;min-width:34px">TARGET</span>`;
+
+  if (target) {
+    h += `<span style="font-size:9px;color:#ff8866;background:rgba(255,100,68,.1);border:1px solid rgba(255,100,68,.3);border-radius:4px;padding:1px 8px">⚔ ${escHtml(target.name)} AC ${tAc}</span>`;
+    const mNeed = tAc - meleeB;
+    const rNeed = tAc - rangB;
+    const needColor = n => n <= 1 ? '#44cc88' : n <= 10 ? '#c9a227' : '#cc4444';
+    const needLabel = (n, icon) => `<span style="color:${needColor(n)}">${n<=1?'auto':n>20?'impossible':n+'+'}${icon}</span>`;
+    h += `<span style="font-size:9px;color:#4a5272">need ${needLabel(mNeed,'⚔')}`;
+    if (rangB !== meleeB) h += ` ${needLabel(rNeed,'🏹')}`;
+    h += `</span>`;
+    h += `<button onclick="_i213ClearTarget(${JSON.stringify(char.name)})" style="font-size:9px;background:none;border:1px solid #2a2a50;color:#4a5272;border-radius:3px;padding:0 4px;cursor:pointer" title="Clear target">✕</button>`;
+  } else {
+    h += `<span style="font-size:9px;color:#3a3a60;font-style:italic">click a combatant to set target</span>`;
+  }
+  h += `</div>`;
+
+  // Combatant quick-select chips
+  if (others.length) {
+    h += `<div style="display:flex;flex-wrap:wrap;gap:2px;margin-bottom:${target?'3px':'0'}">`;
+    others.forEach(c => {
+      const cc = UNIQUE_CHARS.find(x => x.name === c.name);
+      const cAc = cc ? (parseInt(cc.ac) || 10) : 10;
+      const cHp = getCharHP(c.name, c.maxHp || 1);
+      const hpPct = c.maxHp > 0 ? cHp / c.maxHp : 1;
+      const hCol = hpPct < 0.25 ? '#cc3333' : hpPct < 0.5 ? '#dd8822' : '#44aa66';
+      const isDead = c.maxHp > 0 && cHp <= 0;
+      const isSel = target && target.name === c.name;
+      h += `<button onclick="_i213SetTarget(${JSON.stringify(char.name)},${JSON.stringify(c.name)},${cAc})"
+        style="background:${isSel?'rgba(255,100,68,.15)':'rgba(255,255,255,.03)'};border:1px solid ${isSel?'rgba(255,100,68,.4)':'rgba(255,255,255,.07)'};color:${isDead?'#2a2a50':isSel?'#ff8866':'#6a7090'};border-radius:4px;padding:1px 6px;cursor:pointer;font-size:9px;${isDead?'text-decoration:line-through;opacity:.4':''};"
+        title="${c.name} — AC ${cAc}, HP ${cHp}/${c.maxHp}">
+        ${escHtml(c.name.length>11?c.name.slice(0,10)+'…':c.name)}<span style="font-size:8px;color:#4a5272"> ${cAc}AC</span><span style="color:${hCol};font-size:8px">${cHp}hp</span>
+      </button>`;
+    });
+    h += `</div>`;
+  }
+
+  // Attack-vs-AC roll buttons (only when target selected)
+  if (target) {
+    h += `<div style="display:flex;gap:3px;flex-wrap:wrap;align-items:center">`;
+    h += `<span style="font-size:9px;color:#4a5272;min-width:34px">ROLL</span>`;
+    [[`⚔ Melee`, meleeB, 'Melee'],[`🏹 Ranged`, rangB, 'Ranged']].forEach(([lbl, bon, typ]) => {
+      const bStr = bon >= 0 ? `+${bon}` : `${bon}`;
+      h += `<button onclick="_i213RollVs(${JSON.stringify(char.name)},${JSON.stringify(typ)},${bon},${tAc},event)"
+        style="background:rgba(255,80,50,.08);border:1px solid rgba(255,80,50,.25);color:#ff7755;border-radius:4px;padding:2px 7px;cursor:pointer;font-size:10px"
+        title="${typ} (${bStr}) vs AC ${tAc} — auto shows HIT or MISS">${lbl}(${bStr}) vs AC${tAc}</button>`;
+    });
+    h += `</div>`;
+  }
+
+  h += `</div>`;
+  bar.innerHTML += h;
+}
+
+function _i213RollVs(charName, type, bonus, targetAc, event) {
+  if (event) event.stopPropagation();
+  const rvResult = (typeof rollWithAdv === 'function') ? rollWithAdv(charName, bonus) : {die: Math.floor(Math.random()*20)+1, detail: null};
+  const die = rvResult.die, detail = rvResult.detail;
+  const total = die + bonus;
+  const bStr = bonus >= 0 ? `+${bonus}` : `${bonus}`;
+  const isCrit = die === 20, isFumble = die === 1;
+  const hit = isCrit || (!isFumble && total >= targetAc);
+  const target = _i213Targets[charName] || {};
+  const tName = target.name || '?';
+
+  const resWord = isCrit ? '★ CRITICAL HIT!' : isFumble ? '☠ AUTO MISS' : hit ? `HIT! (${total} ≥ AC${targetAc})` : `MISS (${total} < AC${targetAc})`;
+  const resCol = (isCrit || hit) ? '#44cc88' : '#cc3333';
+
+  if (typeof logEntry === 'function') logEntry('roll', `<strong>${escHtml(charName)}</strong> ${type} vs ${escHtml(tName)}: d20${detail||'('+die+')'}${bStr}=<strong>${total}</strong> — <strong style="color:${resCol};font-size:12px">${resWord}</strong>`);
+  if (typeof showToast === 'function') showToast(resWord, resCol, 3000);
+
+  // Auto-roll damage on hit
+  if (hit) {
+    const c = UNIQUE_CHARS.find(x => x.name === charName);
+    const crV = c ? parseFloat(c.cr || 0) : 1;
+    const wDie = crV>=21?12:crV>=13?10:crV>=7?8:crV>=3?6:4;
+    const sM2 = c ? (parseInt(((c.abilities||[]).find(a=>a[0]==='STR')||[])[2])||0) : 0;
+    const dM2 = c ? (parseInt(((c.abilities||[]).find(a=>a[0]==='DEX')||[])[2])||0) : 0;
+    const dMod = type === 'Ranged' ? dM2 : Math.max(sM2, dM2);
+    const dCount = isCrit ? 2 : 1;
+    const dRolls = Array.from({length:dCount}, () => Math.floor(Math.random()*wDie)+1);
+    const dTotal = dRolls.reduce((a,b)=>a+b,0) + dMod;
+    const dModStr = dMod >= 0 ? `+${dMod}` : `${dMod}`;
+    if (typeof logEntry === 'function') logEntry('roll', `  → Dmg: ${dCount}d${wDie}[${dRolls.join('+')}]${dModStr} = <strong style="color:#ff6644">${dTotal}</strong>${isCrit?' 💥 CRIT':''}`);
+    if (typeof showToast === 'function') showToast(`Damage: ${dTotal}${isCrit?' 💥':''}`, '#ff7744', 2500);
+  }
+
+  if (typeof playSound === 'function') playSound(isCrit ? 'crit' : hit ? 'roll' : 'damage');
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 214: Monster Ability Recharge Tracker
+// Auto-detects "Recharge X–6" traits (Breath Weapon, etc.) from character
+// data. Shows recharge state in the active turn bar with one-click spend/roll.
+// Roll Recharge button rolls d6 at start of turn — shows RECHARGED or spent.
+// ─────────────────────────────────────────────────────────────────────────────
+let _i214RechargeState = {}; // {charName: {abilityName: {spent: bool, threshold: num}}}
+
+function _i214GetRechargeState(charName) {
+  return _i214RechargeState[charName] || {};
+}
+function _i214SaveRechargeState(charName, state) {
+  _i214RechargeState[charName] = state;
+}
+
+function _i214ParseRecharges(char) {
+  // Find all traits/abilities with "Recharge X-6" or "Recharge 5" or "(Recharge X+)"
+  const abilities = [];
+  const allText = [...(char.traits || []), char.lore || ''];
+  allText.forEach(text => {
+    if (!text) return;
+    // Match: "Breath Weapon (Recharge 5-6)" or "Ability Name — Recharge 4+"
+    const m1 = text.match(/^([^(—\n]+?)[\s(—]*[Rr]echarge\s+(\d+)/);
+    if (m1) {
+      const name = m1[1].trim().replace(/\s+/g, ' ').slice(0, 30);
+      const threshold = parseInt(m1[2]);
+      if (threshold >= 2 && threshold <= 6) abilities.push({name, threshold});
+      return;
+    }
+    // Match: trait IS the recharge ability, e.g. "Fire Breath: Recharge 5-6"
+    const m2 = text.match(/([A-Za-z][A-Za-z\s]{2,25}?)[:\s—]+[Rr]echarge\s+(\d+)/);
+    if (m2) {
+      const name = m2[1].trim().slice(0, 30);
+      const threshold = parseInt(m2[2]);
+      if (threshold >= 2 && threshold <= 6) abilities.push({name, threshold});
+    }
+  });
+  // Deduplicate by name
+  const seen = new Set();
+  return abilities.filter(a => { if (seen.has(a.name)) return false; seen.add(a.name); return true; });
+}
+
+(function() {
+  const _orig214 = renderActiveTurnBar;
+  renderActiveTurnBar = function() {
+    _orig214();
+    _i214RechargeRow();
+  };
+})();
+
+function _i214RechargeRow() {
+  const bar = document.getElementById('activeTurnBar');
+  if (!bar || bar.style.display === 'none') return;
+  if (!initiativeList || !initiativeList.length || currentTurnIdx < 0) return;
+  const e = initiativeList[currentTurnIdx];
+  if (!e) return;
+  const char = UNIQUE_CHARS.find(c => c.name === e.name);
+  if (!char) return;
+
+  const recharges = _i214ParseRecharges(char);
+  if (!recharges.length) return;
+
+  const state = _i214GetRechargeState(char.name);
+  // Initialize untracked abilities as "ready"
+  recharges.forEach(r => { if (!(r.name in state)) state[r.name] = {spent: false, threshold: r.threshold}; });
+  _i214SaveRechargeState(char.name, state);
+
+  let h = `<div style="margin-top:4px;border-top:1px solid rgba(255,130,0,.2);padding-top:4px">`;
+  h += `<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;flex-wrap:wrap">`;
+  h += `<span style="font-size:9px;color:#ff9900;letter-spacing:.5px;min-width:34px">RECHARGE</span>`;
+  h += `<span style="font-size:8px;color:#4a5272;font-style:italic">d6 ≥ threshold to recharge</span>`;
+  h += `</div>`;
+
+  h += `<div style="display:flex;flex-wrap:wrap;gap:4px;">`;
+  recharges.forEach(({name, threshold}) => {
+    const s = state[name] || {spent: false, threshold};
+    const ready = !s.spent;
+    const col = ready ? '#ff9900' : '#3a3a50';
+    const bg = ready ? 'rgba(255,153,0,.1)' : 'rgba(255,255,255,.02)';
+    const bd = ready ? 'rgba(255,153,0,.35)' : 'rgba(255,255,255,.06)';
+    const sn = name.length > 16 ? name.slice(0,15)+'…' : name;
+    h += `<div style="display:flex;align-items:center;gap:2px;background:${bg};border:1px solid ${bd};border-radius:5px;padding:2px 5px;">`;
+    h += `<span style="font-size:9px;color:${col};font-weight:${ready?700:400}">${ready?'🔥':'○'} ${escHtml(sn)}</span>`;
+    h += `<span style="font-size:8px;color:#4a5272">(${threshold}–6)</span>`;
+    if (ready) {
+      h += `<button onclick="_i214SpendRecharge(${JSON.stringify(char.name)},${JSON.stringify(name)},event)" title="Use ${name}" style="background:rgba(255,80,0,.15);border:1px solid rgba(255,80,0,.3);color:#ff6622;border-radius:3px;padding:0 4px;cursor:pointer;font-size:8px;margin-left:2px">USE</button>`;
+    } else {
+      h += `<button onclick="_i214RollRecharge(${JSON.stringify(char.name)},${JSON.stringify(name)},${threshold},event)" title="Roll d6 to recharge — needs ${threshold}+ to recharge" style="background:rgba(255,153,0,.1);border:1px solid rgba(255,153,0,.25);color:#aa7700;border-radius:3px;padding:0 4px;cursor:pointer;font-size:8px;margin-left:2px">🎲 Roll</button>`;
+    }
+    h += `</div>`;
+  });
+  h += `</div>`;
+
+  // Recharge All button (convenience for start of turn)
+  const spentCount = recharges.filter(r => state[r.name]?.spent).length;
+  if (spentCount > 0) {
+    h += `<button onclick="_i214RollAllRecharges(${JSON.stringify(char.name)},event)" style="margin-top:3px;background:rgba(255,153,0,.07);border:1px solid rgba(255,153,0,.2);color:#886622;border-radius:4px;padding:1px 8px;cursor:pointer;font-size:9px" title="Roll recharge for all spent abilities">🎲 Roll All Recharges</button>`;
+  }
+
+  h += `</div>`;
+  bar.innerHTML += h;
+}
+
+function _i214SpendRecharge(charName, abilityName, event) {
+  if (event) event.stopPropagation();
+  const state = _i214GetRechargeState(charName);
+  if (!state[abilityName]) return;
+  state[abilityName].spent = true;
+  _i214SaveRechargeState(charName, state);
+  if (typeof logEntry === 'function') logEntry('combat', `💨 <strong>${escHtml(charName)}</strong> used <strong>${escHtml(abilityName)}</strong> — spent! (Recharge ${state[abilityName].threshold}–6)`);
+  if (typeof showToast === 'function') showToast(`${abilityName} used — roll to recharge!`, '#ff9900', 2500);
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+}
+
+function _i214RollRecharge(charName, abilityName, threshold, event) {
+  if (event) event.stopPropagation();
+  const roll = Math.floor(Math.random() * 6) + 1;
+  const recharged = roll >= threshold;
+  const state = _i214GetRechargeState(charName);
+  if (recharged) state[abilityName] = {spent: false, threshold};
+  _i214SaveRechargeState(charName, state);
+  const col = recharged ? '#44cc88' : '#cc4444';
+  const word = recharged ? `✓ RECHARGED! (${roll} ≥ ${threshold})` : `✗ Not yet (${roll} < ${threshold})`;
+  if (typeof logEntry === 'function') logEntry('roll', `🎲 <strong>${escHtml(charName)}</strong> Recharge ${escHtml(abilityName)}: d6=${roll} — <strong style="color:${col}">${word}</strong>`);
+  if (typeof showToast === 'function') showToast(`${abilityName}: ${word}`, col, 3000);
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+}
+
+function _i214RollAllRecharges(charName, event) {
+  if (event) event.stopPropagation();
+  const char = UNIQUE_CHARS.find(c => c.name === charName);
+  if (!char) return;
+  const recharges = _i214ParseRecharges(char);
+  const state = _i214GetRechargeState(charName);
+  recharges.forEach(({name, threshold}) => {
+    if (state[name]?.spent) _i214RollRecharge(charName, name, threshold, null);
+  });
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 215: AOE Damage with Save-for-Half
+// Select multiple targets → enter damage + DC + save ability → one click rolls
+// all saves automatically and applies full damage to failures, half to passes.
+// Perfect for Fireball, Breath Weapons, Dragon Fear, Cloudkill, etc.
+// Smarter than DnD Beyond — handles all 5e AOE damage patterns in one tool!
+// ─────────────────────────────────────────────────────────────────────────────
+function openAoeDamage() {
+  const ex = document.getElementById('aoeDmgOverlay');
+  if (ex) { ex.remove(); return; }
+
+  const ov = document.createElement('div');
+  ov.id = 'aoeDmgOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9400;display:flex;align-items:center;justify-content:center;font-family:"Inter",sans-serif';
+
+  const allChars = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS.filter(c => {
+    const k = `tiamat_deceased_${c.name}`;
+    return !localStorage.getItem(k);
+  }) : [];
+
+  // Pre-check all characters currently in initiative
+  const initNames = new Set((initiativeList || []).map(e => e.name));
+
+  ov.innerHTML = `
+    <div style="background:#0a0a1e;border:1px solid rgba(255,80,0,.5);border-radius:14px;padding:20px;width:min(520px,95vw);max-height:90vh;overflow-y:auto;box-shadow:0 8px 48px rgba(0,0,0,.9)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <span style="font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:#ff6644">💥 AOE Damage</span>
+        <button onclick="document.getElementById('aoeDmgOverlay').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:6px;padding:3px 10px;cursor:pointer">✕</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div>
+          <div style="font-size:10px;color:#7a7aaa;letter-spacing:.5px;margin-bottom:4px">DAMAGE DICE</div>
+          <input id="aoeDice" type="text" placeholder="e.g. 8d6 or 12d10+5" value="8d6"
+            style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:6px 10px;font-size:13px;outline:none;box-sizing:border-box">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#7a7aaa;letter-spacing:.5px;margin-bottom:4px">DAMAGE TYPE</div>
+          <select id="aoeDmgType" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:6px 10px;font-size:13px;outline:none;box-sizing:border-box">
+            <option value="fire">Fire</option><option value="cold">Cold</option><option value="lightning">Lightning</option>
+            <option value="acid">Acid</option><option value="poison">Poison</option><option value="necrotic">Necrotic</option>
+            <option value="radiant">Radiant</option><option value="thunder">Thunder</option><option value="force">Force</option>
+            <option value="psychic">Psychic</option><option value="bludgeoning">Bludgeoning</option><option value="slashing">Slashing</option>
+            <option value="piercing">Piercing</option><option value="none">No type</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#7a7aaa;letter-spacing:.5px;margin-bottom:4px">SAVE ABILITY</div>
+          <select id="aoeSaveAb" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:6px 10px;font-size:13px;outline:none;box-sizing:border-box">
+            <option value="DEX">DEX (most common)</option><option value="CON">CON</option><option value="WIS">WIS</option>
+            <option value="STR">STR</option><option value="INT">INT</option><option value="CHA">CHA</option>
+            <option value="none">No save (full damage)</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#7a7aaa;letter-spacing:.5px;margin-bottom:4px">SAVE DC</div>
+          <input id="aoeDc" type="number" value="15" min="1" max="30"
+            style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:6px 10px;font-size:13px;outline:none;box-sizing:border-box">
+        </div>
+      </div>
+
+      <div style="font-size:10px;color:#7a7aaa;letter-spacing:.5px;margin-bottom:6px">TARGET CHARACTERS <span style="color:#4a5272">(check who is in the area)</span>
+        <button onclick="document.querySelectorAll('.aoe-tgt').forEach(cb=>cb.checked=true)" style="margin-left:8px;background:none;border:1px solid #2a2a50;color:#6a7aaa;border-radius:4px;padding:1px 6px;cursor:pointer;font-size:9px">All</button>
+        <button onclick="document.querySelectorAll('.aoe-tgt').forEach(cb=>cb.checked=false)" style="margin-left:4px;background:none;border:1px solid #2a2a50;color:#6a7aaa;border-radius:4px;padding:1px 6px;cursor:pointer;font-size:9px">None</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:5px;margin-bottom:14px;max-height:200px;overflow-y:auto;background:#06061a;border:1px solid #1e2040;border-radius:8px;padding:8px">
+        ${allChars.map(c => {
+          const maxHp = parseInt(c.hp) || 1;
+          const currHp = (typeof getCharHP === 'function') ? getCharHP(c.name, maxHp) : maxHp;
+          const hpPct = currHp / maxHp;
+          const hCol = hpPct < 0.25 ? '#cc3333' : hpPct < 0.5 ? '#dd8822' : '#44aa66';
+          const inInit = initNames.has(c.name);
+          return `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:3px 6px;border-radius:4px;border:1px solid rgba(255,255,255,.04)" onmouseover="this.style.background='rgba(255,255,255,.04)'" onmouseout="this.style.background=''">
+            <input type="checkbox" class="aoe-tgt" data-name="${c.name.replace(/"/g,'&quot;')}" data-maxhp="${maxHp}" ${inInit?'checked':''} style="accent-color:#ff6644">
+            <span style="font-size:11px;color:#c8d0e8;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.name}</span>
+            <span style="font-size:9px;color:${hCol}">${currHp}/${maxHp}</span>
+          </label>`;
+        }).join('')}
+      </div>
+
+      <div id="aoePreview" style="background:rgba(255,80,0,.05);border:1px solid rgba(255,80,0,.15);border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:#7a7aaa;min-height:36px;font-style:italic">
+        Enter damage dice and click Apply to roll.
+      </div>
+
+      <button onclick="_i215ApplyAoe()" style="width:100%;background:rgba(255,80,0,.15);border:1px solid rgba(255,80,0,.5);color:#ff6644;border-radius:8px;padding:10px;cursor:pointer;font-size:14px;font-weight:700;transition:all .15s" onmouseover="this.style.background='rgba(255,80,0,.25)'" onmouseout="this.style.background='rgba(255,80,0,.15)'">💥 Roll Saves & Apply Damage</button>
+    </div>
+  `;
+
+  document.body.appendChild(ov);
+  ov.addEventListener('click', ev => { if (ev.target === ov) ov.remove(); });
+  document.getElementById('aoeDice').focus();
+}
+
+function _i215ApplyAoe() {
+  const diceExpr = (document.getElementById('aoeDice')?.value || '').trim();
+  const dmgType = document.getElementById('aoeDmgType')?.value || 'fire';
+  const saveAb = document.getElementById('aoeSaveAb')?.value || 'DEX';
+  const dc = parseInt(document.getElementById('aoeDc')?.value || 15);
+  const noSave = saveAb === 'none';
+
+  // Roll damage once
+  const dmgResult = (typeof rollDiceExpr === 'function') ? rollDiceExpr(diceExpr) : null;
+  if (!dmgResult) { if (typeof showToast === 'function') showToast('Invalid dice expression', '#cc3333'); return; }
+  const fullDmg = dmgResult.total;
+  const halfDmg = Math.floor(fullDmg / 2);
+
+  // Get selected targets
+  const targets = Array.from(document.querySelectorAll('.aoe-tgt:checked')).map(cb => ({
+    name: cb.dataset.name, maxHp: parseInt(cb.dataset.maxhp) || 1
+  }));
+  if (!targets.length) { if (typeof showToast === 'function') showToast('No targets selected!', '#cc4444'); return; }
+
+  let results = [];
+
+  targets.forEach(t => {
+    const char = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS.find(c => c.name === t.name) : null;
+    const currHp = (typeof getCharHP === 'function') ? getCharHP(t.name, t.maxHp) : t.maxHp;
+
+    // Check damage immunity/resistance
+    let applied = fullDmg;
+    if (char && typeof inferDamageDefenses === 'function') {
+      const defs = inferDamageDefenses(char);
+      if (defs.immunities.includes(dmgType)) {
+        applied = 0;
+        results.push({name: t.name, save: null, dmg: 0, newHp: currHp, note: `immune to ${dmgType}`});
+        return;
+      }
+      if (defs.resistances.includes(dmgType)) applied = Math.floor(applied / 2);
+      if (defs.vulnerabilities.includes(dmgType)) applied = applied * 2;
+    }
+
+    if (noSave) {
+      const newHp = Math.max(0, currHp - applied);
+      if (typeof hpState !== 'undefined') hpState[t.name] = newHp;
+      results.push({name: t.name, save: null, dmg: applied, newHp, note: ''});
+      return;
+    }
+
+    // Roll save
+    const abMod = char ? (parseInt(((char.abilities||[]).find(a=>a[0]===saveAb)||[])[2]) || 0) : 0;
+    const crN = char ? (parseFloat(char.cr || 0)) : 1;
+    const prof = crN>=17?6:crN>=13?5:crN>=9?4:crN>=5?3:2;
+    const isProf = char ? !!(char.abilities||[]).find(a=>a[0]===saveAb&&a[3]) : false;
+    const saveBonus = abMod + (isProf ? prof : 0);
+    const roll = Math.floor(Math.random() * 20) + 1;
+    const total = roll + saveBonus;
+    const passed = total >= dc;
+    const dmgApplied = passed ? Math.floor(applied / 2) : applied;
+    const newHp = Math.max(0, currHp - dmgApplied);
+    if (typeof hpState !== 'undefined') hpState[t.name] = newHp;
+    const bStr = saveBonus >= 0 ? `+${saveBonus}` : `${saveBonus}`;
+    results.push({name: t.name, save: {roll, total, passed, bStr, dc}, dmg: dmgApplied, newHp, note: ''});
+  });
+
+  if (typeof saveHp === 'function') saveHp();
+
+  // Build log entry
+  const ordDmgType = dmgType !== 'none' ? ` ${dmgType}` : '';
+  const saveStr = noSave ? '' : ` (DC ${dc} ${saveAb} save for half)`;
+  let logHtml = `💥 <strong>AOE Damage</strong> ${diceExpr}[${dmgResult.rolls.join('+')}]=${fullDmg}${ordDmgType}${saveStr} — ${targets.length} targets:<br>`;
+  logHtml += results.map(r => {
+    if (r.note) return `&nbsp; ${escHtml(r.name)}: <span style="color:#4a5272">${r.note} → 0 dmg</span>`;
+    const saveInfo = r.save ? `d20(${r.save.roll})${r.save.bStr}=${r.save.total} ${r.save.passed?'<span style="color:#44cc88">PASS ½</span>':'<span style="color:#cc3333">FAIL full</span>'}` : '';
+    const hpCol = r.newHp === 0 ? '#cc3333' : '#ff7744';
+    return `&nbsp; <strong>${escHtml(r.name)}</strong>${r.save?` — ${saveInfo}`:''}: <strong style="color:${hpCol}">-${r.dmg} → ${r.newHp}/${(UNIQUE_CHARS.find(c=>c.name===r.name)?.hp||'?')}</strong>`;
+  }).join('<br>');
+
+  if (typeof logEntry === 'function') logEntry('damage', logHtml);
+
+  // Update preview
+  const preview = document.getElementById('aoePreview');
+  if (preview) {
+    const passCount = results.filter(r => r.save?.passed).length;
+    const failCount = results.filter(r => r.save && !r.save.passed).length;
+    const immCount = results.filter(r => r.note).length;
+    preview.style.fontStyle = 'normal';
+    preview.style.color = '#e0e0ff';
+    preview.innerHTML = `Rolled ${fullDmg} ${dmgType} (half: ${halfDmg}) — ${failCount} fail (${fullDmg} dmg), ${passCount} pass (${halfDmg} dmg)${immCount?`, ${immCount} immune`:''}. HP updated!`;
+  }
+
+  if (typeof renderGrid === 'function') renderGrid();
+  if (typeof renderInitiative === 'function') renderInitiative();
+  if (typeof showToast === 'function') showToast(`AOE: ${fullDmg} ${dmgType} — ${results.length} targets hit!`, '#ff7744', 3500);
+}
+
+// Add AOE Damage button to toolbar
+(function() {
+  const btns = document.querySelectorAll('.encounter-open-btn');
+  if (btns.length) {
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'AOE Damage — roll damage + save-for-half for multiple targets at once (Fireball, Breath Weapon, etc.)';
+    btn.style.cssText = 'border-color:#ff6644;color:#ff6644';
+    btn.textContent = '💥 AOE';
+    btn.onclick = openAoeDamage;
+    btns[btns.length - 1].parentNode.appendChild(btn);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 216: Custom Attack Macros per Character
+// Define specific attacks (e.g. "Greatsword +12, 2d6+8 slashing") for any NPC.
+// Macros appear as quick-roll buttons in the active turn bar, giving DMs exact
+// attack stats instead of generic Melee/Ranged buttons. Persists across sessions.
+// ─────────────────────────────────────────────────────────────────────────────
+const _i216MacroKey = 'tiamat_attack_macros';
+function _i216LoadMacros() { try { return JSON.parse(localStorage.getItem(_i216MacroKey) || '{}'); } catch { return {}; } }
+function _i216SaveMacros(d) { localStorage.setItem(_i216MacroKey, JSON.stringify(d)); }
+function _i216GetMacros(charName) { return _i216LoadMacros()[charName] || []; }
+function _i216SetMacros(charName, list) { const d = _i216LoadMacros(); if (list.length) d[charName] = list; else delete d[charName]; _i216SaveMacros(d); }
+
+(function() {
+  const _orig216 = renderActiveTurnBar;
+  renderActiveTurnBar = function() {
+    _orig216();
+    _i216MacroRow();
+  };
+})();
+
+function _i216MacroRow() {
+  const bar = document.getElementById('activeTurnBar');
+  if (!bar || bar.style.display === 'none') return;
+  if (!initiativeList || !initiativeList.length || currentTurnIdx < 0) return;
+  const e = initiativeList[currentTurnIdx];
+  if (!e) return;
+  const macros = _i216GetMacros(e.name);
+  if (!macros.length) {
+    // Just show the "+" button to add macros
+    const addSpan = document.createElement('span');
+    addSpan.style.cssText = 'display:inline-block;margin-top:3px;';
+    addSpan.innerHTML = `<button onclick="_i216OpenEditor(${JSON.stringify(e.name)},event)" style="background:none;border:1px dashed rgba(255,255,255,.1);color:#3a3a60;border-radius:4px;padding:1px 7px;cursor:pointer;font-size:9px" title="Add custom attack macros for ${e.name}">+ Custom Attacks</button>`;
+    bar.appendChild(addSpan);
+    return;
+  }
+
+  let h = `<div style="margin-top:4px;border-top:1px solid rgba(200,160,60,.15);padding-top:4px">`;
+  h += `<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">`;
+  h += `<span style="font-size:9px;color:#c9a227;letter-spacing:.5px;min-width:34px">ATTACKS</span>`;
+  h += `<button onclick="_i216OpenEditor(${JSON.stringify(e.name)},event)" style="background:none;border:1px solid rgba(201,162,39,.2);color:#6a5a20;border-radius:3px;padding:0 5px;cursor:pointer;font-size:8px" title="Edit attack macros">✎ Edit</button>`;
+  h += `</div><div style="display:flex;flex-wrap:wrap;gap:3px;">`;
+
+  macros.forEach((m, i) => {
+    const hitStr = m.hit >= 0 ? `+${m.hit}` : `${m.hit}`;
+    h += `<button onclick="_i216RollMacro(${JSON.stringify(e.name)},${i},event)"
+      title="${m.name}: d20${hitStr} to hit, ${m.dmg} ${m.type} damage"
+      style="background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.2);color:#c9a227;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:9px;line-height:1.5">
+      ⚔ ${escHtml(m.name.length>14?m.name.slice(0,13)+'…':m.name)}<span style="font-size:8px;opacity:.6"> ${hitStr}</span>
+    </button>`;
+  });
+  h += `</div></div>`;
+  bar.innerHTML += h;
+}
+
+function _i216RollMacro(charName, idx, event) {
+  if (event) event.stopPropagation();
+  const macros = _i216GetMacros(charName);
+  const m = macros[idx];
+  if (!m) return;
+
+  const rvResult = (typeof rollWithAdv === 'function') ? rollWithAdv(charName, m.hit) : {die: Math.floor(Math.random()*20)+1, detail: null};
+  const die = rvResult.die, detail = rvResult.detail;
+  const total = die + m.hit;
+  const isCrit = die === 20, isFumble = die === 1;
+  const hitStr = m.hit >= 0 ? `+${m.hit}` : `${m.hit}`;
+
+  // Check vs target if set
+  const target = (typeof _i213Targets !== 'undefined') ? _i213Targets[charName] : null;
+  let hitMissLabel = '';
+  if (target) {
+    const hit = isCrit || (!isFumble && total >= target.ac);
+    hitMissLabel = ` — <strong style="color:${isCrit?'#ffcc00':hit?'#44cc88':'#cc3333'}">${isCrit?'★ CRIT!':isFumble?'☠ MISS':hit?'HIT!':'MISS'}</strong>${target?' vs '+escHtml(target.name)+' AC'+target.ac:''}`;
+  }
+
+  // Roll damage
+  let dmgHtml = '';
+  if ((isCrit || (target ? (isCrit || (!isFumble && total >= target.ac)) : true)) && !isFumble) {
+    const dmgResult = (typeof rollDiceExpr === 'function') ? rollDiceExpr(m.dmg) : null;
+    if (dmgResult) {
+      const diceCount = isCrit ? 2 : 1;
+      let critExtra = '';
+      if (isCrit) {
+        const extra = (typeof rollDiceExpr === 'function') ? rollDiceExpr(m.dmg) : null;
+        if (extra) {
+          const combined = dmgResult.total + extra.total;
+          critExtra = ` 💥 CRIT: [${dmgResult.rolls.join('+')}]+[${extra.rolls.join('+')}] = ${combined} ${m.type}`;
+          dmgHtml = ` → <strong style="color:#ff6644">${combined} ${m.type}</strong>`;
+          if (typeof logEntry === 'function') logEntry('roll', `  → Crit Dmg: ${critExtra}`);
+        }
+      } else {
+        dmgHtml = ` → <strong style="color:#ff6644">${dmgResult.total} ${m.type}</strong>`;
+        if (typeof logEntry === 'function') logEntry('roll', `  → Dmg: ${m.dmg}[${dmgResult.rolls.join('+')}] = ${dmgResult.total} ${m.type}`);
+      }
+    }
+  }
+
+  if (typeof logEntry === 'function') logEntry('roll', `<strong>${escHtml(charName)}</strong> ⚔ ${escHtml(m.name)}: d20${detail||'('+die+')'}${hitStr}=<strong>${total}</strong>${isCrit?'★':isFumble?'☠':''}${hitMissLabel}${dmgHtml}`);
+  if (typeof showToast === 'function') showToast(`${m.name}: ${total}${isCrit?' ★':isFumble?' ☠':''}${dmgHtml?dmgHtml.replace(/<[^>]+>/g,''):''}`, isCrit?'#ffcc00':isFumble?'#cc3333':'#c9a227', 3000);
+  if (typeof playSound === 'function') playSound(isCrit ? 'crit' : 'roll');
+}
+
+function _i216OpenEditor(charName, event) {
+  if (event) event.stopPropagation();
+  const ex = document.getElementById('i216EditorOverlay');
+  if (ex) { ex.remove(); return; }
+  const macros = _i216GetMacros(charName);
+
+  const ov = document.createElement('div');
+  ov.id = 'i216EditorOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9500;display:flex;align-items:center;justify-content:center;font-family:"Inter",sans-serif';
+
+  const dmgTypes = ['slashing','piercing','bludgeoning','fire','cold','lightning','acid','poison','necrotic','radiant','thunder','force','psychic'];
+  const macroRows = macros.map((m, i) =>
+    `<div style="display:flex;gap:6px;align-items:center;margin-bottom:5px">
+      <input value="${escHtml(m.name)}" onchange="window._i216editMacros[${i}].name=this.value" style="flex:1.5;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:5px;padding:4px 7px;font-size:11px;outline:none" placeholder="Attack name">
+      <input type="number" value="${m.hit}" onchange="window._i216editMacros[${i}].hit=parseInt(this.value)||0" style="width:50px;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:5px;padding:4px 6px;font-size:11px;text-align:center;outline:none" placeholder="+hit">
+      <input value="${escHtml(m.dmg)}" onchange="window._i216editMacros[${i}].dmg=this.value" style="width:70px;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:5px;padding:4px 6px;font-size:11px;outline:none" placeholder="2d6+5">
+      <select onchange="window._i216editMacros[${i}].type=this.value" style="flex:1;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:5px;padding:4px 5px;font-size:11px;outline:none">
+        ${dmgTypes.map(t => `<option value="${t}" ${t===m.type?'selected':''}>${t}</option>`).join('')}
+      </select>
+      <button onclick="window._i216editMacros.splice(${i},1);document.getElementById('i216EditorOverlay').remove();_i216OpenEditor(${JSON.stringify(charName)},null)" style="background:rgba(204,51,51,.1);border:1px solid #cc3333;color:#cc5555;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:11px">✕</button>
+    </div>`
+  ).join('');
+
+  window._i216editMacros = macros.map(m => ({...m}));
+
+  ov.innerHTML = `
+    <div style="background:#0a0a1e;border:1px solid rgba(201,162,39,.4);border-radius:12px;padding:18px;width:min(480px,95vw);max-height:80vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <span style="font-family:'Cinzel',serif;color:#c9a227;font-weight:700">⚔ ${escHtml(charName)} — Attack Macros</span>
+        <button onclick="document.getElementById('i216EditorOverlay').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+      </div>
+      <div style="font-size:10px;color:#4a5272;margin-bottom:10px">Define specific attacks — they appear as quick-roll buttons during this character's turn.</div>
+      <div style="font-size:9px;color:#4a5272;display:grid;grid-template-columns:1.5fr 50px 70px 1fr 28px;gap:6px;margin-bottom:4px;padding:0 0 4px;border-bottom:1px solid #1e2040">
+        <span>NAME</span><span style="text-align:center">+HIT</span><span>DAMAGE</span><span>TYPE</span><span></span>
+      </div>
+      <div id="i216MacroRows">${macroRows}</div>
+      <button onclick="window._i216editMacros.push({name:'Attack',hit:5,dmg:'1d8+3',type:'slashing'});document.getElementById('i216EditorOverlay').remove();_i216OpenEditor(${JSON.stringify(charName)},null)" style="margin:8px 0;background:rgba(201,162,39,.08);border:1px dashed rgba(201,162,39,.3);color:#c9a227;border-radius:6px;padding:6px;width:100%;cursor:pointer;font-size:12px">+ Add Attack</button>
+      <button onclick="_i216SaveEditor(${JSON.stringify(charName)})" style="width:100%;background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.5);color:#c9a227;border-radius:8px;padding:9px;cursor:pointer;font-size:13px;font-weight:700">💾 Save Macros</button>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', ev => { if (ev.target === ov) ov.remove(); });
+}
+
+function _i216SaveEditor(charName) {
+  const macros = (window._i216editMacros || []).filter(m => m.name && m.dmg);
+  _i216SetMacros(charName, macros);
+  document.getElementById('i216EditorOverlay')?.remove();
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+  if (typeof showToast === 'function') showToast(`${charName}: ${macros.length} attack macros saved!`, '#c9a227', 2500);
+}
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
