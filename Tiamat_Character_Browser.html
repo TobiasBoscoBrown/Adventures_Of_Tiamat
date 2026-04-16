@@ -33825,6 +33825,202 @@ window._i218TickAndRefresh = function(charName, event) {
   if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
 };
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 219: Inspiration Tracker + Bardic Inspiration Dice
+// Track who has D&D Inspiration (1 per character max, gold star toggle)
+// Also track Bardic Inspiration dice given out by bards
+// Visible on character cards, party panel, and active turn bar
+
+const _i219InspKey = 'tiamat_inspiration';
+const _i219BardicKey = 'tiamat_bardic_insp';
+
+function _i219GetInsp() {
+  try { return JSON.parse(localStorage.getItem(_i219InspKey) || '{}'); } catch(e) { return {}; }
+}
+function _i219SaveInsp(d) {
+  try { localStorage.setItem(_i219InspKey, JSON.stringify(d)); } catch(e) {}
+}
+function _i219HasInsp(charName) { return !!_i219GetInsp()[charName]; }
+function _i219ToggleInsp(charName, event) {
+  if (event) event.stopPropagation();
+  const d = _i219GetInsp();
+  const had = !!d[charName];
+  if (had) { delete d[charName]; }
+  else { d[charName] = true; }
+  _i219SaveInsp(d);
+  const msg = had ? `${charName} spent Inspiration` : `✨ ${charName} gained Inspiration!`;
+  const color = had ? '#888' : '#ffcc00';
+  if (typeof showToast === 'function') showToast(msg, color, 2200);
+  if (typeof logEntry === 'function') logEntry('system', `<strong>${escHtml(charName)}</strong>: ${had ? 'spent' : '<span style="color:#ffcc00">gained</span>'} Inspiration`);
+  if (typeof renderGrid === 'function') renderGrid();
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+}
+
+function _i219GetBardic() {
+  try { return JSON.parse(localStorage.getItem(_i219BardicKey) || '{}'); } catch(e) { return {}; }
+}
+function _i219SaveBardic(d) {
+  try { localStorage.setItem(_i219BardicKey, JSON.stringify(d)); } catch(e) {}
+}
+function _i219GetBardicDice(charName) { return _i219GetBardic()[charName] || []; }
+function _i219GiveBardic(charName, die, event) {
+  if (event) event.stopPropagation();
+  const d = _i219GetBardic();
+  if (!d[charName]) d[charName] = [];
+  d[charName].push(die);
+  _i219SaveBardic(d);
+  if (typeof showToast === 'function') showToast(`♪ ${charName} received a d${die} Bardic Inspiration!`, '#c9a227', 2200);
+  if (typeof logEntry === 'function') logEntry('system', `♪ <strong>${escHtml(charName)}</strong> received Bardic Inspiration d${die}`);
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+}
+function _i219UseBardic(charName, idx, event) {
+  if (event) event.stopPropagation();
+  const d = _i219GetBardic();
+  const dice = d[charName] || [];
+  if (idx >= dice.length) return;
+  const die = dice[idx];
+  const roll = Math.floor(Math.random() * die) + 1;
+  dice.splice(idx, 1);
+  d[charName] = dice;
+  _i219SaveBardic(d);
+  if (typeof showToast === 'function') showToast(`♪ Bardic Inspiration d${die}: rolled ${roll}!`, '#c9a227', 2500);
+  if (typeof logEntry === 'function') logEntry('roll', `♪ <strong>${escHtml(charName)}</strong> used Bardic Inspiration d${die} → <strong>${roll}</strong>`);
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+}
+
+// Patch renderActiveTurnBar to show inspiration in active turn bar
+(function() {
+  const _origRATB = renderActiveTurnBar;
+  renderActiveTurnBar = function() {
+    _origRATB();
+    _i219InspRow();
+  };
+})();
+
+function _i219InspRow() {
+  const bar = document.getElementById('activeTurnBar');
+  if (!bar) return;
+  const il = (typeof initiativeList !== 'undefined') ? initiativeList : [];
+  const idx = (typeof currentTurnIdx !== 'undefined') ? currentTurnIdx : 0;
+  const combatant = il[idx];
+  if (!combatant) return;
+  const charName = combatant.name || combatant.charName;
+  if (!charName) return;
+
+  const hasInsp = _i219HasInsp(charName);
+  const bardicDice = _i219GetBardicDice(charName);
+  const bardicHtml = bardicDice.map((die, i) =>
+    `<button onclick="_i219UseBardic('${charName.replace(/'/g,"\\'")}',${i},event)" title="Roll this Bardic Inspiration die" style="background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.4);color:#c9a227;border-radius:5px;padding:2px 7px;cursor:pointer;font-size:10px">d${die}</button>`
+  ).join('');
+
+  const bardGiveRow = `<span style="font-size:9px;color:#4a5272">Give:</span>
+    ${[6,8,10,12].map(d =>
+      `<button onclick="_i219GiveBardic('${charName.replace(/'/g,"\\'")}',${d},event)" style="background:rgba(201,162,39,.06);border:1px solid rgba(201,162,39,.2);color:rgba(201,162,39,.7);border-radius:4px;padding:1px 5px;cursor:pointer;font-size:9px">d${d}</button>`
+    ).join('')}`;
+
+  const h = `<div style="background:rgba(30,25,10,.4);border:1px solid rgba(255,204,0,.2);border-radius:7px;padding:5px 10px;margin:3px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <span style="font-family:'Cinzel',serif;color:#ffcc00;font-size:9px;font-weight:700;letter-spacing:.5px;white-space:nowrap">✨ INSPIRATION</span>
+    <button onclick="_i219ToggleInsp('${charName.replace(/'/g,"\\'")}',event)"
+      title="${hasInsp ? 'Click to spend Inspiration' : 'Click to grant Inspiration'}"
+      style="background:${hasInsp ? 'rgba(255,204,0,.2)' : 'rgba(255,204,0,.04)'};border:${hasInsp ? '1px solid #ffcc00' : '1px dashed rgba(255,204,0,.3)'};color:${hasInsp ? '#ffcc00' : '#888'};border-radius:6px;padding:3px 10px;cursor:pointer;font-size:11px;font-weight:700">
+      ${hasInsp ? '★ Has Inspiration' : '☆ No Inspiration'}
+    </button>
+    ${bardicDice.length ? `<span style="font-size:10px;color:#c9a227;white-space:nowrap">♪ Bardic:</span>${bardicHtml}` : ''}
+    <div style="display:flex;gap:4px;align-items:center;margin-left:auto">${bardGiveRow}</div>
+  </div>`;
+  bar.innerHTML += h;
+}
+
+// Also inject inspiration star onto character cards via CSS + data injection
+// Patch renderGrid to add inspiration indicators
+(function() {
+  if (typeof renderGrid !== 'function') return;
+  const _origRG = renderGrid;
+  renderGrid = function() {
+    _origRG();
+    // Add gold star badges to cards for characters with inspiration
+    const inspMap = _i219GetInsp();
+    Object.keys(inspMap).forEach(name => {
+      // Find cards with data-name attribute
+      const cards = document.querySelectorAll(`[data-name="${CSS.escape(name)}"]`);
+      cards.forEach(card => {
+        if (card.querySelector('.i219InspBadge')) return;
+        const badge = document.createElement('span');
+        badge.className = 'i219InspBadge';
+        badge.textContent = '★';
+        badge.title = 'Has Inspiration — click to spend';
+        badge.style.cssText = 'position:absolute;top:6px;right:6px;font-size:16px;color:#ffcc00;text-shadow:0 0 8px #ffcc00;cursor:pointer;z-index:10;line-height:1';
+        badge.onclick = (e) => { _i219ToggleInsp(name, e); };
+        card.style.position = 'relative';
+        card.appendChild(badge);
+      });
+    });
+  };
+})();
+
+// Inspiration Panel: show all characters' inspiration status (toolbar shortcut)
+function openInspirationPanel() {
+  const ex = document.getElementById('i219InspPanel');
+  if (ex) { ex.remove(); return; }
+  const chars = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS : [];
+  const inspMap = _i219GetInsp();
+  const bardicMap = _i219GetBardic();
+
+  const rows = chars.slice(0, 50).map(c => {
+    const hasI = !!inspMap[c.name];
+    const bDice = bardicMap[c.name] || [];
+    return `<tr>
+      <td style="padding:4px 8px;font-size:11px;color:#c0c0e0">${escHtml(c.name)}</td>
+      <td style="padding:4px 8px;text-align:center">
+        <button onclick="_i219ToggleInsp('${c.name.replace(/'/g,"\\'")}',event)" style="background:${hasI?'rgba(255,204,0,.2)':'transparent'};border:${hasI?'1px solid #ffcc00':'1px solid #2a2a50'};color:${hasI?'#ffcc00':'#444'};border-radius:5px;padding:2px 8px;cursor:pointer;font-size:12px">${hasI?'★':'☆'}</button>
+      </td>
+      <td style="padding:4px 8px;text-align:center">
+        ${bDice.map((d,i) => `<button onclick="_i219UseBardic('${c.name.replace(/'/g,"\\'")}',${i},event)" style="background:rgba(201,162,39,.1);border:1px solid rgba(201,162,39,.3);color:#c9a227;border-radius:4px;padding:1px 5px;cursor:pointer;font-size:10px">d${d}</button>`).join('')}
+        ${[6,8].map(d => `<button onclick="_i219GiveBardic('${c.name.replace(/'/g,"\\'")}',${d},event);document.getElementById('i219InspPanel')?.remove();openInspirationPanel()" style="background:rgba(201,162,39,.04);border:1px dashed rgba(201,162,39,.2);color:rgba(201,162,39,.5);border-radius:4px;padding:1px 5px;cursor:pointer;font-size:9px">+d${d}</button>`).join('')}
+      </td>
+    </tr>`;
+  }).join('');
+
+  const ov = document.createElement('div');
+  ov.id = 'i219InspPanel';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9300;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `
+    <div style="background:#0a0a1e;border:1px solid rgba(255,204,0,.4);border-radius:12px;padding:18px;width:min(520px,95vw);max-height:80vh;overflow-y:auto;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <span style="font-family:'Cinzel',serif;color:#ffcc00;font-weight:700">✨ Inspiration & Bardic Inspiration</span>
+        <button onclick="document.getElementById('i219InspPanel').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+      </div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="border-bottom:1px solid #1e2040">
+          <th style="font-size:9px;color:#4a5272;text-align:left;padding:4px 8px;font-weight:500">CHARACTER</th>
+          <th style="font-size:9px;color:#4a5272;text-align:center;padding:4px 8px;font-weight:500">INSPIRATION</th>
+          <th style="font-size:9px;color:#4a5272;text-align:center;padding:4px 8px;font-weight:500">BARDIC DICE</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+// Add ✨ toolbar button
+(function() {
+  const injectInsp = () => {
+    const tb = document.querySelector('.toolbar-buttons') || document.querySelector('#toolbar') || document.querySelector('.toolbar');
+    if (!tb || document.getElementById('i219InspBtn')) return;
+    const btn = document.createElement('button');
+    btn.id = 'i219InspBtn';
+    btn.className = 'toolbar-btn';
+    btn.innerHTML = '✨ Inspiration';
+    btn.title = 'Inspiration & Bardic Inspiration Tracker';
+    btn.onclick = () => openInspirationPanel();
+    btn.style.cssText = 'background:rgba(255,204,0,.1);border:1px solid rgba(255,204,0,.4);color:#ffcc00;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;font-family:"Inter",sans-serif';
+    tb.appendChild(btn);
+  };
+  if (document.readyState === 'complete') injectInsp();
+  else window.addEventListener('load', injectInsp);
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
