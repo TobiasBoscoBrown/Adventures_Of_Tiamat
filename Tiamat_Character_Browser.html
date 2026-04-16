@@ -36560,6 +36560,138 @@ window._i236ManualKill = function(event) {
   else window.addEventListener('load', inject);
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 237: Darkness & Vision Reference Panel
+// Shows darkvision, blindsight, truesight, tremorsense range per character
+// Indicates who is impaired in dim light / darkness
+// Also provides quick "Darkness zone" toggle to track which characters are affected
+
+function _i237ParseSenses(char) {
+  if (!char) return {};
+  const text = [
+    char.senses || '',
+    (char.traits || []).join(' '),
+    char.lore || '',
+  ].join(' ').toLowerCase();
+
+  const senses = {};
+
+  // Darkvision
+  const dvMatch = text.match(/darkvision\s+(\d+)\s*(?:ft|feet)/i);
+  if (dvMatch) senses.darkvision = parseInt(dvMatch[1]);
+  else if (text.includes('darkvision')) senses.darkvision = 60; // Default
+
+  // Check race/class for implied darkvision
+  const title = (char.title || '').toLowerCase();
+  if (!senses.darkvision) {
+    if (title.includes('elf') || title.includes('half-elf') || title.includes('drow')) senses.darkvision = 60;
+    if (title.includes('gnome') || title.includes('dwarf') || title.includes('half-orc')) senses.darkvision = 60;
+    if (title.includes('tiefling')) senses.darkvision = 60;
+    if (title.includes('drow')) senses.darkvision = 120;
+    if (title.includes('deep gnome')) senses.darkvision = 120;
+  }
+
+  // Blindsight
+  const bsMatch = text.match(/blindsight\s+(\d+)\s*(?:ft|feet)/i);
+  if (bsMatch) senses.blindsight = parseInt(bsMatch[1]);
+  else if (text.includes('blindsight')) senses.blindsight = 10;
+
+  // Truesight
+  const tsMatch = text.match(/truesight\s+(\d+)\s*(?:ft|feet)/i);
+  if (tsMatch) senses.truesight = parseInt(tsMatch[1]);
+  else if (text.includes('truesight')) senses.truesight = 30;
+
+  // Tremorsense
+  const trMatch = text.match(/tremorsense\s+(\d+)\s*(?:ft|feet)/i);
+  if (trMatch) senses.tremorsense = parseInt(trMatch[1]);
+
+  return senses;
+}
+
+function openVisionPanel() {
+  const ex = document.getElementById('i237VisionPanel');
+  if (ex) { ex.remove(); return; }
+
+  const chars = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS : [];
+  const inDarkness = localStorage.getItem('i237_darkness') === '1';
+
+  const rows = chars.slice(0, 60).map(c => {
+    const senses = _i237ParseSenses(c);
+    const hasDv = !!senses.darkvision;
+    const dvRange = senses.darkvision || 0;
+
+    // In darkness: no darkvision = blinded (disadvantage on attack, advantage to attacks against)
+    // With darkvision: treat darkness as dim light (disadvantage on perception checks)
+    const darkStatus = inDarkness
+      ? (senses.truesight ? '✅ Full Vision' : senses.blindsight ? `👁 Blindsight ${senses.blindsight}ft` : hasDv ? `⚠ Dim Light (DV ${dvRange}ft)` : '🔴 Blinded (no DV)')
+      : (hasDv ? `👁 DV ${dvRange}ft` : '—');
+
+    const senseBadges = [];
+    if (senses.darkvision) senseBadges.push(`<span style="background:rgba(155,109,255,.15);border:1px solid rgba(155,109,255,.4);border-radius:3px;padding:1px 5px;font-size:9px;color:#9b6dff">DV ${senses.darkvision}ft</span>`);
+    if (senses.blindsight) senseBadges.push(`<span style="background:rgba(68,221,255,.1);border:1px solid rgba(68,221,255,.35);border-radius:3px;padding:1px 5px;font-size:9px;color:#44ddff">BS ${senses.blindsight}ft</span>`);
+    if (senses.truesight) senseBadges.push(`<span style="background:rgba(255,204,0,.1);border:1px solid rgba(255,204,0,.4);border-radius:3px;padding:1px 5px;font-size:9px;color:#ffcc00">TS ${senses.truesight}ft</span>`);
+    if (senses.tremorsense) senseBadges.push(`<span style="background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.3);border-radius:3px;padding:1px 5px;font-size:9px;color:#c9a227">TR ${senses.tremorsense}ft</span>`);
+
+    return `<tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+      <td style="padding:5px 6px;font-size:11px;color:#c0c0e0">${escHtml(c.name)}</td>
+      <td style="padding:5px 6px">${senseBadges.join(' ') || '<span style="font-size:10px;color:#4a5272">Normal</span>'}</td>
+      <td style="padding:5px 6px;font-size:11px;color:${inDarkness && !senses.darkvision && !senses.truesight && !senses.blindsight ? '#cc3333' : inDarkness && senses.darkvision && !senses.truesight ? '#c9a227' : '#44cc88'}">${darkStatus}</td>
+    </tr>`;
+  }).join('');
+
+  const ov = document.createElement('div');
+  ov.id = 'i237VisionPanel';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:9300;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `
+    <div style="background:#0a0a1e;border:1px solid rgba(155,109,255,.4);border-radius:12px;padding:18px;width:min(560px,95vw);max-height:85vh;overflow-y:auto;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-family:'Cinzel',serif;color:#9b6dff;font-weight:700">👁 Vision & Senses</span>
+        <button onclick="document.getElementById('i237VisionPanel').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+        <span style="font-size:11px;color:#c0c0e0">Simulate:</span>
+        <button onclick="localStorage.setItem('i237_darkness','${inDarkness ? '0' : '1'}');document.getElementById('i237VisionPanel').remove();openVisionPanel()"
+          style="background:${inDarkness ? 'rgba(155,109,255,.3)' : 'rgba(0,0,0,.3)'};border:1px solid ${inDarkness ? '#9b6dff' : '#2a2a50'};color:${inDarkness ? '#9b6dff' : '#888'};border-radius:6px;padding:5px 12px;cursor:pointer;font-size:11px">
+          ${inDarkness ? '🌑 In Darkness' : '🌙 Toggle Darkness'}
+        </button>
+        <span style="font-size:10px;color:#4a5272">DV = Darkvision, BS = Blindsight, TS = Truesight, TR = Tremorsense</span>
+      </div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="border-bottom:1px solid #1e2040">
+          <th style="font-size:9px;color:#4a5272;text-align:left;padding:4px 6px">CHARACTER</th>
+          <th style="font-size:9px;color:#4a5272;text-align:left;padding:4px 6px">SENSES</th>
+          <th style="font-size:9px;color:#4a5272;text-align:left;padding:4px 6px">${inDarkness ? 'IN DARKNESS' : 'STATUS'}</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div style="margin-top:10px;padding:8px;background:rgba(0,0,0,.3);border-radius:6px;font-size:10px;color:#4a5272;line-height:1.6">
+        <strong style="color:#9b6dff">Rules:</strong>
+        🔴 No darkvision in darkness = Blinded (attack disadv, attackers adv) ·
+        ⚠ Darkvision in darkness = Dim Light only (adv on Perception vs attack with Wis?) ·
+        Truesight/Blindsight = sees through darkness/invisibility
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+(function() {
+  const inject = () => {
+    if (document.getElementById('i237VisionBtn')) return;
+    const tb = document.querySelector('.toolbar-buttons') || document.querySelector('#toolbar') || document.querySelector('.toolbar');
+    if (!tb) return;
+    const btn = document.createElement('button');
+    btn.id = 'i237VisionBtn';
+    btn.innerHTML = '👁 Vision';
+    btn.title = 'Darkvision / Blindsight / Truesight reference for all characters';
+    btn.style.cssText = 'background:rgba(155,109,255,.08);border:1px solid rgba(155,109,255,.3);color:#9b6dff;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;font-family:"Inter",sans-serif';
+    btn.onclick = () => openVisionPanel();
+    tb.appendChild(btn);
+  };
+  if (document.readyState === 'complete') inject();
+  else window.addEventListener('load', inject);
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
