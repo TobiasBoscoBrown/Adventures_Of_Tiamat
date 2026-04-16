@@ -181,7 +181,19 @@ Core character browser, search/filter, dark theme, tooltips, view modes.
 - Iter 227: Combat Notes per Combatant — persistent 200-char note per initiative slot; edit modal; shown as gold pill in turn bar and initiative list
 - Iter 228: Damage Resistance/Immunity Icons — parses lore/traits for immunities/resistances/vulnerabilities; color-coded badges in turn bar and on character cards
 - Iter 229: Spell Upcast Slot Picker — clicking leveled spells shows slot level selector; shows remaining slots; auto-detects upcast damage scaling from SPELL_LIBRARY
-- Iter 230: Full Condition Reference Popup — click any condition badge to see full PHB mechanical description; 15 conditions with icon/summary/effects list; ❓ buttons in turn bar ← CURRENT
+- Iter 230: Full Condition Reference Popup — click any condition badge to see full PHB mechanical description; 15 conditions with icon/summary/effects list; ❓ buttons in turn bar
+
+### Iterations 231–240
+- Iter 231: Reaction Tracker — track each combatant's reaction (available/used); quick buttons (OA, Shield, Counterspell etc); green/red dot in initiative list; Reset All button
+- Iter 232: Party Group Ability Check Roller — roll any skill/ability for all characters; ranked results; optional DC with pass/fail count; advantage/disadvantage toggle; 🎲 Group Check toolbar
+- Iter 233: Party Initiative Auto-Roll — one-click roll initiative for all party members; ranked table with DEX mod; editable overrides; add all to tracker; New Combat reset button; ⚔ Roll Init toolbar
+- Iter 234: Party Saving Throw Overview Table — all 6 saves for all characters; proficiency ● indicators; color-coded (gold=best, purple=prof, red=negative); 🛡 Saves toolbar
+- Iter 235: Active Turn Bar Compact Mode Toggle — ▲/▼ button collapses all extra rows to show just essentials; state persisted; reduces screen clutter
+- Iter 236: Encounter XP Tally — running XP badge bottom-right; CR→XP conversion table; award XP to party splits evenly; integrates with XP tracker; manual kill form
+- Iter 237: Darkness & Vision Reference — parse DV/BS/TS from senses/traits/race; Toggle Darkness shows who is Blinded; 👁 Vision toolbar; 60ft/120ft inferred by race
+- Iter 238: Creature Size & Reach Reference — parse size from text/CR; Large=2×2/5ft, Huge=3×3/10ft, Gargantuan=4×4/15ft; shown in turn bar; 📐 Sizes toolbar
+- Iter 239: Short / Long Rest Menu — 💤 Rest toolbar; Short Rest recovers warlock slots + opens HD panel; Long Rest: full HP/slots/concentration/exhaustion/-1/HD recovery
+- Iter 240: PC Down! Handler — auto-triggers at 0 HP; centered death save overlay with roll/stabilize; nat 20 = regain 1 HP; 3 failures = dead; auto-applies Unconscious + clears concentration ← CURRENT
 
 ## Features Currently Implemented (What We Have)
 - Character browser: search, filter by category/theme, view modes (grid/compact/list)
