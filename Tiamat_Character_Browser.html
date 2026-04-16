@@ -6177,7 +6177,7 @@ function buildStatsPanel(c) {
       <div style="margin-bottom:12px">
         <span class="stat-chip"><strong>CR</strong> ${c.cr}</span>
         <span class="stat-chip"><strong>HP</strong> <span style="color:${hpBarColor(hpPct)}">${currHp}/${maxHp}</span></span>
-        <span class="stat-chip"><strong>AC</strong> ${c.ac}</span>
+        <span class="stat-chip" onclick="i272OpenAcPopup(${JSON.stringify(c.name)},${JSON.stringify(c.ac)},${JSON.stringify(dex.mod)},event)" title="Click to view AC breakdown" style="cursor:pointer" onmouseover="this.style.background='rgba(68,136,255,.1)'" onmouseout="this.style.background=''"><strong>AC</strong> ${(() => { const bonus = typeof i272GetAcBonus === 'function' ? i272GetAcBonus(c.name) : 0; return bonus !== 0 ? '<span style="color:#4488ff">' + (parseInt(c.ac)+bonus) + '</span><span style="font-size:9px;color:#4a5272"> ('+c.ac+(bonus>0?'+'+bonus:bonus)+')</span>' : c.ac; })()}</span>
         <span class="stat-chip"><strong>Prof</strong> +${prof}</span>
         <span class="stat-chip"><strong>Passive Perc</strong> ${passivePerc}</span>
         <span class="stat-chip" onclick="i270RollInitiative(${JSON.stringify(c.name)},${JSON.stringify(dex.mod)})" title="Click to roll initiative (d20${dex.mod})" style="cursor:pointer;border-color:rgba(201,162,39,.4);color:#c9a227;user-select:none" onmouseover="this.style.background='rgba(201,162,39,.1)'" onmouseout="this.style.background=''"><strong>Init</strong> ${dex.mod}</span>
@@ -41342,6 +41342,151 @@ window._i250SetAll = function(enabled) {
         : true;
       entry.style.display = show ? '' : 'none';
     });
+  };
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 272: AC Breakdown Calculator
+// Click the AC chip in the combat stats to open a breakdown panel.
+// Set armor type, DEX modifier cap, shield, magic bonuses.
+// Stores per-character AC components in localStorage; shows adjusted AC.
+(function() {
+  const KEY = 'tiamat_ac_breakdown';
+  let _store = {};
+  try { _store = JSON.parse(localStorage.getItem(KEY)) || {}; } catch { _store = {}; }
+  function _save() { localStorage.setItem(KEY, JSON.stringify(_store)); }
+
+  const ARMOR_TYPES = [
+    { name: 'No Armor',           base: 10, dexCap: 99 },
+    { name: 'Padded',             base: 11, dexCap: 99 },
+    { name: 'Leather',            base: 11, dexCap: 99 },
+    { name: 'Studded Leather',    base: 12, dexCap: 99 },
+    { name: 'Hide',               base: 12, dexCap: 2  },
+    { name: 'Chain Shirt',        base: 13, dexCap: 2  },
+    { name: 'Scale Mail',         base: 14, dexCap: 2  },
+    { name: 'Breastplate',        base: 14, dexCap: 2  },
+    { name: 'Half Plate',         base: 15, dexCap: 2  },
+    { name: 'Ring Mail',          base: 14, dexCap: 0  },
+    { name: 'Chain Mail',         base: 16, dexCap: 0  },
+    { name: 'Splint',             base: 17, dexCap: 0  },
+    { name: 'Full Plate',         base: 18, dexCap: 0  },
+    { name: 'Mage Armor',         base: 13, dexCap: 99, note: '+DEX (Spell)' },
+    { name: 'Natural Armor',      base: 10, dexCap: 99, note: 'DM set base' },
+    { name: 'Unarmored Defense',  base: 10, dexCap: 99, note: '+CON or +WIS' },
+  ];
+
+  window.i272GetAcBonus = function(charName) {
+    return (_store[charName] || {}).magicBonus || 0;
+  };
+
+  window.i272CalcAC = function(charName, baseAcStr, dexModStr) {
+    const d = _store[charName] || {};
+    const armorIdx = d.armorIdx !== undefined ? d.armorIdx : null;
+    const shield = d.shield ? 2 : 0;
+    const magic = parseInt(d.magic) || 0;
+    const dexMod = parseInt(dexModStr) || 0;
+
+    if (armorIdx === null) {
+      // No override — use character's base AC
+      return { total: (parseInt(baseAcStr) || 10) + shield + magic, components: ['Base ' + baseAcStr, shield ? '+2 Shield' : null, magic ? '+' + magic + ' Magic' : null].filter(Boolean) };
+    }
+
+    const armor = ARMOR_TYPES[armorIdx];
+    const dexBonus = Math.min(dexMod, armor.dexCap);
+    const total = armor.base + dexBonus + shield + magic;
+    const components = [
+      armor.name + ' (' + armor.base + ')',
+      dexBonus !== 0 ? (dexBonus > 0 ? '+' + dexBonus : '' + dexBonus) + ' DEX' + (armor.dexCap < 99 ? ' (cap ' + armor.dexCap + ')' : '') : null,
+      shield ? '+2 Shield' : null,
+      magic ? '+' + magic + ' Magic' : null,
+    ].filter(Boolean);
+    return { total, components };
+  };
+
+  window.i272OpenAcPopup = function(charName, baseAc, dexMod, event) {
+    event.stopPropagation();
+    const ex = document.getElementById('i272AcPopup');
+    if (ex) { ex.remove(); return; }
+
+    const d = _store[charName] || {};
+    const { total, components } = i272CalcAC(charName, baseAc, dexMod);
+
+    const armorOptions = ARMOR_TYPES.map((a, i) => {
+      const sel = d.armorIdx === i ? ' selected' : '';
+      return '<option value="' + i + '"' + sel + '>' + a.name + ' (base ' + a.base + (a.dexCap < 99 ? ', DEX cap ' + a.dexCap : '') + ')</option>';
+    }).join('');
+
+    const pop = document.createElement('div');
+    pop.id = 'i272AcPopup';
+    pop.style.cssText = 'position:fixed;z-index:9900;background:#0a0a1e;border:1px solid rgba(68,136,255,.4);border-radius:12px;padding:16px;width:280px;font-family:Inter,sans-serif;box-shadow:0 8px 32px rgba(0,0,0,.6)';
+
+    const evRect = { x: event.clientX, y: event.clientY };
+    pop.style.left = Math.min(evRect.x - 140, window.innerWidth - 295) + 'px';
+    pop.style.top = Math.min(evRect.y + 12, window.innerHeight - 350) + 'px';
+
+    pop.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
+      + '<span style="font-family:Cinzel,serif;color:#4488ff;font-weight:700;font-size:13px">🛡 AC Breakdown</span>'
+      + '<button onclick="document.getElementById(\'i272AcPopup\').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:4px;padding:1px 7px;cursor:pointer">✕</button>'
+      + '</div>'
+      + '<div style="font-size:22px;font-weight:900;color:#4488ff;text-align:center;margin-bottom:4px">' + total + '</div>'
+      + '<div style="font-size:11px;color:#4a5272;text-align:center;margin-bottom:12px">' + components.join(' + ') + '</div>'
+      + '<div style="margin-bottom:8px"><label style="font-size:10px;color:#4a5272;display:block;margin-bottom:3px">Armor Type</label>'
+        + '<select id="i272ArmorSel" style="width:100%;background:#06061a;border:1px solid rgba(68,136,255,.3);color:#c0c0e0;border-radius:5px;padding:4px 6px;font-size:11px" '
+          + 'onchange="i272UpdateAc(\'' + charName + '\',\'' + baseAc + '\',\'' + dexMod + '\')">'
+          + '<option value="-1"' + (d.armorIdx === undefined ? ' selected' : '') + '>Use base AC (' + baseAc + ')</option>'
+          + armorOptions + '</select></div>'
+      + '<div style="display:flex;gap:8px;margin-bottom:8px">'
+        + '<div style="flex:1"><label style="font-size:10px;color:#4a5272;display:block;margin-bottom:3px">Magic +</label>'
+          + '<input id="i272MagicInp" type="number" min="-5" max="5" value="' + (d.magic || 0) + '" '
+            + 'style="width:100%;background:#06061a;border:1px solid rgba(68,136,255,.3);color:#c9a227;border-radius:5px;padding:4px;font-size:13px;font-weight:700;text-align:center;outline:none" '
+            + 'oninput="i272UpdateAc(\'' + charName + '\',\'' + baseAc + '\',\'' + dexMod + '\')" title="+1/+2/+3 for magic armor"></div>'
+        + '<div style="flex:1;display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px">'
+          + '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;color:#c0c0e0">'
+            + '<input id="i272ShieldChk" type="checkbox"' + (d.shield ? ' checked' : '') + ' '
+              + 'style="width:14px;height:14px;cursor:pointer;accent-color:#4488ff" '
+              + 'onchange="i272UpdateAc(\'' + charName + '\',\'' + baseAc + '\',\'' + dexMod + '\')">'
+            + ' Shield (+2)</label></div>'
+      + '</div>'
+      + '<button onclick="i272ClearAc(\'' + charName + '\',\'' + baseAc + '\',\'' + dexMod + '\')" '
+        + 'style="width:100%;font-size:11px;background:rgba(204,68,68,.06);border:1px solid rgba(204,68,68,.25);color:#cc4444;border-radius:6px;padding:5px;cursor:pointer;margin-top:4px">✕ Reset to base AC</button>';
+
+    document.body.appendChild(pop);
+    document.addEventListener('click', function _outside(e) {
+      if (!pop.contains(e.target)) { pop.remove(); document.removeEventListener('click', _outside); }
+    });
+  };
+
+  window.i272UpdateAc = function(charName, baseAc, dexMod) {
+    const sel = document.getElementById('i272ArmorSel');
+    const magic = document.getElementById('i272MagicInp');
+    const shield = document.getElementById('i272ShieldChk');
+    if (!sel) return;
+    const armorIdx = parseInt(sel.value);
+    _store[charName] = {
+      armorIdx: armorIdx >= 0 ? armorIdx : undefined,
+      magic: parseInt(magic?.value) || 0,
+      shield: shield?.checked || false,
+      magicBonus: parseInt(magic?.value) || 0,
+    };
+    _save();
+    const { total, components } = i272CalcAC(charName, baseAc, dexMod);
+    const totEl = document.querySelector('#i272AcPopup div[style*="font-size:22px"]');
+    if (totEl) totEl.textContent = total;
+    const compEl = document.querySelector('#i272AcPopup div[style*="text-align:center;margin-bottom:12px"]');
+    if (compEl) compEl.textContent = components.join(' + ');
+    // Refresh stats panel AC chip
+    const sp = document.getElementById('statsPanel');
+    const char = typeof filteredChars !== 'undefined' && typeof currentModalIdx !== 'undefined' ? filteredChars[currentModalIdx] : null;
+    if (sp && char && char.name === charName && typeof buildStatsPanel === 'function') sp.innerHTML = buildStatsPanel(char);
+  };
+
+  window.i272ClearAc = function(charName, baseAc, dexMod) {
+    delete _store[charName];
+    _save();
+    const sp = document.getElementById('statsPanel');
+    const char = typeof filteredChars !== 'undefined' && typeof currentModalIdx !== 'undefined' ? filteredChars[currentModalIdx] : null;
+    if (sp && char && char.name === charName && typeof buildStatsPanel === 'function') sp.innerHTML = buildStatsPanel(char);
+    document.getElementById('i272AcPopup')?.remove();
   };
 })();
 // ─────────────────────────────────────────────────────────────────────────────
