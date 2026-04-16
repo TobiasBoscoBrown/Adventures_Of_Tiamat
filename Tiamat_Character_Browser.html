@@ -43301,6 +43301,166 @@ void 0;
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+// Iter 300: Auto-Generated Character Sheet — print-ready HTML character sheet
+(function() {
+  window.i300GenerateSheet = function(charName) {
+    const char = (window.UNIQUE_CHARS || []).find(c => c.name === charName);
+    if (!char) return;
+
+    const maxHp = parseInt(char.hp) || 10;
+    const currHp = (() => { try { return parseInt(JSON.parse(localStorage.getItem('tiamat_hp') || '{}')[charName]) || maxHp; } catch { return maxHp; } })();
+    const prof = char.cr === '20' || char.cr === '21' ? 7 : parseInt(char.cr||1) >= 17 ? 6 : parseInt(char.cr||1) >= 13 ? 5 : parseInt(char.cr||1) >= 9 ? 4 : parseInt(char.cr||1) >= 5 ? 3 : 2;
+
+    const ab = {};
+    (char.abilities || []).forEach(([n,s,m,sav]) => { ab[n] = { score:s, mod:parseInt(m)||0, prof:!!sav }; });
+
+    const SKILL_MAP = {
+      'Acrobatics':'DEX','Animal Handling':'WIS','Arcana':'INT','Athletics':'STR','Deception':'CHA',
+      'History':'INT','Insight':'WIS','Intimidation':'CHA','Investigation':'INT','Medicine':'WIS',
+      'Nature':'INT','Perception':'WIS','Performance':'CHA','Persuasion':'CHA','Religion':'INT',
+      'Sleight of Hand':'DEX','Stealth':'DEX','Survival':'WIS'
+    };
+
+    const skillRows = Object.entries(SKILL_MAP).map(([skill, stat]) => {
+      const base = ab[stat]?.mod || 0;
+      const bonus = base; // simplified - prof detection would need char data
+      const str = bonus >= 0 ? `+${bonus}` : `${bonus}`;
+      return `<div class="skill-row"><span class="skill-bonus">${str}</span><span class="skill-name">${skill}</span><span class="skill-stat">${stat}</span></div>`;
+    }).join('');
+
+    const abilityBoxes = ['STR','DEX','CON','INT','WIS','CHA'].map(a => {
+      const d = ab[a] || { score:10, mod:0, prof:false };
+      const modStr = d.mod >= 0 ? `+${d.mod}` : `${d.mod}`;
+      const saveBonus = d.mod + (d.prof ? prof : 0);
+      const saveStr = saveBonus >= 0 ? `+${saveBonus}` : `${saveBonus}`;
+      return `<div class="ability-box">
+        <div class="ab-name">${a}</div>
+        <div class="ab-score">${d.score}</div>
+        <div class="ab-mod">${modStr}</div>
+        <div class="ab-save">Save ${saveStr}</div>
+      </div>`;
+    }).join('');
+
+    const traits = (char.traits || []).join('\n• ');
+    const spells = char.spells ? char.spells.join(', ') : 'None';
+
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<title>${char.name} — Character Sheet</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family: Georgia, serif; font-size:11px; color:#111; background:#fff; padding:20px; }
+  h1 { font-size:20px; font-weight:700; border-bottom:3px solid #333; padding-bottom:6px; margin-bottom:12px; letter-spacing:1px; }
+  h2 { font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#555; border-bottom:1px solid #aaa; padding-bottom:3px; margin:12px 0 8px; }
+  .header-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
+  .header-field { border-bottom:1px solid #999; padding:3px 4px; font-size:11px; }
+  .header-label { font-size:9px; color:#888; text-transform:uppercase; letter-spacing:.07em; }
+  .main-grid { display:grid; grid-template-columns:160px 1fr; gap:16px; }
+  .abilities { display:flex; flex-direction:column; gap:6px; }
+  .ability-box { border:2px solid #333; border-radius:8px; text-align:center; padding:4px 8px; }
+  .ab-name { font-size:8px; letter-spacing:.1em; text-transform:uppercase; color:#666; }
+  .ab-score { font-size:22px; font-weight:700; }
+  .ab-mod { font-size:14px; font-weight:700; color:#333; }
+  .ab-save { font-size:8px; color:#666; margin-top:2px; }
+  .skill-row { display:flex; align-items:center; gap:6px; padding:1px 0; border-bottom:1px dotted #ddd; }
+  .skill-bonus { width:28px; text-align:right; font-weight:700; font-size:11px; }
+  .skill-name { flex:1; font-size:10px; }
+  .skill-stat { font-size:9px; color:#888; }
+  .stat-row { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:12px; }
+  .stat-box { border:1px solid #333; border-radius:6px; text-align:center; padding:6px 4px; }
+  .stat-val { font-size:18px; font-weight:700; }
+  .stat-lbl { font-size:8px; text-transform:uppercase; color:#666; letter-spacing:.07em; }
+  .hp-section { display:flex; align-items:center; gap:8px; border:2px solid #333; border-radius:8px; padding:8px 12px; margin-bottom:10px; }
+  .hp-current { font-size:28px; font-weight:700; color:#cc2222; }
+  .hp-max { font-size:14px; color:#666; }
+  .hp-bar-outer { flex:1; height:12px; background:#eee; border-radius:6px; overflow:hidden; }
+  .hp-bar-inner { height:100%; border-radius:6px; background:${currHp/maxHp > 0.5 ? '#44aa44' : currHp/maxHp > 0.25 ? '#ddaa22' : '#cc2222'}; width:${Math.round(currHp/maxHp*100)}%; }
+  .traits-list { white-space:pre-line; font-size:10px; line-height:1.5; }
+  .lore-text { font-size:10px; line-height:1.6; font-style:italic; color:#333; }
+  .quote-text { font-size:12px; font-style:italic; color:#555; border-left:3px solid #c9a227; padding-left:10px; margin:8px 0; }
+  @media print { body { padding:10px; } }
+</style>
+</head>
+<body>
+<h1>⚔ ${char.name.toUpperCase()}</h1>
+<div class="header-grid">
+  <div><div class="header-label">Title / Class</div><div class="header-field">${char.title}</div></div>
+  <div><div class="header-label">Background / Origin</div><div class="header-field">${char.subtitle}</div></div>
+  <div><div class="header-label">CR / Challenge Rating</div><div class="header-field">CR ${char.cr} · Prof +${prof}</div></div>
+  <div><div class="header-label">Alignment</div><div class="header-field">${(char.subtitle.match(/\b(Lawful|Neutral|Chaotic)\s+(Good|Neutral|Evil)\b/i)||['','Unknown'])[0]}</div></div>
+</div>
+
+${char.quote ? `<div class="quote-text">"${char.quote}"</div>` : ''}
+
+<div class="stat-row">
+  <div class="stat-box"><div class="stat-val">${currHp}/${maxHp}</div><div class="stat-lbl">Hit Points</div></div>
+  <div class="stat-box"><div class="stat-val">${char.ac}</div><div class="stat-lbl">Armor Class</div></div>
+  <div class="stat-box"><div class="stat-val">${char.speed||30}ft</div><div class="stat-lbl">Speed</div></div>
+  <div class="stat-box"><div class="stat-val">+${prof}</div><div class="stat-lbl">Proficiency</div></div>
+</div>
+
+<div class="main-grid">
+  <div>
+    <h2>Ability Scores</h2>
+    <div class="abilities">${abilityBoxes}</div>
+  </div>
+  <div>
+    <h2>Skills</h2>
+    <div class="skills-list">${skillRows}</div>
+  </div>
+</div>
+
+<h2>Traits & Features</h2>
+<div class="traits-list">• ${traits || 'None recorded'}</div>
+
+<h2>Lore & Background</h2>
+<div class="lore-text">${char.lore || 'No lore recorded.'}</div>
+
+${char.spells?.length ? `<h2>Spells</h2><div class="traits-list">${spells}</div>` : ''}
+
+<div style="margin-top:20px;font-size:9px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:8px">
+  Generated by Adventures of Tiamat Character Browser · ${new Date().toLocaleDateString()}
+</div>
+</body></html>`;
+
+    const win = window.open('', '_blank', 'width=900,height=1100');
+    win.document.write(html);
+    win.document.close();
+    setTimeout(() => win.print(), 500);
+  };
+
+  // Add button to modal tab bar
+  const origBuildCombatBar = window.buildCombatBar;
+  // Hook into openModal to add a print button
+  const _origOpen = window.openModal;
+  if (typeof _origOpen === 'function') {
+    window.openModal = function(idx) {
+      _origOpen.apply(this, arguments);
+      try {
+        const c = (window.filteredChars || [])[idx];
+        if (!c) return;
+        // Add sheet gen button if not already present
+        let btn = document.getElementById('i300SheetBtn');
+        if (!btn) {
+          btn = document.createElement('button');
+          btn.id = 'i300SheetBtn';
+          btn.style.cssText = 'background:none;border:1px solid #2a2a50;color:#7a7aaa;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:12px;margin-right:4px;transition:all .15s;font-family:Cinzel,serif';
+          btn.innerHTML = '📄 Auto Sheet';
+          btn.title = 'Generate auto-filled character sheet (Iter 300)';
+          btn.onmouseover = () => { btn.style.borderColor='#44cc88'; btn.style.color='#44cc88'; };
+          btn.onmouseout = () => { btn.style.borderColor='#2a2a50'; btn.style.color='#7a7aaa'; };
+          const tabsRow = document.querySelector('#modalTabs > div:first-child');
+          const tabsParent = document.getElementById('modalTabs');
+          if (tabsParent) tabsParent.insertBefore(btn, tabsParent.querySelector('button'));
+        }
+        btn.onclick = () => i300GenerateSheet(c.name);
+      } catch(e) {}
+    };
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+// ══ ITERATION 300 COMPLETE — Adventures of Tiamat Character Browser ══
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
