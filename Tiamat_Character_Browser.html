@@ -35765,6 +35765,199 @@ function _i231InjectReactionDots() {
   });
 }
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 232: Party Group Ability Check Roller
+// Roll any skill/ability check for all party members at once
+// Shows ranked results; highlights successes vs target DC if set
+// Accessible via toolbar button
+
+const _i232SKILLS = [
+  {name:'Acrobatics', ability:'DEX'},
+  {name:'Animal Handling', ability:'WIS'},
+  {name:'Arcana', ability:'INT'},
+  {name:'Athletics', ability:'STR'},
+  {name:'Deception', ability:'CHA'},
+  {name:'History', ability:'INT'},
+  {name:'Insight', ability:'WIS'},
+  {name:'Intimidation', ability:'CHA'},
+  {name:'Investigation', ability:'INT'},
+  {name:'Medicine', ability:'WIS'},
+  {name:'Nature', ability:'INT'},
+  {name:'Perception', ability:'WIS'},
+  {name:'Performance', ability:'CHA'},
+  {name:'Persuasion', ability:'CHA'},
+  {name:'Religion', ability:'INT'},
+  {name:'Sleight of Hand', ability:'DEX'},
+  {name:'Stealth', ability:'DEX'},
+  {name:'Survival', ability:'WIS'},
+];
+
+const _i232ABILITY_CHECKS = [
+  {name:'Strength', ability:'STR'},
+  {name:'Dexterity', ability:'DEX'},
+  {name:'Constitution', ability:'CON'},
+  {name:'Intelligence', ability:'INT'},
+  {name:'Wisdom', ability:'WIS'},
+  {name:'Charisma', ability:'CHA'},
+];
+
+function _i232GetAbilityMod(char, abilityKey) {
+  if (!char?.abilities) return 0;
+  const entry = char.abilities.find(a => a[0] === abilityKey);
+  if (!entry) return 0;
+  const score = entry[1] || 10;
+  return Math.floor((score - 10) / 2);
+}
+
+function _i232GetProfBonus(char) {
+  try {
+    const xpData = JSON.parse(localStorage.getItem('tiamat_xp_tracker') || '{}');
+    const level = xpData[char?.name]?.level || 5;
+    return level <= 4 ? 2 : level <= 8 ? 3 : level <= 12 ? 4 : level <= 16 ? 5 : 6;
+  } catch(e) { return 2; }
+}
+
+function openGroupCheckPanel() {
+  const ex = document.getElementById('i232GroupPanel');
+  if (ex) { ex.remove(); return; }
+
+  const ov = document.createElement('div');
+  ov.id = 'i232GroupPanel';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:9300;display:flex;align-items:center;justify-content:center';
+
+  const allChecks = [..._i232SKILLS, ..._i232ABILITY_CHECKS];
+  const skillOptions = allChecks.map(s =>
+    `<option value="${s.name}|${s.ability}">${s.name} (${s.ability})</option>`
+  ).join('');
+
+  ov.innerHTML = `
+    <div style="background:#0a0a1e;border:1px solid rgba(201,162,39,.4);border-radius:12px;padding:18px;width:min(560px,95vw);max-height:88vh;overflow-y:auto;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <span style="font-family:'Cinzel',serif;color:#c9a227;font-weight:700">🎲 Group Ability Check</span>
+        <button onclick="document.getElementById('i232GroupPanel').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+        <select id="i232SkillSel" style="flex:2;min-width:160px;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px;font-size:12px;outline:none">
+          ${skillOptions}
+        </select>
+        <input id="i232DcInput" type="number" min="1" max="30" placeholder="DC (opt)" value=""
+          style="width:80px;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:7px;font-size:12px;text-align:center;outline:none">
+        <label style="display:flex;align-items:center;gap:5px;color:#c0c0e0;font-size:12px;cursor:pointer">
+          <input type="checkbox" id="i232AdvCheck" style="cursor:pointer"> Adv
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;color:#c0c0e0;font-size:12px;cursor:pointer">
+          <input type="checkbox" id="i232DisCheck" style="cursor:pointer"> Dis
+        </label>
+        <button onclick="_i232RollGroup(event)" style="flex:1;min-width:80px;background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.5);color:#c9a227;border-radius:7px;padding:7px;cursor:pointer;font-size:13px;font-weight:700">🎲 Roll All</button>
+      </div>
+      <div id="i232Results" style="font-size:12px;color:#4a5272">Select a skill and click Roll All to see results.</div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+window._i232RollGroup = function(event) {
+  if (event) event.stopPropagation();
+  const selEl = document.getElementById('i232SkillSel');
+  const dcEl = document.getElementById('i232DcInput');
+  const advEl = document.getElementById('i232AdvCheck');
+  const disEl = document.getElementById('i232DisCheck');
+
+  if (!selEl) return;
+  const [skillName, abilityKey] = selEl.value.split('|');
+  const dc = parseInt(dcEl?.value) || 0;
+  const advantage = advEl?.checked;
+  const disadvantage = disEl?.checked && !advantage;
+
+  const chars = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS : [];
+  const results = [];
+
+  chars.slice(0, 50).forEach(char => {
+    const mod = _i232GetAbilityMod(char, abilityKey);
+    const profBonus = _i232GetProfBonus(char);
+
+    // Check proficiency
+    let isProficient = false;
+    try {
+      const profKey = `tiamat_proficiencies_${char.name}`;
+      const profs = JSON.parse(localStorage.getItem(profKey) || '{}');
+      isProficient = !!(profs[skillName]);
+    } catch(e) {}
+    // Also check traits
+    const traitsLower = (char.traits || []).join(' ').toLowerCase();
+    if (!isProficient && traitsLower.includes(skillName.toLowerCase())) isProficient = true;
+
+    const bonus = mod + (isProficient ? profBonus : 0);
+
+    // Roll with advantage/disadvantage
+    const roll1 = Math.floor(Math.random() * 20) + 1;
+    const roll2 = (advantage || disadvantage) ? Math.floor(Math.random() * 20) + 1 : roll1;
+    const die = advantage ? Math.max(roll1, roll2) : disadvantage ? Math.min(roll1, roll2) : roll1;
+    const total = die + bonus;
+    const isNat20 = die === 20, isNat1 = die === 1;
+
+    results.push({ name: char.name, die, bonus, total, isNat20, isNat1, isProficient, pass: dc > 0 ? total >= dc : null });
+  });
+
+  // Sort by total descending
+  results.sort((a, b) => b.total - a.total);
+
+  const modStr = (b) => b >= 0 ? `+${b}` : `${b}`;
+  const advLabel = advantage ? '<span style="font-size:9px;color:#44cc88">(ADV)</span>' : disadvantage ? '<span style="font-size:9px;color:#cc3333">(DIS)</span>' : '';
+  const dcLabel = dc > 0 ? ` vs DC ${dc}` : '';
+
+  const passCount = dc > 0 ? results.filter(r => r.pass).length : 0;
+
+  let html = `<div style="font-size:10px;color:#4a5272;margin-bottom:8px">${escHtml(skillName)} check ${advLabel}${dcLabel}${dc > 0 ? ` — <strong style="color:#44cc88">${passCount}/${results.filter(r=>r.pass!==null).length} pass</strong>` : ''}</div>`;
+  html += `<table style="width:100%;border-collapse:collapse">`;
+  html += `<thead><tr style="border-bottom:1px solid #1e2040">
+    <th style="font-size:9px;color:#4a5272;text-align:left;padding:3px 6px">CHARACTER</th>
+    <th style="font-size:9px;color:#4a5272;text-align:center;padding:3px 6px">ROLL</th>
+    <th style="font-size:9px;color:#4a5272;text-align:center;padding:3px 6px">BONUS</th>
+    <th style="font-size:9px;color:#4a5272;text-align:center;padding:3px 6px">TOTAL</th>
+    ${dc > 0 ? '<th style="font-size:9px;color:#4a5272;text-align:center;padding:3px 6px">DC '+dc+'</th>' : ''}
+  </tr></thead><tbody>`;
+
+  results.forEach(r => {
+    const dieColor = r.isNat20 ? '#ffcc00' : r.isNat1 ? '#cc3333' : '#c0c0e0';
+    const passColor = r.pass === true ? '#44cc88' : r.pass === false ? '#cc3333' : 'transparent';
+    html += `<tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+      <td style="padding:4px 6px;font-size:11px;color:#c0c0e0">${escHtml(r.name)}${r.isProficient ? ' <span style="font-size:8px;color:#9b6dff">(prof)</span>' : ''}</td>
+      <td style="padding:4px 6px;text-align:center;font-size:11px;font-weight:700;color:${dieColor}">${r.die}${r.isNat20 ? ' ★' : r.isNat1 ? ' ☠' : ''}</td>
+      <td style="padding:4px 6px;text-align:center;font-size:11px;color:#4a5272">${modStr(r.bonus)}</td>
+      <td style="padding:4px 6px;text-align:center;font-size:13px;font-weight:700;color:${r.pass===true?'#44cc88':r.pass===false?'#cc3333':'#e0e0ff'}">${r.total}</td>
+      ${dc > 0 ? `<td style="padding:4px 6px;text-align:center;font-size:11px;font-weight:700;background:rgba(0,0,0,.2);color:${passColor}">${r.pass?'✓ PASS':'✗ FAIL'}</td>` : ''}
+    </tr>`;
+  });
+  html += '</tbody></table>';
+
+  // Log to combat log
+  if (typeof logEntry === 'function') {
+    const summary = results.slice(0, 5).map(r => `${r.name}=${r.total}`).join(', ');
+    logEntry('roll', `🎲 Group ${escHtml(skillName)}: ${summary}${results.length > 5 ? '...' : ''}${dc > 0 ? ` | ${passCount}/${results.length} pass DC ${dc}` : ''}`);
+  }
+
+  const el = document.getElementById('i232Results');
+  if (el) el.innerHTML = html;
+};
+
+(function() {
+  const inject = () => {
+    if (document.getElementById('i232GroupBtn')) return;
+    const tb = document.querySelector('.toolbar-buttons') || document.querySelector('#toolbar') || document.querySelector('.toolbar');
+    if (!tb) return;
+    const btn = document.createElement('button');
+    btn.id = 'i232GroupBtn';
+    btn.innerHTML = '🎲 Group Check';
+    btn.title = 'Roll any skill check for the whole party at once';
+    btn.style.cssText = 'background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.3);color:#c9a227;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;font-family:"Inter",sans-serif';
+    btn.onclick = () => openGroupCheckPanel();
+    tb.appendChild(btn);
+  };
+  if (document.readyState === 'complete') inject();
+  else window.addEventListener('load', inject);
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
