@@ -6095,9 +6095,10 @@ function calcSave(abilityMod, profBonus, hasProficiency) {
 
 function buildStatsPanel(c) {
   const t = getTheme(c.theme);
-  const prof = c.cr === '30' ? 9 : c.cr === '21' || c.cr === '20' ? 7 : c.cr === '17' || c.cr === '16' ? 6 :
+  const _crProf = c.cr === '30' ? 9 : c.cr === '21' || c.cr === '20' ? 7 : c.cr === '17' || c.cr === '16' ? 6 :
                c.cr === '15' || c.cr === '14' ? 5 : c.cr === '13' || c.cr === '9' || c.cr === '10' ? 4 :
                c.cr === '7' || c.cr === '8' ? 3 : c.cr === '5' || c.cr === '6' ? 3 : 2;
+  const prof = typeof i275GetProf === 'function' ? i275GetProf(c.name, _crProf) : _crProf;
   const maxHp = parseInt(c.hp) || 1;
   const currHp = getCharHP(c.name, maxHp);
   const hpPct = currHp / maxHp;
@@ -6159,12 +6160,19 @@ function buildStatsPanel(c) {
 
   // Iter 103: Condition badges now clickable to show effect description
   const condBadges = conditions.length ?
-    `<div style="margin-bottom:10px">${conditions.map(cn => {
+    `<div style="margin-bottom:10px;display:flex;flex-wrap:wrap;gap:4px;align-items:center">${conditions.map(cn => {
       const cd = CONDITIONS.find(x => x.name === cn);
       const cls = cd ? getCondClass(cd.type) : 'cond-debuff';
       const tipText = cd && cd.effects ? cd.effects.join(' | ') : cn;
-      return `<span class="condition-badge ${cls}" style="cursor:pointer" title="${tipText}" onclick="showCondDetailPopup(${JSON.stringify(cn)})">${cd?.icon||''} ${cn}</span>`;
-    }).join('')}</div>` : '';
+      return `<span class="condition-badge ${cls}" style="cursor:pointer;display:inline-flex;align-items:center;gap:3px" title="${tipText}"
+        onclick="showCondDetailPopup(${JSON.stringify(cn)})">${cd?.icon||''} ${cn}
+        <button onclick="event.stopPropagation();i277RemoveCond(${JSON.stringify(c.name)},${JSON.stringify(cn)})"
+          title="Remove ${cn}" style="background:none;border:none;color:inherit;cursor:pointer;font-size:9px;opacity:0.6;padding:0;margin-left:1px;line-height:1"
+          onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">✕</button>
+      </span>`;
+    }).join('')}
+    <button onclick="openCondPopup(${JSON.stringify(c.name)},event)" title="Add condition" style="font-size:10px;background:rgba(100,100,200,.06);border:1px solid #2a2a50;color:#5a5a8a;border-radius:12px;padding:1px 8px;cursor:pointer">+ Add</button>
+    </div>` : '';
 
   const noteBox = notes && notes.text ?
     `<div style="margin-bottom:10px;padding:10px;background:#06061a;border:1px solid rgba(155,109,255,0.3);border-radius:8px;font-size:12px;color:#9098b8;line-height:1.6"><span style="color:#9b6dff;font-weight:600">DM Notes: </span>${notes.text}</div>` : '';
@@ -6181,10 +6189,68 @@ function buildStatsPanel(c) {
           <div style="position:absolute;bottom:2px;left:6px;right:6px;height:3px;background:#1e2040;border-radius:2px"><div style="width:${Math.round(Math.max(0,Math.min(1,hpPct))*100)}%;height:100%;background:${hpBarColor(hpPct)};border-radius:2px;transition:width .3s"></div></div>
         </span>
         <span class="stat-chip" onclick="i272OpenAcPopup(${JSON.stringify(c.name)},${JSON.stringify(c.ac)},${JSON.stringify(dex.mod)},event)" title="Click to view AC breakdown" style="cursor:pointer" onmouseover="this.style.background='rgba(68,136,255,.1)'" onmouseout="this.style.background=''"><strong>AC</strong> ${(() => { const bonus = typeof i272GetAcBonus === 'function' ? i272GetAcBonus(c.name) : 0; return bonus !== 0 ? '<span style="color:#4488ff">' + (parseInt(c.ac)+bonus) + '</span><span style="font-size:9px;color:#4a5272"> ('+c.ac+(bonus>0?'+'+bonus:bonus)+')</span>' : c.ac; })()}</span>
-        <span class="stat-chip"><strong>Prof</strong> +${prof}</span>
-        <span class="stat-chip"><strong>Passive Perc</strong> ${passivePerc}</span>
+        <span class="stat-chip" onclick="i275OpenProfEdit(${JSON.stringify(c.name)},${_crProf},event)" style="cursor:pointer" title="Click to override proficiency bonus (set character level)" onmouseover="this.style.background='rgba(155,109,255,.1)'" onmouseout="this.style.background=''"><strong>Prof</strong> +${prof}${typeof i275GetOverride === 'function' && i275GetOverride(c.name) ? '<span style="font-size:9px;color:#9b6dff;margin-left:2px">✎</span>' : ''}</span>
+        ${(() => {
+          // Compute all three passive skills for Iter 279
+          const percProf = highlightedAbs.has('WIS');
+          const invProf = highlightedAbs.has('INT') || inferSkillProf('Investigation');
+          const insProf = highlightedAbs.has('WIS') || inferSkillProf('Insight');
+          const wisMod = parseInt(wis.mod) || 0;
+          const intMod = parseInt(int_.mod) || 0;
+          const pp = 10 + wisMod + (percProf ? prof : 0);
+          const pi = 10 + intMod + (invProf ? prof : 0);
+          const pa = 10 + wisMod + (insProf ? prof : 0);
+          return '<span class="stat-chip" title="Passive Perception: ' + pp + ' · Passive Investigation: ' + pi + ' · Passive Insight: ' + pa + '">'
+            + '<strong>PP</strong> ' + pp
+            + '<span style="color:#4a5272;margin:0 3px">·</span><strong style="color:#4488ff">PI</strong> <span style="color:#4488ff">' + pi + '</span>'
+            + '<span style="color:#4a5272;margin:0 3px">·</span><strong style="color:#44cc88">Pa</strong> <span style="color:#44cc88">' + pa + '</span>'
+            + '</span>';
+        })()}
+        ${(() => {
+          const speeds = c.speeds || inferSpeed(c);
+          const walk = speeds.find(s => s.label === 'Walk');
+          const fly = speeds.find(s => s.label === 'Fly');
+          const swim = speeds.find(s => s.label === 'Swim');
+          const extras = [fly, swim].filter(Boolean).map(s => s.icon + s.value.replace(' ft','')).join(' ');
+          return '<span class="stat-chip" title="Movement speeds — ' + speeds.map(s=>s.label+': '+s.value).join(', ') + '">'
+            + '<strong>Speed</strong> ' + (walk ? walk.value : '30 ft')
+            + (extras ? '<span style="font-size:9px;color:#4a5272;margin-left:3px">' + extras + '</span>' : '')
+            + '</span>';
+        })()}
         <span class="stat-chip" onclick="i270RollInitiative(${JSON.stringify(c.name)},${JSON.stringify(dex.mod)})" title="Click to roll initiative (d20${dex.mod})" style="cursor:pointer;border-color:rgba(201,162,39,.4);color:#c9a227;user-select:none" onmouseover="this.style.background='rgba(201,162,39,.1)'" onmouseout="this.style.background=''"><strong>Init</strong> ${dex.mod}</span>
+        ${isSpellcaster(c) ? (() => {
+          const spMod = Math.max(parseInt(int_.mod)||0, parseInt(wis.mod)||0, parseInt(cha.mod)||0);
+          const spDC = 8 + prof + spMod;
+          const spAtk = prof + spMod;
+          const spAtkStr = spAtk >= 0 ? '+' + spAtk : '' + spAtk;
+          return '<span class="stat-chip" title="Spellcasting: Save DC ' + spDC + ' · Spell Attack ' + spAtkStr + '" style="border-color:rgba(155,109,255,.4);color:#9b6dff">'
+            + '<strong style="color:#9b6dff">DC</strong> ' + spDC
+            + ' <strong style="color:#9b6dff">Atk</strong> ' + spAtkStr + '</span>';
+        })() : ''}
       </div>
+      ${isSpellcaster(c) ? (() => {
+        const maxSlots = getMaxSlotsForChar(c);
+        if (!maxSlots) return '';
+        const used = getUsedSlots(c.name);
+        const levels = Object.keys(maxSlots).map(Number).sort((a,b)=>a-b);
+        const strips = levels.map(lv => {
+          const max = maxSlots[lv];
+          const usedCount = used[lv] || 0;
+          const avail = Math.max(0, max - usedCount);
+          const pips = Array.from({length: max}, (_, i) => {
+            const used = i >= avail;
+            return '<span onclick="event.stopPropagation();' + (used ? 'recoverSlot' : 'useSlot') + '(' + JSON.stringify(c.name) + ',' + lv + ',event)" '
+              + 'title="' + (used ? 'Recover' : 'Use') + ' level ' + lv + ' slot" '
+              + 'style="display:inline-block;width:8px;height:8px;border-radius:50%;margin:0 1px;cursor:pointer;'
+              + (used ? 'background:#2a2a50;border:1px solid #4a5272' : 'background:#9b6dff;border:1px solid rgba(155,109,255,.6)')
+              + '" onmouseover="this.style.transform=\'scale(1.3)\'" onmouseout="this.style.transform=\'\'"></span>';
+          }).join('');
+          return '<div style="display:flex;align-items:center;gap:2px"><span style="font-size:8px;color:#4a5272;min-width:8px">' + lv + '</span>' + pips + '</div>';
+        }).join('');
+        return '<div style="padding:4px 0 2px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+          + '<span style="font-size:9px;color:#9b6dff;letter-spacing:.5px;opacity:.7">SLOTS</span>'
+          + strips + '</div>';
+      })() : ''}
     </div>
     ${typeof buildCharXpSection === 'function' ? buildCharXpSection(c.name) : ''}
     ${buildCurrencySection(c.name)}
@@ -41612,6 +41678,119 @@ window._i250SetAll = function(enabled) {
 // (Core change is in buildStatsPanel template — no additional functions needed here.)
 // This comment serves as the iteration marker.
 void 0;
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 275: Character Level & Proficiency Bonus Override
+// PCs use level-based proficiency (not CR-based). Click the Prof chip in combat
+// stats to override. Levels 1-4=+2, 5-8=+3, 9-12=+4, 13-16=+5, 17-20=+6.
+// Stores per character in localStorage. Small ✎ indicator when overridden.
+(function() {
+  const KEY = 'tiamat_prof_override';
+  let _store = {};
+  try { _store = JSON.parse(localStorage.getItem(KEY)) || {}; } catch { _store = {}; }
+  function _save() { localStorage.setItem(KEY, JSON.stringify(_store)); }
+
+  const LEVEL_PROF = [0,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,6,6,6,6]; // index = level
+
+  window.i275GetOverride = function(charName) { return _store[charName]; };
+
+  window.i275GetProf = function(charName, crBasedProf) {
+    const d = _store[charName];
+    if (!d) return crBasedProf;
+    if (d.manualProf) return d.manualProf;
+    if (d.level) return LEVEL_PROF[d.level] || crBasedProf;
+    return crBasedProf;
+  };
+
+  window.i275OpenProfEdit = function(charName, crProf, event) {
+    event.stopPropagation();
+    const ex = document.getElementById('i275ProfPopup');
+    if (ex) { ex.remove(); return; }
+
+    const d = _store[charName] || {};
+    const levelOptions = Array.from({length: 20}, (_, i) => {
+      const lv = i + 1;
+      const pb = LEVEL_PROF[lv];
+      const sel = d.level === lv ? ' selected' : '';
+      return '<option value="' + lv + '"' + sel + '>Level ' + lv + ' (+' + pb + ')</option>';
+    }).join('');
+
+    const pop = document.createElement('div');
+    pop.id = 'i275ProfPopup';
+    pop.style.cssText = 'position:fixed;z-index:9900;background:#0a0a1e;border:1px solid rgba(155,109,255,.4);border-radius:10px;padding:14px;width:220px;font-family:Inter,sans-serif;box-shadow:0 8px 32px rgba(0,0,0,.6)';
+    pop.style.left = Math.min(event.clientX - 100, window.innerWidth - 225) + 'px';
+    pop.style.top = Math.min(event.clientY + 10, window.innerHeight - 250) + 'px';
+    pop.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+      + '<span style="font-family:Cinzel,serif;color:#9b6dff;font-weight:700;font-size:12px">⚙ Prof Bonus</span>'
+      + '<button onclick="document.getElementById(\'i275ProfPopup\').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:4px;padding:1px 6px;cursor:pointer">✕</button>'
+      + '</div>'
+      + '<div style="font-size:10px;color:#4a5272;margin-bottom:8px">CR-based: +' + crProf + '</div>'
+      + '<div style="margin-bottom:8px"><label style="font-size:10px;color:#9b6dff;display:block;margin-bottom:3px">Set by Level</label>'
+        + '<select id="i275LevelSel" style="width:100%;background:#06061a;border:1px solid rgba(155,109,255,.3);color:#c0c0e0;border-radius:5px;padding:3px 6px;font-size:11px">'
+          + '<option value=""' + (!d.level ? ' selected' : '') + '>— Use CR default —</option>'
+          + levelOptions + '</select></div>'
+      + '<div style="margin-bottom:10px"><label style="font-size:10px;color:#9b6dff;display:block;margin-bottom:3px">Or set manually</label>'
+        + '<input id="i275ManualInp" type="number" min="1" max="9" value="' + (d.manualProf || '') + '" placeholder="2–6" '
+          + 'style="width:100%;background:#06061a;border:1px solid rgba(155,109,255,.3);color:#c9a227;border-radius:5px;padding:3px 6px;font-size:13px;font-weight:700;text-align:center;outline:none"></div>'
+      + '<div style="display:flex;gap:6px">'
+        + '<button onclick="i275ApplyProf(\'' + charName + '\')" style="flex:1;font-size:11px;background:rgba(155,109,255,.1);border:1px solid rgba(155,109,255,.35);color:#9b6dff;border-radius:6px;padding:5px;cursor:pointer">Apply</button>'
+        + '<button onclick="i275ClearProf(\'' + charName + '\')" style="font-size:11px;background:rgba(204,68,68,.06);border:1px solid rgba(204,68,68,.25);color:#cc4444;border-radius:6px;padding:5px 8px;cursor:pointer">✕ Reset</button>'
+      + '</div>';
+    document.body.appendChild(pop);
+    document.addEventListener('click', function _outside(e) {
+      if (!pop.contains(e.target)) { pop.remove(); document.removeEventListener('click', _outside); }
+    });
+  };
+
+  window.i275ApplyProf = function(charName) {
+    const sel = document.getElementById('i275LevelSel');
+    const man = document.getElementById('i275ManualInp');
+    const level = sel && sel.value ? parseInt(sel.value) : null;
+    const manual = man && man.value ? parseInt(man.value) : null;
+    _store[charName] = { level: level || undefined, manualProf: manual || undefined };
+    _save();
+    document.getElementById('i275ProfPopup')?.remove();
+    _refresh(charName);
+  };
+
+  window.i275ClearProf = function(charName) {
+    delete _store[charName];
+    _save();
+    document.getElementById('i275ProfPopup')?.remove();
+    _refresh(charName);
+  };
+
+  function _refresh(charName) {
+    const sp = document.getElementById('statsPanel');
+    const char = typeof filteredChars !== 'undefined' && typeof currentModalIdx !== 'undefined' ? filteredChars[currentModalIdx] : null;
+    if (sp && char && char.name === charName && typeof buildStatsPanel === 'function') sp.innerHTML = buildStatsPanel(char);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 277: Quick Condition Remove & Add Buttons on Condition Badges
+// Each condition badge in the modal stats tab now has an ✕ remove button
+// that clears the condition with one click. Also adds a '+Add' button
+// to quickly open the condition picker. No more scrolling to find condition controls.
+(function() {
+  window.i277RemoveCond = function(charName, condName) {
+    const all = loadAllConditions();
+    const conds = all[charName] || [];
+    const idx = conds.indexOf(condName);
+    if (idx >= 0) conds.splice(idx, 1);
+    if (!conds.length) delete all[charName];
+    else all[charName] = conds;
+    saveAllConditions(all);
+    if (typeof updateHeaderStats === 'function') updateHeaderStats();
+    if (typeof renderInitiative === 'function') renderInitiative();
+    if (typeof logEntry === 'function') logEntry('cond', '<strong>' + charName + '</strong> condition removed: ' + condName);
+    if (typeof showToast === 'function') showToast('✕ ' + condName + ' removed from ' + charName, '#4a5272', 1800);
+    // Refresh modal stats tab
+    const sp = document.getElementById('statsPanel');
+    const char = typeof filteredChars !== 'undefined' && typeof currentModalIdx !== 'undefined' ? filteredChars[currentModalIdx] : null;
+    if (sp && char && char.name === charName && typeof buildStatsPanel === 'function') sp.innerHTML = buildStatsPanel(char);
+  };
+})();
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
 
