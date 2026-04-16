@@ -37011,6 +37011,180 @@ window._i239DoLongRest = function(event) {
   else window.addEventListener('load', inject);
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 240: PC Down! Handler — auto-actions when HP hits 0
+// When any character's HP reaches 0 or below:
+// 1. Show a "Down!" alert with death save tracker
+// 2. Auto-apply Unconscious condition
+// 3. Clear concentration
+// 4. Log the event dramatically
+
+const _i240DeathKey = 'tiamat_death_saves';
+
+function _i240GetDeathSaves(charName) {
+  try {
+    const d = JSON.parse(localStorage.getItem(_i240DeathKey) || '{}');
+    return d[charName] || {successes: 0, failures: 0};
+  } catch(e) { return {successes: 0, failures: 0}; }
+}
+
+function _i240SetDeathSaves(charName, saves) {
+  try {
+    const d = JSON.parse(localStorage.getItem(_i240DeathKey) || '{}');
+    d[charName] = saves;
+    localStorage.setItem(_i240DeathKey, JSON.stringify(d));
+  } catch(e) {}
+}
+
+function _i240ClearDeathSaves(charName) {
+  try {
+    const d = JSON.parse(localStorage.getItem(_i240DeathKey) || '{}');
+    delete d[charName];
+    localStorage.setItem(_i240DeathKey, JSON.stringify(d));
+  } catch(e) {}
+}
+
+function _i240RollDeathSave(charName, event) {
+  if (event) event.stopPropagation();
+  const die = Math.floor(Math.random() * 20) + 1;
+  const saves = _i240GetDeathSaves(charName);
+
+  if (die === 20) {
+    // Regain 1 HP
+    if (typeof saveHp === 'function') saveHp(charName, 1);
+    _i240ClearDeathSaves(charName);
+    document.getElementById('i240DownAlert')?.remove();
+    if (typeof showToast === 'function') showToast(`★ NAT 20! ${charName} regains 1 HP and is back up!`, '#ffcc00', 4000);
+    if (typeof logEntry === 'function') logEntry('system', `★ <strong>${escHtml(charName)}</strong> rolled NAT 20 on death save — regains 1 HP!`);
+    if (typeof renderGrid === 'function') renderGrid();
+    if (typeof renderInitiative === 'function') renderInitiative();
+    return;
+  }
+
+  if (die === 1) {
+    saves.failures = Math.min(3, saves.failures + 2); // Nat 1 = 2 failures
+    if (typeof showToast === 'function') showToast(`☠ NAT 1! ${charName} gains 2 death save failures!`, '#cc3333', 3000);
+  } else if (die >= 10) {
+    saves.successes = Math.min(3, saves.successes + 1);
+    if (typeof showToast === 'function') showToast(`✓ ${charName} death save success (${saves.successes}/3)`, '#44cc88', 2500);
+  } else {
+    saves.failures = Math.min(3, saves.failures + 1);
+    if (typeof showToast === 'function') showToast(`✗ ${charName} death save failure (${saves.failures}/3)`, '#cc3333', 2500);
+  }
+
+  _i240SetDeathSaves(charName, saves);
+
+  if (typeof logEntry === 'function') {
+    const label = die === 1 ? '☠ NAT 1 (2 failures)' : die >= 10 ? `✓ Success (${saves.successes}/3)` : `✗ Failure (${saves.failures}/3)`;
+    logEntry('roll', `💀 <strong>${escHtml(charName)}</strong> death save: d20=${die} → ${label}`);
+  }
+
+  if (saves.failures >= 3) {
+    // Dead!
+    document.getElementById('i240DownAlert')?.remove();
+    if (typeof showToast === 'function') showToast(`💀 ${charName} has DIED! 3 death save failures.`, '#cc3333', 5000);
+    if (typeof logEntry === 'function') logEntry('system', `💀 <strong>${escHtml(charName)}</strong> has died — 3 death save failures`);
+    return;
+  }
+
+  if (saves.successes >= 3) {
+    // Stable!
+    _i240ClearDeathSaves(charName);
+    document.getElementById('i240DownAlert')?.remove();
+    if (typeof showToast === 'function') showToast(`💚 ${charName} is stable! (3 successes)`, '#44cc88', 4000);
+    if (typeof logEntry === 'function') logEntry('system', `💚 <strong>${escHtml(charName)}</strong> is stable — 3 death save successes`);
+    return;
+  }
+
+  // Update the alert UI
+  _i240ShowDownAlert(charName, true);
+}
+
+function _i240ShowDownAlert(charName, update) {
+  const ex = document.getElementById('i240DownAlert');
+  if (update && ex) {
+    // Refresh the content
+    ex.remove();
+  } else if (ex && !update) {
+    ex.remove();
+    return;
+  }
+
+  const saves = _i240GetDeathSaves(charName);
+  const succPips = Array.from({length: 3}, (_, i) =>
+    `<span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${i < saves.successes ? '#44cc88' : 'rgba(68,204,136,.15)'};border:2px solid ${i < saves.successes ? '#44cc88' : '#2a2a50'};margin:0 2px"></span>`
+  ).join('');
+  const failPips = Array.from({length: 3}, (_, i) =>
+    `<span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${i < saves.failures ? '#cc3333' : 'rgba(204,51,51,.15)'};border:2px solid ${i < saves.failures ? '#cc3333' : '#2a2a50'};margin:0 2px"></span>`
+  ).join('');
+
+  const alert = document.createElement('div');
+  alert.id = 'i240DownAlert';
+  alert.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9950;background:#0a0a1e;border:3px solid #cc3333;border-radius:14px;padding:20px;width:300px;box-shadow:0 0 40px rgba(204,51,51,.5);font-family:"Inter",sans-serif;text-align:center;animation:pulse .5s ease';
+  alert.innerHTML = `
+    <div style="font-family:'Cinzel',serif;font-size:18px;color:#cc3333;font-weight:700;margin-bottom:4px">💀 ${escHtml(charName)}</div>
+    <div style="font-size:12px;color:#888;margin-bottom:14px">is DOWN! Death saves...</div>
+    <div style="margin-bottom:8px">
+      <div style="font-size:10px;color:#44cc88;margin-bottom:3px">SUCCESSES</div>
+      ${succPips}
+    </div>
+    <div style="margin-bottom:16px">
+      <div style="font-size:10px;color:#cc3333;margin-bottom:3px">FAILURES</div>
+      ${failPips}
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="_i240RollDeathSave('${charName.replace(/'/g,"\\'")}',event)" style="flex:2;background:rgba(204,51,51,.2);border:2px solid #cc3333;color:#cc3333;border-radius:8px;padding:10px;cursor:pointer;font-size:13px;font-weight:700">🎲 Roll</button>
+      <button onclick="_i240StabilizeChar('${charName.replace(/'/g,"\\'")}',event)" style="flex:1;background:rgba(68,204,136,.1);border:1px solid rgba(68,204,136,.3);color:#44cc88;border-radius:8px;padding:10px;cursor:pointer;font-size:11px">Stabilize</button>
+      <button onclick="document.getElementById('i240DownAlert').remove()" style="background:rgba(0,0,0,.3);border:1px solid #2a2a50;color:#555;border-radius:8px;padding:10px;cursor:pointer;font-size:11px">✕</button>
+    </div>`;
+  document.body.appendChild(alert);
+}
+
+window._i240StabilizeChar = function(charName, event) {
+  if (event) event.stopPropagation();
+  _i240ClearDeathSaves(charName);
+  document.getElementById('i240DownAlert')?.remove();
+  if (typeof showToast === 'function') showToast(`💚 ${charName} has been stabilized (DC 10 Medicine)`, '#44cc88', 2500);
+  if (typeof logEntry === 'function') logEntry('system', `💚 <strong>${escHtml(charName)}</strong> stabilized`);
+};
+
+// Patch saveHp to detect when character hits 0 HP
+(function() {
+  if (typeof saveHp !== 'function') return;
+  const _origSaveHp4 = saveHp;
+  saveHp = function(charName, newHp) {
+    const result = _origSaveHp4.apply(this, arguments);
+    if (newHp <= 0) {
+      // Small delay
+      setTimeout(() => {
+        // Check if already had down alert
+        const existing = document.getElementById('i240DownAlert');
+        if (existing) return;
+
+        // Auto-apply Unconscious condition
+        try {
+          const condKey = `tiamat_conditions_${charName}`;
+          const conds = JSON.parse(localStorage.getItem(condKey) || '[]');
+          if (!conds.includes('Unconscious')) {
+            conds.push('Unconscious');
+            localStorage.setItem(condKey, JSON.stringify(conds));
+          }
+        } catch(e) {}
+
+        // Clear concentration
+        if (typeof clearConc === 'function') clearConc(charName);
+
+        // Dramatic log
+        if (typeof logEntry === 'function') logEntry('system', `💀 <strong>${escHtml(charName)}</strong> has fallen to 0 HP! Death saves begin...`);
+
+        // Show down alert
+        _i240ShowDownAlert(charName, false);
+      }, 200);
+    }
+    return result;
+  };
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
