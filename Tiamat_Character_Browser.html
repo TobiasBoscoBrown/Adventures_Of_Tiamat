@@ -3803,6 +3803,7 @@
   <button class="filter-btn" onclick="i284FilterStatus(this)" id="i284FilterBtn" style="border-color:#aa4488;color:#aa4488;" title="Filter by narrative status — Active/Deceased/Missing/Imprisoned/Unknown">🏷 Status</button>
   <button class="filter-btn" onclick="i290OpenMulticlassCalc()" style="border-color:#9b6dff;color:#9b6dff;" title="Multiclass Spell Slot Calculator — compute correct slots for multiclassed spellcasters per PHB rules">✦ Multiclass</button>
   <button class="filter-btn" onclick="i294ToggleMystery(this)" id="i294MysteryBtn" style="border-color:#6655aa;color:#6655aa;" title="Mystery Mode — blur character names for player-facing display (hover to reveal)">🎭 Mystery</button>
+  <button class="filter-btn" onclick="i297ToggleAnnounce(this)" style="border-color:#c9a227;color:#c9a227;" title="Turn Announcement Flash — show animated overlay with character name on Next Turn">📢 Announce</button>
   <button class="filter-btn" onclick="i288OpenReport()" style="border-color:#44aacc;color:#44aacc;" title="Turn Time Analysis — see how long each combatant takes per turn">⏱ Turns</button>
   <button class="filter-btn" onclick="openShortcutsHelp()" style="border-color:#4488ff;color:#4488ff;" title="Keyboard shortcuts — press ? anytime">⌨ ?</button>
   <button class="filter-btn" onclick="openGlobalSearch()" style="border-color:#c9a227;color:#9098b8;" title="Global search — Ctrl+K">🔍 Search All</button>
@@ -43078,6 +43079,72 @@ void 0;
       }, 100);
     };
   }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 297: Turn Announcement Flash — brief animated overlay showing whose turn it is
+(function() {
+  let enabled = localStorage.getItem('tiamat_turn_announce') !== '0';
+
+  // Add CSS animation
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes i297FadeInOut {
+      0% { opacity:0; transform:translateX(-50%) translateY(-20px) scale(.9); }
+      15% { opacity:1; transform:translateX(-50%) translateY(0) scale(1); }
+      70% { opacity:1; transform:translateX(-50%) translateY(0) scale(1); }
+      100% { opacity:0; transform:translateX(-50%) translateY(10px) scale(.95); }
+    }
+    #i297Flash { animation: i297FadeInOut 1.8s ease forwards; pointer-events:none; }
+  `;
+  document.head.appendChild(style);
+
+  function flash(name, initScore) {
+    if (!enabled) return;
+    const existing = document.getElementById('i297Flash');
+    if (existing) existing.remove();
+
+    const char = (window.UNIQUE_CHARS || []).find(c => c.name === name);
+    const theme = char ? (typeof getTheme === 'function' ? getTheme(char.theme) : null) : null;
+    const accent = theme?.accent || '#c9a227';
+
+    const el = document.createElement('div');
+    el.id = 'i297Flash';
+    el.style.cssText = `position:fixed;top:80px;left:50%;z-index:99000;background:rgba(6,6,26,.97);border:2px solid ${accent};border-radius:16px;padding:16px 28px;text-align:center;box-shadow:0 0 40px ${accent}44,0 8px 32px rgba(0,0,0,.8)`;
+    el.innerHTML = `<div style="font-size:10px;color:${accent}88;letter-spacing:.2em;font-family:Cinzel,serif;margin-bottom:4px">IT IS NOW</div>
+      <div style="font-size:24px;font-weight:700;color:${accent};font-family:Cinzel,serif;text-shadow:0 0 20px ${accent}66">${name}</div>
+      <div style="font-size:11px;color:#4a5272;margin-top:3px;font-family:Inter,sans-serif">'s turn <span style="color:${accent}66">· Init ${initScore}</span></div>`;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1800);
+  }
+
+  // Patch nextTurn
+  const _origNext = window.nextTurn;
+  if (typeof _origNext === 'function') {
+    window.nextTurn = function() {
+      _origNext.apply(this, arguments);
+      setTimeout(() => {
+        const cur = (window.initiativeList || [])[window.currentTurnIdx];
+        if (cur) flash(cur.name, cur.initiative);
+      }, 50);
+    };
+  }
+
+  // Toggle via toolbar button
+  window.i297ToggleAnnounce = function(btn) {
+    enabled = !enabled;
+    localStorage.setItem('tiamat_turn_announce', enabled ? '1' : '0');
+    if (btn) {
+      btn.style.background = enabled ? 'rgba(201,162,39,.15)' : '';
+      btn.textContent = enabled ? '📢 Announce ●' : '📢 Announce';
+    }
+    showToast?.(enabled ? '📢 Turn Announcements ON' : 'Turn Announcements OFF', enabled ? '#c9a227' : '#4a5272');
+  };
+
+  // Set initial button state on DOM ready
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.querySelector('[onclick*="i297ToggleAnnounce"]');
+    if (btn && enabled) btn.style.background = 'rgba(201,162,39,.15)';
+  });
 })();
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
