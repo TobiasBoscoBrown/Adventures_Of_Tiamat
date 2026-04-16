@@ -161,7 +161,15 @@ Core character browser, search/filter, dark theme, tooltips, view modes.
 
 ### Iterations 211–220
 - Iter 211: Full Party Skill Matrix — all characters × all 18 skills in one scrollable table, color-coded by proficiency, click-to-roll, filterable by ability score
-- Iter 212: Quick-Cast Spell Row in Active Turn Bar — one-click spell casting during combat; shows all spells (cantrips green, leveled purple/blue), depleted slots grayed, concentration tracked, damage auto-rolled ← CURRENT
+- Iter 212: Quick-Cast Spell Row in Active Turn Bar — one-click spell casting during combat; shows all spells (cantrips green, leveled purple/blue), depleted slots grayed, concentration tracked, damage auto-rolled
+- Iter 213: Target Selector + Auto Hit/Miss — click any combatant as target; attack rolls show HIT/MISS/CRIT vs target AC; auto-rolls damage on hit
+- Iter 214: Monster Ability Recharge Tracker — parses "Recharge X-6" from lore/traits; roll-to-recharge d6 button in active turn bar; recharged/spent log messages
+- Iter 215: AOE Damage with Save-for-Half — roll damage once, apply to multiple targets with save rolls, auto-half on pass, resistance/immunity respected; 💥 toolbar button
+- Iter 216: Custom Attack Macros per Character — define named attacks (name/+hit/dice/type) stored in localStorage; quick-roll buttons in active turn bar, crit doubles dice, integrates with target selector
+- Iter 217: Legendary Resistance & Actions Tracker — auto-detects legendary creatures (CR 17+ or 'legendary' keyword); pip indicators for LR (3/day) and LA (3/round); round-reset and long-rest buttons
+- Iter 218: Timed Effect Duration Tracker — track effects with round countdowns (Web 10r, Stunned 3r etc); 15 presets; pulse warning at ≤2 rounds; auto-expire with toast + log; tick button in active turn bar
+- Iter 219: Inspiration Tracker + Bardic Inspiration Dice — toggle D&D Inspiration per character (gold star); track Bardic Inspiration dice (d6-d12) given to characters; roll dice to consume; ✨ toolbar button
+- Iter 220: Concentration Save Prompt on Damage — auto-detects when concentrating caster takes damage; floating prompt with DC calculation; Roll/Pass/Fail buttons; auto-drops concentration on fail ← CURRENT
 
 ## Features Currently Implemented (What We Have)
 - Character browser: search, filter by category/theme, view modes (grid/compact/list)
