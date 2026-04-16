@@ -38614,6 +38614,147 @@ window._i250SetAll = function(enabled) {
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Iter 256: Concentration Spell Duration Timer
+// Tracks how many rounds a concentration spell has been active.
+// When you cast (setConc), timer starts. Each round tick decrements.
+// Shows remaining rounds in the turn bar. Warns at 1 round left. Auto-clears on expiry.
+(function() {
+  const _i256KEY = 'tiamat_conc_duration';
+
+  // Duration lookup by spell name (in rounds; 600 = 1 hour / "indefinite" for tracking purposes)
+  const CONC_DURATIONS = {
+    'Bless': 60, 'Bane': 60, 'Hex': 600, 'Hunter\'s Mark': 600,
+    'Faerie Fire': 60, 'Entangle': 60, 'Hideous Laughter': 60,
+    'Hold Person': 60, 'Misty Step': 1, 'Blur': 60, 'Darkness': 60,
+    'Invisibility': 60, 'Mirror Image': 60, 'Moonbeam': 60,
+    'Pass Without Trace': 600, 'Silence': 60,
+    'Call Lightning': 100, 'Fly': 100, 'Haste': 60, 'Hypnotic Pattern': 60,
+    'Major Image': 100, 'Sleet Storm': 60, 'Slow': 60, 'Stinking Cloud': 60,
+    'Water Breathing': 'special',
+    'Banishment': 60, 'Blight': 0, 'Confusion': 60, 'Freedom of Movement': 600,
+    'Greater Invisibility': 60, 'Guardian of Nature': 60, 'Polymorph': 60,
+    'Resilient Sphere': 60, 'Stoneskin': 600,
+    'Animate Objects': 60, 'Antilife Shell': 600, 'Cloudkill': 100,
+    'Dominate Person': 60, 'Hold Monster': 60, 'Insect Plague': 100, 'Scrying': 600,
+    'Blade Barrier': 100, 'Eyebite': 60, 'Globe of Invulnerability': 60,
+    'Otto\'s Irresistible Dance': 60, 'Sunbeam': 60, 'True Seeing': 600,
+    'Etherealness': 480, 'Forcecage': 600, 'Mirage Arcane': 'day',
+    'Mordenkainen\'s Sword': 60, 'Plane Shift': 0, 'Regenerate': 3600,
+    'Symbol': 0,
+    'Abi-Dalzim\'s Horrid Wilting': 0, 'Antipathy/Sympathy': 'days',
+    'Dominate Monster': 600, 'Feeblemind': 'perm',
+    'Wish': 0, 'Prismatic Wall': 100,
+  };
+
+  function _i256Load() { try { return JSON.parse(localStorage.getItem(_i256KEY) || '{}'); } catch { return {}; } }
+  function _i256Save(d) { localStorage.setItem(_i256KEY, JSON.stringify(d)); }
+
+  function _i256GetRemaining(charName) {
+    const d = _i256Load();
+    return d[charName] || null; // { spell, started, max, elapsed }
+  }
+
+  // Patch setConc to start timer
+  if (typeof setConc === 'function') {
+    const _origSetConc = setConc;
+    setConc = function(charName, spellName, event) {
+      _origSetConc.call(this, charName, spellName, event);
+      // Start timer
+      const dur = CONC_DURATIONS[spellName];
+      if (dur !== undefined && typeof dur === 'number' && dur > 0) {
+        const d = _i256Load();
+        d[charName] = { spell: spellName, max: dur, elapsed: 0 };
+        _i256Save(d);
+      }
+    };
+  }
+
+  // Patch clearConc to clear timer
+  if (typeof clearConc === 'function') {
+    const _origClearConc = clearConc;
+    clearConc = function(charName, event) {
+      _origClearConc.call(this, charName, event);
+      const d = _i256Load();
+      delete d[charName];
+      _i256Save(d);
+    };
+  }
+
+  // Patch renderActiveTurnBar to show conc timer
+  (function() {
+    const _origRATB = renderActiveTurnBar;
+    renderActiveTurnBar = function() {
+      _origRATB.apply(this, arguments);
+      _i256InjectTimers();
+    };
+  })();
+
+  function _i256InjectTimers() {
+    const bar = document.getElementById('activeTurnBar');
+    if (!bar) return;
+    // Find concentrating character from current turn
+    if (typeof initiativeList === 'undefined' || typeof currentTurnIdx === 'undefined') return;
+    const cur = initiativeList[currentTurnIdx];
+    if (!cur) return;
+    const charName = cur.name || cur.charName;
+    const timerData = _i256GetRemaining(charName);
+    if (!timerData) return;
+
+    if (document.getElementById('i256ConcTimer')) return;
+    const { spell, max, elapsed } = timerData;
+    const remaining = max - elapsed;
+    const pct = Math.max(0, remaining / max);
+    const barColor = pct > 0.5 ? '#44cc88' : pct > 0.2 ? '#c9a227' : '#cc4444';
+    const label = remaining <= 0 ? '⚠ EXPIRED' : remaining >= 600 ? `${remaining/60}min` : `${remaining}r`;
+
+    const div = document.createElement('div');
+    div.id = 'i256ConcTimer';
+    div.style.cssText = 'padding:4px 8px;background:rgba(155,109,255,0.08);border:1px solid rgba(155,109,255,.2);border-radius:6px;margin:2px 0';
+    div.innerHTML = `
+      <div style="display:flex;align-items:center;gap:6px;justify-content:space-between">
+        <span style="font-size:10px;color:#9b6dff">🔮 ${escHtml(spell)}</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="width:60px;height:5px;background:#1e1e3e;border-radius:3px;overflow:hidden">
+            <div style="width:${Math.round(pct*100)}%;height:100%;background:${barColor};border-radius:3px"></div>
+          </div>
+          <span style="font-size:11px;color:${barColor};font-weight:700;min-width:30px">${label}</span>
+          <button onclick="_i256Tick('${charName.replace(/'/g,"\\'")}',true)" title="+1 round elapsed"
+            style="font-size:9px;background:rgba(155,109,255,.06);border:1px solid rgba(155,109,255,.2);color:#7a5aff;border-radius:4px;padding:1px 5px;cursor:pointer">+1r</button>
+          <button onclick="_i256Reset('${charName.replace(/'/g,"\\'")}',event)" title="Reset timer"
+            style="font-size:9px;background:none;border:1px solid #2a2a4a;color:#4a3a5a;border-radius:4px;padding:1px 5px;cursor:pointer">↺</button>
+        </div>
+      </div>`;
+    bar.appendChild(div);
+  }
+
+  window._i256Tick = function(charName, rerender) {
+    const d = _i256Load();
+    if (!d[charName]) return;
+    d[charName].elapsed = (d[charName].elapsed || 0) + 1;
+    const { spell, max, elapsed } = d[charName];
+    const remaining = max - elapsed;
+    if (remaining <= 0) {
+      if (typeof showToast === 'function') showToast(`⚠ ${escHtml(charName)}'s ${escHtml(spell)} has expired!`);
+      if (typeof logEntry === 'function') logEntry('roll', `⚠ <strong>${escHtml(charName)}</strong> concentration on <strong>${escHtml(spell)}</strong> expired after ${max} rounds`);
+      if (typeof clearConc === 'function') clearConc(charName, null);
+      delete d[charName];
+    } else if (remaining === 1) {
+      if (typeof showToast === 'function') showToast(`⚠ ${escHtml(charName)}'s ${escHtml(spell)}: 1 round left!`);
+    }
+    _i256Save(d);
+    if (rerender && typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+  };
+
+  window._i256Reset = function(charName, event) {
+    if (event) event.stopPropagation();
+    const d = _i256Load();
+    if (d[charName]) d[charName].elapsed = 0;
+    _i256Save(d);
+    if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+  };
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Iter 255: Trinket & Curiosity Generator
 // Roll a random trinket, oddity, or minor magical curiosity for improv rewards.
 // 60 trinkets grouped by theme. Give to a character or add to notes.
