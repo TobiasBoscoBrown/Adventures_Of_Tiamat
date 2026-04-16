@@ -38614,6 +38614,158 @@ window._i250SetAll = function(enabled) {
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Iter 254: Terrain & Environment Effects Panel
+// Track active terrain features in a combat encounter (difficult terrain zones,
+// environmental hazards, magical areas). Each feature has a label, effect description,
+// optional damage expression, and can be toggled active/inactive.
+(function() {
+  const _i254KEY = 'tiamat_terrain';
+
+  const PRESET_TERRAIN = [
+    { label:'Difficult Terrain', icon:'🪨', effect:'Movement costs 2 ft per 1 ft. Jump/dash affected.', dmg:'' },
+    { label:'Lava Pool', icon:'🌋', effect:'5 ft radius. 10d10 fire on contact; 5d10 if you end turn adjacent.', dmg:'10d10' },
+    { label:'Poison Spore Cloud', icon:'☠', effect:'15 ft sphere, DC 13 CON or Poisoned for 1 min.', dmg:'2d6' },
+    { label:'Antimagic Field', icon:'🚫', effect:'80 ft sphere. Spells can\'t be cast. Magic items suppressed.', dmg:'' },
+    { label:'Darkness (Magical)', icon:'🌑', effect:'15 ft sphere. Blocks all light including darkvision.', dmg:'' },
+    { label:'Web / Entangle', icon:'🕸', effect:'20 ft cube. Difficult terrain. DC 12 STR to escape each turn.', dmg:'' },
+    { label:'Sacred Ground', icon:'✦', effect:'Undead entering must make DC 14 WIS save or turn.', dmg:'' },
+    { label:'Burning', icon:'🔥', effect:'Area deals 2d6 fire at start of each turn spent inside.', dmg:'2d6' },
+    { label:'Freezing Ice', icon:'🧊', effect:'Difficult terrain. DC 12 DEX save or fall prone on movement.', dmg:'' },
+    { label:'Pit Trap', icon:'⬛', effect:'10 ft deep. 1d6 per 10 ft fall. DC 15 DEX save to catch edge.', dmg:'1d6' },
+    { label:'Acid Pool', icon:'🟢', effect:'3d6 acid per round. Equipment saves DC 13 or damaged.', dmg:'3d6' },
+    { label:'Silence', icon:'🔇', effect:'20 ft sphere. No sound. Verbal spell components fail.', dmg:'' },
+  ];
+
+  function _i254Load() { try { return JSON.parse(localStorage.getItem(_i254KEY) || '[]'); } catch { return []; } }
+  function _i254Save(d) { localStorage.setItem(_i254KEY, JSON.stringify(d)); }
+
+  function _i254InjectBtn() {
+    if (document.getElementById('i254TerrainBtn')) return;
+    const ref = document.getElementById('i253WeatherBtn') || document.getElementById('passivesBtn');
+    if (!ref) return;
+    const btn = document.createElement('button');
+    btn.id = 'i254TerrainBtn';
+    btn.className = 'encounter-open-btn';
+    btn.textContent = '🗺 Terrain';
+    btn.title = 'Terrain & Environment Effects — track hazards and area effects';
+    btn.style.cssText = 'border-color:#44cc88;color:#44cc88';
+    btn.onclick = () => _i254OpenPanel();
+    ref.insertAdjacentElement('afterend', btn);
+  }
+  document.addEventListener('DOMContentLoaded', _i254InjectBtn);
+  setTimeout(_i254InjectBtn, 1800);
+
+  window._i254OpenPanel = function() {
+    const ex = document.getElementById('i254Panel');
+    if (ex) { ex.remove(); return; }
+
+    const active = _i254Load();
+
+    const activeRows = active.length ? active.map((t, i) =>
+      `<div style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:6px;background:${t.on?'rgba(68,204,136,0.06)':'rgba(60,60,90,0.05)'};border:1px solid ${t.on?'rgba(68,204,136,.18)':'#1a1a2e'};margin-bottom:4px">
+        <span style="font-size:16px;width:22px">${t.icon||'⚠'}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;color:${t.on?'#c0c0e0':'#5a5a7a'};font-weight:600">${escHtml(t.label)}</div>
+          <div style="font-size:10px;color:#4a5272">${escHtml(t.effect)}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+          ${t.dmg ? `<button onclick="_i254RollDmg(${i})" title="Roll ${t.dmg} damage"
+            style="font-size:10px;background:rgba(204,68,68,.08);border:1px solid rgba(204,68,68,.2);color:#cc4444;border-radius:4px;padding:2px 6px;cursor:pointer">🎲${t.dmg}</button>` : ''}
+          <button onclick="_i254Toggle(${i})" title="${t.on?'Deactivate':'Activate'}"
+            style="font-size:10px;background:${t.on?'rgba(68,204,136,.08)':'rgba(80,80,100,.06)'};border:1px solid ${t.on?'rgba(68,204,136,.25)':'#2a2a50'};color:${t.on?'#44cc88':'#5a5a8a'};border-radius:4px;padding:2px 7px;cursor:pointer">${t.on?'ON':'OFF'}</button>
+          <button onclick="_i254Remove(${i})" style="font-size:10px;background:none;border:1px solid #1a1a2e;color:#3a3a5a;border-radius:4px;padding:2px 6px;cursor:pointer">✕</button>
+        </div>
+      </div>`
+    ).join('') : `<div style="color:#3a3a60;text-align:center;padding:12px;font-size:11px">No terrain features active</div>`;
+
+    const presetBtns = PRESET_TERRAIN.map(p =>
+      `<button onclick="_i254AddPreset(${JSON.stringify(JSON.stringify(p))})"
+        style="padding:4px 8px;font-size:10px;cursor:pointer;border-radius:5px;border:1px solid #1e2040;background:rgba(68,204,136,0.04);color:#5a8a6a;white-space:nowrap"
+        title="${p.effect}">${p.icon} ${p.label}</button>`
+    ).join('');
+
+    const ov = document.createElement('div');
+    ov.id = 'i254Panel';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9700;display:flex;align-items:center;justify-content:center';
+    ov.innerHTML = `
+      <div style="background:#0a0a1e;border:1px solid rgba(68,204,136,.3);border-radius:12px;padding:18px;width:min(480px,96vw);max-height:90vh;overflow-y:auto;font-family:'Inter',sans-serif">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <span style="font-family:'Cinzel',serif;color:#44cc88;font-weight:700;font-size:15px">🗺 Terrain & Environment</span>
+          <button onclick="document.getElementById('i254Panel').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+        </div>
+        <div style="margin-bottom:12px">${activeRows}</div>
+        <div style="margin-bottom:8px">
+          <div style="font-size:11px;color:#5a6a7a;margin-bottom:6px">Add Custom Feature</div>
+          <div style="display:flex;gap:6px">
+            <input id="i254CustomLabel" placeholder="Name" style="flex:1;background:#06061a;border:1px solid #1e2040;color:#c0c0e0;border-radius:5px;padding:4px 7px;font-size:11px;outline:none">
+            <input id="i254CustomDmg" placeholder="dmg (opt)" style="width:80px;background:#06061a;border:1px solid #1e2040;color:#cc4444;border-radius:5px;padding:4px 7px;font-size:11px;outline:none">
+            <button onclick="_i254AddCustom()" style="background:rgba(68,204,136,.08);border:1px solid rgba(68,204,136,.25);color:#44cc88;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px">+ Add</button>
+          </div>
+          <input id="i254CustomEffect" placeholder="Effect description" style="width:100%;margin-top:5px;background:#06061a;border:1px solid #1e2040;color:#8888aa;border-radius:5px;padding:4px 7px;font-size:11px;outline:none;box-sizing:border-box">
+        </div>
+        <div style="font-size:10px;color:#3a3a60;margin-bottom:6px">Presets:</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">${presetBtns}</div>
+        ${active.length ? `<button onclick="_i254ClearAll()" style="width:100%;background:rgba(80,80,100,.06);border:1px solid #2a2a50;color:#5a5a8a;border-radius:6px;padding:6px;cursor:pointer;font-size:11px">↺ Clear All</button>` : ''}
+      </div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  };
+
+  window._i254AddPreset = function(jsonStr) {
+    const p = JSON.parse(jsonStr);
+    const active = _i254Load();
+    active.push({ ...p, on: true });
+    _i254Save(active);
+    document.getElementById('i254Panel')?.remove();
+    _i254OpenPanel();
+  };
+
+  window._i254AddCustom = function() {
+    const label = document.getElementById('i254CustomLabel')?.value?.trim();
+    const effect = document.getElementById('i254CustomEffect')?.value?.trim() || 'Custom terrain effect.';
+    const dmg = document.getElementById('i254CustomDmg')?.value?.trim() || '';
+    if (!label) return;
+    const active = _i254Load();
+    active.push({ label, icon:'⚠', effect, dmg, on: true });
+    _i254Save(active);
+    document.getElementById('i254Panel')?.remove();
+    _i254OpenPanel();
+  };
+
+  window._i254Toggle = function(i) {
+    const active = _i254Load();
+    if (active[i]) active[i].on = !active[i].on;
+    _i254Save(active);
+    document.getElementById('i254Panel')?.remove();
+    _i254OpenPanel();
+  };
+
+  window._i254Remove = function(i) {
+    const active = _i254Load();
+    active.splice(i, 1);
+    _i254Save(active);
+    document.getElementById('i254Panel')?.remove();
+    _i254OpenPanel();
+  };
+
+  window._i254ClearAll = function() {
+    _i254Save([]);
+    document.getElementById('i254Panel')?.remove();
+    _i254OpenPanel();
+  };
+
+  window._i254RollDmg = function(i) {
+    const active = _i254Load();
+    const t = active[i];
+    if (!t || !t.dmg) return;
+    const total = typeof rollDiceExpr === 'function' ? rollDiceExpr(t.dmg) : { total: 0 };
+    const msg = `${t.icon||'⚠'} ${escHtml(t.label)} damage: ${t.dmg} = ${total.total || '?'}`;
+    if (typeof logEntry === 'function') logEntry('dmg', msg);
+    if (typeof showToast === 'function') showToast(msg);
+  };
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Iter 253: Weather & Lighting Conditions Tracker
 // Track current weather and lighting for the encounter/scene.
 // Shows mechanical effects (disadvantage on Perception in rain, etc).
