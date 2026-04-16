@@ -2,7 +2,7 @@
 
 ## Project Overview
 A single-file D&D campaign management web app for the "Tiamat" world.
-**File:** `Tiamat_Character_Browser.html` (31,000+ lines, self-contained)
+**File:** `Tiamat_Character_Browser.html` (32,800+ lines, self-contained)
 **Goal:** Make this the ultimate DM tool — better than DND Beyond, with full user control.
 
 ## Architecture
@@ -160,7 +160,8 @@ Core character browser, search/filter, dark theme, tooltips, view modes.
 - Iter 210: Post-Combat Cleanup — one-click clear temp HP, conditions, and concentration for all party members after a fight
 
 ### Iterations 211–220
-- Iter 211: Full Party Skill Matrix — all characters × all 18 skills in one scrollable table, color-coded by proficiency, click-to-roll, filterable by ability score ← CURRENT
+- Iter 211: Full Party Skill Matrix — all characters × all 18 skills in one scrollable table, color-coded by proficiency, click-to-roll, filterable by ability score
+- Iter 212: Quick-Cast Spell Row in Active Turn Bar — one-click spell casting during combat; shows all spells (cantrips green, leveled purple/blue), depleted slots grayed, concentration tracked, damage auto-rolled ← CURRENT
 
 ## Features Currently Implemented (What We Have)
 - Character browser: search, filter by category/theme, view modes (grid/compact/list)
@@ -209,9 +210,10 @@ Core character browser, search/filter, dark theme, tooltips, view modes.
 - [x] Magic Item Compendium (Iter 151)
 - [x] Feat Compendium (Iter 152)
 - [x] Race & Class Feature References (Iters 155-156)
-- [ ] Spell compendium with full descriptions
-- [ ] Monster stat block generator
-- [ ] NPC relationship strength (like/dislike/trust meter)
+- [x] Spell compendium with full descriptions (Iter 162 + 202 spell card popups)
+- [x] Monster stat block generator (Iter 201 Quick-Builder)
+- [x] NPC relationship strength (Iter 132 Relationship Sentiment Tracker)
+- [x] Quick-cast spells from initiative tracker (Iter 212)
 
 ## Things Better Than DND Beyond
 - NPC-first design (47+ rich NPCs with lore)

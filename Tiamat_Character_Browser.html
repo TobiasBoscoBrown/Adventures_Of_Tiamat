@@ -32698,6 +32698,145 @@ function openPartySkillMatrix() {
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 212: Quick-Cast Spell Row in Active Turn Bar
+// Adds a compact inline spell list to the active combatant's turn widget.
+// One-click casting: uses the slot, logs the cast, rolls damage, tracks conc.
+// Shows cantrips (green), leveled spells (purple/blue), grays depleted slots.
+// Mirrors DnD Beyond's "cast this spell" button — but right inside the tracker!
+// ─────────────────────────────────────────────────────────────────────────────
+(function() {
+  const _origRATB = renderActiveTurnBar;
+  renderActiveTurnBar = function() {
+    _origRATB();
+    _i212SpellRow();
+  };
+})();
+
+function _i212SpellRow() {
+  const bar = document.getElementById('activeTurnBar');
+  if (!bar || bar.style.display === 'none') return;
+  if (!initiativeList || !initiativeList.length || currentTurnIdx < 0) return;
+  const e = initiativeList[currentTurnIdx];
+  if (!e) return;
+  const char = UNIQUE_CHARS.find(c => c.name === e.name);
+  if (!char) return;
+
+  const spells = (typeof inferSpells === 'function') ? inferSpells(char) : [];
+  if (!spells.length) return;
+
+  const cantrips = [], leveled = [];
+  spells.forEach(name => {
+    const d = SPELL_LIBRARY[name];
+    if (!d) return;
+    (d.level === 0 ? cantrips : leveled).push({name, d, lv: d.level || 1});
+  });
+  if (!cantrips.length && !leveled.length) return;
+
+  // Calculate spell DC and attack bonus
+  const crNum = parseFloat(char.cr || 0);
+  const prof2 = crNum>=17?6:crNum>=13?5:crNum>=9?4:crNum>=5?3:2;
+  const bestSpellAb = ['INT','WIS','CHA'].reduce((b,n) => {
+    const m = (char.abilities||[]).find(a=>a[0]===n);
+    const bm = (char.abilities||[]).find(a=>a[0]===b);
+    return (m?parseInt(m[2])||0:0) > (bm?parseInt(bm[2])||0:0) ? n : b;
+  }, 'INT');
+  const spellAbMod = parseInt(((char.abilities||[]).find(a=>a[0]===bestSpellAb)||[])[2]) || 0;
+  const spellDC2 = 8 + prof2 + spellAbMod;
+  const spellAtk2 = prof2 + spellAbMod;
+  const sAtkStr = spellAtk2 >= 0 ? `+${spellAtk2}` : `${spellAtk2}`;
+
+  const usedSlots2 = (typeof getUsedSlots === 'function') ? getUsedSlots(char.name) : {};
+  const slotMax2 = (typeof getMaxSlotsForChar === 'function') ? getMaxSlotsForChar(char) : null;
+  const currentConc2 = (typeof getConcSpell === 'function') ? getConcSpell(char.name) : null;
+  const ordinals2 = ['can','1st','2nd','3rd','4th','5th','6th','7th','8th','9th'];
+
+  let h = `<div style="margin-top:4px;border-top:1px solid rgba(155,109,255,.2);padding-top:4px">`;
+  h += `<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;flex-wrap:wrap">`;
+  h += `<span style="font-size:9px;color:#9b6dff;letter-spacing:.5px;min-width:34px">SPELLS</span>`;
+  h += `<span style="font-size:8px;color:#4a5272;background:rgba(155,109,255,.08);border:1px solid rgba(155,109,255,.15);border-radius:3px;padding:0 5px">DC ${spellDC2}</span>`;
+  h += `<span style="font-size:8px;color:#4a5272;background:rgba(155,109,255,.08);border:1px solid rgba(155,109,255,.15);border-radius:3px;padding:0 5px">Atk ${sAtkStr}</span>`;
+  if (currentConc2) h += `<span style="font-size:8px;color:#5599ff;background:rgba(85,153,255,.07);border:1px solid rgba(85,153,255,.25);border-radius:3px;padding:0 5px;max-width:88px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="Concentrating on ${escHtml(currentConc2)}">⊙ ${escHtml(currentConc2.length>10?currentConc2.slice(0,9)+'…':currentConc2)}</span>`;
+  h += `</div><div style="display:flex;flex-wrap:wrap;gap:2px;">`;
+
+  // Cantrip buttons
+  cantrips.slice(0, 7).forEach(({name, d}) => {
+    const sn = name.length > 14 ? name.slice(0,13)+'…' : name;
+    const tip = `${name} (Cantrip)${d.desc ? ' — ' + d.desc.slice(0,90) : ''}${d.damage ? '\nDmg: '+d.damage+' '+d.damageType : ''}`;
+    h += `<button onclick="_i212Cast(${JSON.stringify(char.name)},${JSON.stringify(name)},0,event)" title="${escHtml(tip)}"
+      style="background:rgba(68,170,68,.07);border:1px solid rgba(68,170,68,.18);color:#44aa44;border-radius:4px;padding:1px 6px;cursor:pointer;font-size:9px;line-height:1.5">${escHtml(sn)}${d.damage?`<span style="font-size:8px;opacity:.55"> ${d.damage}</span>`:''}</button>`;
+  });
+
+  // Leveled spell buttons
+  leveled.sort((a,b)=>a.lv-b.lv).forEach(({name, d, lv}) => {
+    const used2 = usedSlots2[lv] || 0;
+    const maxLv = slotMax2 ? (slotMax2[lv] || 0) : 99;
+    const rem2 = slotMax2 ? Math.max(0, maxLv - used2) : 99;
+    const depleted2 = slotMax2 && rem2 === 0;
+    const isConc2 = /concentration/i.test(d.desc || '');
+    const concConflict2 = isConc2 && currentConc2 && currentConc2 !== name;
+    const sn = name.length > 14 ? name.slice(0,13)+'…' : name;
+    const tip = `${name} (${ordinals2[lv]||lv+'th'} slot)${isConc2?' · Concentration':''}${depleted2?' — NO SLOTS':''}${concConflict2?' — breaks '+currentConc2:''}${d.desc?'\n'+d.desc.slice(0,100):''}${d.damage?'\nDmg: '+d.damage+' '+d.damageType:''}`;
+    const col2 = depleted2?'#2a2a50':concConflict2?'#cc7700':isConc2?'#5599ff':'#9b6dff';
+    const bg2 = depleted2?'rgba(255,255,255,.02)':concConflict2?'rgba(204,119,0,.07)':isConc2?'rgba(85,153,255,.08)':'rgba(155,109,255,.07)';
+    const bd2 = depleted2?'rgba(255,255,255,.05)':concConflict2?'rgba(204,119,0,.28)':isConc2?'rgba(85,153,255,.22)':'rgba(155,109,255,.18)';
+    const action2 = depleted2 ? `showToast('No ${ordinals2[lv]} slots!','#cc3333')` : `_i212Cast(${JSON.stringify(char.name)},${JSON.stringify(name)},${lv},event)`;
+    h += `<button onclick="${action2}" title="${escHtml(tip)}"
+      style="background:${bg2};border:1px solid ${bd2};color:${col2};border-radius:4px;padding:1px 6px;cursor:${depleted2?'not-allowed':'pointer'};font-size:9px;line-height:1.5;opacity:${depleted2?'.4':'1'}">
+      ${escHtml(sn)}<span style="font-size:7px;opacity:.55;margin-left:1px">${lv}</span>${isConc2?'<span title="Concentration" style="font-size:7px;margin-left:1px">⊙</span>':''}${d.damage?`<span style="font-size:8px;opacity:.5"> ${d.damage}</span>`:''}
+    </button>`;
+  });
+
+  h += `</div></div>`;
+  bar.innerHTML += h;
+}
+
+function _i212Cast(charName, spellName, level, event) {
+  if (event) event.stopPropagation();
+  const char = UNIQUE_CHARS.find(c => c.name === charName);
+  if (!char) return;
+  const d = SPELL_LIBRARY[spellName];
+  const isConc3 = d ? /concentration/i.test(d.desc || '') : false;
+  const currentConc3 = (typeof getConcSpell === 'function') ? getConcSpell(charName) : null;
+
+  // Concentration conflict
+  if (isConc3 && currentConc3 && currentConc3 !== spellName) {
+    if (!confirm(`Break concentration on "${currentConc3}" to cast "${spellName}"?`)) return;
+    if (typeof clearConc === 'function') clearConc(charName, null);
+  }
+
+  // Use slot (leveled spells)
+  if (level > 0 && typeof slotState !== 'undefined' && typeof saveSlots === 'function') {
+    const used3 = getUsedSlots(charName);
+    used3[level] = (used3[level] || 0) + 1;
+    slotState[charName] = used3;
+    saveSlots();
+    if (typeof refreshSpellSlots === 'function') refreshSpellSlots(charName);
+  }
+
+  // Log cast (handles setConc internally)
+  if (typeof logSpellCast === 'function') logSpellCast(charName, spellName, level, isConc3, false);
+
+  // Roll damage if applicable
+  if (d && d.damage && typeof rollDiceExpr === 'function') {
+    const result = rollDiceExpr(d.damage);
+    if (result) {
+      const isHeal = d.damageType === 'healing';
+      const col3 = isHeal ? '#44cc88' : '#ff7744';
+      const lbl3 = isHeal ? 'heals' : `${d.damageType||'damage'}`;
+      if (typeof logEntry === 'function') logEntry('roll', `✨ <b>${escHtml(spellName)}</b> ${lbl3}: <b style="color:${col3}">${result.total}</b> (${result.detail})`);
+      if (typeof showToast === 'function') showToast(`${spellName}: ${result.total} ${lbl3}`, col3, 3000);
+    }
+  } else if (typeof showToast === 'function') {
+    showToast(`${charName} cast ${spellName}${level?` (${level})`:' (cantrip)'}${isConc3?' ⊙':''}`, '#9b6dff', 2500);
+  }
+
+  // Refresh UI
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+  if (typeof renderInitiative === 'function') renderInitiative();
+}
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
