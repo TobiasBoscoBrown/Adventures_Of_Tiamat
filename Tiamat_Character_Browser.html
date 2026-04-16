@@ -38614,6 +38614,114 @@ window._i250SetAll = function(enabled) {
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Iter 261: Currency Exchange Calculator
+// Quick panel to convert between CP/SP/EP/GP/PP.
+// Enter any amount in any denomination, see all equivalent values instantly.
+// Also shows how to break change and handles fractional results.
+(function() {
+  // Exchange rates in CP (copper pieces)
+  const COINS = [
+    { key: 'cp', label: 'CP', name: 'Copper',   rate: 1,    color: '#b87333' },
+    { key: 'sp', label: 'SP', name: 'Silver',   rate: 10,   color: '#aaaaaa' },
+    { key: 'ep', label: 'EP', name: 'Electrum', rate: 50,   color: '#8fbc8f' },
+    { key: 'gp', label: 'GP', name: 'Gold',     rate: 100,  color: '#c9a227' },
+    { key: 'pp', label: 'PP', name: 'Platinum', rate: 1000, color: '#b0c4de' },
+  ];
+
+  function _i261InjectBtn() {
+    if (document.getElementById('i261CurrBtn')) return;
+    const ref = document.getElementById('i260ConfigBtn') || document.getElementById('passivesBtn');
+    if (!ref) return;
+    const btn = document.createElement('button');
+    btn.id = 'i261CurrBtn';
+    btn.className = 'encounter-open-btn';
+    btn.textContent = '💰 Exchange';
+    btn.title = 'Currency Exchange Calculator — convert CP/SP/EP/GP/PP';
+    btn.style.cssText = 'border-color:#c9a227;color:#c9a227';
+    btn.onclick = () => _i261OpenPanel(null, null);
+    ref.insertAdjacentElement('afterend', btn);
+  }
+  document.addEventListener('DOMContentLoaded', _i261InjectBtn);
+  setTimeout(_i261InjectBtn, 2800);
+
+  window._i261OpenPanel = function(fromKey, amount) {
+    const ex = document.getElementById('i261CurrPanel');
+    if (ex && fromKey === null) { ex.remove(); return; }
+    if (ex) ex.remove();
+
+    const fromCoin = fromKey ? COINS.find(c => c.key === fromKey) : COINS[3]; // default GP
+    const inputAmt = amount !== null ? amount : '';
+
+    const rows = COINS.map(coin => {
+      let displayVal = '';
+      if (inputAmt !== '' && !isNaN(parseFloat(inputAmt))) {
+        const totalCP = parseFloat(inputAmt) * fromCoin.rate;
+        const converted = totalCP / coin.rate;
+        displayVal = Number.isInteger(converted) ? converted.toString() : converted.toFixed(2);
+      }
+      return `<tr style="border-bottom:1px solid #1a1a2e">
+        <td style="padding:6px 8px;font-size:13px">${coin.label}</td>
+        <td style="padding:6px 8px;font-size:11px;color:#6a7a8a">${coin.name}</td>
+        <td style="padding:6px 8px;font-size:11px;color:#4a5272">${coin.rate} CP</td>
+        <td style="padding:6px 8px;font-size:14px;font-weight:700;color:${coin.color};text-align:right" id="i261_${coin.key}">${escHtml(displayVal)}</td>
+      </tr>`;
+    }).join('');
+
+    // Breakdown section
+    let breakdownHtml = '';
+    if (inputAmt !== '' && !isNaN(parseFloat(inputAmt))) {
+      const totalCP = Math.floor(parseFloat(inputAmt) * fromCoin.rate);
+      let rem = totalCP;
+      const breakdown = [];
+      for (let i = COINS.length - 1; i >= 0; i--) {
+        const n = Math.floor(rem / COINS[i].rate);
+        if (n > 0) breakdown.push(`<span style="color:${COINS[i].color};font-weight:600">${n} ${COINS[i].label}</span>`);
+        rem = rem % COINS[i].rate;
+      }
+      if (breakdown.length > 1) {
+        breakdownHtml = `<div style="margin-top:8px;padding:6px 8px;background:rgba(201,162,39,.05);border:1px solid rgba(201,162,39,.15);border-radius:6px;font-size:11px;color:#8888aa">
+          Break change: ${breakdown.join(' + ')}
+        </div>`;
+      }
+    }
+
+    const coinSelBtns = COINS.map(c =>
+      `<button onclick="_i261OpenPanel('${c.key}',document.getElementById('i261AmtInput').value)"
+        style="flex:1;padding:5px;font-size:11px;cursor:pointer;border-radius:5px;
+          border:1px solid ${fromCoin.key===c.key?`${c.color}`:'#1e2040'};
+          background:${fromCoin.key===c.key?`rgba(100,100,100,.15)`:'rgba(255,255,255,.02)'};
+          color:${fromCoin.key===c.key?c.color:'#6a7a8a'}">${c.label}</button>`
+    ).join('');
+
+    const ov = document.createElement('div');
+    ov.id = 'i261CurrPanel';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9700;display:flex;align-items:center;justify-content:center';
+    ov.innerHTML = `
+      <div style="background:#0a0a1e;border:1px solid rgba(201,162,39,.35);border-radius:12px;padding:18px;width:min(380px,96vw);font-family:'Inter',sans-serif">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <span style="font-family:'Cinzel',serif;color:#c9a227;font-weight:700;font-size:15px">💰 Currency Exchange</span>
+          <button onclick="document.getElementById('i261CurrPanel').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center">
+          <input id="i261AmtInput" type="number" min="0" value="${escHtml(inputAmt.toString())}" placeholder="Amount"
+            style="flex:1;background:#06061a;border:1px solid rgba(201,162,39,.3);color:#c9a227;border-radius:6px;padding:6px 8px;font-size:16px;font-weight:700;outline:none;text-align:center"
+            oninput="_i261OpenPanel('${fromCoin.key}',parseFloat(this.value)||0)">
+        </div>
+        <div style="display:flex;gap:4px;margin-bottom:12px">${coinSelBtns}</div>
+        <table style="width:100%;border-collapse:collapse">
+          <tr style="border-bottom:1px solid #1e2040"><th style="padding:4px 8px;font-size:10px;color:#4a5272;text-align:left">Coin</th><th style="font-size:10px;color:#4a5272;text-align:left;padding:4px 8px">Name</th><th style="font-size:10px;color:#4a5272;text-align:left;padding:4px 8px">Rate</th><th style="font-size:10px;color:#4a5272;text-align:right;padding:4px 8px">Equals</th></tr>
+          ${rows}
+        </table>
+        ${breakdownHtml}
+        <div style="font-size:9px;color:#2a2a50;margin-top:8px;text-align:center">1 PP = 10 GP = 20 EP = 100 SP = 1000 CP</div>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+    setTimeout(() => { const i = document.getElementById('i261AmtInput'); if (i) { i.focus(); i.select(); } }, 50);
+  };
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Iter 260: Auto-Advance Turn Timer
 // Optional countdown timer that automatically calls nextTurn() after N seconds.
 // Toggle button in the turn bar. Countdown progress ring + remaining seconds shown.
