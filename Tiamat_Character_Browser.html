@@ -3698,6 +3698,25 @@
   </div>
 </header>
 
+<!-- Iter 283: DM Announcement Bar -->
+<div id="i283Bar" style="display:none;align-items:center;gap:8px;padding:6px 16px;background:rgba(201,162,39,.12);border-bottom:2px solid #c9a227;font-family:'Cinzel',serif;flex-wrap:wrap">
+  <span id="i283Icon" style="font-size:16px">📢</span>
+  <span id="i283TypeLabel" style="font-size:10px;font-weight:700;letter-spacing:.08em;color:#c9a227;text-transform:uppercase;white-space:nowrap">Announcement</span>
+  <input id="i283Text" type="text" placeholder="Type a session-wide announcement (e.g. Silence spell active, Night time, etc.)"
+    style="flex:1;min-width:200px;background:transparent;border:none;border-bottom:1px solid rgba(201,162,39,.4);color:#e8e0d0;font-size:13px;padding:2px 6px;outline:none;font-family:inherit"
+    oninput="i283Save()" onkeydown="if(event.key==='Escape')i283Hide()">
+  <div style="display:flex;gap:4px;align-items:center">
+    <button onclick="i283SetType('info')" id="i283BtnInfo" title="Info (blue)"
+      style="font-size:10px;padding:2px 7px;border-radius:4px;cursor:pointer;border:1px solid #4488ff;color:#4488ff;background:none;font-weight:700">ℹ Info</button>
+    <button onclick="i283SetType('warn')" id="i283BtnWarn" title="Warning (gold)"
+      style="font-size:10px;padding:2px 7px;border-radius:4px;cursor:pointer;border:1px solid #c9a227;color:#c9a227;background:none;font-weight:700">⚠ Warn</button>
+    <button onclick="i283SetType('danger')" id="i283BtnDanger" title="Danger (red)"
+      style="font-size:10px;padding:2px 7px;border-radius:4px;cursor:pointer;border:1px solid #cc4444;color:#cc4444;background:none;font-weight:700">🔴 Danger</button>
+    <button onclick="i283Hide()" title="Hide announcement bar"
+      style="font-size:11px;padding:2px 7px;border-radius:4px;cursor:pointer;border:1px solid #333;color:#666;background:none">✕</button>
+  </div>
+</div>
+
 <div class="toolbar">
   <input type="text" class="search-box" id="searchBox" placeholder="🔍 Search name, title, lore, alignment, trait..." autofocus style="width:340px">
   <select id="crFilter" class="search-box" style="width:auto;padding:10px 12px;cursor:pointer" onchange="renderGrid()" title="Filter by CR range">
@@ -3774,6 +3793,7 @@
   <button class="filter-btn" onclick="openRulesPanel()" style="border-color:#4488ff;color:#4488ff;" title="Quick Reference Rules — searchable 5e rules lookup">📚 Rules</button>
   <button class="filter-btn" onclick="openPartySummary()" style="border-color:#c9a227;color:#c9a227;" title="Party Summary — HP, conditions, concentration for all party members at a glance">📊 Party</button>
   <button class="filter-btn" onclick="openDataManager()" style="border-color:#44ddaa;color:#44ddaa;" title="Data Manager — export/import all campaign data backup">💾 Data</button>
+  <button class="filter-btn" onclick="i283Toggle()" id="i283ToggleBtn" style="border-color:#c9a227;color:#c9a227;" title="DM Announcement Bar — show a session-wide status message visible at all times">📢 Announce</button>
   <button class="filter-btn" onclick="openShortcutsHelp()" style="border-color:#4488ff;color:#4488ff;" title="Keyboard shortcuts — press ? anytime">⌨ ?</button>
   <button class="filter-btn" onclick="openGlobalSearch()" style="border-color:#c9a227;color:#9098b8;" title="Global search — Ctrl+K">🔍 Search All</button>
   <button class="filter-btn" onclick="openDiceMacros()" style="border-color:#ff8822;color:#ff8822;" title="Quick Dice Macros — save &amp; replay dice rolls">🎲 Dice</button>
@@ -41790,6 +41810,304 @@ void 0;
     const char = typeof filteredChars !== 'undefined' && typeof currentModalIdx !== 'undefined' ? filteredChars[currentModalIdx] : null;
     if (sp && char && char.name === charName && typeof buildStatsPanel === 'function') sp.innerHTML = buildStatsPanel(char);
   };
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 281: NPC Morale Tracker
+// Track morale state (Brave/Steady/Scared/Fleeing) for NPCs during combat.
+// States have mechanical effects (Brave=fights normally, Steady=holding,
+// Scared=disadvantage on attack rolls, Fleeing=uses action to Disengage+Dash).
+// Quick toggle buttons in modal condition area. Shows badge on character cards.
+// Also includes a WIS morale save roller.
+(function() {
+  const KEY = 'tiamat_morale';
+  let _store = {};
+  try { _store = JSON.parse(localStorage.getItem(KEY)) || {}; } catch { _store = {}; }
+  function _save() { localStorage.setItem(KEY, JSON.stringify(_store)); }
+
+  const MORALE_STATES = [
+    { id:'brave',   label:'⚔ Brave',   color:'#44cc88', bg:'rgba(68,204,136,.1)',  effect:'Fights normally. No morale effects.' },
+    { id:'steady',  label:'🛡 Steady',  color:'#c9a227', bg:'rgba(201,162,39,.1)',  effect:'Holds position. May retreat if half their allies fall.' },
+    { id:'scared',  label:'😰 Scared',  color:'#cc8844', bg:'rgba(204,136,68,.1)',  effect:'Disadvantage on attack rolls. Might use Dodge action.' },
+    { id:'fleeing', label:'💨 Fleeing', color:'#cc4444', bg:'rgba(204,68,68,.1)',   effect:'Uses action to Disengage + Dash away from danger each turn.' },
+  ];
+
+  window.i281GetMorale = function(charName) { return _store[charName] || null; };
+
+  window.i281SetMorale = function(charName, state) {
+    if (state === null || _store[charName] === state) {
+      delete _store[charName];
+    } else {
+      _store[charName] = state;
+    }
+    _save();
+    const m = MORALE_STATES.find(s => s.id === _store[charName]);
+    if (typeof showToast === 'function')
+      showToast(charName + ': ' + (m ? m.label + ' — ' + m.effect : 'Morale cleared'), m ? m.color : '#4a5272', 2500);
+    if (typeof renderInitiative === 'function') renderInitiative();
+    // Refresh card if visible
+    if (typeof renderCards === 'function') renderCards();
+    // Refresh modal
+    const sp = document.getElementById('statsPanel');
+    const char = typeof filteredChars !== 'undefined' && typeof currentModalIdx !== 'undefined' ? filteredChars[currentModalIdx] : null;
+    if (sp && char && char.name === charName && typeof buildStatsPanel === 'function') sp.innerHTML = buildStatsPanel(char);
+  };
+
+  window.i281RollMorale = function(charName, wisMod) {
+    const r = Math.floor(Math.random() * 20) + 1;
+    const mod = parseInt(wisMod) || 0;
+    const total = r + mod;
+    const dc = 10; // Standard morale DC
+    const passed = total >= dc;
+    const current = i281GetMorale(charName);
+    let newState = current;
+    if (!passed && current !== 'fleeing') {
+      newState = current === 'brave' ? 'steady' : current === 'steady' ? 'scared' : 'fleeing';
+      i281SetMorale(charName, newState);
+    }
+    const msg = charName + ' Morale Save: d20(' + r + ')+' + mod + '=' + total + ' vs DC' + dc
+      + (passed ? ' — ✅ HOLDS' : ' — ❌ BREAKS → ' + (MORALE_STATES.find(s=>s.id===newState)?.label || ''));
+    if (typeof logEntry === 'function') logEntry('roll', msg);
+    if (typeof showToast === 'function') showToast(msg, passed ? '#44cc88' : '#cc4444', 3000);
+  };
+
+  // Inject morale section into stats panel (below conditions)
+  document.addEventListener('DOMContentLoaded', function() {
+    const panel = document.getElementById('statsPanel');
+    if (!panel) return;
+    const obs = new MutationObserver(function() {
+      if (document.getElementById('i281MoraleBar')) return;
+      const char = typeof filteredChars !== 'undefined' && typeof currentModalIdx !== 'undefined' ? filteredChars[currentModalIdx] : null;
+      if (!char) return;
+      const current = i281GetMorale(char.name);
+      const wis = (char.abilities || []).find(([n]) => n === 'WIS');
+      const wisMod = wis ? wis[2] : '+0';
+
+      const bar = document.createElement('div');
+      bar.id = 'i281MoraleBar';
+      bar.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:4px 12px 6px;';
+      bar.innerHTML = '<span style="font-size:9px;color:#4a5272;letter-spacing:.5px;margin-right:2px">MORALE</span>'
+        + MORALE_STATES.map(s => {
+          const active = current === s.id;
+          return '<button onclick="i281SetMorale(' + JSON.stringify(char.name) + ',\'' + s.id + '\')" '
+            + 'style="font-size:10px;border-radius:5px;padding:2px 8px;cursor:pointer;border:1px solid '
+            + (active ? s.color : '#2a2a50') + ';background:' + (active ? s.bg : 'none') + ';color:' + (active ? s.color : '#4a5272') + '" '
+            + 'title="' + s.effect + '">' + s.label + '</button>';
+        }).join('')
+        + '<button onclick="i281RollMorale(' + JSON.stringify(char.name) + ',' + JSON.stringify(wisMod) + ')" '
+          + 'style="font-size:10px;border-radius:5px;padding:2px 7px;cursor:pointer;border:1px solid #2a2a50;background:none;color:#4a5272;margin-left:4px" '
+          + 'title="Roll WIS morale save (DC 10)">🎲 Save</button>';
+
+      // Insert after notes wrapper or at beginning
+      const notesWrapper = document.getElementById('i273NotesWrapper');
+      if (notesWrapper) notesWrapper.insertAdjacentElement('afterend', bar);
+      else { const advBar = document.getElementById('i266AdvBar'); if (advBar) advBar.insertAdjacentElement('afterend', bar); else panel.prepend(bar); }
+    });
+    obs.observe(panel, { childList: true });
+  });
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 282: Persistent Floating Dice Tray
+// A draggable dice tray always visible in the bottom-right corner.
+// Click die buttons to roll; shows result with advantage/disadvantage support.
+// Modifier field for adding to any roll. History of last 8 rolls.
+// Toggle with 🎲 button; state persists across sessions.
+(function() {
+  document.addEventListener('DOMContentLoaded', function() {
+    if (document.getElementById('i282DiceTray')) return;
+
+    const DICE = [4,6,8,10,12,20,100];
+    const history = [];
+
+    const tray = document.createElement('div');
+    tray.id = 'i282DiceTray';
+    tray.style.cssText = 'position:fixed;bottom:80px;right:20px;z-index:8000;font-family:Inter,sans-serif;user-select:none';
+
+    // Toggle button
+    const toggleBtn = document.createElement('button');
+    toggleBtn.id = 'i282ToggleBtn';
+    toggleBtn.style.cssText = 'width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#1e1240,#2a1a6a);border:2px solid rgba(201,162,39,.5);color:#c9a227;font-size:20px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.5);display:block;margin-left:auto';
+    toggleBtn.textContent = '🎲';
+    toggleBtn.title = 'Toggle Dice Tray';
+    toggleBtn.onclick = function() {
+      const panel = document.getElementById('i282TrayPanel');
+      if (panel) { panel.style.display = panel.style.display === 'none' ? '' : 'none'; }
+    };
+
+    // Main panel
+    const panel = document.createElement('div');
+    panel.id = 'i282TrayPanel';
+    panel.style.cssText = 'background:#0a0a1e;border:1px solid rgba(201,162,39,.3);border-radius:12px;padding:10px;margin-bottom:6px;width:220px;box-shadow:0 8px 32px rgba(0,0,0,.6);display:none';
+
+    function roll(sides, mod, adv) {
+      const r1 = Math.floor(Math.random() * sides) + 1;
+      const r2 = adv !== 'N' ? Math.floor(Math.random() * sides) + 1 : null;
+      let val = r1;
+      let tag = '';
+      if (adv === 'A') { val = Math.max(r1, r2); tag = '⬆'; }
+      if (adv === 'D') { val = Math.min(r1, r2); tag = '⬇'; }
+      const total = val + (parseInt(mod) || 0);
+      const isCrit = sides === 20 && val === 20;
+      const isFumble = sides === 20 && val === 1;
+      const diceStr = r2 !== null ? '(' + r1 + ',' + r2 + ')→' + val : val;
+      const modVal = parseInt(mod) || 0;
+      const modStr = modVal !== 0 ? (modVal > 0 ? '+' + modVal : modVal) : '';
+      const result = { text: tag + ' d' + sides + diceStr + modStr + ' = ' + total, total, isCrit, isFumble, sides };
+      history.unshift(result);
+      if (history.length > 8) history.pop();
+      renderHistory();
+      // Show in result area
+      const res = document.getElementById('i282Result');
+      if (res) {
+        res.textContent = result.text;
+        res.style.color = isCrit ? '#c9a227' : isFumble ? '#cc4444' : '#c8d0e8';
+        res.style.fontSize = '16px';
+        res.style.fontWeight = '700';
+      }
+    }
+
+    function renderHistory() {
+      const hist = document.getElementById('i282History');
+      if (!hist) return;
+      hist.innerHTML = history.slice(0,6).map(r =>
+        '<div style="font-size:10px;color:' + (r.isCrit?'#c9a227':r.isFumble?'#cc4444':'#6070a0') + ';padding:1px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + r.text + '</div>'
+      ).join('');
+    }
+
+    const dieButtons = DICE.map(d =>
+      '<button onclick="(function(){const m=document.getElementById(\'i282Mod\').value;const a=window._i282Adv||\'N\';' +
+      'i282Roll(' + d + ',m,a);})()" ' +
+      'style="font-size:11px;font-weight:700;border-radius:6px;padding:4px 6px;cursor:pointer;background:rgba(155,109,255,.08);border:1px solid rgba(155,109,255,.25);color:#9b6dff;transition:all .1s" ' +
+      'onmouseover="this.style.background=\'rgba(155,109,255,.2)\'" onmouseout="this.style.background=\'rgba(155,109,255,.08)\'">d' + d + '</button>'
+    ).join('');
+
+    panel.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+      + '<span style="font-family:Cinzel,serif;color:#c9a227;font-size:12px;font-weight:700">🎲 Dice Tray</span>'
+      + '<button onclick="document.getElementById(\'i282TrayPanel\').style.display=\'none\'" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:12px">✕</button>'
+      + '</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-bottom:8px">' + dieButtons + '</div>'
+      + '<div style="display:flex;gap:4px;margin-bottom:8px;align-items:center">'
+        + '<label style="font-size:10px;color:#4a5272;white-space:nowrap">Mod</label>'
+        + '<input id="i282Mod" type="number" value="0" min="-10" max="20" style="flex:1;background:#06061a;border:1px solid rgba(201,162,39,.3);color:#c9a227;border-radius:5px;padding:2px 5px;font-size:12px;font-weight:700;text-align:center;outline:none">'
+        + '<button id="i282AdvBtn" onclick="i282CycleAdv()" title="Toggle Advantage/Disadvantage" style="font-size:10px;border-radius:5px;padding:2px 7px;cursor:pointer;border:1px solid #2a2a50;color:#4a5272;background:none">○ Norm</button>'
+      + '</div>'
+      + '<div id="i282Result" style="text-align:center;font-size:16px;font-weight:700;color:#c8d0e8;min-height:24px;margin-bottom:6px">—</div>'
+      + '<div id="i282History" style="border-top:1px solid #1e2040;padding-top:5px"></div>';
+
+    tray.appendChild(panel);
+    tray.appendChild(toggleBtn);
+    document.body.appendChild(tray);
+
+    // Expose roll function globally
+    window.i282Roll = function(sides, mod, adv) {
+      const r1 = Math.floor(Math.random() * sides) + 1;
+      const r2 = adv !== 'N' ? Math.floor(Math.random() * sides) + 1 : null;
+      let val = r1;
+      let tag = '';
+      if (adv === 'A') { val = Math.max(r1, r2); tag = '⬆ '; }
+      if (adv === 'D') { val = Math.min(r1, r2); tag = '⬇ '; }
+      const total = val + (parseInt(mod) || 0);
+      const isCrit = sides === 20 && val === 20;
+      const isFumble = sides === 20 && val === 1;
+      const diceStr = r2 !== null ? '(' + r1 + ',' + r2 + ')→' + val : val;
+      const modVal = parseInt(mod) || 0;
+      const modStr = modVal !== 0 ? (modVal > 0 ? '+' + modVal : '' + modVal) : '';
+      const text = tag + 'd' + sides + diceStr + modStr + ' = ' + total + (isCrit ? ' ★' : isFumble ? ' ☠' : '');
+      history.unshift({ text, total, isCrit, isFumble, sides });
+      if (history.length > 8) history.pop();
+      renderHistory();
+      const res = document.getElementById('i282Result');
+      if (res) { res.textContent = text; res.style.color = isCrit ? '#c9a227' : isFumble ? '#cc4444' : '#c8d0e8'; }
+    };
+
+    window._i282Adv = 'N';
+    window.i282CycleAdv = function() {
+      const states = ['N', 'A', 'D'];
+      const labels = ['○ Norm', '⬆ Adv', '⬇ Dis'];
+      const colors = ['#4a5272', '#44cc88', '#cc4444'];
+      const idx = (states.indexOf(window._i282Adv) + 1) % 3;
+      window._i282Adv = states[idx];
+      const btn = document.getElementById('i282AdvBtn');
+      if (btn) { btn.textContent = labels[idx]; btn.style.color = colors[idx]; btn.style.borderColor = colors[idx] + '66'; }
+    };
+  });
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 283: DM Announcement Bar — session-wide status message bar
+(function() {
+  const TYPES = {
+    info:   { bg: 'rgba(68,136,255,.12)',   border: '#4488ff', icon: 'ℹ', label: 'Info' },
+    warn:   { bg: 'rgba(201,162,39,.12)',   border: '#c9a227', icon: '⚠', label: 'Announcement' },
+    danger: { bg: 'rgba(204,68,68,.15)',    border: '#cc4444', icon: '🔴', label: 'Danger' },
+  };
+  let curType = localStorage.getItem('tiamat_announce_type') || 'warn';
+
+  function applyType(t) {
+    curType = t;
+    const cfg = TYPES[t] || TYPES.warn;
+    const bar = document.getElementById('i283Bar');
+    if (!bar) return;
+    bar.style.background = cfg.bg;
+    bar.style.borderBottomColor = cfg.border;
+    const icon = document.getElementById('i283Icon');
+    if (icon) icon.textContent = cfg.icon;
+    const lbl = document.getElementById('i283TypeLabel');
+    if (lbl) { lbl.textContent = cfg.label; lbl.style.color = cfg.border; }
+    // highlight active type button
+    ['info','warn','danger'].forEach(tp => {
+      const b = document.getElementById('i283Btn' + tp.charAt(0).toUpperCase() + tp.slice(1));
+      if (b) b.style.background = tp === t ? TYPES[tp].border + '33' : 'none';
+    });
+    localStorage.setItem('tiamat_announce_type', t);
+  }
+
+  window.i283SetType = function(t) { applyType(t); };
+
+  window.i283Save = function() {
+    const txt = document.getElementById('i283Text');
+    if (txt) localStorage.setItem('tiamat_announce_text', txt.value);
+  };
+
+  window.i283Show = function() {
+    const bar = document.getElementById('i283Bar');
+    if (!bar) return;
+    bar.style.display = 'flex';
+    const txt = document.getElementById('i283Text');
+    if (txt) {
+      txt.value = localStorage.getItem('tiamat_announce_text') || '';
+      setTimeout(() => txt.focus(), 50);
+    }
+    applyType(curType);
+    localStorage.setItem('tiamat_announce_visible', '1');
+    const btn = document.getElementById('i283ToggleBtn');
+    if (btn) { btn.style.background = 'rgba(201,162,39,.15)'; btn.style.color = '#c9a227'; }
+  };
+
+  window.i283Hide = function() {
+    const bar = document.getElementById('i283Bar');
+    if (bar) bar.style.display = 'none';
+    localStorage.setItem('tiamat_announce_visible', '0');
+    const btn = document.getElementById('i283ToggleBtn');
+    if (btn) { btn.style.background = ''; }
+  };
+
+  window.i283Toggle = function() {
+    const bar = document.getElementById('i283Bar');
+    if (!bar) return;
+    if (bar.style.display === 'none' || !bar.style.display) i283Show();
+    else i283Hide();
+  };
+
+  // Restore on load
+  document.addEventListener('DOMContentLoaded', function() {
+    const savedTxt = localStorage.getItem('tiamat_announce_text') || '';
+    const visible  = localStorage.getItem('tiamat_announce_visible') === '1';
+    const txt = document.getElementById('i283Text');
+    if (txt) txt.value = savedTxt;
+    applyType(curType);
+    if (visible && savedTxt) i283Show();
+  });
 })();
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
