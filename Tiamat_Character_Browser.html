@@ -36692,6 +36692,154 @@ function openVisionPanel() {
   else window.addEventListener('load', inject);
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 238: Creature Size & Reach Reference
+// Parse creature size from title/traits/lore; show space and melee reach
+// Shown in active turn bar and a quick reference table
+// Helps with grid-based tactical combat (Large = 2×2 squares, reach = 10ft)
+
+const _i238SIZE_DATA = {
+  'tiny':      { space: '2½×2½ ft (¼ sq)', reach: '0', area: 0.5, color: '#888' },
+  'small':     { space: '5×5 ft (1 sq)',    reach: '5', area: 1,   color: '#44cc88' },
+  'medium':    { space: '5×5 ft (1 sq)',    reach: '5', area: 1,   color: '#c0c0e0' },
+  'large':     { space: '10×10 ft (2×2)',   reach: '5', area: 2,   color: '#c9a227' },
+  'huge':      { space: '15×15 ft (3×3)',   reach: '10', area: 3,  color: '#ff9944' },
+  'gargantuan':{ space: '20×20 ft (4×4)',   reach: '15', area: 4,  color: '#ff5544' },
+};
+
+function _i238GetSize(char) {
+  if (!char) return 'medium';
+  const text = [
+    char.title || '',
+    (char.traits || []).join(' '),
+    char.subtitle || '',
+    char.lore || '',
+  ].join(' ').toLowerCase();
+
+  for (const size of ['gargantuan', 'huge', 'large', 'small', 'tiny']) {
+    if (text.includes(size)) return size;
+  }
+
+  // Infer from CR (very rough)
+  const cr = parseFloat(char.cr || 0);
+  if (cr >= 20) return 'huge';
+  if (cr >= 15) return 'large';
+
+  return 'medium';
+}
+
+function _i238SizeRow() {
+  const bar = document.getElementById('activeTurnBar');
+  if (!bar) return;
+  const il = (typeof initiativeList !== 'undefined') ? initiativeList : [];
+  const idx = (typeof currentTurnIdx !== 'undefined') ? currentTurnIdx : 0;
+  const combatant = il[idx];
+  if (!combatant) return;
+  const charName = combatant.name || combatant.charName;
+  if (!charName) return;
+
+  const char = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS.find(c => c.name === charName) : null;
+  const size = _i238GetSize(char);
+  const sd = _i238SIZE_DATA[size] || _i238SIZE_DATA.medium;
+
+  // Only show if not medium (default) to reduce clutter
+  if (size === 'medium') return;
+
+  bar.innerHTML += `<div style="display:flex;gap:8px;align-items:center;padding:2px 0">
+    <span style="font-size:9px;color:#4a5272;font-weight:600">📐 SIZE</span>
+    <span style="font-size:11px;font-weight:700;color:${sd.color};text-transform:capitalize">${size}</span>
+    <span style="font-size:10px;color:#4a5272">${sd.space}</span>
+    <span style="font-size:10px;color:#4a5272">Reach: ${sd.reach}ft</span>
+  </div>`;
+}
+
+(function() {
+  const _origRATB = renderActiveTurnBar;
+  renderActiveTurnBar = function() {
+    _origRATB();
+    _i238SizeRow();
+  };
+})();
+
+function openSizeReference() {
+  const ex = document.getElementById('i238SizeRef');
+  if (ex) { ex.remove(); return; }
+
+  const chars = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS : [];
+
+  // Group by size
+  const bySize = {};
+  chars.forEach(c => {
+    const size = _i238GetSize(c);
+    if (!bySize[size]) bySize[size] = [];
+    bySize[size].push(c.name);
+  });
+
+  const sizeOrder = ['tiny', 'small', 'medium', 'large', 'huge', 'gargantuan'];
+  const sectionHtml = sizeOrder.map(size => {
+    const names = bySize[size];
+    if (!names || !names.length) return '';
+    const sd = _i238SIZE_DATA[size];
+    return `<div style="margin-bottom:12px">
+      <div style="display:flex;gap:8px;align-items:baseline;margin-bottom:4px">
+        <span style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:${sd.color};text-transform:capitalize">${size}</span>
+        <span style="font-size:10px;color:#4a5272">${sd.space} · Reach ${sd.reach}ft</span>
+        <span style="font-size:9px;color:#2a2a50">(${names.length} creatures)</span>
+      </div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        ${names.map(n => `<span style="background:rgba(0,0,0,.3);border:1px solid ${sd.color}33;border-radius:4px;padding:2px 7px;font-size:10px;color:${sd.color}">${escHtml(n)}</span>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+
+  const rulesSummary = `<table style="width:100%;border-collapse:collapse;font-size:10px">
+    <thead><tr style="border-bottom:1px solid #1e2040">
+      <th style="padding:3px 6px;text-align:left;color:#4a5272">SIZE</th>
+      <th style="padding:3px 6px;text-align:center;color:#4a5272">SPACE</th>
+      <th style="padding:3px 6px;text-align:center;color:#4a5272">REACH</th>
+    </tr></thead>
+    <tbody>
+      ${Object.entries(_i238SIZE_DATA).map(([size, sd]) => `<tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+        <td style="padding:3px 6px;color:${sd.color};text-transform:capitalize;font-weight:600">${size}</td>
+        <td style="padding:3px 6px;text-align:center;color:#c0c0e0">${sd.space}</td>
+        <td style="padding:3px 6px;text-align:center;color:#c0c0e0">${sd.reach}ft</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+
+  const ov = document.createElement('div');
+  ov.id = 'i238SizeRef';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:9300;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `
+    <div style="background:#0a0a1e;border:1px solid rgba(201,162,39,.4);border-radius:12px;padding:18px;width:min(540px,95vw);max-height:85vh;overflow-y:auto;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <span style="font-family:'Cinzel',serif;color:#c9a227;font-weight:700">📐 Creature Size Reference</span>
+        <button onclick="document.getElementById('i238SizeRef').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+      </div>
+      <div style="margin-bottom:14px">${rulesSummary}</div>
+      <div style="border-top:1px solid #1e2040;padding-top:12px">${sectionHtml || '<div style="color:#4a5272;font-size:11px">No characters loaded.</div>'}</div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+(function() {
+  const inject = () => {
+    if (document.getElementById('i238SizeBtn')) return;
+    const tb = document.querySelector('.toolbar-buttons') || document.querySelector('#toolbar') || document.querySelector('.toolbar');
+    if (!tb) return;
+    const btn = document.createElement('button');
+    btn.id = 'i238SizeBtn';
+    btn.innerHTML = '📐 Sizes';
+    btn.title = 'Creature size, space, and reach reference';
+    btn.style.cssText = 'background:rgba(201,162,39,.06);border:1px solid rgba(201,162,39,.25);color:rgba(201,162,39,.7);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;font-family:"Inter",sans-serif';
+    btn.onclick = () => openSizeReference();
+    tb.appendChild(btn);
+  };
+  if (document.readyState === 'complete') inject();
+  else window.addEventListener('load', inject);
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
