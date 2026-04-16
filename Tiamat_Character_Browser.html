@@ -36278,6 +36278,108 @@ function openSaveTable() {
   else window.addEventListener('load', inject);
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 235: Active Turn Bar Compact Mode Toggle
+// The turn bar has grown to many rows; add a collapse/expand toggle
+// Compact mode shows only the essentials (action economy + HP context)
+// Full mode shows all rows (spells, attacks, movement, effects, etc.)
+// Toggle state persists in localStorage
+
+const _i235CompactKey = 'tiamat_turnbar_compact';
+
+function _i235IsCompact() {
+  return localStorage.getItem(_i235CompactKey) === '1';
+}
+
+function _i235SetCompact(val) {
+  localStorage.setItem(_i235CompactKey, val ? '1' : '0');
+}
+
+function _i235ToggleCompact() {
+  _i235SetCompact(!_i235IsCompact());
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+}
+
+// Sections that get hidden in compact mode
+// We identify them by adding data-turnbar-section attributes to rows
+// In compact mode, we hide all sections except the first (action economy / HP context)
+
+(function() {
+  // We need to wrap renderActiveTurnBar at the very end to post-process DOM
+  const _origRATB = renderActiveTurnBar;
+  renderActiveTurnBar = function() {
+    _origRATB();
+    _i235ApplyCompactMode();
+  };
+})();
+
+function _i235ApplyCompactMode() {
+  const bar = document.getElementById('activeTurnBar');
+  if (!bar) return;
+
+  // Mark all child divs as sections (except first ~3 children which are the header)
+  const children = Array.from(bar.children);
+  if (!children.length) return;
+
+  // Add toggle button if not already present
+  if (!document.getElementById('i235CompactToggle')) {
+    const btn = document.createElement('button');
+    btn.id = 'i235CompactToggle';
+    btn.style.cssText = 'position:absolute;top:6px;right:6px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.15);color:#888;border-radius:4px;padding:2px 7px;cursor:pointer;font-size:10px;z-index:100;font-family:"Inter",sans-serif';
+    btn.onclick = (e) => { e.stopPropagation(); _i235ToggleCompact(); };
+    if (bar.style.position !== 'absolute' && bar.style.position !== 'fixed' && bar.style.position !== 'relative') {
+      bar.style.position = 'relative';
+    }
+    bar.appendChild(btn);
+  }
+
+  const toggleBtn = document.getElementById('i235CompactToggle');
+  const isCompact = _i235IsCompact();
+
+  if (toggleBtn) {
+    toggleBtn.textContent = isCompact ? '▼ Expand' : '▲ Compact';
+    toggleBtn.title = isCompact ? 'Expand turn bar to show all features' : 'Collapse turn bar to compact mode';
+  }
+
+  if (!isCompact) return; // Full mode — show everything
+
+  // Compact mode: hide rows after the first few essential ones
+  // Keep: the header row (usually first 2-3 children), action economy row
+  // Hide: spells, attacks, movement, effects, inspiration, reaction, etc.
+  // We identify rows to keep: first 3 divs (likely header/HP/action) OR any with key class markers
+
+  let keepCount = 0;
+  children.forEach((child, idx) => {
+    if (child.id === 'i235CompactToggle') return;
+    // Keep first 4 direct children (character name, HP context, action economy bar)
+    if (idx < 4) {
+      child.style.display = '';
+      keepCount++;
+    } else {
+      // Check if this is a critical row (action economy likely has class or text about Action/Bonus/Reaction)
+      const text = child.textContent || '';
+      const isActionRow = text.includes('ACTION') || text.includes('BONUS') || child.className?.includes('action');
+      if (isActionRow && keepCount < 6) {
+        child.style.display = '';
+        keepCount++;
+      } else {
+        child.style.display = 'none';
+      }
+    }
+  });
+}
+
+// Also add a visual indicator in the turn bar header when compact
+// Patch the initial renderActiveTurnBar to inject the compact mode state
+(function() {
+  const _origRATB2 = renderActiveTurnBar;
+  renderActiveTurnBar = function() {
+    // Before rendering, set a flag so new rows know the state
+    window._i235CurrentlyCompact = _i235IsCompact();
+    _origRATB2();
+  };
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
