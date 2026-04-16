@@ -3867,6 +3867,13 @@
     <div class="modal-combat-bar" id="modalCombatBar"></div>
     <div id="modalLegendaryBar" style="display:none"></div>
     <div id="modalResourceBar"></div>
+    <!-- Iter 289: NPC Quick-Pitch bar -->
+    <div id="i289PitchBar" style="display:none;padding:8px 16px;background:rgba(155,109,255,.06);border-bottom:1px solid rgba(155,109,255,.12);font-size:11px;color:#9098b8;line-height:1.5;position:relative">
+      <span style="color:#9b6dff;font-weight:700;font-size:10px;letter-spacing:.07em;margin-right:6px">DM BRIEF</span>
+      <span id="i289PitchText"></span>
+      <button onclick="document.getElementById('i289PitchBar').style.display='none'"
+        style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#2a2a50;cursor:pointer;font-size:11px" title="Hide pitch">✕</button>
+    </div>
     <div class="modal-tabs" id="modalTabs" style="display:flex;justify-content:space-between;align-items:center">
       <div style="display:flex">
         <div class="modal-tab active" data-tab="stats" onclick="switchModalTab('stats', this)">Stats</div>
@@ -42518,6 +42525,75 @@ void 0;
     document.body.appendChild(panel);
     document.addEventListener('keydown', function esc(e) { if(e.key==='Escape'){panel.remove();document.removeEventListener('keydown',esc);} });
   };
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 289: NPC Quick-Pitch Summary — auto-generated DM briefing in modal header
+(function() {
+  const ALIGNMENTS = {
+    'lawful good':'principled and trustworthy', 'neutral good':'kind-hearted and flexible',
+    'chaotic good':'free-spirited and heroic', 'lawful neutral':'disciplined and rule-bound',
+    'true neutral':'balanced and pragmatic', 'chaotic neutral':'unpredictable and self-driven',
+    'lawful evil':'calculating and ruthless', 'neutral evil':'selfish and amoral',
+    'chaotic evil':'savage and destructive',
+  };
+
+  function buildPitch(c) {
+    const subtitle = (c.subtitle || '').toLowerCase();
+    // Extract alignment
+    const alignKeys = Object.keys(ALIGNMENTS);
+    const alignKey = alignKeys.find(k => subtitle.includes(k));
+    const alignDesc = alignKey ? ALIGNMENTS[alignKey] : 'enigmatic';
+
+    // Extract traits
+    const traits = (c.traits || []).slice(0, 2).map(t => {
+      const clean = t.replace(/—.*/,'').replace(/\(.*?\)/g,'').trim();
+      return clean.toLowerCase();
+    });
+
+    // Lore summary (first sentence)
+    const loreSentence = c.lore ? c.lore.split(/[.!?]/)[0].trim() : '';
+
+    // Build pitch
+    let pitch = '';
+    // Sentence 1: Who are they
+    if (loreSentence) {
+      pitch = loreSentence + '. ';
+    } else {
+      const role = (c.title || '').split('·')[0].trim();
+      pitch = `${c.name} is a ${alignDesc} ${role.toLowerCase()}. `;
+    }
+    // Sentence 2: Key trait or motivation
+    if (traits.length) {
+      pitch += `Known for: ${traits.join(' and ')}. `;
+    }
+    // Sentence 3: RP hint from quote
+    if (c.quote) {
+      pitch += `They might say: "${c.quote.slice(0, 80)}${c.quote.length > 80 ? '…' : ''}"`;
+    }
+
+    return pitch.trim();
+  }
+
+  // Patch openModal to show pitch
+  const _origOpen = window.openModal;
+  if (typeof _origOpen === 'function') {
+    window.openModal = function(idx) {
+      _origOpen.apply(this, arguments);
+      try {
+        const c = filteredChars[idx];
+        if (!c) return;
+        const pitch = buildPitch(c);
+        const bar = document.getElementById('i289PitchBar');
+        const txt = document.getElementById('i289PitchText');
+        if (bar && txt && pitch) {
+          txt.textContent = pitch;
+          bar.style.display = 'block';
+        } else if (bar) {
+          bar.style.display = 'none';
+        }
+      } catch(e) {}
+    };
+  }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
