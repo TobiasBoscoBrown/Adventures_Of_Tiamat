@@ -37318,6 +37318,179 @@ function _i241ShowLogModal(text) {
   else window.addEventListener('load', inject);
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 242: Quick Condition Applier
+// A compact panel to apply/remove conditions from any character
+// Accessible via toolbar button; also shows who currently has each condition
+// Works with existing condition system (tiamat_conditions_*)
+
+function openConditionApplier() {
+  const ex = document.getElementById('i242CondApplier');
+  if (ex) { ex.remove(); return; }
+
+  const chars = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS : [];
+  const conditions = [
+    'Blinded','Charmed','Deafened','Frightened','Grappled','Incapacitated',
+    'Invisible','Paralyzed','Petrified','Poisoned','Prone','Restrained',
+    'Stunned','Unconscious',
+  ];
+
+  // Get condition state for all characters
+  const condMap = {};
+  chars.forEach(c => {
+    try {
+      condMap[c.name] = JSON.parse(localStorage.getItem(`tiamat_conditions_${c.name}`) || '[]');
+    } catch(e) { condMap[c.name] = []; }
+  });
+
+  // Build condition pills
+  const condPills = conditions.map(cond => {
+    const affectedChars = chars.filter(c => condMap[c.name]?.includes(cond));
+    const ref = (typeof _i230CONDITIONS !== 'undefined') ? _i230CONDITIONS[cond] : null;
+    const color = ref?.color || '#c9a227';
+    const icon = ref?.icon || '⚠';
+    const count = affectedChars.length;
+    return `<button onclick="_i242SelectCond('${cond}',event)" id="i242cond_${cond.replace(/[^a-z]/gi,'_')}"
+      style="background:${count > 0 ? 'rgba(0,0,0,.3)' : 'rgba(0,0,0,.1)'};border:1px solid ${count > 0 ? color : '#2a2a50'};color:${count > 0 ? color : '#4a5272'};border-radius:6px;padding:4px 8px;cursor:pointer;font-size:10px;display:flex;gap:3px;align-items:center">
+      ${icon} ${cond}${count > 0 ? ` <span style="background:${color}33;border-radius:10px;padding:0 5px;font-size:9px;color:${color}">${count}</span>` : ''}
+    </button>`;
+  }).join('');
+
+  const ov = document.createElement('div');
+  ov.id = 'i242CondApplier';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:9300;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `
+    <div style="background:#0a0a1e;border:1px solid rgba(201,162,39,.4);border-radius:12px;padding:18px;width:min(560px,95vw);max-height:88vh;overflow-y:auto;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="font-family:'Cinzel',serif;color:#c9a227;font-weight:700">⚠ Condition Applier</span>
+        <button onclick="document.getElementById('i242CondApplier').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+      </div>
+      <div style="font-size:10px;color:#4a5272;margin-bottom:10px">Click a condition to manage it, then click characters to apply/remove.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px">${condPills}</div>
+      <div id="i242CharGrid" style="display:none;border-top:1px solid #1e2040;padding-top:12px;margin-top:4px"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  ov._condMap = condMap;
+  ov._chars = chars;
+}
+
+window._i242SelectCond = function(condName, event) {
+  if (event) event.stopPropagation();
+  const ov = document.getElementById('i242CondApplier');
+  if (!ov) return;
+  const condMap = ov._condMap;
+  const chars = ov._chars || [];
+
+  // Highlight selected button
+  document.querySelectorAll('[id^="i242cond_"]').forEach(b => b.style.outline = '');
+  const selectedBtn = document.getElementById(`i242cond_${condName.replace(/[^a-z]/gi,'_')}`);
+  if (selectedBtn) selectedBtn.style.outline = '2px solid #c9a227';
+
+  const ref = (typeof _i230CONDITIONS !== 'undefined') ? _i230CONDITIONS[condName] : null;
+  const color = ref?.color || '#c9a227';
+
+  // Build char grid
+  const charBtns = chars.slice(0, 50).map(c => {
+    const hasCondition = condMap[c.name]?.includes(condName);
+    return `<button onclick="_i242ToggleCondition('${c.name.replace(/'/g,"\\'")}','${condName}',event)"
+      style="background:${hasCondition ? `rgba(0,0,0,.3)` : 'rgba(0,0,0,.1)'};border:1px solid ${hasCondition ? color : '#2a2a50'};color:${hasCondition ? color : '#888'};border-radius:6px;padding:4px 8px;cursor:pointer;font-size:10px;white-space:nowrap">
+      ${hasCondition ? '✓ ' : '+ '}${escHtml(c.name)}
+    </button>`;
+  }).join('');
+
+  const affectedNames = chars.filter(c => condMap[c.name]?.includes(condName)).map(c => c.name);
+  const grid = document.getElementById('i242CharGrid');
+  if (grid) {
+    grid.style.display = 'block';
+    grid.innerHTML = `
+      <div style="font-size:11px;color:${color};margin-bottom:6px;font-family:'Cinzel',serif">${ref?.icon || '⚠'} ${condName} ${affectedNames.length ? `— affecting: <strong>${affectedNames.join(', ')}</strong>` : '— not affecting anyone'}</div>
+      ${ref?.summary ? `<div style="font-size:10px;color:#4a5272;margin-bottom:8px;font-style:italic">${escHtml(ref.summary)}</div>` : ''}
+      <div style="display:flex;flex-wrap:wrap;gap:4px">${charBtns}</div>
+      <div style="margin-top:8px;display:flex;gap:6px">
+        <button onclick="_i242ClearAll('${condName}',event)" style="background:rgba(204,51,51,.08);border:1px solid rgba(204,51,51,.25);color:#cc5555;border-radius:5px;padding:4px 10px;cursor:pointer;font-size:10px">✕ Remove from All</button>
+      </div>`;
+  }
+};
+
+window._i242ToggleCondition = function(charName, condName, event) {
+  if (event) event.stopPropagation();
+  try {
+    const condKey = `tiamat_conditions_${charName}`;
+    const conds = JSON.parse(localStorage.getItem(condKey) || '[]');
+    const idx = conds.indexOf(condName);
+    if (idx >= 0) {
+      conds.splice(idx, 1);
+      if (typeof showToast === 'function') showToast(`${charName}: ${condName} removed`, '#888', 1500);
+    } else {
+      conds.push(condName);
+      const ref = (typeof _i230CONDITIONS !== 'undefined') ? _i230CONDITIONS[condName] : null;
+      if (typeof showToast === 'function') showToast(`${charName}: ${condName} applied!`, ref?.color || '#c9a227', 1800);
+    }
+    localStorage.setItem(condKey, JSON.stringify(conds));
+
+    // Update condMap in the overlay
+    const ov = document.getElementById('i242CondApplier');
+    if (ov) { ov._condMap[charName] = conds; }
+
+    if (typeof logEntry === 'function') logEntry('system', `⚠ <strong>${escHtml(charName)}</strong>: ${condName} ${idx >= 0 ? 'removed' : '<strong style="color:#c9a227">applied</strong>'}`);
+    if (typeof renderGrid === 'function') renderGrid();
+    if (typeof renderInitiative === 'function') renderInitiative();
+    if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+
+    // Refresh selected condition panel
+    _i242SelectCond(condName, null);
+    // Refresh condition pills
+    document.querySelectorAll('[id^="i242cond_"]').forEach(btn => {
+      const cName = btn.id.replace('i242cond_', '').replace(/_/g, ' ');
+      const actualCond = Object.keys((typeof _i230CONDITIONS !== 'undefined' ? _i230CONDITIONS : {})).find(c => c.replace(/[^a-z]/gi,'_') === btn.id.replace('i242cond_','')) || cName;
+      // Count affected
+      const allChars = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS : [];
+      const count = allChars.filter(c => {
+        try { return JSON.parse(localStorage.getItem(`tiamat_conditions_${c.name}`) || '[]').includes(actualCond); } catch(e) { return false; }
+      }).length;
+      if (count > 0) {
+        const ref2 = (typeof _i230CONDITIONS !== 'undefined') ? _i230CONDITIONS[actualCond] : null;
+        const c2 = ref2?.color || '#c9a227';
+        btn.style.borderColor = c2; btn.style.color = c2;
+      } else {
+        btn.style.borderColor = '#2a2a50'; btn.style.color = '#4a5272';
+      }
+    });
+  } catch(e) {}
+};
+
+window._i242ClearAll = function(condName, event) {
+  if (event) event.stopPropagation();
+  const chars = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS : [];
+  chars.forEach(c => {
+    try {
+      const condKey = `tiamat_conditions_${c.name}`;
+      const conds = JSON.parse(localStorage.getItem(condKey) || '[]').filter(x => x !== condName);
+      localStorage.setItem(condKey, JSON.stringify(conds));
+    } catch(e) {}
+  });
+  if (typeof showToast === 'function') showToast(`${condName} removed from all characters`, '#888', 1800);
+  openConditionApplier();
+};
+
+(function() {
+  const inject = () => {
+    if (document.getElementById('i242CondBtn')) return;
+    const tb = document.querySelector('.toolbar-buttons') || document.querySelector('#toolbar') || document.querySelector('.toolbar');
+    if (!tb) return;
+    const btn = document.createElement('button');
+    btn.id = 'i242CondBtn';
+    btn.innerHTML = '⚠ Conditions';
+    btn.title = 'Apply/remove conditions from any character';
+    btn.style.cssText = 'background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.3);color:#c9a227;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;font-family:"Inter",sans-serif';
+    btn.onclick = () => openConditionApplier();
+    tb.appendChild(btn);
+  };
+  if (document.readyState === 'complete') inject();
+  else window.addEventListener('load', inject);
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
