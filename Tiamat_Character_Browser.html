@@ -38614,6 +38614,147 @@ window._i250SetAll = function(enabled) {
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Iter 253: Weather & Lighting Conditions Tracker
+// Track current weather and lighting for the encounter/scene.
+// Shows mechanical effects (disadvantage on Perception in rain, etc).
+// Persisted in localStorage, visible as a HUD strip under the toolbar.
+(function() {
+  const _i253KEY = 'tiamat_weather';
+
+  const WEATHERS = [
+    { id:'clear',    label:'☀ Clear',       desc:'Normal visibility. No weather effects.',       effects:[] },
+    { id:'cloudy',   label:'☁ Cloudy',      desc:'Normal visibility. Slight chill.',              effects:[] },
+    { id:'fog',      label:'🌫 Foggy',       desc:'Heavily obscured beyond 5 ft. Disadvantage on ranged attacks and Perception checks.', effects:['Ranged Disadv','Perception Disadv','Heavily Obscured'] },
+    { id:'rain',     label:'🌧 Rain',        desc:'Lightly obscured. Disadvantage on Perception (hearing). Ranged attacks beyond normal range at disadv.', effects:['Perception Disadv','Ranged Disadv (long)'] },
+    { id:'storm',    label:'⛈ Storm',       desc:'Heavily obscured. Disadvantage on Perception, Stealth, ranged attacks. Flying perilous.', effects:['Perception Disadv','Stealth Disadv','Ranged Disadv','Flying Difficult'] },
+    { id:'snow',     label:'❄ Snow',        desc:'Lightly obscured. Difficult terrain. Disadvantage on Perception (sight) and Stealth.', effects:['Difficult Terrain','Perception Disadv','Stealth Disadv'] },
+    { id:'blizzard', label:'🌨 Blizzard',    desc:'Heavily obscured. Difficult terrain. Disadvantage on all outdoor checks. Wind: ranged attacks at disadv.', effects:['Heavily Obscured','Difficult Terrain','Most Checks Disadv','Ranged Disadv'] },
+    { id:'heat',     label:'🌡 Extreme Heat',desc:'CON save DC 5 (+1 per hour) each hour without water/shade or risk exhaustion.', effects:['Exhaustion Risk','CON Save per Hour'] },
+    { id:'cold',     label:'🥶 Extreme Cold',desc:'CON save DC 10 each hour without cold weather gear or risk exhaustion.', effects:['Exhaustion Risk','CON Save per Hour'] },
+    { id:'wind',     label:'💨 Strong Wind', desc:'Disadvantage on ranged weapon attacks and Perception. Flying at disadvantage (str check).', effects:['Ranged Disadv','Perception Disadv','Flying Difficult'] },
+  ];
+
+  const LIGHTINGS = [
+    { id:'bright',    label:'🌞 Bright Light', desc:'Normal vision. No effects.',      effects:[] },
+    { id:'dim',       label:'🌒 Dim Light',     desc:'Lightly obscured. Passive Perception −5 for sight-based checks.', effects:['Lightly Obscured','-5 Passive Perc'] },
+    { id:'darkness',  label:'🌑 Darkness',      desc:'Heavily obscured. Creatures without darkvision are Blinded.', effects:['Heavily Obscured','Blinded (no DV)'] },
+    { id:'magical',   label:'✦ Magical Dark',   desc:'Blocks darkvision too. All creatures effectively Blinded.', effects:['Blocks Darkvision','All Blinded'] },
+    { id:'sunlight',  label:'☀ Sunlight',       desc:'Creatures with Sunlight Sensitivity: disadvantage on attacks and Perception checks.', effects:['Sensitivity Disadv'] },
+  ];
+
+  function _i253Load() {
+    try { return JSON.parse(localStorage.getItem(_i253KEY) || '{}'); } catch { return {}; }
+  }
+  function _i253Save(d) { localStorage.setItem(_i253KEY, JSON.stringify(d)); }
+
+  function _i253UpdateHUD() {
+    const bar = document.getElementById('i253HUDBar');
+    if (!bar) return;
+    const d = _i253Load();
+    const w = WEATHERS.find(x => x.id === d.weather);
+    const l = LIGHTINGS.find(x => x.id === d.lighting);
+    const allEffects = [...(w?.effects || []), ...(l?.effects || [])];
+    bar.innerHTML = `
+      <span style="cursor:pointer;padding:2px 8px;border-radius:4px;background:rgba(255,255,255,.04);border:1px solid #1e2040;font-size:11px;color:#8888aa" onclick="_i253OpenPanel()" title="Change weather/lighting">
+        ${w ? w.label : '☀ Clear'} · ${l ? l.label : '🌞 Bright Light'}
+      </span>
+      ${allEffects.length ? allEffects.map(e => `<span style="font-size:9px;background:rgba(255,153,68,.1);border:1px solid rgba(255,153,68,.2);color:#ff9944;border-radius:3px;padding:1px 5px">${e}</span>`).join('') : ''}
+      <button onclick="_i253OpenPanel()" style="font-size:10px;background:none;border:none;color:#3a3a5a;cursor:pointer" title="Change conditions">⚙</button>`;
+  }
+
+  function _i253InjectHUD() {
+    if (document.getElementById('i253HUDBar')) return;
+    const toolbar = document.querySelector('.toolbar') || document.getElementById('toolbar');
+    if (!toolbar) return;
+    const bar = document.createElement('div');
+    bar.id = 'i253HUDBar';
+    bar.style.cssText = 'display:flex;align-items:center;gap:6px;padding:3px 8px;background:rgba(0,0,0,.3);border-top:1px solid #0a0a20;flex-wrap:wrap;font-family:"Inter",sans-serif';
+    toolbar.insertAdjacentElement('afterend', bar);
+    _i253UpdateHUD();
+  }
+
+  function _i253InjectBtn() {
+    if (document.getElementById('i253WeatherBtn')) return;
+    const ref = document.getElementById('i252SpellDCBtn') || document.getElementById('passivesBtn');
+    if (!ref) return;
+    const btn = document.createElement('button');
+    btn.id = 'i253WeatherBtn';
+    btn.className = 'encounter-open-btn';
+    btn.textContent = '⛅ Weather';
+    btn.title = 'Weather & Lighting Conditions — affects perception, movement, attacks';
+    btn.style.cssText = 'border-color:#44aadd;color:#44aadd';
+    btn.onclick = () => _i253OpenPanel();
+    ref.insertAdjacentElement('afterend', btn);
+  }
+
+  document.addEventListener('DOMContentLoaded', () => { _i253InjectBtn(); _i253InjectHUD(); });
+  setTimeout(() => { _i253InjectBtn(); _i253InjectHUD(); }, 1600);
+
+  window._i253OpenPanel = function() {
+    const ex = document.getElementById('i253Panel');
+    if (ex) { ex.remove(); return; }
+    const d = _i253Load();
+
+    const wBtns = WEATHERS.map(w =>
+      `<button onclick="_i253Set('weather','${w.id}')" title="${w.desc}"
+        style="flex:1;min-width:80px;padding:6px 4px;font-size:11px;cursor:pointer;border-radius:6px;
+          border:1px solid ${d.weather===w.id?'rgba(68,170,221,.6)':'#1e2040'};
+          background:${d.weather===w.id?'rgba(68,170,221,.12)':'rgba(255,255,255,.02)'};
+          color:${d.weather===w.id?'#44aadd':'#8888aa'};line-height:1.3">${w.label}</button>`
+    ).join('');
+
+    const lBtns = LIGHTINGS.map(l =>
+      `<button onclick="_i253Set('lighting','${l.id}')" title="${l.desc}"
+        style="flex:1;min-width:80px;padding:6px 4px;font-size:11px;cursor:pointer;border-radius:6px;
+          border:1px solid ${d.lighting===l.id?'rgba(201,162,39,.6)':'#1e2040'};
+          background:${d.lighting===l.id?'rgba(201,162,39,.12)':'rgba(255,255,255,.02)'};
+          color:${d.lighting===l.id?'#c9a227':'#8888aa'};line-height:1.3">${l.label}</button>`
+    ).join('');
+
+    const cur = { w: WEATHERS.find(x => x.id === d.weather), l: LIGHTINGS.find(x => x.id === d.lighting) };
+    const allEffects = [...(cur.w?.effects || []), ...(cur.l?.effects || [])];
+
+    const ov = document.createElement('div');
+    ov.id = 'i253Panel';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9700;display:flex;align-items:center;justify-content:center';
+    ov.innerHTML = `
+      <div style="background:#0a0a1e;border:1px solid rgba(68,170,221,.35);border-radius:12px;padding:18px;width:min(460px,96vw);max-height:90vh;overflow-y:auto;font-family:'Inter',sans-serif">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <span style="font-family:'Cinzel',serif;color:#44aadd;font-weight:700;font-size:15px">⛅ Weather & Lighting</span>
+          <button onclick="document.getElementById('i253Panel').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+        </div>
+        <div style="font-size:11px;color:#5a6a8a;margin-bottom:10px">Weather: <strong style="color:#44aadd">${cur.w?.label || 'None'}</strong> · Lighting: <strong style="color:#c9a227">${cur.l?.label || 'None'}</strong></div>
+        ${allEffects.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px">${allEffects.map(e=>`<span style="font-size:10px;background:rgba(255,153,68,.1);border:1px solid rgba(255,153,68,.2);color:#ff9944;border-radius:4px;padding:2px 7px">${e}</span>`).join('')}</div>` : ''}
+        <div style="font-size:11px;color:#8888aa;margin-bottom:6px">Weather</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:14px">${wBtns}</div>
+        ${cur.w ? `<div style="font-size:10px;color:#4a5a6a;margin-bottom:10px;padding:6px 8px;background:rgba(68,170,221,.04);border-radius:6px;border:1px solid rgba(68,170,221,.1)">${cur.w.desc}</div>` : ''}
+        <div style="font-size:11px;color:#8888aa;margin-bottom:6px">Lighting</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:14px">${lBtns}</div>
+        ${cur.l ? `<div style="font-size:10px;color:#4a5a6a;margin-bottom:6px;padding:6px 8px;background:rgba(201,162,39,.04);border-radius:6px;border:1px solid rgba(201,162,39,.1)">${cur.l.desc}</div>` : ''}
+        <button onclick="_i253Clear()" style="width:100%;margin-top:6px;background:rgba(80,80,100,.06);border:1px solid #2a2a50;color:#5a5a8a;border-radius:6px;padding:7px;cursor:pointer;font-size:11px">↺ Reset to Clear / Bright Light</button>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  };
+
+  window._i253Set = function(key, val) {
+    const d = _i253Load();
+    d[key] = val;
+    _i253Save(d);
+    _i253UpdateHUD();
+    document.getElementById('i253Panel')?.remove();
+    _i253OpenPanel();
+  };
+
+  window._i253Clear = function() {
+    _i253Save({});
+    _i253UpdateHUD();
+    document.getElementById('i253Panel')?.remove();
+    _i253OpenPanel();
+  };
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Iter 252: Spell Save DC & Attack Bonus Dashboard
 // Quick overlay showing every caster's save DC + spell attack bonus.
 // DM can enter target save modifier and see who auto-succeeds/fails + roll for borderline.
