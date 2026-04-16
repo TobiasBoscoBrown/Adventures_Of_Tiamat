@@ -35958,6 +35958,190 @@ window._i232RollGroup = function(event) {
   else window.addEventListener('load', inject);
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 233: Party Initiative Auto-Roll
+// One button to roll initiative for all pinned party members at once
+// Shows a ranked results table; click to auto-fill initiative tracker
+// Also provides a "New Combat" button that resets all combat trackers
+
+function _i233GetPartyChars() {
+  // Get pinned/favorite characters or all characters
+  const chars = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS : [];
+  try {
+    const pinned = JSON.parse(localStorage.getItem('tiamat_pins') || '[]');
+    const favs = JSON.parse(localStorage.getItem('tiamat_favorites') || '[]');
+    const partyKeys = new Set([...pinned, ...favs]);
+    const party = chars.filter(c => partyKeys.has(c.name));
+    return party.length ? party : chars.slice(0, 8); // Fallback to first 8
+  } catch(e) { return chars.slice(0, 8); }
+}
+
+function _i233GetDexMod(char) {
+  if (!char?.abilities) return 0;
+  const dex = char.abilities.find(a => a[0] === 'DEX');
+  if (!dex) return 0;
+  return dex[2] ? parseInt(dex[2]) : Math.floor(((dex[1] || 10) - 10) / 2);
+}
+
+function openInitiativeRoller() {
+  const ex = document.getElementById('i233InitRoller');
+  if (ex) { ex.remove(); return; }
+
+  const party = _i233GetPartyChars();
+
+  const ov = document.createElement('div');
+  ov.id = 'i233InitRoller';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:9300;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `
+    <div style="background:#0a0a1e;border:1px solid rgba(201,162,39,.4);border-radius:12px;padding:18px;width:min(500px,95vw);max-height:85vh;overflow-y:auto;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="font-family:'Cinzel',serif;color:#c9a227;font-weight:700">⚔ Roll Party Initiative</span>
+        <button onclick="document.getElementById('i233InitRoller').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+      </div>
+      <div style="font-size:10px;color:#4a5272;margin-bottom:10px">Rolls for pinned/favorite characters. Add monsters manually to initiative tracker.</div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <button onclick="_i233RollAll(event)" style="flex:1;background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.5);color:#c9a227;border-radius:7px;padding:8px;cursor:pointer;font-size:13px;font-weight:700">🎲 Roll Initiative!</button>
+        <button onclick="_i233NewCombat(event)" style="flex:1;background:rgba(204,51,51,.1);border:1px solid rgba(204,51,51,.35);color:#cc5555;border-radius:7px;padding:8px;cursor:pointer;font-size:11px">⚔ New Combat (Reset All)</button>
+      </div>
+      <div id="i233InitResults" style="font-size:12px;color:#4a5272">Click "Roll Initiative!" to roll for all party members.</div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+
+  // Store party for later use
+  ov._party = party;
+}
+
+window._i233RollAll = function(event) {
+  if (event) event.stopPropagation();
+  const ov = document.getElementById('i233InitRoller');
+  const party = ov?._party || _i233GetPartyChars();
+
+  const rolls = party.map(char => {
+    const dexMod = _i233GetDexMod(char);
+    const die = Math.floor(Math.random() * 20) + 1;
+    const total = die + dexMod;
+    const modStr = dexMod >= 0 ? `+${dexMod}` : `${dexMod}`;
+    return { char, die, dexMod, total, modStr };
+  });
+
+  // Sort by total descending
+  rolls.sort((a, b) => b.total - a.total || b.dexMod - a.dexMod);
+
+  const rows = rolls.map((r, i) => {
+    const pos = i + 1;
+    const isNat20 = r.die === 20, isNat1 = r.die === 1;
+    const dieColor = isNat20 ? '#ffcc00' : isNat1 ? '#cc3333' : '#c0c0e0';
+    return `<tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+      <td style="padding:5px 6px;font-size:11px;color:#4a5272;text-align:center">${pos}</td>
+      <td style="padding:5px 6px;font-size:11px;color:#c0c0e0">${escHtml(r.char.name)}</td>
+      <td style="padding:5px 6px;text-align:center;font-size:11px;color:${dieColor};font-weight:700">${r.die}${isNat20?' ★':isNat1?' ☠':''}</td>
+      <td style="padding:5px 6px;text-align:center;font-size:11px;color:#4a5272">${r.modStr}</td>
+      <td style="padding:5px 6px;text-align:center;font-size:14px;font-weight:700;color:#c9a227">${r.total}</td>
+      <td style="padding:5px 6px;text-align:center">
+        <input type="number" value="${r.total}" min="1"
+          id="i233init_${r.char.name.replace(/[^a-z0-9]/gi,'_')}"
+          style="width:50px;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:4px;padding:2px 4px;font-size:11px;text-align:center;outline:none">
+      </td>
+    </tr>`;
+  }).join('');
+
+  const html = `
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="border-bottom:1px solid #1e2040">
+        <th style="font-size:9px;color:#4a5272;text-align:center;padding:3px 6px">#</th>
+        <th style="font-size:9px;color:#4a5272;text-align:left;padding:3px 6px">CHARACTER</th>
+        <th style="font-size:9px;color:#4a5272;text-align:center;padding:3px 6px">DIE</th>
+        <th style="font-size:9px;color:#4a5272;text-align:center;padding:3px 6px">DEX</th>
+        <th style="font-size:9px;color:#4a5272;text-align:center;padding:3px 6px">TOTAL</th>
+        <th style="font-size:9px;color:#4a5272;text-align:center;padding:3px 6px">OVERRIDE</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <button onclick="_i233AddToTracker(${JSON.stringify(rolls.map(r => ({name: r.char.name, init: r.total})))},event)"
+      style="width:100%;margin-top:10px;background:rgba(68,204,136,.15);border:1px solid rgba(68,204,136,.4);color:#44cc88;border-radius:8px;padding:9px;cursor:pointer;font-size:13px;font-weight:700">
+      ✓ Add All to Initiative Tracker
+    </button>`;
+
+  const el = document.getElementById('i233InitResults');
+  if (el) el.innerHTML = html;
+
+  // Log
+  if (typeof logEntry === 'function') {
+    const summary = rolls.slice(0, 5).map(r => `${r.char.name}=${r.total}`).join(', ');
+    logEntry('system', `⚔ Initiative rolled: ${summary}${rolls.length > 5 ? '...' : ''}`);
+  }
+};
+
+window._i233AddToTracker = function(rollData, event) {
+  if (event) event.stopPropagation();
+  if (typeof initiativeList === 'undefined') {
+    if (typeof showToast === 'function') showToast('Initiative tracker not active — start an encounter first', '#cc3333', 2500);
+    return;
+  }
+
+  // Read override values
+  rollData.forEach(r => {
+    const inputId = `i233init_${r.name.replace(/[^a-z0-9]/gi,'_')}`;
+    const input = document.getElementById(inputId);
+    const initVal = input ? (parseInt(input.value) || r.init) : r.init;
+
+    // Check if already in initiative list
+    const existing = initiativeList.find(c => (c.name || c.charName) === r.name);
+    if (existing) {
+      existing.initiative = initVal;
+    } else {
+      // Add to initiative list
+      const char = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS.find(c => c.name === r.name) : null;
+      initiativeList.push({
+        name: r.name,
+        charName: r.name,
+        initiative: initVal,
+        hp: char ? (parseInt(char.hp) || 0) : 0,
+        maxHp: char ? (parseInt(char.hp) || 0) : 0,
+        ac: char ? (parseInt(char.ac) || 10) : 10,
+      });
+    }
+  });
+
+  // Sort by initiative descending
+  initiativeList.sort((a, b) => (b.initiative || 0) - (a.initiative || 0));
+
+  if (typeof renderInitiative === 'function') renderInitiative();
+  document.getElementById('i233InitRoller')?.remove();
+  if (typeof showToast === 'function') showToast(`${rollData.length} characters added to initiative!`, '#44cc88', 2500);
+};
+
+window._i233NewCombat = function(event) {
+  if (event) event.stopPropagation();
+  // Reset all combat state
+  window._i231SaveReactions?.({});
+  if (typeof localStorage !== 'undefined') {
+    localStorage.removeItem('tiamat_movement');
+  }
+  window._i221ResetRound?.();
+  if (typeof showToast === 'function') showToast('⚔ New Combat! Reactions, movement, and round counter reset.', '#c9a227', 3000);
+  document.getElementById('i233InitRoller')?.remove();
+};
+
+// Add to toolbar
+(function() {
+  const inject = () => {
+    if (document.getElementById('i233InitBtn')) return;
+    const tb = document.querySelector('.toolbar-buttons') || document.querySelector('#toolbar') || document.querySelector('.toolbar');
+    if (!tb) return;
+    const btn = document.createElement('button');
+    btn.id = 'i233InitBtn';
+    btn.innerHTML = '⚔ Roll Init';
+    btn.title = 'Roll initiative for all party members at once';
+    btn.style.cssText = 'background:rgba(201,162,39,.12);border:1px solid rgba(201,162,39,.4);color:#c9a227;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;font-family:"Inter",sans-serif;font-weight:600';
+    btn.onclick = () => openInitiativeRoller();
+    tb.appendChild(btn);
+  };
+  if (document.readyState === 'complete') inject();
+  else window.addEventListener('load', inject);
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
