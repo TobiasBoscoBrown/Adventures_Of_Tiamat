@@ -38613,6 +38613,159 @@ window._i250SetAll = function(enabled) {
   if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
 };
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 251: Stealth vs Passive Perception Checker
+// Enter a creature's stealth roll (or DC). Instantly see which characters
+// notice it (passive perception ≥ DC) vs. don't, plus option to roll active
+// Perception checks. Toolbar button opens the overlay.
+(function() {
+  // Inject toolbar button after the passivesBtn
+  function _i251InjectBtn() {
+    if (document.getElementById('i251StealthBtn')) return;
+    const ref = document.getElementById('passivesBtn');
+    if (!ref) return;
+    const btn = document.createElement('button');
+    btn.id = 'i251StealthBtn';
+    btn.className = 'encounter-open-btn';
+    btn.textContent = '🕵 Stealth';
+    btn.title = 'Stealth vs Passive Perception — who notices the hidden creature?';
+    btn.style.cssText = 'border-color:#ff9944;color:#ff9944';
+    btn.onclick = () => _i251OpenPanel();
+    ref.insertAdjacentElement('afterend', btn);
+  }
+
+  document.addEventListener('DOMContentLoaded', _i251InjectBtn);
+  setTimeout(_i251InjectBtn, 1200);
+
+  window._i251OpenPanel = function() {
+    const ex = document.getElementById('i251StealthPanel');
+    if (ex) { ex.remove(); return; }
+    _i251Render(null);
+  };
+
+  window._i251Render = function(dc) {
+    const ex = document.getElementById('i251StealthPanel');
+    if (ex) ex.remove();
+
+    const chars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+    const allChars = chars.filter(c => c.abilities && c.abilities.length > 0);
+
+    // Compute passive perception for all chars
+    const rows = allChars.map(c => {
+      let pp = 10;
+      if (typeof getPassiveSkills === 'function') {
+        pp = getPassiveSkills(c).perception;
+      } else {
+        const wis = (c.abilities || []).find(([n]) => n === 'WIS');
+        if (wis) pp = 10 + (parseInt(wis[2]) || 0);
+      }
+      return { name: c.name, pp, notices: dc !== null ? pp >= dc : null };
+    }).sort((a, b) => b.pp - a.pp);
+
+    const dcVal = dc !== null ? dc : '';
+    const noticeCount = dc !== null ? rows.filter(r => r.notices).length : 0;
+
+    const rowsHtml = rows.map(r => {
+      let bg = 'rgba(255,255,255,0.02)';
+      let ppColor = '#8888aa';
+      let badge = '';
+      if (dc !== null) {
+        if (r.notices) {
+          bg = 'rgba(68,204,100,0.08)';
+          ppColor = '#44cc64';
+          badge = `<span style="font-size:10px;color:#44cc64;background:rgba(68,204,100,0.12);border:1px solid rgba(68,204,100,0.3);border-radius:4px;padding:1px 6px;margin-left:6px">NOTICES</span>`;
+        } else {
+          bg = 'rgba(204,68,68,0.06)';
+          ppColor = '#cc4444';
+          badge = `<span style="font-size:10px;color:#cc4444;background:rgba(204,68,68,0.08);border:1px solid rgba(204,68,68,0.25);border-radius:4px;padding:1px 6px;margin-left:6px">HIDDEN</span>`;
+        }
+      }
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 8px;border-radius:6px;background:${bg};margin-bottom:3px">
+        <span style="font-size:12px;color:#c0c0e0;font-weight:600">${escHtml(r.name)}</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:13px;color:${ppColor};font-weight:700;min-width:28px;text-align:right">${r.pp}</span>
+          ${badge}
+          <button onclick="_i251RollActive('${r.name.replace(/'/g,"\\'")}',${dc !== null ? dc : 0})"
+            style="font-size:10px;background:rgba(100,100,200,0.08);border:1px solid rgba(100,100,200,0.25);color:#8888cc;border-radius:4px;padding:1px 7px;cursor:pointer"
+            title="Roll active Perception check">🎲</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    const ov = document.createElement('div');
+    ov.id = 'i251StealthPanel';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9700;display:flex;align-items:center;justify-content:center';
+    ov.innerHTML = `
+      <div style="background:#0a0a1e;border:1px solid rgba(255,153,68,.35);border-radius:12px;padding:18px;width:min(400px,95vw);max-height:85vh;overflow-y:auto;font-family:'Inter',sans-serif">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <span style="font-family:'Cinzel',serif;color:#ff9944;font-weight:700;font-size:15px">🕵 Stealth vs Passive Perception</span>
+          <button onclick="document.getElementById('i251StealthPanel').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
+          <label style="font-size:11px;color:#8888aa;white-space:nowrap">Creature Stealth DC</label>
+          <input id="i251DcInput" type="number" min="1" max="40" value="${dcVal}" placeholder="e.g. 17"
+            style="flex:1;background:#06061a;border:1px solid rgba(255,153,68,.3);color:#ff9944;border-radius:6px;padding:5px 8px;font-size:14px;font-weight:700;text-align:center;outline:none"
+            oninput="_i251Render(this.value===''?null:parseInt(this.value))">
+          <button onclick="_i251RollStealth()" title="Roll d20 + stealth modifier for a generic creature"
+            style="background:rgba(255,153,68,0.08);border:1px solid rgba(255,153,68,.3);color:#ff9944;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px">🎲 Roll</button>
+        </div>
+        ${dc !== null ? `<div style="font-size:11px;color:#8888aa;margin-bottom:8px;text-align:center">
+          DC <strong style="color:#ff9944">${dc}</strong> —
+          <span style="color:#44cc64">${noticeCount} notice</span> ·
+          <span style="color:#cc4444">${rows.length - noticeCount} don't</span>
+        </div>` : `<div style="font-size:11px;color:#4a5272;margin-bottom:8px;text-align:center">Enter stealth DC to see who notices</div>`}
+        <div style="font-size:10px;color:#3a3a60;margin-bottom:8px;text-align:right">Passive Perception shown · 🎲 = roll active check</div>
+        <div>${rowsHtml}</div>
+        <div style="margin-top:10px;border-top:1px solid #1e2040;padding-top:10px;display:flex;gap:8px">
+          <button onclick="_i251RollAllActive(${dc !== null ? dc : 0})"
+            style="flex:1;background:rgba(100,100,200,0.08);border:1px solid rgba(100,100,200,.25);color:#8888cc;border-radius:6px;padding:6px;cursor:pointer;font-size:11px">🎲 Roll All Active</button>
+          <button onclick="_i251Render(null)"
+            style="flex:1;background:rgba(80,80,100,0.06);border:1px solid #2a2a50;color:#5a5a8a;border-radius:6px;padding:6px;cursor:pointer;font-size:11px">↺ Clear DC</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+    // Refocus input
+    setTimeout(() => {
+      const inp = document.getElementById('i251DcInput');
+      if (inp) inp.focus();
+    }, 50);
+  };
+
+  window._i251RollStealth = function() {
+    const roll = Math.ceil(Math.random() * 20);
+    const stealthMod = 3; // generic +3 stealth
+    const total = roll + stealthMod;
+    if (typeof showToast === 'function') showToast(`🕵 Creature stealth: ${roll}+${stealthMod} = ${total}`);
+    const inp = document.getElementById('i251DcInput');
+    if (inp) { inp.value = total; }
+    _i251Render(total);
+  };
+
+  window._i251RollActive = function(charName, dc) {
+    const char = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS.find(c => c.name === charName) : null;
+    if (!char) return;
+    const wis = (char.abilities || []).find(([n]) => n === 'WIS');
+    const wisMod = wis ? (parseInt(wis[2]) || 0) : 0;
+    const percProf = wis ? (wis[3] === 1) : false;
+    const cr = parseFloat(char.cr || 0);
+    const prof = cr >= 17 ? 6 : cr >= 13 ? 5 : cr >= 9 ? 4 : cr >= 5 ? 3 : 2;
+    const roll = Math.ceil(Math.random() * 20);
+    const bonus = wisMod + (percProf ? prof : 0);
+    const total = roll + bonus;
+    const result = total >= dc ? '✅ NOTICES' : '❌ HIDDEN';
+    const isCrit = roll === 20;
+    const msg = `${charName}: ${isCrit ? '⭐ Nat 20! ' : ''}d20(${roll})+${bonus}=${total} vs DC${dc} — ${result}`;
+    if (typeof logEntry === 'function') logEntry(msg, isCrit ? 'crit' : (total >= dc ? 'heal' : 'dmg'));
+    if (typeof showToast === 'function') showToast(msg);
+  };
+
+  window._i251RollAllActive = function(dc) {
+    const chars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS.filter(c => c.abilities && c.abilities.length > 0) : [];
+    chars.forEach(c => _i251RollActive(c.name, dc));
+  };
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
