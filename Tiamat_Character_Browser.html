@@ -6180,6 +6180,7 @@ function buildStatsPanel(c) {
         <span class="stat-chip"><strong>AC</strong> ${c.ac}</span>
         <span class="stat-chip"><strong>Prof</strong> +${prof}</span>
         <span class="stat-chip"><strong>Passive Perc</strong> ${passivePerc}</span>
+        <span class="stat-chip" onclick="i270RollInitiative(${JSON.stringify(c.name)},${JSON.stringify(dex.mod)})" title="Click to roll initiative (d20${dex.mod})" style="cursor:pointer;border-color:rgba(201,162,39,.4);color:#c9a227;user-select:none" onmouseover="this.style.background='rgba(201,162,39,.1)'" onmouseout="this.style.background=''"><strong>Init</strong> ${dex.mod}</span>
       </div>
     </div>
     ${typeof buildCharXpSection === 'function' ? buildCharXpSection(c.name) : ''}
@@ -41191,6 +41192,36 @@ window._i250SetAll = function(enabled) {
     });
     obs.observe(panel, { childList: true });
   });
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 270: Initiative Bonus Display & Quick Roll
+// Adds "Init +X" chip to combat stats section (clickable to roll initiative).
+// Rolls d20 + DEX modifier with advantage/disadvantage support (Iter 266).
+// If character is in the initiative tracker, offers to set their initiative value.
+(function() {
+  window.i270RollInitiative = function(charName, dexMod) {
+    const r = typeof _i266Roll === 'function' ? _i266Roll() : { roll: Math.floor(Math.random()*20)+1, r2: null, tag: '' };
+    const modVal = parseInt(dexMod) || 0;
+    const total = r.roll + modVal;
+    const isCrit = r.roll === 20, isFumble = r.roll === 1;
+    const diceStr = r.r2 !== null ? 'd20(' + r.r1 + ',' + r.r2 + ')→' + r.roll : 'd20(' + r.roll + ')';
+    const bonusStr = modVal >= 0 ? '+' + modVal : '' + modVal;
+    const msg = charName + ' Initiative' + r.tag + ': ' + diceStr + bonusStr + ' = ' + total + (isCrit ? ' ★' : isFumble ? ' ☠' : '');
+
+    if (typeof showModalRollResult === 'function') showModalRollResult(msg, isCrit, isFumble, total);
+    if (typeof logEntry === 'function') logEntry('roll', '⚔ ' + msg);
+    if (typeof showToast === 'function') showToast('⚔ Initiative: ' + total, '#c9a227');
+
+    // If initiative tracker is open, offer to set value
+    const initSlots = typeof initiativeOrder !== 'undefined' ? initiativeOrder : [];
+    const slot = initSlots.find(s => s.name === charName);
+    if (slot) {
+      slot.init = total;
+      if (typeof renderInitiative === 'function') renderInitiative();
+      if (typeof showToast === 'function') showToast('⚔ ' + charName + ' initiative set to ' + total + ' in tracker', '#c9a227', 2500);
+    }
+  };
 })();
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
