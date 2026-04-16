@@ -3698,6 +3698,25 @@
   </div>
 </header>
 
+<!-- Iter 283: DM Announcement Bar -->
+<div id="i283Bar" style="display:none;align-items:center;gap:8px;padding:6px 16px;background:rgba(201,162,39,.12);border-bottom:2px solid #c9a227;font-family:'Cinzel',serif;flex-wrap:wrap">
+  <span id="i283Icon" style="font-size:16px">📢</span>
+  <span id="i283TypeLabel" style="font-size:10px;font-weight:700;letter-spacing:.08em;color:#c9a227;text-transform:uppercase;white-space:nowrap">Announcement</span>
+  <input id="i283Text" type="text" placeholder="Type a session-wide announcement (e.g. Silence spell active, Night time, etc.)"
+    style="flex:1;min-width:200px;background:transparent;border:none;border-bottom:1px solid rgba(201,162,39,.4);color:#e8e0d0;font-size:13px;padding:2px 6px;outline:none;font-family:inherit"
+    oninput="i283Save()" onkeydown="if(event.key==='Escape')i283Hide()">
+  <div style="display:flex;gap:4px;align-items:center">
+    <button onclick="i283SetType('info')" id="i283BtnInfo" title="Info (blue)"
+      style="font-size:10px;padding:2px 7px;border-radius:4px;cursor:pointer;border:1px solid #4488ff;color:#4488ff;background:none;font-weight:700">ℹ Info</button>
+    <button onclick="i283SetType('warn')" id="i283BtnWarn" title="Warning (gold)"
+      style="font-size:10px;padding:2px 7px;border-radius:4px;cursor:pointer;border:1px solid #c9a227;color:#c9a227;background:none;font-weight:700">⚠ Warn</button>
+    <button onclick="i283SetType('danger')" id="i283BtnDanger" title="Danger (red)"
+      style="font-size:10px;padding:2px 7px;border-radius:4px;cursor:pointer;border:1px solid #cc4444;color:#cc4444;background:none;font-weight:700">🔴 Danger</button>
+    <button onclick="i283Hide()" title="Hide announcement bar"
+      style="font-size:11px;padding:2px 7px;border-radius:4px;cursor:pointer;border:1px solid #333;color:#666;background:none">✕</button>
+  </div>
+</div>
+
 <div class="toolbar">
   <input type="text" class="search-box" id="searchBox" placeholder="🔍 Search name, title, lore, alignment, trait..." autofocus style="width:340px">
   <select id="crFilter" class="search-box" style="width:auto;padding:10px 12px;cursor:pointer" onchange="renderGrid()" title="Filter by CR range">
@@ -3774,6 +3793,7 @@
   <button class="filter-btn" onclick="openRulesPanel()" style="border-color:#4488ff;color:#4488ff;" title="Quick Reference Rules — searchable 5e rules lookup">📚 Rules</button>
   <button class="filter-btn" onclick="openPartySummary()" style="border-color:#c9a227;color:#c9a227;" title="Party Summary — HP, conditions, concentration for all party members at a glance">📊 Party</button>
   <button class="filter-btn" onclick="openDataManager()" style="border-color:#44ddaa;color:#44ddaa;" title="Data Manager — export/import all campaign data backup">💾 Data</button>
+  <button class="filter-btn" onclick="i283Toggle()" id="i283ToggleBtn" style="border-color:#c9a227;color:#c9a227;" title="DM Announcement Bar — show a session-wide status message visible at all times">📢 Announce</button>
   <button class="filter-btn" onclick="openShortcutsHelp()" style="border-color:#4488ff;color:#4488ff;" title="Keyboard shortcuts — press ? anytime">⌨ ?</button>
   <button class="filter-btn" onclick="openGlobalSearch()" style="border-color:#c9a227;color:#9098b8;" title="Global search — Ctrl+K">🔍 Search All</button>
   <button class="filter-btn" onclick="openDiceMacros()" style="border-color:#ff8822;color:#ff8822;" title="Quick Dice Macros — save &amp; replay dice rolls">🎲 Dice</button>
@@ -42011,6 +42031,82 @@ void 0;
       const btn = document.getElementById('i282AdvBtn');
       if (btn) { btn.textContent = labels[idx]; btn.style.color = colors[idx]; btn.style.borderColor = colors[idx] + '66'; }
     };
+  });
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 283: DM Announcement Bar — session-wide status message bar
+(function() {
+  const TYPES = {
+    info:   { bg: 'rgba(68,136,255,.12)',   border: '#4488ff', icon: 'ℹ', label: 'Info' },
+    warn:   { bg: 'rgba(201,162,39,.12)',   border: '#c9a227', icon: '⚠', label: 'Announcement' },
+    danger: { bg: 'rgba(204,68,68,.15)',    border: '#cc4444', icon: '🔴', label: 'Danger' },
+  };
+  let curType = localStorage.getItem('tiamat_announce_type') || 'warn';
+
+  function applyType(t) {
+    curType = t;
+    const cfg = TYPES[t] || TYPES.warn;
+    const bar = document.getElementById('i283Bar');
+    if (!bar) return;
+    bar.style.background = cfg.bg;
+    bar.style.borderBottomColor = cfg.border;
+    const icon = document.getElementById('i283Icon');
+    if (icon) icon.textContent = cfg.icon;
+    const lbl = document.getElementById('i283TypeLabel');
+    if (lbl) { lbl.textContent = cfg.label; lbl.style.color = cfg.border; }
+    // highlight active type button
+    ['info','warn','danger'].forEach(tp => {
+      const b = document.getElementById('i283Btn' + tp.charAt(0).toUpperCase() + tp.slice(1));
+      if (b) b.style.background = tp === t ? TYPES[tp].border + '33' : 'none';
+    });
+    localStorage.setItem('tiamat_announce_type', t);
+  }
+
+  window.i283SetType = function(t) { applyType(t); };
+
+  window.i283Save = function() {
+    const txt = document.getElementById('i283Text');
+    if (txt) localStorage.setItem('tiamat_announce_text', txt.value);
+  };
+
+  window.i283Show = function() {
+    const bar = document.getElementById('i283Bar');
+    if (!bar) return;
+    bar.style.display = 'flex';
+    const txt = document.getElementById('i283Text');
+    if (txt) {
+      txt.value = localStorage.getItem('tiamat_announce_text') || '';
+      setTimeout(() => txt.focus(), 50);
+    }
+    applyType(curType);
+    localStorage.setItem('tiamat_announce_visible', '1');
+    const btn = document.getElementById('i283ToggleBtn');
+    if (btn) { btn.style.background = 'rgba(201,162,39,.15)'; btn.style.color = '#c9a227'; }
+  };
+
+  window.i283Hide = function() {
+    const bar = document.getElementById('i283Bar');
+    if (bar) bar.style.display = 'none';
+    localStorage.setItem('tiamat_announce_visible', '0');
+    const btn = document.getElementById('i283ToggleBtn');
+    if (btn) { btn.style.background = ''; }
+  };
+
+  window.i283Toggle = function() {
+    const bar = document.getElementById('i283Bar');
+    if (!bar) return;
+    if (bar.style.display === 'none' || !bar.style.display) i283Show();
+    else i283Hide();
+  };
+
+  // Restore on load
+  document.addEventListener('DOMContentLoaded', function() {
+    const savedTxt = localStorage.getItem('tiamat_announce_text') || '';
+    const visible  = localStorage.getItem('tiamat_announce_visible') === '1';
+    const txt = document.getElementById('i283Text');
+    if (txt) txt.value = savedTxt;
+    applyType(curType);
+    if (visible && savedTxt) i283Show();
   });
 })();
 // ─────────────────────────────────────────────────────────────────────────────
