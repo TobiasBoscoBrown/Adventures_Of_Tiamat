@@ -34713,6 +34713,165 @@ function openShortRestPanel() {
   else window.addEventListener('load', inject);
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 225: Movement Speed Tracker per Turn
+// Shows remaining movement speed in active turn bar; click to spend movement
+// Auto-resets when the turn changes; handles dash action (doubles speed)
+
+const _i225MovKey = 'tiamat_movement';
+
+function _i225GetSpeedFromChar(char) {
+  if (!char) return 30;
+  // Check speed field
+  if (char.speed) {
+    const m = String(char.speed).match(/(\d+)/);
+    if (m) return parseInt(m[1]);
+  }
+  // Check theme-based speed
+  const theme = (char.theme || '').toLowerCase();
+  if (theme === 'shadow') return 35;
+  // Check title for race hints
+  const title = (char.title || '').toLowerCase();
+  if (title.includes('elf') || title.includes('tiefling') || title.includes('dragonborn')) return 30;
+  if (title.includes('halfling') || title.includes('gnome') || title.includes('dwarf')) return 25;
+  if (title.includes('monk')) return 35;
+  if (title.includes('barbarian')) return 35;
+  return 30;
+}
+
+function _i225GetMov(charName) {
+  try {
+    const d = JSON.parse(localStorage.getItem(_i225MovKey) || '{}');
+    return d[charName] || null;
+  } catch(e) { return null; }
+}
+
+function _i225SetMov(charName, state) {
+  try {
+    const d = JSON.parse(localStorage.getItem(_i225MovKey) || '{}');
+    d[charName] = state;
+    localStorage.setItem(_i225MovKey, JSON.stringify(d));
+  } catch(e) {}
+}
+
+function _i225InitMov(charName) {
+  const existing = _i225GetMov(charName);
+  if (existing && existing.turnInit) return existing;
+  const char = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS.find(c => c.name === charName) : null;
+  const speed = _i225GetSpeedFromChar(char);
+  const state = { base: speed, remaining: speed, dashed: false, turnInit: Date.now() };
+  _i225SetMov(charName, state);
+  return state;
+}
+
+function _i225SpendMov(charName, amount, event) {
+  if (event) event.stopPropagation();
+  const state = _i225InitMov(charName);
+  if (state.remaining <= 0) {
+    if (typeof showToast === 'function') showToast(`${charName}: No movement remaining!`, '#cc3333', 1500);
+    return;
+  }
+  state.remaining = Math.max(0, state.remaining - amount);
+  _i225SetMov(charName, state);
+  if (typeof logEntry === 'function') logEntry('system', `${escHtml(charName)} moved ${amount}ft (${state.remaining}ft remaining)`);
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+}
+
+function _i225Dash(charName, event) {
+  if (event) event.stopPropagation();
+  const state = _i225InitMov(charName);
+  if (state.dashed) {
+    if (typeof showToast === 'function') showToast(`${charName} already used Dash this turn!`, '#cc3333', 1500);
+    return;
+  }
+  state.remaining += state.base;
+  state.dashed = true;
+  _i225SetMov(charName, state);
+  if (typeof showToast === 'function') showToast(`${charName}: Dash! +${state.base}ft (${state.remaining}ft total remaining)`, '#44ddff', 2000);
+  if (typeof logEntry === 'function') logEntry('system', `${escHtml(charName)} Dashed! (${state.remaining}ft remaining this turn)`);
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+}
+
+function _i225ResetMov(charName) {
+  const char = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS.find(c => c.name === charName) : null;
+  const speed = _i225GetSpeedFromChar(char);
+  _i225SetMov(charName, { base: speed, remaining: speed, dashed: false, turnInit: Date.now() });
+}
+
+// Patch renderActiveTurnBar to show movement
+(function() {
+  const _origRATB = renderActiveTurnBar;
+  renderActiveTurnBar = function() {
+    // Reset movement when turn changes
+    const il = (typeof initiativeList !== 'undefined') ? initiativeList : [];
+    const idx = (typeof currentTurnIdx !== 'undefined') ? currentTurnIdx : 0;
+    const combatant = il[idx];
+    if (combatant) {
+      const charName = combatant.name || combatant.charName;
+      if (charName) {
+        const existing = _i225GetMov(charName);
+        // If no state or state is old (>60s), reset
+        if (!existing || !existing.turnInit || (Date.now() - existing.turnInit > 60000 && existing.remaining !== existing.base)) {
+          _i225ResetMov(charName);
+        }
+      }
+    }
+    _origRATB();
+    _i225MovRow();
+  };
+})();
+
+function _i225MovRow() {
+  const bar = document.getElementById('activeTurnBar');
+  if (!bar) return;
+  const il = (typeof initiativeList !== 'undefined') ? initiativeList : [];
+  const idx = (typeof currentTurnIdx !== 'undefined') ? currentTurnIdx : 0;
+  const combatant = il[idx];
+  if (!combatant) return;
+  const charName = combatant.name || combatant.charName;
+  if (!charName) return;
+
+  const state = _i225InitMov(charName);
+  const pct = state.base > 0 ? (state.remaining / state.base) : 0;
+  const barColor = pct > 0.5 ? '#44ddff' : pct > 0.2 ? '#c9a227' : '#cc3333';
+  const barWidth = Math.max(0, Math.min(100, pct * 100));
+
+  const quickAmounts = [5, 10, 15, 20, 30];
+
+  const h = `<div style="background:rgba(20,40,50,.4);border:1px solid rgba(68,221,255,.25);border-radius:7px;padding:5px 10px;margin:3px 0">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;flex-wrap:wrap">
+      <span style="font-family:'Cinzel',serif;color:#44ddff;font-size:9px;font-weight:700;letter-spacing:.5px;white-space:nowrap">🏃 MOVEMENT</span>
+      <span style="font-size:13px;font-weight:700;color:${barColor}">${state.remaining}ft</span>
+      <span style="font-size:10px;color:#4a5272">/ ${state.base}ft${state.dashed ? ' (Dashed)' : ''}</span>
+      <button onclick="_i225Dash('${charName.replace(/'/g,"\\'")}',event)" style="background:${state.dashed ? 'rgba(68,221,255,.05)' : 'rgba(68,221,255,.12)'};border:1px solid ${state.dashed ? 'rgba(68,221,255,.2)' : 'rgba(68,221,255,.4)'};color:${state.dashed ? '#4a5272' : '#44ddff'};border-radius:5px;padding:1px 7px;cursor:pointer;font-size:10px;white-space:nowrap" ${state.dashed ? 'disabled' : ''}>Dash</button>
+      <button onclick="_i225ResetMov('${charName.replace(/'/g,"\\'")}');renderActiveTurnBar()" style="background:rgba(201,162,39,.06);border:1px solid rgba(201,162,39,.2);color:rgba(201,162,39,.6);border-radius:5px;padding:1px 7px;cursor:pointer;font-size:10px">↺</button>
+    </div>
+    <div style="background:rgba(0,0,0,.3);border-radius:3px;height:5px;margin-bottom:6px">
+      <div style="background:${barColor};border-radius:3px;height:100%;width:${barWidth}%;transition:width .3s ease"></div>
+    </div>
+    <div style="display:flex;gap:4px;flex-wrap:wrap">
+      ${quickAmounts.map(a => `<button onclick="_i225SpendMov('${charName.replace(/'/g,"\\'")}',${a},event)" style="background:rgba(68,221,255,.08);border:1px solid rgba(68,221,255,.25);color:#44ddff;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:10px;opacity:${state.remaining >= a ? 1 : 0.35}">${a}ft</button>`).join('')}
+      <button onclick="_i225SpendMov('${charName.replace(/'/g,"\\'")}',${state.remaining},event)" style="background:rgba(204,51,51,.08);border:1px solid rgba(204,51,51,.25);color:#cc5555;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:10px;opacity:${state.remaining > 0 ? 1 : 0.35}">All (${state.remaining}ft)</button>
+    </div>
+  </div>`;
+  bar.innerHTML += h;
+}
+
+// Reset movement when next turn button is clicked
+const _i225OrigNextTurn = window.nextTurn;
+if (typeof window.nextTurn === 'function') {
+  window.nextTurn = function() {
+    const il = (typeof initiativeList !== 'undefined') ? initiativeList : [];
+    const idx = (typeof currentTurnIdx !== 'undefined') ? currentTurnIdx : 0;
+    const next = il[(idx + 1) % il.length];
+    if (next) {
+      const charName = next.name || next.charName;
+      if (charName) _i225ResetMov(charName);
+    }
+    return _i225OrigNextTurn.apply(this, arguments);
+  };
+}
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
