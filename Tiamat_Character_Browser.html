@@ -38614,6 +38614,183 @@ window._i250SetAll = function(enabled) {
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Iter 257: Character Sheet Quick Print Card
+// Generate a printable 1-page character summary for any character from the modal.
+// Opens a print-friendly window with stats, HP, abilities, skills, spells, traits.
+(function() {
+  window._i257PrintChar = function(charName) {
+    const chars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+    const c = chars.find(x => x.name === charName);
+    if (!c) { if (typeof showToast === 'function') showToast('Character not found'); return; }
+
+    const hp = typeof getCharHP === 'function' ? getCharHP(charName) : parseInt(c.hp) || 0;
+    const maxHp = parseInt(c.hp) || hp;
+    const conditions = (() => { try { const d = JSON.parse(localStorage.getItem('tiamat_conditions')||'{}'); return (d[charName]||[]).join(', ')||'None'; } catch { return 'None'; } })();
+    const conc = typeof getConcSpell === 'function' ? (getConcSpell(charName) || 'None') : 'None';
+
+    const abilRows = (c.abilities || []).map(([name, score, mod, save]) => {
+      const saveStr = save ? ` / Save ${parseInt(mod) >= 0 ? '+' : ''}${mod}` : '';
+      return `<tr><td>${name}</td><td>${score}</td><td>${parseInt(mod) >= 0 ? '+' : ''}${mod}${saveStr}</td></tr>`;
+    }).join('');
+
+    const skills = [
+      ['Acrobatics','DEX'],['Animal Handling','WIS'],['Arcana','INT'],
+      ['Athletics','STR'],['Deception','CHA'],['History','INT'],
+      ['Insight','WIS'],['Intimidation','CHA'],['Investigation','INT'],
+      ['Medicine','WIS'],['Nature','INT'],['Perception','WIS'],
+      ['Performance','CHA'],['Persuasion','CHA'],['Religion','INT'],
+      ['Sleight of Hand','DEX'],['Stealth','DEX'],['Survival','WIS'],
+    ];
+    const abMap = {};
+    (c.abilities || []).forEach(([n, s, m]) => abMap[n] = parseInt(m) || 0);
+    const cr = parseFloat(c.cr || 0);
+    const prof = cr >= 17 ? 6 : cr >= 13 ? 5 : cr >= 9 ? 4 : cr >= 5 ? 3 : 2;
+
+    const skillRows = skills.map(([sk, ab]) => {
+      const mod = abMap[ab] || 0;
+      const total = mod; // no per-skill proficiency tracking in char data
+      return `<tr><td>${sk}</td><td>${ab}</td><td>${total >= 0 ? '+' : ''}${total}</td></tr>`;
+    }).join('');
+
+    const traits = (c.traits || []).map(t => `<li>${escHtml(t)}</li>`).join('');
+    const spells = (() => {
+      if (!c.spells) return 'None';
+      const all = [];
+      Object.entries(c.spells).forEach(([level, list]) => {
+        if (Array.isArray(list) && list.length) {
+          all.push(`<strong>Lvl ${level}:</strong> ${list.map(s => escHtml(s)).join(', ')}`);
+        }
+      });
+      return all.join('<br>') || 'None';
+    })();
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+<title>${escHtml(c.name)} — Character Sheet</title>
+<style>
+  body { font-family: 'Times New Roman', serif; margin: 0; padding: 0; background: white; color: #1a1a1a; font-size: 11px; }
+  .page { max-width: 750px; margin: 0 auto; padding: 20px; }
+  h1 { font-size: 22px; margin: 0 0 2px; border-bottom: 3px solid #8b0000; padding-bottom: 6px; }
+  h2 { font-size: 13px; background: #8b0000; color: white; padding: 3px 8px; margin: 10px 0 5px; }
+  h3 { font-size: 11px; margin: 6px 0 3px; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
+  .meta { color: #555; font-size: 11px; margin-bottom: 8px; }
+  .row { display: flex; gap: 16px; }
+  .col { flex: 1; }
+  table { width: 100%; border-collapse: collapse; font-size: 10px; }
+  th, td { border: 1px solid #ddd; padding: 2px 5px; text-align: left; }
+  th { background: #f5f0e8; font-weight: bold; }
+  .hpbox { display: inline-block; border: 2px solid #8b0000; padding: 4px 10px; font-size: 16px; font-weight: bold; margin: 5px 0; }
+  .lore { font-size: 10px; color: #333; margin-top: 6px; line-height: 1.5; border-left: 3px solid #ddd; padding-left: 8px; }
+  ul { margin: 3px 0; padding-left: 16px; }
+  li { margin-bottom: 2px; }
+  @media print { body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } .no-print { display: none; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="no-print" style="margin-bottom:12px"><button onclick="window.print()">🖨 Print</button> <button onclick="window.close()">✕ Close</button></div>
+  <h1>${escHtml(c.name)}</h1>
+  <div class="meta">${escHtml(c.title||'')} | CR ${c.cr||'?'} | AC ${c.ac||'?'} | HP ${hp}/${maxHp}</div>
+  <div class="meta">Conditions: ${conditions} | Concentration: ${conc}</div>
+  <div class="row">
+    <div class="col">
+      <h2>Ability Scores</h2>
+      <table>
+        <tr><th>Ability</th><th>Score</th><th>Mod / Save</th></tr>
+        ${abilRows}
+      </table>
+      <h2>Skills</h2>
+      <table>
+        <tr><th>Skill</th><th>Ability</th><th>Bonus</th></tr>
+        ${skillRows}
+      </table>
+    </div>
+    <div class="col">
+      <h2>Traits & Features</h2>
+      <ul>${traits || '<li>None listed</li>'}</ul>
+      <h2>Spells</h2>
+      <div style="font-size:10px">${spells}</div>
+      <h2>Lore & Notes</h2>
+      <div class="lore">${escHtml((c.lore||'').slice(0, 600))}${(c.lore||'').length > 600 ? '…' : ''}</div>
+    </div>
+  </div>
+  <div style="text-align:center;color:#aaa;font-size:9px;margin-top:16px;border-top:1px solid #eee;padding-top:6px">
+    Tiamat Character Browser • ${new Date().toLocaleDateString()} • ${escHtml(c.name)}
+  </div>
+</div>
+</body>
+</html>`;
+
+    const w = window.open('', '_blank', 'width=800,height=900');
+    if (w) { w.document.write(html); w.document.close(); }
+    else if (typeof showToast === 'function') showToast('Pop-up blocked — allow popups to print');
+  };
+
+  // Inject print button into character modal header when it opens
+  const _origOpenCharModal = typeof openCharModal !== 'undefined' ? openCharModal : null;
+  if (_origOpenCharModal) {
+    // patch openCharModal to add print button
+    window.openCharModal = function(charName) {
+      _origOpenCharModal.apply(this, arguments);
+      setTimeout(() => {
+        const modal = document.querySelector('.char-modal');
+        if (!modal) return;
+        if (modal.querySelector('.i257PrintBtn')) return;
+        const header = modal.querySelector('.modal-header, .modal-title, h2');
+        if (!header) return;
+        const btn = document.createElement('button');
+        btn.className = 'i257PrintBtn';
+        btn.innerHTML = '🖨';
+        btn.title = 'Print character card';
+        btn.style.cssText = 'background:rgba(201,162,39,.1);border:1px solid rgba(201,162,39,.3);color:#c9a227;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:13px;margin-left:8px';
+        btn.onclick = (e) => { e.stopPropagation(); _i257PrintChar(charName); };
+        header.appendChild(btn);
+      }, 300);
+    };
+  }
+
+  // Also inject via toolbar button
+  function _i257InjectBtn() {
+    if (document.getElementById('i257PrintBtn')) return;
+    const ref = document.getElementById('i255TrinketBtn') || document.getElementById('passivesBtn');
+    if (!ref) return;
+    const btn = document.createElement('button');
+    btn.id = 'i257PrintBtn';
+    btn.className = 'encounter-open-btn';
+    btn.textContent = '🖨 Print Card';
+    btn.title = 'Print Character Sheet Card — printable summary for any character';
+    btn.style.cssText = 'border-color:#8888cc;color:#8888cc';
+    btn.onclick = () => _i257OpenPickerToPrint();
+    ref.insertAdjacentElement('afterend', btn);
+  }
+  document.addEventListener('DOMContentLoaded', _i257InjectBtn);
+  setTimeout(_i257InjectBtn, 2200);
+
+  window._i257OpenPickerToPrint = function() {
+    const ex = document.getElementById('i257PickerPanel');
+    if (ex) { ex.remove(); return; }
+    const chars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+    const opts = chars.map(c => `<option value="${escHtml(c.name)}">${escHtml(c.name)}</option>`).join('');
+    const ov = document.createElement('div');
+    ov.id = 'i257PickerPanel';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9700;display:flex;align-items:center;justify-content:center';
+    ov.innerHTML = `
+      <div style="background:#0a0a1e;border:1px solid rgba(136,136,204,.35);border-radius:12px;padding:18px;width:min(340px,96vw);font-family:'Inter',sans-serif">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <span style="font-family:'Cinzel',serif;color:#8888cc;font-weight:700">🖨 Print Character Card</span>
+          <button onclick="document.getElementById('i257PickerPanel').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+        </div>
+        <select id="i257CharSel" style="width:100%;background:#06061a;border:1px solid #1e2040;color:#c0c0e0;border-radius:6px;padding:6px 8px;font-size:12px;margin-bottom:10px">${opts}</select>
+        <button onclick="_i257PrintChar(document.getElementById('i257CharSel').value);document.getElementById('i257PickerPanel').remove()"
+          style="width:100%;background:rgba(136,136,204,.08);border:1px solid rgba(136,136,204,.3);color:#8888cc;border-radius:7px;padding:8px;cursor:pointer;font-size:12px">🖨 Open Print Preview</button>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  };
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Iter 256: Concentration Spell Duration Timer
 // Tracks how many rounds a concentration spell has been active.
 // When you cast (setConc), timer starts. Each round tick decrements.
