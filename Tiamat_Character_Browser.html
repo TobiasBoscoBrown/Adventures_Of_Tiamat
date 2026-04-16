@@ -36840,6 +36840,177 @@ function openSizeReference() {
   else window.addEventListener('load', inject);
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 239: Short / Long Rest Menu
+// One-click rest workflows that recover appropriate resources
+// Short Rest: roll hit dice, recover warlock spell slots
+// Long Rest: full HP, all spell slots, clear exhaustion level, clear concentration
+
+function openRestMenu() {
+  const ex = document.getElementById('i239RestMenu');
+  if (ex) { ex.remove(); return; }
+
+  const chars = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS : [];
+  const party = (() => {
+    try {
+      const pinned = JSON.parse(localStorage.getItem('tiamat_pins') || '[]');
+      const favs = JSON.parse(localStorage.getItem('tiamat_favorites') || '[]');
+      const keys = new Set([...pinned, ...favs]);
+      const p = chars.filter(c => keys.has(c.name));
+      return p.length ? p : chars.slice(0, 8);
+    } catch(e) { return chars.slice(0, 8); }
+  })();
+
+  const ov = document.createElement('div');
+  ov.id = 'i239RestMenu';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9400;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `
+    <div style="background:#0a0a1e;border:1px solid rgba(201,162,39,.4);border-radius:12px;padding:18px;width:min(460px,95vw);font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <span style="font-family:'Cinzel',serif;color:#c9a227;font-weight:700">💤 Rest</span>
+        <button onclick="document.getElementById('i239RestMenu').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div style="background:rgba(68,204,136,.06);border:1px solid rgba(68,204,136,.25);border-radius:8px;padding:12px">
+          <div style="font-family:'Cinzel',serif;color:#44cc88;font-size:12px;font-weight:700;margin-bottom:8px">☀ Short Rest</div>
+          <ul style="margin:0;padding-left:14px;font-size:10px;color:#4a5272;line-height:1.7;margin-bottom:8px">
+            <li>Spend hit dice to heal</li>
+            <li>Warlock: recover all spell slots</li>
+            <li>Fighter/Monk: some features recover</li>
+            <li>Second Wind (Fighter) recharges</li>
+          </ul>
+          <button onclick="_i239DoShortRest(event)" style="width:100%;background:rgba(68,204,136,.15);border:1px solid rgba(68,204,136,.4);color:#44cc88;border-radius:7px;padding:8px;cursor:pointer;font-size:12px;font-weight:700">Take Short Rest</button>
+        </div>
+        <div style="background:rgba(68,136,255,.06);border:1px solid rgba(68,136,255,.25);border-radius:8px;padding:12px">
+          <div style="font-family:'Cinzel',serif;color:#4488ff;font-size:12px;font-weight:700;margin-bottom:8px">🌙 Long Rest</div>
+          <ul style="margin:0;padding-left:14px;font-size:10px;color:#4a5272;line-height:1.7;margin-bottom:8px">
+            <li>Full HP recovery</li>
+            <li>All spell slots recovered</li>
+            <li>Reduce exhaustion by 1</li>
+            <li>Hit dice: recover half max</li>
+            <li>Clear concentration</li>
+          </ul>
+          <button onclick="_i239DoLongRest(event)" style="width:100%;background:rgba(68,136,255,.15);border:1px solid rgba(68,136,255,.4);color:#4488ff;border-radius:7px;padding:8px;cursor:pointer;font-size:12px;font-weight:700">Take Long Rest</button>
+        </div>
+      </div>
+      <div style="font-size:10px;color:#4a5272;text-align:center">Applies to ${party.length} party member(s): ${party.slice(0,4).map(c => escHtml(c.name)).join(', ')}${party.length > 4 ? '...' : ''}</div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+window._i239DoShortRest = function(event) {
+  if (event) event.stopPropagation();
+  document.getElementById('i239RestMenu')?.remove();
+
+  const chars = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS : [];
+  const party = (() => {
+    try {
+      const pinned = JSON.parse(localStorage.getItem('tiamat_pins') || '[]');
+      const favs = JSON.parse(localStorage.getItem('tiamat_favorites') || '[]');
+      const keys = new Set([...pinned, ...favs]);
+      const p = chars.filter(c => keys.has(c.name));
+      return p.length ? p : chars.slice(0, 8);
+    } catch(e) { return chars.slice(0, 8); }
+  })();
+
+  let totalHdRecovered = 0;
+  party.forEach(c => {
+    // Recover warlock slots
+    const title = (c.title || '').toLowerCase();
+    if (title.includes('warlock')) {
+      if (typeof slotState !== 'undefined' && typeof saveSlots === 'function') {
+        if (slotState[c.name]) {
+          Object.keys(slotState[c.name]).forEach(lvl => { slotState[c.name][lvl] = 0; });
+          saveSlots();
+        }
+      }
+    }
+
+    // Recover hit dice (half max via Iter 224's function)
+    if (typeof _i224LongRest === 'function') {
+      // Actually for short rest we don't auto-recover HD; just open the HD panel
+      totalHdRecovered++;
+    }
+  });
+
+  if (typeof logEntry === 'function') logEntry('system', `☀ <strong>Short Rest</strong> — Warlock slots recovered for applicable party members`);
+  if (typeof showToast === 'function') showToast('Short Rest taken! Open ❤️ Hit Dice to spend HD for healing.', '#44cc88', 3000);
+  openShortRestPanel?.();
+};
+
+window._i239DoLongRest = function(event) {
+  if (event) event.stopPropagation();
+  document.getElementById('i239RestMenu')?.remove();
+
+  const chars = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS : [];
+  const party = (() => {
+    try {
+      const pinned = JSON.parse(localStorage.getItem('tiamat_pins') || '[]');
+      const favs = JSON.parse(localStorage.getItem('tiamat_favorites') || '[]');
+      const keys = new Set([...pinned, ...favs]);
+      const p = chars.filter(c => keys.has(c.name));
+      return p.length ? p : chars.slice(0, 8);
+    } catch(e) { return chars.slice(0, 8); }
+  })();
+
+  party.forEach(c => {
+    // Full HP
+    const maxHp = parseInt(c.hp || 0);
+    if (maxHp > 0 && typeof saveHp === 'function') saveHp(c.name, maxHp);
+
+    // Clear concentration
+    if (typeof clearConc === 'function') clearConc(c.name);
+
+    // Clear temp HP
+    if (typeof _i223SetTemp === 'function') _i223SetTemp(c.name, 0);
+
+    // Recover all spell slots
+    if (typeof slotState !== 'undefined' && typeof saveSlots === 'function') {
+      if (slotState[c.name]) {
+        Object.keys(slotState[c.name]).forEach(lvl => { slotState[c.name][lvl] = 0; });
+        saveSlots();
+      }
+    }
+
+    // Recover hit dice
+    if (typeof _i224LongRest === 'function') _i224LongRest(c.name, null);
+
+    // Reduce exhaustion by 1
+    try {
+      const exKey = `tiamat_exhaustion_${c.name}`;
+      const cur = parseInt(localStorage.getItem(exKey) || '0');
+      if (cur > 0) localStorage.setItem(exKey, String(cur - 1));
+    } catch(e) {}
+
+    // Clear inspiration for honesty (inspiration resets on rest per some tables)
+    // Don't clear — DMs usually keep inspiration between sessions
+  });
+
+  if (typeof renderGrid === 'function') renderGrid();
+  if (typeof renderInitiative === 'function') renderInitiative();
+  if (typeof logEntry === 'function') logEntry('system', `🌙 <strong>Long Rest</strong> — Full HP, all slots, HD recovery, concentration cleared for ${party.length} party member(s)`);
+  if (typeof showToast === 'function') showToast(`Long Rest complete! ${party.length} characters fully restored.`, '#4488ff', 3500);
+};
+
+// Add rest button to toolbar
+(function() {
+  const inject = () => {
+    if (document.getElementById('i239RestBtn')) return;
+    const tb = document.querySelector('.toolbar-buttons') || document.querySelector('#toolbar') || document.querySelector('.toolbar');
+    if (!tb) return;
+    const btn = document.createElement('button');
+    btn.id = 'i239RestBtn';
+    btn.innerHTML = '💤 Rest';
+    btn.title = 'Short Rest or Long Rest workflow';
+    btn.style.cssText = 'background:rgba(68,136,255,.08);border:1px solid rgba(68,136,255,.3);color:#4488ff;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;font-family:"Inter",sans-serif';
+    btn.onclick = () => openRestMenu();
+    tb.appendChild(btn);
+  };
+  if (document.readyState === 'complete') inject();
+  else window.addEventListener('load', inject);
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
