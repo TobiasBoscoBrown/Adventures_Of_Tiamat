@@ -34280,6 +34280,116 @@ window._i221ResetRound = function() {
   if (typeof showToast === 'function') showToast('Round counter reset to 1', '#c9a227', 1500);
 };
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 222: HP Undo — undo the last HP change per character
+// Stores up to 10 previous HP values per character; Ctrl+Z style undo button
+// Appears near HP controls; toast shows what was undone
+
+const _i222UndoKey = 'tiamat_hp_undo';
+const _i222MaxHistory = 10;
+
+function _i222GetHistory(charName) {
+  try {
+    const all = JSON.parse(localStorage.getItem(_i222UndoKey) || '{}');
+    return all[charName] || [];
+  } catch(e) { return []; }
+}
+
+function _i222SetHistory(charName, history) {
+  try {
+    const all = JSON.parse(localStorage.getItem(_i222UndoKey) || '{}');
+    all[charName] = history.slice(-_i222MaxHistory);
+    localStorage.setItem(_i222UndoKey, JSON.stringify(all));
+  } catch(e) {}
+}
+
+function _i222PushHistory(charName, hp) {
+  const history = _i222GetHistory(charName);
+  history.push(hp);
+  _i222SetHistory(charName, history);
+}
+
+function _i222UndoHp(charName, event) {
+  if (event) event.stopPropagation();
+  const history = _i222GetHistory(charName);
+  if (!history.length) {
+    if (typeof showToast === 'function') showToast(`No HP history for ${charName}`, '#888', 1500);
+    return;
+  }
+  const prevHp = history.pop();
+  _i222SetHistory(charName, history);
+  const currentHp = (typeof getCharHP === 'function') ? getCharHP(charName) : null;
+  if (typeof saveHp === 'function') saveHp(charName, prevHp);
+  if (typeof renderGrid === 'function') renderGrid();
+  if (typeof renderInitiative === 'function') renderInitiative();
+  if (typeof showToast === 'function') showToast(`↩ ${charName} HP: ${currentHp} → ${prevHp}`, '#c9a227', 2000);
+  if (typeof logEntry === 'function') logEntry('system', `↩ <strong>${escHtml(charName)}</strong> HP undo: ${currentHp} → <strong>${prevHp}</strong>`);
+}
+
+// Patch saveHp to capture history BEFORE the change
+(function() {
+  if (typeof saveHp !== 'function') return;
+  const _origSaveHp2 = saveHp;
+  saveHp = function(charName, newHp) {
+    // Record old HP before saving
+    const oldHp = (typeof getCharHP === 'function') ? getCharHP(charName) : null;
+    if (oldHp !== null && oldHp !== newHp) {
+      _i222PushHistory(charName, oldHp);
+    }
+    return _origSaveHp2.apply(this, arguments);
+  };
+})();
+
+// Inject undo buttons into HP control areas after render
+(function() {
+  const patchHpControls = () => {
+    document.querySelectorAll('[data-hp-controls]').forEach(ctrl => {
+      if (ctrl.querySelector('.i222UndoBtn')) return;
+      const charName = ctrl.dataset.charName || ctrl.closest('[data-name]')?.dataset.name;
+      if (!charName) return;
+      const btn = document.createElement('button');
+      btn.className = 'i222UndoBtn';
+      btn.innerHTML = '↩';
+      btn.title = `Undo last HP change for ${charName}`;
+      btn.style.cssText = 'background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.2);color:rgba(201,162,39,.7);border-radius:4px;padding:1px 6px;cursor:pointer;font-size:11px;margin-left:3px';
+      btn.onclick = (e) => _i222UndoHp(charName, e);
+      ctrl.appendChild(btn);
+    });
+  };
+
+  // Also expose as global for inline use
+  window._i222UndoHp = _i222UndoHp;
+
+  if (document.readyState === 'complete') patchHpControls();
+  else window.addEventListener('load', patchHpControls);
+
+  // Re-run after grid renders
+  if (typeof renderGrid === 'function') {
+    const _origRG222 = renderGrid;
+    renderGrid = function() {
+      _origRG222.apply(this, arguments);
+      setTimeout(patchHpControls, 100);
+    };
+  }
+})();
+
+// Keyboard shortcut: Ctrl+Z on character card
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+    // Find active character (focused card or current initiative combatant)
+    const il = (typeof initiativeList !== 'undefined') ? initiativeList : [];
+    const idx = (typeof currentTurnIdx !== 'undefined') ? currentTurnIdx : -1;
+    const combatant = il[idx];
+    if (combatant) {
+      const charName = combatant.name || combatant.charName;
+      if (charName && _i222GetHistory(charName).length) {
+        e.preventDefault();
+        _i222UndoHp(charName, null);
+      }
+    }
+  }
+});
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
