@@ -6160,12 +6160,19 @@ function buildStatsPanel(c) {
 
   // Iter 103: Condition badges now clickable to show effect description
   const condBadges = conditions.length ?
-    `<div style="margin-bottom:10px">${conditions.map(cn => {
+    `<div style="margin-bottom:10px;display:flex;flex-wrap:wrap;gap:4px;align-items:center">${conditions.map(cn => {
       const cd = CONDITIONS.find(x => x.name === cn);
       const cls = cd ? getCondClass(cd.type) : 'cond-debuff';
       const tipText = cd && cd.effects ? cd.effects.join(' | ') : cn;
-      return `<span class="condition-badge ${cls}" style="cursor:pointer" title="${tipText}" onclick="showCondDetailPopup(${JSON.stringify(cn)})">${cd?.icon||''} ${cn}</span>`;
-    }).join('')}</div>` : '';
+      return `<span class="condition-badge ${cls}" style="cursor:pointer;display:inline-flex;align-items:center;gap:3px" title="${tipText}"
+        onclick="showCondDetailPopup(${JSON.stringify(cn)})">${cd?.icon||''} ${cn}
+        <button onclick="event.stopPropagation();i277RemoveCond(${JSON.stringify(c.name)},${JSON.stringify(cn)})"
+          title="Remove ${cn}" style="background:none;border:none;color:inherit;cursor:pointer;font-size:9px;opacity:0.6;padding:0;margin-left:1px;line-height:1"
+          onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">✕</button>
+      </span>`;
+    }).join('')}
+    <button onclick="openCondPopup(${JSON.stringify(c.name)},event)" title="Add condition" style="font-size:10px;background:rgba(100,100,200,.06);border:1px solid #2a2a50;color:#5a5a8a;border-radius:12px;padding:1px 8px;cursor:pointer">+ Add</button>
+    </div>` : '';
 
   const noteBox = notes && notes.text ?
     `<div style="margin-bottom:10px;padding:10px;background:#06061a;border:1px solid rgba(155,109,255,0.3);border-radius:8px;font-size:12px;color:#9098b8;line-height:1.6"><span style="color:#9b6dff;font-weight:600">DM Notes: </span>${notes.text}</div>` : '';
@@ -41709,6 +41716,31 @@ void 0;
     const char = typeof filteredChars !== 'undefined' && typeof currentModalIdx !== 'undefined' ? filteredChars[currentModalIdx] : null;
     if (sp && char && char.name === charName && typeof buildStatsPanel === 'function') sp.innerHTML = buildStatsPanel(char);
   }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 277: Quick Condition Remove & Add Buttons on Condition Badges
+// Each condition badge in the modal stats tab now has an ✕ remove button
+// that clears the condition with one click. Also adds a '+Add' button
+// to quickly open the condition picker. No more scrolling to find condition controls.
+(function() {
+  window.i277RemoveCond = function(charName, condName) {
+    const all = loadAllConditions();
+    const conds = all[charName] || [];
+    const idx = conds.indexOf(condName);
+    if (idx >= 0) conds.splice(idx, 1);
+    if (!conds.length) delete all[charName];
+    else all[charName] = conds;
+    saveAllConditions(all);
+    if (typeof updateHeaderStats === 'function') updateHeaderStats();
+    if (typeof renderInitiative === 'function') renderInitiative();
+    if (typeof logEntry === 'function') logEntry('cond', '<strong>' + charName + '</strong> condition removed: ' + condName);
+    if (typeof showToast === 'function') showToast('✕ ' + condName + ' removed from ' + charName, '#4a5272', 1800);
+    // Refresh modal stats tab
+    const sp = document.getElementById('statsPanel');
+    const char = typeof filteredChars !== 'undefined' && typeof currentModalIdx !== 'undefined' ? filteredChars[currentModalIdx] : null;
+    if (sp && char && char.name === charName && typeof buildStatsPanel === 'function') sp.innerHTML = buildStatsPanel(char);
+  };
 })();
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
