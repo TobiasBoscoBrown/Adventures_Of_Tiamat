@@ -33115,6 +33115,206 @@ function _i214RollAllRecharges(charName, event) {
   });
 }
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 215: AOE Damage with Save-for-Half
+// Select multiple targets → enter damage + DC + save ability → one click rolls
+// all saves automatically and applies full damage to failures, half to passes.
+// Perfect for Fireball, Breath Weapons, Dragon Fear, Cloudkill, etc.
+// Smarter than DnD Beyond — handles all 5e AOE damage patterns in one tool!
+// ─────────────────────────────────────────────────────────────────────────────
+function openAoeDamage() {
+  const ex = document.getElementById('aoeDmgOverlay');
+  if (ex) { ex.remove(); return; }
+
+  const ov = document.createElement('div');
+  ov.id = 'aoeDmgOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9400;display:flex;align-items:center;justify-content:center;font-family:"Inter",sans-serif';
+
+  const allChars = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS.filter(c => {
+    const k = `tiamat_deceased_${c.name}`;
+    return !localStorage.getItem(k);
+  }) : [];
+
+  // Pre-check all characters currently in initiative
+  const initNames = new Set((initiativeList || []).map(e => e.name));
+
+  ov.innerHTML = `
+    <div style="background:#0a0a1e;border:1px solid rgba(255,80,0,.5);border-radius:14px;padding:20px;width:min(520px,95vw);max-height:90vh;overflow-y:auto;box-shadow:0 8px 48px rgba(0,0,0,.9)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <span style="font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:#ff6644">💥 AOE Damage</span>
+        <button onclick="document.getElementById('aoeDmgOverlay').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:6px;padding:3px 10px;cursor:pointer">✕</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div>
+          <div style="font-size:10px;color:#7a7aaa;letter-spacing:.5px;margin-bottom:4px">DAMAGE DICE</div>
+          <input id="aoeDice" type="text" placeholder="e.g. 8d6 or 12d10+5" value="8d6"
+            style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:6px 10px;font-size:13px;outline:none;box-sizing:border-box">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#7a7aaa;letter-spacing:.5px;margin-bottom:4px">DAMAGE TYPE</div>
+          <select id="aoeDmgType" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:6px 10px;font-size:13px;outline:none;box-sizing:border-box">
+            <option value="fire">Fire</option><option value="cold">Cold</option><option value="lightning">Lightning</option>
+            <option value="acid">Acid</option><option value="poison">Poison</option><option value="necrotic">Necrotic</option>
+            <option value="radiant">Radiant</option><option value="thunder">Thunder</option><option value="force">Force</option>
+            <option value="psychic">Psychic</option><option value="bludgeoning">Bludgeoning</option><option value="slashing">Slashing</option>
+            <option value="piercing">Piercing</option><option value="none">No type</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#7a7aaa;letter-spacing:.5px;margin-bottom:4px">SAVE ABILITY</div>
+          <select id="aoeSaveAb" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:6px 10px;font-size:13px;outline:none;box-sizing:border-box">
+            <option value="DEX">DEX (most common)</option><option value="CON">CON</option><option value="WIS">WIS</option>
+            <option value="STR">STR</option><option value="INT">INT</option><option value="CHA">CHA</option>
+            <option value="none">No save (full damage)</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#7a7aaa;letter-spacing:.5px;margin-bottom:4px">SAVE DC</div>
+          <input id="aoeDc" type="number" value="15" min="1" max="30"
+            style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:6px;padding:6px 10px;font-size:13px;outline:none;box-sizing:border-box">
+        </div>
+      </div>
+
+      <div style="font-size:10px;color:#7a7aaa;letter-spacing:.5px;margin-bottom:6px">TARGET CHARACTERS <span style="color:#4a5272">(check who is in the area)</span>
+        <button onclick="document.querySelectorAll('.aoe-tgt').forEach(cb=>cb.checked=true)" style="margin-left:8px;background:none;border:1px solid #2a2a50;color:#6a7aaa;border-radius:4px;padding:1px 6px;cursor:pointer;font-size:9px">All</button>
+        <button onclick="document.querySelectorAll('.aoe-tgt').forEach(cb=>cb.checked=false)" style="margin-left:4px;background:none;border:1px solid #2a2a50;color:#6a7aaa;border-radius:4px;padding:1px 6px;cursor:pointer;font-size:9px">None</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:5px;margin-bottom:14px;max-height:200px;overflow-y:auto;background:#06061a;border:1px solid #1e2040;border-radius:8px;padding:8px">
+        ${allChars.map(c => {
+          const maxHp = parseInt(c.hp) || 1;
+          const currHp = (typeof getCharHP === 'function') ? getCharHP(c.name, maxHp) : maxHp;
+          const hpPct = currHp / maxHp;
+          const hCol = hpPct < 0.25 ? '#cc3333' : hpPct < 0.5 ? '#dd8822' : '#44aa66';
+          const inInit = initNames.has(c.name);
+          return `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:3px 6px;border-radius:4px;border:1px solid rgba(255,255,255,.04)" onmouseover="this.style.background='rgba(255,255,255,.04)'" onmouseout="this.style.background=''">
+            <input type="checkbox" class="aoe-tgt" data-name="${c.name.replace(/"/g,'&quot;')}" data-maxhp="${maxHp}" ${inInit?'checked':''} style="accent-color:#ff6644">
+            <span style="font-size:11px;color:#c8d0e8;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.name}</span>
+            <span style="font-size:9px;color:${hCol}">${currHp}/${maxHp}</span>
+          </label>`;
+        }).join('')}
+      </div>
+
+      <div id="aoePreview" style="background:rgba(255,80,0,.05);border:1px solid rgba(255,80,0,.15);border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;color:#7a7aaa;min-height:36px;font-style:italic">
+        Enter damage dice and click Apply to roll.
+      </div>
+
+      <button onclick="_i215ApplyAoe()" style="width:100%;background:rgba(255,80,0,.15);border:1px solid rgba(255,80,0,.5);color:#ff6644;border-radius:8px;padding:10px;cursor:pointer;font-size:14px;font-weight:700;transition:all .15s" onmouseover="this.style.background='rgba(255,80,0,.25)'" onmouseout="this.style.background='rgba(255,80,0,.15)'">💥 Roll Saves & Apply Damage</button>
+    </div>
+  `;
+
+  document.body.appendChild(ov);
+  ov.addEventListener('click', ev => { if (ev.target === ov) ov.remove(); });
+  document.getElementById('aoeDice').focus();
+}
+
+function _i215ApplyAoe() {
+  const diceExpr = (document.getElementById('aoeDice')?.value || '').trim();
+  const dmgType = document.getElementById('aoeDmgType')?.value || 'fire';
+  const saveAb = document.getElementById('aoeSaveAb')?.value || 'DEX';
+  const dc = parseInt(document.getElementById('aoeDc')?.value || 15);
+  const noSave = saveAb === 'none';
+
+  // Roll damage once
+  const dmgResult = (typeof rollDiceExpr === 'function') ? rollDiceExpr(diceExpr) : null;
+  if (!dmgResult) { if (typeof showToast === 'function') showToast('Invalid dice expression', '#cc3333'); return; }
+  const fullDmg = dmgResult.total;
+  const halfDmg = Math.floor(fullDmg / 2);
+
+  // Get selected targets
+  const targets = Array.from(document.querySelectorAll('.aoe-tgt:checked')).map(cb => ({
+    name: cb.dataset.name, maxHp: parseInt(cb.dataset.maxhp) || 1
+  }));
+  if (!targets.length) { if (typeof showToast === 'function') showToast('No targets selected!', '#cc4444'); return; }
+
+  let results = [];
+
+  targets.forEach(t => {
+    const char = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS.find(c => c.name === t.name) : null;
+    const currHp = (typeof getCharHP === 'function') ? getCharHP(t.name, t.maxHp) : t.maxHp;
+
+    // Check damage immunity/resistance
+    let applied = fullDmg;
+    if (char && typeof inferDamageDefenses === 'function') {
+      const defs = inferDamageDefenses(char);
+      if (defs.immunities.includes(dmgType)) {
+        applied = 0;
+        results.push({name: t.name, save: null, dmg: 0, newHp: currHp, note: `immune to ${dmgType}`});
+        return;
+      }
+      if (defs.resistances.includes(dmgType)) applied = Math.floor(applied / 2);
+      if (defs.vulnerabilities.includes(dmgType)) applied = applied * 2;
+    }
+
+    if (noSave) {
+      const newHp = Math.max(0, currHp - applied);
+      if (typeof hpState !== 'undefined') hpState[t.name] = newHp;
+      results.push({name: t.name, save: null, dmg: applied, newHp, note: ''});
+      return;
+    }
+
+    // Roll save
+    const abMod = char ? (parseInt(((char.abilities||[]).find(a=>a[0]===saveAb)||[])[2]) || 0) : 0;
+    const crN = char ? (parseFloat(char.cr || 0)) : 1;
+    const prof = crN>=17?6:crN>=13?5:crN>=9?4:crN>=5?3:2;
+    const isProf = char ? !!(char.abilities||[]).find(a=>a[0]===saveAb&&a[3]) : false;
+    const saveBonus = abMod + (isProf ? prof : 0);
+    const roll = Math.floor(Math.random() * 20) + 1;
+    const total = roll + saveBonus;
+    const passed = total >= dc;
+    const dmgApplied = passed ? Math.floor(applied / 2) : applied;
+    const newHp = Math.max(0, currHp - dmgApplied);
+    if (typeof hpState !== 'undefined') hpState[t.name] = newHp;
+    const bStr = saveBonus >= 0 ? `+${saveBonus}` : `${saveBonus}`;
+    results.push({name: t.name, save: {roll, total, passed, bStr, dc}, dmg: dmgApplied, newHp, note: ''});
+  });
+
+  if (typeof saveHp === 'function') saveHp();
+
+  // Build log entry
+  const ordDmgType = dmgType !== 'none' ? ` ${dmgType}` : '';
+  const saveStr = noSave ? '' : ` (DC ${dc} ${saveAb} save for half)`;
+  let logHtml = `💥 <strong>AOE Damage</strong> ${diceExpr}[${dmgResult.rolls.join('+')}]=${fullDmg}${ordDmgType}${saveStr} — ${targets.length} targets:<br>`;
+  logHtml += results.map(r => {
+    if (r.note) return `&nbsp; ${escHtml(r.name)}: <span style="color:#4a5272">${r.note} → 0 dmg</span>`;
+    const saveInfo = r.save ? `d20(${r.save.roll})${r.save.bStr}=${r.save.total} ${r.save.passed?'<span style="color:#44cc88">PASS ½</span>':'<span style="color:#cc3333">FAIL full</span>'}` : '';
+    const hpCol = r.newHp === 0 ? '#cc3333' : '#ff7744';
+    return `&nbsp; <strong>${escHtml(r.name)}</strong>${r.save?` — ${saveInfo}`:''}: <strong style="color:${hpCol}">-${r.dmg} → ${r.newHp}/${(UNIQUE_CHARS.find(c=>c.name===r.name)?.hp||'?')}</strong>`;
+  }).join('<br>');
+
+  if (typeof logEntry === 'function') logEntry('damage', logHtml);
+
+  // Update preview
+  const preview = document.getElementById('aoePreview');
+  if (preview) {
+    const passCount = results.filter(r => r.save?.passed).length;
+    const failCount = results.filter(r => r.save && !r.save.passed).length;
+    const immCount = results.filter(r => r.note).length;
+    preview.style.fontStyle = 'normal';
+    preview.style.color = '#e0e0ff';
+    preview.innerHTML = `Rolled ${fullDmg} ${dmgType} (half: ${halfDmg}) — ${failCount} fail (${fullDmg} dmg), ${passCount} pass (${halfDmg} dmg)${immCount?`, ${immCount} immune`:''}. HP updated!`;
+  }
+
+  if (typeof renderGrid === 'function') renderGrid();
+  if (typeof renderInitiative === 'function') renderInitiative();
+  if (typeof showToast === 'function') showToast(`AOE: ${fullDmg} ${dmgType} — ${results.length} targets hit!`, '#ff7744', 3500);
+}
+
+// Add AOE Damage button to toolbar
+(function() {
+  const btns = document.querySelectorAll('.encounter-open-btn');
+  if (btns.length) {
+    const btn = document.createElement('button');
+    btn.className = 'encounter-open-btn';
+    btn.title = 'AOE Damage — roll damage + save-for-half for multiple targets at once (Fireball, Breath Weapon, etc.)';
+    btn.style.cssText = 'border-color:#ff6644;color:#ff6644';
+    btn.textContent = '💥 AOE';
+    btn.onclick = openAoeDamage;
+    btns[btns.length - 1].parentNode.appendChild(btn);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
