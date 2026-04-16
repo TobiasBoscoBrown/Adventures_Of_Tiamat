@@ -42251,6 +42251,69 @@ void 0;
   };
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+// Iter 286: Character Card Right-Click Context Menu — quick actions without opening modal
+(function() {
+  function removeMenu() {
+    const m = document.getElementById('i286Menu');
+    if (m) m.remove();
+  }
+
+  function showMenu(charName, charIdx, maxHp, x, y) {
+    removeMenu();
+    const menu = document.createElement('div');
+    menu.id = 'i286Menu';
+    menu.style.cssText = `position:fixed;left:${Math.min(x, window.innerWidth-220)}px;top:${Math.min(y, window.innerHeight-320)}px;z-index:99999;background:#0d0d24;border:1px solid #2a2a50;border-radius:10px;padding:6px;min-width:200px;box-shadow:0 8px 32px rgba(0,0,0,.9);font-size:12px`;
+
+    const items = [
+      { label:'📖 Open Details',       action:() => { const g=document.getElementById('grid'); const cards=[...g.querySelectorAll('.char-card-outer')]; const ci=cards.findIndex(c=>c.querySelector('.card-name')?.textContent.trim()===charName); if(ci>=0) openModal(charIdx); } },
+      { label:'⚔ Add to Initiative',  action:() => toggleInitiative(charName, maxHp) },
+      { label:'☩ Add to Encounter',   action:() => addCharToActiveEncounter(charName, maxHp) },
+      { sep: true },
+      { label:'⚡ Set Condition',      action:() => openCondPopup(charName, {clientX:x,clientY:y,stopPropagation:()=>{}}) },
+      { label:'❤ Adjust HP',          action:() => openHpPopup(charName, maxHp, {clientX:x,clientY:y,stopPropagation:()=>{}}) },
+      { label:'🎲 Quick Attack',       action:() => openQuickDamageCalc && openQuickDamageCalc() },
+      { sep: true },
+      { label:'🏷 Set Status',         action:() => i284OpenPicker && i284OpenPicker(charName, {target:{getBoundingClientRect:()=>({left:x,bottom:y})}}) },
+      { label:'★ Toggle Favorite',    action:() => toggleFavorite(charName, {stopPropagation:()=>{},currentTarget:{style:{}}}) },
+      { label:'✎ Notes',              action:() => { const c=UNIQUE_CHARS.find(c=>c.name===charName); openNotes(charName, c?.title||''); } },
+    ];
+
+    menu.innerHTML = items.map((item, i) => {
+      if (item.sep) return `<div style="height:1px;background:#1a1a35;margin:4px 0"></div>`;
+      return `<button onclick="(function(){${JSON.stringify(item.action.toString()).slice(1,-1)}})()" data-idx="${i}"
+        style="display:block;width:100%;text-align:left;padding:6px 10px;border:none;background:none;color:#c8d0e8;cursor:pointer;border-radius:6px;font-size:12px;white-space:nowrap"
+        onmouseover="this.style.background='rgba(155,109,255,.15)';this.style.color='#9b6dff'"
+        onmouseout="this.style.background='none';this.style.color='#c8d0e8'">${item.label}</button>`;
+    }).join('');
+
+    // Re-assign actions by index since JSON.stringify of functions won't work
+    document.body.appendChild(menu);
+    const btns = menu.querySelectorAll('button');
+    let btnIdx = 0;
+    items.forEach((item) => {
+      if (item.sep) return;
+      const btn = btns[btnIdx++];
+      btn.onclick = (e) => { e.stopPropagation(); removeMenu(); item.action(); };
+    });
+
+    setTimeout(() => document.addEventListener('click', function rem() { removeMenu(); document.removeEventListener('click', rem); }), 50);
+  }
+
+  // Attach context menu to grid via event delegation
+  document.addEventListener('contextmenu', function(e) {
+    const outer = e.target.closest('.char-card-outer');
+    if (!outer) return;
+    e.preventDefault();
+    const nameEl = outer.querySelector('.card-name');
+    if (!nameEl) return;
+    const charName = nameEl.textContent.trim();
+    const charIdx = filteredChars.findIndex(c => c.name === charName);
+    const char = filteredChars[charIdx];
+    const maxHp = char ? (parseInt(char.hp) || 10) : 10;
+    showMenu(charName, charIdx, maxHp, e.clientX, e.clientY);
+  });
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
