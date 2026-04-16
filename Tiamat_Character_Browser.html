@@ -6317,29 +6317,44 @@ function buildSeeAlso(c) {
   return sections.length ? `<div class="stats-section">${sections.join('')}</div>` : '';
 }
 
+// Iter 266: Advantage/Disadvantage state for modal rolls (N=normal, A=advantage, D=disadvantage)
+window._i266AdvState = 'N';
+function _i266Roll() {
+  const r1 = Math.floor(Math.random() * 20) + 1;
+  const r2 = Math.floor(Math.random() * 20) + 1;
+  const st = window._i266AdvState;
+  if (st === 'A') return { roll: Math.max(r1,r2), r1, r2, tag: ' (Adv)', adv: true };
+  if (st === 'D') return { roll: Math.min(r1,r2), r1, r2, tag: ' (Dis)', dis: true };
+  return { roll: r1, r1, r2: null, tag: '' };
+}
+function _i266RollDetail(r) {
+  if (r.r2 !== null) return `d20(${r.r1},${r.r2})→${r.roll}`;
+  return `d20(${r.roll})`;
+}
+
 function rollAbilityCheck(abName, mod) {
-  const roll = Math.floor(Math.random() * 20) + 1;
+  const r = _i266Roll();
   const modVal = parseInt(mod) || 0;
-  const total = roll + modVal;
-  const isCrit = roll === 20, isFumble = roll === 1;
-  const msg = `${abName} check: ${roll}${modVal>=0?'+':''}${modVal} = ${total}${isCrit?' ★ CRITICAL!':isFumble?' ☠ Fumble':''}`;
+  const total = r.roll + modVal;
+  const isCrit = r.roll === 20, isFumble = r.roll === 1;
+  const msg = `${abName} check${r.tag}: ${_i266RollDetail(r)}${modVal>=0?'+':''}${modVal} = ${total}${isCrit?' ★ CRITICAL!':isFumble?' ☠ Fumble':''}`;
   showModalRollResult(msg, isCrit, isFumble, total);
 }
 
 function rollSkillCheck(skillName, mod) {
-  const roll = Math.floor(Math.random() * 20) + 1;
+  const r = _i266Roll();
   const modVal = parseInt(mod) || 0;
-  const total = roll + modVal;
-  const isCrit = roll === 20, isFumble = roll === 1;
-  showModalRollResult(`${skillName}: d20(${roll})${modVal>=0?'+':''}${modVal} = ${total}${isCrit?' ★':isFumble?' ☠':''}`, isCrit, isFumble, total);
+  const total = r.roll + modVal;
+  const isCrit = r.roll === 20, isFumble = r.roll === 1;
+  showModalRollResult(`${skillName}${r.tag}: ${_i266RollDetail(r)}${modVal>=0?'+':''}${modVal} = ${total}${isCrit?' ★':isFumble?' ☠':''}`, isCrit, isFumble, total);
 }
 
 function rollSavingThrow(abName, mod) {
-  const roll = Math.floor(Math.random() * 20) + 1;
+  const r = _i266Roll();
   const modVal = parseInt(mod) || 0;
-  const total = roll + modVal;
-  const isCrit = roll === 20, isFumble = roll === 1;
-  const msg = `${abName} Save: d20(${roll})${modVal>=0?'+':''}${modVal} = ${total}${isCrit?' ★ CRIT!':isFumble?' ☠ FUMBLE':''}`;
+  const total = r.roll + modVal;
+  const isCrit = r.roll === 20, isFumble = r.roll === 1;
+  const msg = `${abName} Save${r.tag}: ${_i266RollDetail(r)}${modVal>=0?'+':''}${modVal} = ${total}${isCrit?' ★ CRIT!':isFumble?' ☠ FUMBLE':''}`;
   showModalRollResult(msg, isCrit, isFumble, total);
 }
 
@@ -40698,6 +40713,118 @@ window._i250SetAll = function(enabled) {
     ].join('\n');
     document.head.appendChild(style);
   });
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 266: Advantage/Disadvantage Toggle for Skill & Ability Rolls
+// A persistent Adv/Dis toggle bar at the top of the stats panel.
+// When active, ALL ability checks, skill checks, and saving throw rolls
+// use 2d20-keep-highest (advantage) or 2d20-keep-lowest (disadvantage).
+// State resets to Normal when modal closes.
+(function() {
+  // The roll functions updated in rollAbilityCheck/rollSkillCheck/rollSavingThrow
+  // already read window._i266AdvState — we just need to render the toggle UI.
+
+  function _i266Color(st) {
+    return st === 'A' ? '#44cc88' : st === 'D' ? '#cc4444' : '#4a5272';
+  }
+
+  function _i266Bg(st) {
+    return st === 'A' ? 'rgba(68,204,136,0.12)' : st === 'D' ? 'rgba(204,68,68,0.12)' : 'rgba(255,255,255,0.03)';
+  }
+
+  function _i266Border(st) {
+    return st === 'A' ? 'rgba(68,204,136,0.4)' : st === 'D' ? 'rgba(204,68,68,0.4)' : '#2a2a50';
+  }
+
+  window.i266SetAdvState = function(st) {
+    window._i266AdvState = st;
+    const bar = document.getElementById('i266AdvBar');
+    if (!bar) return;
+    ['N','A','D'].forEach(s => {
+      const btn = document.getElementById('i266Btn_' + s);
+      if (!btn) return;
+      const active = s === st;
+      btn.style.background = active ? _i266Bg(s) : 'none';
+      btn.style.borderColor = active ? _i266Border(s) : '#2a2a50';
+      btn.style.color = active ? _i266Color(s) : '#4a5272';
+      btn.style.fontWeight = active ? '700' : '400';
+    });
+    const label = document.getElementById('i266StatusLabel');
+    if (label) {
+      label.textContent = st === 'A' ? '⬆ Advantage active' : st === 'D' ? '⬇ Disadvantage active' : 'Normal rolls';
+      label.style.color = _i266Color(st);
+    }
+  };
+
+  window.i266InjectAdvBar = function() {
+    const panel = document.getElementById('statsPanel');
+    if (!panel || document.getElementById('i266AdvBar')) return;
+    const bar = document.createElement('div');
+    bar.id = 'i266AdvBar';
+    bar.style.cssText = 'display:flex;align-items:center;gap:6px;padding:6px 12px;background:#08081c;border-bottom:1px solid #1e2040;position:sticky;top:0;z-index:40;';
+    const st = window._i266AdvState || 'N';
+    bar.innerHTML = '<span style="font-size:10px;color:#4a5272;letter-spacing:.5px;margin-right:2px;white-space:nowrap">ROLL MODE</span>'
+      + _i266Btn('N', '○ Normal', st)
+      + _i266Btn('A', '⬆ Advantage', st)
+      + _i266Btn('D', '⬇ Disadvantage', st)
+      + '<span id="i266StatusLabel" style="font-size:10px;margin-left:auto;white-space:nowrap;color:' + _i266Color(st) + '">'
+        + (st === 'A' ? '⬆ Advantage active' : st === 'D' ? '⬇ Disadvantage active' : 'Normal rolls')
+      + '</span>';
+    panel.prepend(bar);
+  };
+
+  function _i266Btn(st, label, current) {
+    const active = st === current;
+    return '<button id="i266Btn_' + st + '" onclick="i266SetAdvState(\'' + st + '\')" '
+      + 'style="font-size:11px;border-radius:6px;padding:3px 10px;cursor:pointer;transition:all .15s;'
+      + 'background:' + (active ? _i266Bg(st) : 'none') + ';'
+      + 'border:1px solid ' + (active ? _i266Border(st) : '#2a2a50') + ';'
+      + 'color:' + (active ? _i266Color(st) : '#4a5272') + ';'
+      + 'font-weight:' + (active ? '700' : '400') + '">' + label + '</button>';
+  }
+
+  // Inject bar whenever statsPanel content changes (modal open/tab switch)
+  const _origBuildStatsPanel = window.buildStatsPanel;
+  if (typeof _origBuildStatsPanel === 'function') {
+    window.buildStatsPanel = function(c) {
+      const html = _origBuildStatsPanel(c);
+      // Bar will be injected after innerHTML is set
+      setTimeout(i266InjectAdvBar, 0);
+      return html;
+    };
+  }
+
+  // Also hook on modal open via MutationObserver on statsPanel
+  document.addEventListener('DOMContentLoaded', function() {
+    const panel = document.getElementById('statsPanel');
+    if (!panel) return;
+    const obs = new MutationObserver(function() {
+      if (!document.getElementById('i266AdvBar')) {
+        setTimeout(i266InjectAdvBar, 10);
+      }
+    });
+    obs.observe(panel, { childList: true });
+
+    // Reset state when modal closes
+    const closeBtn = document.querySelector('.modal-close');
+    if (closeBtn) {
+      const orig = closeBtn.onclick;
+      closeBtn.onclick = function(e) {
+        window._i266AdvState = 'N';
+        if (orig) orig.call(this, e);
+      };
+    }
+  });
+
+  // Also inject via i265 refresh path
+  const _origToggle = window.i265ToggleExpertise;
+  if (typeof _origToggle === 'function') {
+    window.i265ToggleExpertise = function(charName, skillName, event) {
+      _origToggle(charName, skillName, event);
+      setTimeout(i266InjectAdvBar, 20);
+    };
+  }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
