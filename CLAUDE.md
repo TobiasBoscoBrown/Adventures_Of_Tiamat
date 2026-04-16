@@ -2,7 +2,7 @@
 
 ## Project Overview
 A single-file D&D campaign management web app for the "Tiamat" world.
-**File:** `Tiamat_Character_Browser.html` (32,800+ lines, self-contained)
+**File:** `Tiamat_Character_Browser.html` (42,000+ lines, self-contained)
 **Goal:** Make this the ultimate DM tool — better than DND Beyond, with full user control.
 
 ## Architecture
@@ -218,6 +218,24 @@ Core character browser, search/filter, dark theme, tooltips, view modes.
 - Iter 258: Encounter Recap Generator — scans last 60 session log entries; extracts crits/downs/heals/damage; generates narrative paragraph; copy to clipboard
 - Iter 259: Spell Slot Quick-Use Widget in Turn Bar — colored pips per slot level inline in active turn bar; click pip to spend slot with full cast picker
 - Iter 260: Auto-Advance Turn Timer — configurable countdown (15–120s) per turn; SVG progress ring; +10s extend; auto-calls nextTurn() on expiry
+
+### Iterations 261–270
+- (Documented in previous sessions — see git log for details)
+
+### Iterations 271–280
+- (Documented in previous sessions — see git log for details)
+
+### Iterations 281–290
+- Iter 281: NPC Morale Tracker — group WIS saves for flee/surrender; morale thresholds by CR
+- Iter 282: Persistent Floating Dice Tray — always-visible collapsible dice tray with history, mod, adv/dis
+- Iter 283: DM Announcement Bar — persistent session-wide status message below header (Info/Warn/Danger colors)
+- Iter 284: Character Status Labels — narrative status per character (Active/Deceased/Missing/Imprisoned/Unknown); filterable
+- Iter 285: Character Alias/Nickname System — searchable alternate names per character (stored in localStorage, searched alongside name/lore)
+- Iter 286: Character Card Right-Click Context Menu — quick actions (Open, Initiative, Encounter, Condition, HP, Status, Notes) without opening modal
+- Iter 287: Card Hover Preview — 600ms hover shows compact floating stat popup (HP, AC, init, abilities, traits, lore)
+- Iter 288: Player Turn Time Tracker — auto-records initiative turn duration per combatant; ⏱ Turns button shows avg/min/max analysis
+- Iter 289: NPC Quick-Pitch Summary — auto-generated 2-3 sentence DM briefing shown in modal header for rapid roleplay prep
+- Iter 290: Multiclass Spell Slot Calculator — PHB-accurate slot calculation for any class combo; full/half/third-casters; Warlock Pact Magic separate
 
 ## Features Currently Implemented (What We Have)
 - Character browser: search, filter by category/theme, view modes (grid/compact/list)
