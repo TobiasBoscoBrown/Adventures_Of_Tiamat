@@ -282,6 +282,12 @@
     margin-bottom: 3px;
     line-height: 1.2;
   }
+  /* Iter 294: Mystery Mode — hide real names */
+  body.mystery-mode .card-name { filter: blur(6px); user-select: none; cursor: default; transition: filter .2s; }
+  body.mystery-mode .card-name:hover { filter: blur(0); }
+  body.mystery-mode #modalName { filter: blur(0) !important; }
+  body.mystery-mode .init-name { filter: blur(5px); transition: filter .2s; }
+  body.mystery-mode .init-name:hover { filter: blur(0); }
   .card-title {
     font-size: 12px;
     color: var(--accent, #c9a227);
@@ -3796,6 +3802,7 @@
   <button class="filter-btn" onclick="i283Toggle()" id="i283ToggleBtn" style="border-color:#c9a227;color:#c9a227;" title="DM Announcement Bar — show a session-wide status message visible at all times">📢 Announce</button>
   <button class="filter-btn" onclick="i284FilterStatus(this)" id="i284FilterBtn" style="border-color:#aa4488;color:#aa4488;" title="Filter by narrative status — Active/Deceased/Missing/Imprisoned/Unknown">🏷 Status</button>
   <button class="filter-btn" onclick="i290OpenMulticlassCalc()" style="border-color:#9b6dff;color:#9b6dff;" title="Multiclass Spell Slot Calculator — compute correct slots for multiclassed spellcasters per PHB rules">✦ Multiclass</button>
+  <button class="filter-btn" onclick="i294ToggleMystery(this)" id="i294MysteryBtn" style="border-color:#6655aa;color:#6655aa;" title="Mystery Mode — blur character names for player-facing display (hover to reveal)">🎭 Mystery</button>
   <button class="filter-btn" onclick="i288OpenReport()" style="border-color:#44aacc;color:#44aacc;" title="Turn Time Analysis — see how long each combatant takes per turn">⏱ Turns</button>
   <button class="filter-btn" onclick="openShortcutsHelp()" style="border-color:#4488ff;color:#4488ff;" title="Keyboard shortcuts — press ? anytime">⌨ ?</button>
   <button class="filter-btn" onclick="openGlobalSearch()" style="border-color:#c9a227;color:#9098b8;" title="Global search — Ctrl+K">🔍 Search All</button>
@@ -42915,6 +42922,38 @@ void 0;
       if (!popup.contains(e.target)) { popup.remove(); document.removeEventListener('click', rem); }
     }), 50);
   };
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 294: Mystery Mode — blur character names for mystery encounters
+(function() {
+  let active = localStorage.getItem('tiamat_mystery_mode') === '1';
+
+  function apply() {
+    document.body.classList.toggle('mystery-mode', active);
+    const btn = document.getElementById('i294MysteryBtn');
+    if (btn) {
+      btn.style.background = active ? 'rgba(102,85,170,.2)' : '';
+      btn.style.fontWeight = active ? '700' : '';
+      btn.title = active ? 'Mystery Mode ACTIVE — names are blurred (hover card name to reveal). Click to disable.' : 'Mystery Mode — blur character names for player-facing display';
+      btn.textContent = active ? '🎭 Mystery ●' : '🎭 Mystery';
+    }
+  }
+
+  window.i294ToggleMystery = function(btn) {
+    active = !active;
+    localStorage.setItem('tiamat_mystery_mode', active ? '1' : '0');
+    apply();
+    if (active) {
+      showToast?.('🎭 Mystery Mode ON — character names are blurred. Hover to reveal.', '#6655aa');
+    } else {
+      showToast?.('Mystery Mode OFF', '#4a5272');
+    }
+  };
+
+  // Apply on load
+  document.addEventListener('DOMContentLoaded', apply);
+  // Also apply immediately if DOM is ready
+  if (document.readyState !== 'loading') apply();
 })();
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
