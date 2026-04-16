@@ -33469,6 +33469,161 @@ function _i216SaveEditor(charName) {
   if (typeof showToast === 'function') showToast(`${charName}: ${macros.length} attack macros saved!`, '#c9a227', 2500);
 }
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 217: Legendary Resistance & Actions Tracker
+// Tracks per-round legendary actions (3/round) and per-day legendary resistances (3/day)
+// Appears in active turn bar for monsters that have these abilities
+// Recharges on round start; persists in localStorage
+
+const _i217Key = 'tiamat_legendary';
+function _i217Load() {
+  try { return JSON.parse(localStorage.getItem(_i217Key) || '{}'); } catch(e) { return {}; }
+}
+function _i217Save(data) {
+  try { localStorage.setItem(_i217Key, JSON.stringify(data)); } catch(e) {}
+}
+
+function _i217Get(charName) {
+  const data = _i217Load();
+  if (!data[charName]) data[charName] = { lr: 3, la: 3, lrUsed: 0, laUsed: 0 };
+  return data[charName];
+}
+
+function _i217Set(charName, obj) {
+  const data = _i217Load();
+  data[charName] = obj;
+  _i217Save(data);
+}
+
+function _i217HasLegendary(char) {
+  if (!char) return false;
+  const text = ((char.lore || '') + ' ' + (char.traits || []).join(' ')).toLowerCase();
+  return text.includes('legendary') || parseInt(char.cr || 0) >= 17;
+}
+
+function _i217GetLRCount(char) {
+  if (!char) return 3;
+  const text = (char.lore || '') + ' ' + (char.traits || []).join(' ');
+  const m = text.match(/legendary resistance[^(]*\((\d+)\s*\/\s*day\)/i);
+  return m ? parseInt(m[1]) : 3;
+}
+
+function _i217GetLACount(char) {
+  if (!char) return 3;
+  const text = (char.lore || '') + ' ' + (char.traits || []).join(' ');
+  const m = text.match(/legendary actions?[^(]*\((\d+)[^)]*\)/i);
+  return m ? parseInt(m[1]) : 3;
+}
+
+function _i217UseLR(charName, event) {
+  if (event) event.stopPropagation();
+  const char = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS.find(c => c.name === charName) : null;
+  const max = _i217GetLRCount(char);
+  const state = _i217Get(charName);
+  if (state.lrUsed >= max) {
+    if (typeof showToast === 'function') showToast(`No Legendary Resistances left for ${charName}!`, '#cc3333', 2000);
+    return;
+  }
+  state.lrUsed++;
+  _i217Set(charName, state);
+  if (typeof logEntry === 'function') logEntry('system', `<strong>${escHtml(charName)}</strong> used Legendary Resistance (${max - state.lrUsed}/${max} remaining)`);
+  if (typeof showToast === 'function') showToast(`Legendary Resistance used! (${max - state.lrUsed} left)`, '#9b6dff', 2200);
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+}
+
+function _i217UseLA(charName, cost, event) {
+  if (event) event.stopPropagation();
+  const char = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS.find(c => c.name === charName) : null;
+  const max = _i217GetLACount(char);
+  const state = _i217Get(charName);
+  if (state.laUsed + cost > max) {
+    if (typeof showToast === 'function') showToast(`Not enough Legendary Actions! (${max - state.laUsed} left)`, '#cc3333', 2000);
+    return;
+  }
+  state.laUsed += cost;
+  _i217Set(charName, state);
+  if (typeof logEntry === 'function') logEntry('system', `<strong>${escHtml(charName)}</strong> used ${cost} Legendary Action(s) (${max - state.laUsed}/${max} remaining this round)`);
+  if (typeof showToast === 'function') showToast(`Legendary Action used! (${max - state.laUsed} remaining)`, '#c9a227', 2000);
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+}
+
+function _i217ResetLA(charName, event) {
+  if (event) event.stopPropagation();
+  const char = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS.find(c => c.name === charName) : null;
+  const max = _i217GetLACount(char);
+  const state = _i217Get(charName);
+  state.laUsed = 0;
+  _i217Set(charName, state);
+  if (typeof showToast === 'function') showToast(`${charName}: Legendary Actions reset (${max}/${max})`, '#44cc88', 1800);
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+}
+
+function _i217ResetAll(charName, event) {
+  if (event) event.stopPropagation();
+  const char = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS.find(c => c.name === charName) : null;
+  const max = _i217GetLRCount(char);
+  const maxLA = _i217GetLACount(char);
+  _i217Set(charName, { lr: max, la: maxLA, lrUsed: 0, laUsed: 0 });
+  if (typeof showToast === 'function') showToast(`${charName}: All legendary abilities reset!`, '#44cc88', 2000);
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+}
+
+(function() {
+  const _origRATB = renderActiveTurnBar;
+  renderActiveTurnBar = function() {
+    _origRATB();
+    _i217LegendaryRow();
+  };
+})();
+
+function _i217LegendaryRow() {
+  const bar = document.getElementById('activeTurnBar');
+  if (!bar) return;
+  const il = (typeof initiativeList !== 'undefined') ? initiativeList : [];
+  const idx = (typeof currentTurnIdx !== 'undefined') ? currentTurnIdx : 0;
+  const combatant = il[idx];
+  if (!combatant) return;
+  const charName = combatant.name || combatant.charName;
+  if (!charName) return;
+
+  const char = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS.find(c => c.name === charName) : null;
+  if (!_i217HasLegendary(char)) return;
+
+  const maxLR = _i217GetLRCount(char);
+  const maxLA = _i217GetLACount(char);
+  const state = _i217Get(charName);
+  const lrLeft = maxLR - state.lrUsed;
+  const laLeft = maxLA - state.laUsed;
+
+  // Build pip indicators
+  const lrPips = Array.from({length: maxLR}, (_, i) =>
+    `<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${i < lrLeft ? '#9b6dff' : 'rgba(155,109,255,.15)'};border:1px solid rgba(155,109,255,.5);margin:0 1px;cursor:pointer;vertical-align:middle" onclick="_i217UseLR('${charName.replace(/'/g,"\\'")}',event)" title="Use Legendary Resistance"></span>`
+  ).join('');
+
+  const laPips = Array.from({length: maxLA}, (_, i) =>
+    `<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${i < laLeft ? '#c9a227' : 'rgba(201,162,39,.12)'};border:1px solid rgba(201,162,39,.4);margin:0 1px;cursor:pointer;vertical-align:middle" onclick="_i217UseLA('${charName.replace(/'/g,"\\'")}',1,event)" title="Use 1 Legendary Action"></span>`
+  ).join('');
+
+  const h = `<div style="background:rgba(40,20,60,.5);border:1px solid rgba(155,109,255,.3);border-radius:7px;padding:6px 10px;margin:4px 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <span style="font-family:'Cinzel',serif;color:#9b6dff;font-size:10px;font-weight:700;letter-spacing:.5px;min-width:80px">⚔ LEGENDARY</span>
+    <div style="display:flex;align-items:center;gap:6px;flex:1">
+      <span style="font-size:10px;color:#9b6dff;min-width:20px">LR</span>
+      ${lrPips}
+      <span style="font-size:10px;color:rgba(155,109,255,.6)">${lrLeft}/${maxLR}</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;flex:1">
+      <span style="font-size:10px;color:#c9a227;min-width:20px">LA</span>
+      ${laPips}
+      <span style="font-size:10px;color:rgba(201,162,39,.6)">${laLeft}/${maxLA}</span>
+      <button onclick="_i217UseLA('${charName.replace(/'/g,"\\'")}',2,event)" style="background:rgba(201,162,39,.1);border:1px solid rgba(201,162,39,.3);color:#c9a227;border-radius:4px;padding:1px 6px;cursor:pointer;font-size:9px">-2</button>
+      <button onclick="_i217UseLA('${charName.replace(/'/g,"\\'")}',3,event)" style="background:rgba(201,162,39,.1);border:1px solid rgba(201,162,39,.3);color:#c9a227;border-radius:4px;padding:1px 6px;cursor:pointer;font-size:9px">-3</button>
+      <button onclick="_i217ResetLA('${charName.replace(/'/g,"\\'")}',event)" style="background:rgba(68,204,136,.08);border:1px solid rgba(68,204,136,.3);color:#44cc88;border-radius:4px;padding:1px 6px;cursor:pointer;font-size:9px;margin-left:3px">↺ Round</button>
+    </div>
+    <button onclick="_i217ResetAll('${charName.replace(/'/g,"\\'")}',event)" style="background:rgba(68,204,136,.08);border:1px solid rgba(68,204,136,.25);color:#44cc88;border-radius:4px;padding:2px 7px;cursor:pointer;font-size:9px">↺ Long Rest</button>
+  </div>`;
+  bar.innerHTML += h;
+}
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
