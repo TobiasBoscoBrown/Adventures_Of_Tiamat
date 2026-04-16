@@ -4166,6 +4166,13 @@
     <button class="init-add-btn" onclick="addCustomToInitiative()">+ Add</button>
   </div>
   <div style="padding:3px 10px 6px;font-size:10px;color:#4a5272">HP → enables HP tracking. Init blank → random roll. × → add multiple with separate HP.</div>
+  <!-- Iter 296: Encounter Notes -->
+  <div style="border-top:1px solid #1e2040;padding:6px 10px">
+    <textarea id="i296EncNotes" placeholder="Encounter notes — terrain, objectives, special rules, DM reminders…"
+      style="width:100%;box-sizing:border-box;background:#06061a;border:1px solid #1e2040;border-radius:6px;color:#9098b8;font-size:10px;padding:5px 8px;resize:none;height:50px;outline:none;font-family:'Inter',sans-serif;line-height:1.4"
+      onfocus="this.style.borderColor='rgba(155,109,255,.4)'" onblur="this.style.borderColor='#1e2040'"
+      oninput="localStorage.setItem('tiamat_enc_notes',this.value)"></textarea>
+  </div>
   <!-- Iteration 56: Round Log Panel (collapsible) -->
   <div style="border-top:1px solid #1e2040">
     <div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="padding:5px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
@@ -43049,6 +43056,28 @@ void 0;
     strip.style.display = strip.style.display === 'none' ? '' : 'none';
     document.body.style.paddingBottom = strip.style.display === 'none' ? '0' : '32px';
   };
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 296: Encounter Notes — persistent text area in initiative panel for per-encounter notes
+(function() {
+  document.addEventListener('DOMContentLoaded', function() {
+    const ta = document.getElementById('i296EncNotes');
+    if (ta) {
+      ta.value = localStorage.getItem('tiamat_enc_notes') || '';
+    }
+  });
+
+  // Also restore when initiative panel opens
+  const _origOpen = window.openInitiativePanel;
+  if (typeof _origOpen === 'function') {
+    window.openInitiativePanel = function() {
+      _origOpen.apply(this, arguments);
+      setTimeout(() => {
+        const ta = document.getElementById('i296EncNotes');
+        if (ta && !ta.value) ta.value = localStorage.getItem('tiamat_enc_notes') || '';
+      }, 100);
+    };
+  }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
