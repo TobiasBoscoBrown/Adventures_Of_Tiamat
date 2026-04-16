@@ -41887,6 +41887,133 @@ void 0;
   });
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 282: Persistent Floating Dice Tray
+// A draggable dice tray always visible in the bottom-right corner.
+// Click die buttons to roll; shows result with advantage/disadvantage support.
+// Modifier field for adding to any roll. History of last 8 rolls.
+// Toggle with 🎲 button; state persists across sessions.
+(function() {
+  document.addEventListener('DOMContentLoaded', function() {
+    if (document.getElementById('i282DiceTray')) return;
+
+    const DICE = [4,6,8,10,12,20,100];
+    const history = [];
+
+    const tray = document.createElement('div');
+    tray.id = 'i282DiceTray';
+    tray.style.cssText = 'position:fixed;bottom:80px;right:20px;z-index:8000;font-family:Inter,sans-serif;user-select:none';
+
+    // Toggle button
+    const toggleBtn = document.createElement('button');
+    toggleBtn.id = 'i282ToggleBtn';
+    toggleBtn.style.cssText = 'width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#1e1240,#2a1a6a);border:2px solid rgba(201,162,39,.5);color:#c9a227;font-size:20px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.5);display:block;margin-left:auto';
+    toggleBtn.textContent = '🎲';
+    toggleBtn.title = 'Toggle Dice Tray';
+    toggleBtn.onclick = function() {
+      const panel = document.getElementById('i282TrayPanel');
+      if (panel) { panel.style.display = panel.style.display === 'none' ? '' : 'none'; }
+    };
+
+    // Main panel
+    const panel = document.createElement('div');
+    panel.id = 'i282TrayPanel';
+    panel.style.cssText = 'background:#0a0a1e;border:1px solid rgba(201,162,39,.3);border-radius:12px;padding:10px;margin-bottom:6px;width:220px;box-shadow:0 8px 32px rgba(0,0,0,.6);display:none';
+
+    function roll(sides, mod, adv) {
+      const r1 = Math.floor(Math.random() * sides) + 1;
+      const r2 = adv !== 'N' ? Math.floor(Math.random() * sides) + 1 : null;
+      let val = r1;
+      let tag = '';
+      if (adv === 'A') { val = Math.max(r1, r2); tag = '⬆'; }
+      if (adv === 'D') { val = Math.min(r1, r2); tag = '⬇'; }
+      const total = val + (parseInt(mod) || 0);
+      const isCrit = sides === 20 && val === 20;
+      const isFumble = sides === 20 && val === 1;
+      const diceStr = r2 !== null ? '(' + r1 + ',' + r2 + ')→' + val : val;
+      const modVal = parseInt(mod) || 0;
+      const modStr = modVal !== 0 ? (modVal > 0 ? '+' + modVal : modVal) : '';
+      const result = { text: tag + ' d' + sides + diceStr + modStr + ' = ' + total, total, isCrit, isFumble, sides };
+      history.unshift(result);
+      if (history.length > 8) history.pop();
+      renderHistory();
+      // Show in result area
+      const res = document.getElementById('i282Result');
+      if (res) {
+        res.textContent = result.text;
+        res.style.color = isCrit ? '#c9a227' : isFumble ? '#cc4444' : '#c8d0e8';
+        res.style.fontSize = '16px';
+        res.style.fontWeight = '700';
+      }
+    }
+
+    function renderHistory() {
+      const hist = document.getElementById('i282History');
+      if (!hist) return;
+      hist.innerHTML = history.slice(0,6).map(r =>
+        '<div style="font-size:10px;color:' + (r.isCrit?'#c9a227':r.isFumble?'#cc4444':'#6070a0') + ';padding:1px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + r.text + '</div>'
+      ).join('');
+    }
+
+    const dieButtons = DICE.map(d =>
+      '<button onclick="(function(){const m=document.getElementById(\'i282Mod\').value;const a=window._i282Adv||\'N\';' +
+      'i282Roll(' + d + ',m,a);})()" ' +
+      'style="font-size:11px;font-weight:700;border-radius:6px;padding:4px 6px;cursor:pointer;background:rgba(155,109,255,.08);border:1px solid rgba(155,109,255,.25);color:#9b6dff;transition:all .1s" ' +
+      'onmouseover="this.style.background=\'rgba(155,109,255,.2)\'" onmouseout="this.style.background=\'rgba(155,109,255,.08)\'">d' + d + '</button>'
+    ).join('');
+
+    panel.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+      + '<span style="font-family:Cinzel,serif;color:#c9a227;font-size:12px;font-weight:700">🎲 Dice Tray</span>'
+      + '<button onclick="document.getElementById(\'i282TrayPanel\').style.display=\'none\'" style="background:none;border:none;color:#4a5272;cursor:pointer;font-size:12px">✕</button>'
+      + '</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-bottom:8px">' + dieButtons + '</div>'
+      + '<div style="display:flex;gap:4px;margin-bottom:8px;align-items:center">'
+        + '<label style="font-size:10px;color:#4a5272;white-space:nowrap">Mod</label>'
+        + '<input id="i282Mod" type="number" value="0" min="-10" max="20" style="flex:1;background:#06061a;border:1px solid rgba(201,162,39,.3);color:#c9a227;border-radius:5px;padding:2px 5px;font-size:12px;font-weight:700;text-align:center;outline:none">'
+        + '<button id="i282AdvBtn" onclick="i282CycleAdv()" title="Toggle Advantage/Disadvantage" style="font-size:10px;border-radius:5px;padding:2px 7px;cursor:pointer;border:1px solid #2a2a50;color:#4a5272;background:none">○ Norm</button>'
+      + '</div>'
+      + '<div id="i282Result" style="text-align:center;font-size:16px;font-weight:700;color:#c8d0e8;min-height:24px;margin-bottom:6px">—</div>'
+      + '<div id="i282History" style="border-top:1px solid #1e2040;padding-top:5px"></div>';
+
+    tray.appendChild(panel);
+    tray.appendChild(toggleBtn);
+    document.body.appendChild(tray);
+
+    // Expose roll function globally
+    window.i282Roll = function(sides, mod, adv) {
+      const r1 = Math.floor(Math.random() * sides) + 1;
+      const r2 = adv !== 'N' ? Math.floor(Math.random() * sides) + 1 : null;
+      let val = r1;
+      let tag = '';
+      if (adv === 'A') { val = Math.max(r1, r2); tag = '⬆ '; }
+      if (adv === 'D') { val = Math.min(r1, r2); tag = '⬇ '; }
+      const total = val + (parseInt(mod) || 0);
+      const isCrit = sides === 20 && val === 20;
+      const isFumble = sides === 20 && val === 1;
+      const diceStr = r2 !== null ? '(' + r1 + ',' + r2 + ')→' + val : val;
+      const modVal = parseInt(mod) || 0;
+      const modStr = modVal !== 0 ? (modVal > 0 ? '+' + modVal : '' + modVal) : '';
+      const text = tag + 'd' + sides + diceStr + modStr + ' = ' + total + (isCrit ? ' ★' : isFumble ? ' ☠' : '');
+      history.unshift({ text, total, isCrit, isFumble, sides });
+      if (history.length > 8) history.pop();
+      renderHistory();
+      const res = document.getElementById('i282Result');
+      if (res) { res.textContent = text; res.style.color = isCrit ? '#c9a227' : isFumble ? '#cc4444' : '#c8d0e8'; }
+    };
+
+    window._i282Adv = 'N';
+    window.i282CycleAdv = function() {
+      const states = ['N', 'A', 'D'];
+      const labels = ['○ Norm', '⬆ Adv', '⬇ Dis'];
+      const colors = ['#4a5272', '#44cc88', '#cc4444'];
+      const idx = (states.indexOf(window._i282Adv) + 1) % 3;
+      window._i282Adv = states[idx];
+      const btn = document.getElementById('i282AdvBtn');
+      if (btn) { btn.textContent = labels[idx]; btn.style.color = colors[idx]; btn.style.borderColor = colors[idx] + '66'; }
+    };
+  });
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
