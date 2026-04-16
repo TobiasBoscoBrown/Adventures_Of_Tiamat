@@ -3795,6 +3795,7 @@
   <button class="filter-btn" onclick="openDataManager()" style="border-color:#44ddaa;color:#44ddaa;" title="Data Manager — export/import all campaign data backup">💾 Data</button>
   <button class="filter-btn" onclick="i283Toggle()" id="i283ToggleBtn" style="border-color:#c9a227;color:#c9a227;" title="DM Announcement Bar — show a session-wide status message visible at all times">📢 Announce</button>
   <button class="filter-btn" onclick="i284FilterStatus(this)" id="i284FilterBtn" style="border-color:#aa4488;color:#aa4488;" title="Filter by narrative status — Active/Deceased/Missing/Imprisoned/Unknown">🏷 Status</button>
+  <button class="filter-btn" onclick="i288OpenReport()" style="border-color:#44aacc;color:#44aacc;" title="Turn Time Analysis — see how long each combatant takes per turn">⏱ Turns</button>
   <button class="filter-btn" onclick="openShortcutsHelp()" style="border-color:#4488ff;color:#4488ff;" title="Keyboard shortcuts — press ? anytime">⌨ ?</button>
   <button class="filter-btn" onclick="openGlobalSearch()" style="border-color:#c9a227;color:#9098b8;" title="Global search — Ctrl+K">🔍 Search All</button>
   <button class="filter-btn" onclick="openDiceMacros()" style="border-color:#ff8822;color:#ff8822;" title="Quick Dice Macros — save &amp; replay dice rolls">🎲 Dice</button>
@@ -42411,6 +42412,112 @@ void 0;
   });
 
   document.addEventListener('click', function() { removePreview(); });
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 288: Player Turn Time Tracker — track how long each combatant's turn takes
+(function() {
+  const STORE = 'tiamat_turn_times';
+  let _turnStart = null;
+  let _turnName = null;
+
+  function loadData() { try { return JSON.parse(localStorage.getItem(STORE) || '{}'); } catch { return {}; } }
+  function saveData(d) { localStorage.setItem(STORE, JSON.stringify(d)); }
+
+  function recordTurn(name, secs) {
+    if (!name || secs <= 0) return;
+    const d = loadData();
+    if (!d[name]) d[name] = { times: [], total: 0, count: 0 };
+    d[name].times.push(secs);
+    if (d[name].times.length > 50) d[name].times.shift();
+    d[name].total += secs;
+    d[name].count++;
+    saveData(d);
+  }
+
+  // Patch nextTurn to record time
+  const _origNextTurn = window.nextTurn;
+  if (typeof _origNextTurn === 'function') {
+    window.nextTurn = function() {
+      // Record elapsed time for character whose turn is ending
+      if (_turnStart && _turnName) {
+        const elapsed = Math.round((Date.now() - _turnStart) / 1000);
+        recordTurn(_turnName, elapsed);
+      }
+      _origNextTurn.apply(this, arguments);
+      // Start timer for new current character
+      if (typeof initiativeList !== 'undefined' && typeof currentTurnIdx !== 'undefined') {
+        const cur = initiativeList[currentTurnIdx];
+        _turnName = cur ? cur.name : null;
+        _turnStart = Date.now();
+      }
+    };
+  }
+
+  // Also track when initiative starts (openInitiativePanel or first nextTurn)
+  const _origOpenInit = window.openInitiativePanel;
+  if (typeof _origOpenInit === 'function') {
+    window.openInitiativePanel = function() {
+      _origOpenInit.apply(this, arguments);
+      if (typeof initiativeList !== 'undefined' && initiativeList.length) {
+        const cur = initiativeList[currentTurnIdx || 0];
+        _turnName = cur ? cur.name : null;
+        _turnStart = Date.now();
+      }
+    };
+  }
+
+  window.i288OpenReport = function() {
+    const existing = document.getElementById('i288Panel');
+    if (existing) { existing.remove(); return; }
+    const d = loadData();
+    const entries = Object.entries(d).sort((a,b) => b[1].total - a[1].total);
+
+    const panel = document.createElement('div');
+    panel.id = 'i288Panel';
+    panel.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:9500;background:linear-gradient(160deg,#0d0b1a,#0a0820);border:1px solid rgba(201,162,39,.4);border-radius:14px;width:480px;max-height:70vh;overflow:auto;padding:18px;box-shadow:0 8px 40px rgba(0,0,0,.9);color:#c8d0e8;font-family:Cinzel,serif';
+
+    const fmt = s => s >= 60 ? `${Math.floor(s/60)}m ${s%60}s` : `${s}s`;
+
+    const rows = entries.length ? entries.map(([name, stat]) => {
+      const times = stat.times || [];
+      const avg = times.length ? Math.round(times.reduce((a,b)=>a+b,0)/times.length) : 0;
+      const max = times.length ? Math.max(...times) : 0;
+      const min = times.length ? Math.min(...times) : 0;
+      const bar = Math.min(100, Math.round(avg/120*100)); // 2min max
+      const barColor = avg > 90 ? '#cc4444' : avg > 60 ? '#c9a227' : '#44cc88';
+      return `<tr>
+        <td style="padding:6px 8px;font-size:11px;white-space:nowrap;color:#c9a227">${name}</td>
+        <td style="padding:6px 8px;text-align:center;font-size:12px;font-weight:700;color:${barColor}">${fmt(avg)}</td>
+        <td style="padding:6px 8px;text-align:center;font-size:11px;color:#9098b8">${fmt(min)}</td>
+        <td style="padding:6px 8px;text-align:center;font-size:11px;color:#9098b8">${fmt(max)}</td>
+        <td style="padding:6px 8px;text-align:center;font-size:11px;color:#4a5272">${stat.count}</td>
+        <td style="padding:6px 8px;width:80px"><div style="height:5px;background:#1a1a35;border-radius:3px"><div style="height:100%;width:${bar}%;background:${barColor};border-radius:3px"></div></div></td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="6" style="text-align:center;color:#4a5272;padding:20px;font-size:12px">No turn data recorded yet.<br>Start combat and use Next Turn to track times.</td></tr>';
+
+    panel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <span style="color:#c9a227;font-size:14px;font-weight:700">⏱ Turn Time Analysis</span>
+      <div style="display:flex;gap:6px">
+        <button onclick="if(confirm('Reset all turn time data?')){localStorage.removeItem('tiamat_turn_times');document.getElementById('i288Panel').remove()}" style="background:none;border:1px solid #cc4444;color:#cc4444;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:10px">Reset</button>
+        <button onclick="document.getElementById('i288Panel').remove()" style="background:none;border:1px solid #333;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px">✕</button>
+      </div>
+    </div>
+    <div style="font-size:10px;color:#4a5272;margin-bottom:10px">Average turn times across the session — helps identify players who need engagement prompts</div>
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="border-bottom:1px solid #1e2040">
+        <th style="padding:4px 8px;text-align:left;font-size:9px;color:#4a5272;letter-spacing:.08em;font-weight:600">CHARACTER</th>
+        <th style="padding:4px 8px;font-size:9px;color:#4a5272;letter-spacing:.08em;font-weight:600">AVG</th>
+        <th style="padding:4px 8px;font-size:9px;color:#4a5272;letter-spacing:.08em;font-weight:600">MIN</th>
+        <th style="padding:4px 8px;font-size:9px;color:#4a5272;letter-spacing:.08em;font-weight:600">MAX</th>
+        <th style="padding:4px 8px;font-size:9px;color:#4a5272;letter-spacing:.08em;font-weight:600">TURNS</th>
+        <th style="padding:4px 8px;font-size:9px;color:#4a5272;letter-spacing:.08em;font-weight:600">BAR</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+
+    document.body.appendChild(panel);
+    document.addEventListener('keydown', function esc(e) { if(e.key==='Escape'){panel.remove();document.removeEventListener('keydown',esc);} });
+  };
 })();
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
