@@ -34143,6 +34143,143 @@ function _i220ManualResult(charName, concSpell, passed, event) {
   };
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 221: Round Counter + Start-of-Round Actions
+// Persistent round counter in the HUD; at start of each round fires reminders:
+// legendary action resets, lair action prompts (initiative 20), effect ticks for all
+
+const _i221RoundKey = 'tiamat_combat_round';
+const _i221LairKey = 'tiamat_lair_actions';
+
+function _i221GetRound() {
+  return parseInt(localStorage.getItem(_i221RoundKey) || '1');
+}
+function _i221SetRound(n) {
+  localStorage.setItem(_i221RoundKey, String(n));
+}
+
+function _i221AdvanceRound() {
+  const newRound = _i221GetRound() + 1;
+  _i221SetRound(newRound);
+
+  // Log new round
+  if (typeof logEntry === 'function') logEntry('system', `<strong style="color:#c9a227">⚔ Round ${newRound} begins</strong>`);
+  if (typeof showToast === 'function') showToast(`Round ${newRound}`, '#c9a227', 2000);
+
+  // Reset legendary actions for all initiative combatants
+  const il = (typeof initiativeList !== 'undefined') ? initiativeList : [];
+  il.forEach(c => {
+    const name = c.name || c.charName;
+    if (!name) return;
+    const char = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS.find(x => x.name === name) : null;
+    if (!char) return;
+    const text = ((char.lore || '') + ' ' + (char.traits || []).join(' ')).toLowerCase();
+    if (!text.includes('legendary') && parseInt(char.cr || 0) < 17) return;
+    // Reset LA
+    const data = (function() {
+      try { return JSON.parse(localStorage.getItem('tiamat_legendary') || '{}'); } catch(e) { return {}; }
+    })();
+    if (data[name]) { data[name].laUsed = 0; }
+    try { localStorage.setItem('tiamat_legendary', JSON.stringify(data)); } catch(e) {}
+  });
+
+  // Lair action prompt at initiative 20
+  const lairEnabled = localStorage.getItem(_i221LairKey + '_enabled') === '1';
+  if (lairEnabled) {
+    const lairPrompt = document.getElementById('i221LairPrompt');
+    if (lairPrompt) lairPrompt.remove();
+    const div = document.createElement('div');
+    div.id = 'i221LairPrompt';
+    div.style.cssText = 'position:fixed;top:70px;right:20px;z-index:9500;background:#0a0a1e;border:2px solid #ff6644;border-radius:9px;padding:12px 16px;width:220px;box-shadow:0 0 20px rgba(255,100,68,.3);font-family:"Inter",sans-serif';
+    div.innerHTML = `<div style="color:#ff6644;font-family:'Cinzel',serif;font-size:11px;font-weight:700;margin-bottom:6px">🔥 LAIR ACTION (Init 20)</div>
+      <div style="font-size:11px;color:#c0c0e0;margin-bottom:8px">Round ${newRound} — Trigger lair action now!</div>
+      <div style="display:flex;gap:6px">
+        <button onclick="_i221RollLair(event)" style="flex:1;background:rgba(255,100,68,.15);border:1px solid #ff6644;color:#ff6644;border-radius:6px;padding:5px;cursor:pointer;font-size:11px">🎲 Roll</button>
+        <button onclick="document.getElementById('i221LairPrompt')?.remove()" style="flex:1;background:rgba(0,0,0,.3);border:1px solid #2a2a50;color:#888;border-radius:6px;padding:5px;cursor:pointer;font-size:11px">Dismiss</button>
+      </div>`;
+    document.body.appendChild(div);
+    setTimeout(() => document.getElementById('i221LairPrompt')?.remove(), 20000);
+  }
+
+  _i221UpdateHud();
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+}
+
+window._i221RollLair = function(event) {
+  if (event) event.stopPropagation();
+  document.getElementById('i221LairPrompt')?.remove();
+  const lairActions = (function() {
+    try { return JSON.parse(localStorage.getItem(_i221LairKey + '_list') || '[]'); } catch(e) { return []; }
+  })();
+  if (!lairActions.length) {
+    if (typeof showToast === 'function') showToast('No lair actions defined. Add them in the Lair Actions panel!', '#ff6644', 2500);
+    return;
+  }
+  const action = lairActions[Math.floor(Math.random() * lairActions.length)];
+  if (typeof logEntry === 'function') logEntry('system', `🔥 <strong>Lair Action:</strong> ${escHtml(action)}`);
+  if (typeof showToast === 'function') showToast(`Lair Action: ${action}`, '#ff6644', 4000);
+};
+
+function _i221UpdateHud() {
+  const hud = document.getElementById('i221RoundHud');
+  if (!hud) return;
+  hud.textContent = `Round ${_i221GetRound()}`;
+}
+
+// Inject Round Counter into HUD
+(function() {
+  const inject = () => {
+    if (document.getElementById('i221RoundHud')) return;
+    // Try to find the combat HUD or session timer area
+    const hudArea = document.getElementById('sessionTimerDisplay') || document.querySelector('.hud-bar') || document.querySelector('#combatHud');
+    const hud = document.createElement('span');
+    hud.id = 'i221RoundHud';
+    hud.title = 'Current combat round — click to advance';
+    hud.style.cssText = 'display:inline-flex;align-items:center;gap:5px;background:rgba(201,162,39,.1);border:1px solid rgba(201,162,39,.3);color:#c9a227;border-radius:6px;padding:4px 10px;font-family:"Cinzel",serif;font-size:12px;cursor:pointer;font-weight:700;margin-left:6px';
+    hud.innerHTML = `⚔ Round ${_i221GetRound()}`;
+    hud.onclick = (e) => {
+      e.stopPropagation();
+      _i221AdvanceRound();
+      hud.innerHTML = `⚔ Round ${_i221GetRound()}`;
+    };
+    if (hudArea) {
+      hudArea.parentNode.insertBefore(hud, hudArea.nextSibling);
+    } else {
+      // Fallback: fixed HUD position
+      hud.style.cssText += ';position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:8000';
+      document.body.appendChild(hud);
+    }
+  };
+  if (document.readyState === 'complete') inject();
+  else window.addEventListener('load', inject);
+})();
+
+// Also add "Next Round" to the initiative toolbar
+(function() {
+  const inject = () => {
+    if (document.getElementById('i221NextRoundBtn')) return;
+    const initBar = document.querySelector('#initiativeControls') || document.querySelector('.initiative-controls');
+    if (!initBar) return;
+    const btn = document.createElement('button');
+    btn.id = 'i221NextRoundBtn';
+    btn.innerHTML = '⚔ Next Round';
+    btn.title = 'Advance to next round (resets LA, triggers lair actions)';
+    btn.style.cssText = 'background:rgba(201,162,39,.1);border:1px solid rgba(201,162,39,.35);color:#c9a227;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px;font-family:"Inter",sans-serif';
+    btn.onclick = () => { _i221AdvanceRound(); btn.innerHTML = `⚔ Next Round (${_i221GetRound()})`; };
+    initBar.appendChild(btn);
+  };
+  if (document.readyState === 'complete') inject();
+  else window.addEventListener('load', inject);
+})();
+
+// Reset round counter when combat ends / new encounter starts
+window._i221ResetRound = function() {
+  _i221SetRound(1);
+  const hud = document.getElementById('i221RoundHud');
+  if (hud) hud.innerHTML = `⚔ Round 1`;
+  if (typeof showToast === 'function') showToast('Round counter reset to 1', '#c9a227', 1500);
+};
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
