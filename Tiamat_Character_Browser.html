@@ -36380,6 +36380,186 @@ function _i235ApplyCompactMode() {
   };
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 236: Encounter XP Tally
+// Track XP earned as monsters are defeated; running total badge in initiative HUD
+// CR → XP conversion table from DMG; award XP to party with one click
+
+const _i236XpKey = 'tiamat_encounter_xp';
+
+// CR to XP table from DMG
+const _i236CR_XP = {
+  '0': 10, '1/8': 25, '0.125': 25, '1/4': 50, '0.25': 50,
+  '1/2': 100, '0.5': 100,
+  '1': 200, '2': 450, '3': 700, '4': 1100, '5': 1800,
+  '6': 2300, '7': 2900, '8': 3900, '9': 5000, '10': 5900,
+  '11': 7200, '12': 8400, '13': 10000, '14': 11500, '15': 13000,
+  '16': 15000, '17': 18000, '18': 20000, '19': 22000, '20': 25000,
+  '21': 33000, '22': 41000, '23': 50000, '24': 62000, '30': 155000,
+};
+
+function _i236GetCrXp(crStr) {
+  const xp = _i236CR_XP[String(crStr)];
+  if (xp) return xp;
+  const n = parseFloat(crStr);
+  if (!isNaN(n)) {
+    // Find closest
+    for (const [k, v] of Object.entries(_i236CR_XP)) {
+      if (Math.abs(parseFloat(k) - n) < 0.01) return v;
+    }
+  }
+  return 0;
+}
+
+function _i236GetTally() {
+  try { return JSON.parse(localStorage.getItem(_i236XpKey) || '{"total":0,"entries":[]}'); }
+  catch(e) { return {total: 0, entries: []}; }
+}
+function _i236SaveTally(d) {
+  try { localStorage.setItem(_i236XpKey, JSON.stringify(d)); } catch(e) {}
+}
+
+function _i236AddKill(charName, crStr, event) {
+  if (event) event.stopPropagation();
+  const xp = _i236GetCrXp(crStr);
+  if (!xp) return;
+  const tally = _i236GetTally();
+  tally.total += xp;
+  tally.entries.push({name: charName, cr: crStr, xp, time: Date.now()});
+  _i236SaveTally(tally);
+  _i236UpdateBadge();
+  if (typeof showToast === 'function') showToast(`+${xp.toLocaleString()} XP (${charName} CR ${crStr})`, '#c9a227', 2000);
+  if (typeof logEntry === 'function') logEntry('system', `☠ <strong>${escHtml(charName)}</strong> defeated! +<strong>${xp.toLocaleString()} XP</strong> (CR ${crStr})`);
+}
+
+function _i236ResetTally(event) {
+  if (event) event.stopPropagation();
+  _i236SaveTally({total: 0, entries: []});
+  _i236UpdateBadge();
+  if (typeof showToast === 'function') showToast('XP tally reset', '#888', 1500);
+}
+
+function _i236UpdateBadge() {
+  const badge = document.getElementById('i236XpBadge');
+  if (!badge) return;
+  const tally = _i236GetTally();
+  badge.textContent = `⚔ ${tally.total.toLocaleString()} XP`;
+  badge.style.color = tally.total > 0 ? '#c9a227' : '#4a5272';
+}
+
+function _i236OpenAward(event) {
+  if (event) event.stopPropagation();
+  const ex = document.getElementById('i236AwardPanel');
+  if (ex) { ex.remove(); return; }
+
+  const tally = _i236GetTally();
+  const chars = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS : [];
+  const party = (() => {
+    try {
+      const pinned = JSON.parse(localStorage.getItem('tiamat_pins') || '[]');
+      const favs = JSON.parse(localStorage.getItem('tiamat_favorites') || '[]');
+      const keys = new Set([...pinned, ...favs]);
+      const p = chars.filter(c => keys.has(c.name));
+      return p.length ? p : chars.slice(0, 6);
+    } catch(e) { return chars.slice(0, 6); }
+  })();
+
+  const perPlayer = party.length ? Math.floor(tally.total / party.length) : 0;
+
+  const entryRows = tally.entries.map(e =>
+    `<tr><td style="padding:2px 6px;font-size:10px;color:#c0c0e0">${escHtml(e.name)}</td><td style="padding:2px 6px;font-size:10px;color:#4a5272">CR ${e.cr}</td><td style="padding:2px 6px;font-size:10px;color:#c9a227;text-align:right">+${e.xp.toLocaleString()}</td></tr>`
+  ).join('');
+
+  const ov = document.createElement('div');
+  ov.id = 'i236AwardPanel';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9400;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `
+    <div style="background:#0a0a1e;border:1px solid rgba(201,162,39,.4);border-radius:12px;padding:18px;width:min(460px,95vw);max-height:80vh;overflow-y:auto;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <span style="font-family:'Cinzel',serif;color:#c9a227;font-weight:700">⚔ Encounter XP Tally</span>
+        <button onclick="document.getElementById('i236AwardPanel').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+      </div>
+      <div style="font-size:22px;font-weight:700;color:#c9a227;text-align:center;margin-bottom:8px">${tally.total.toLocaleString()} XP</div>
+      <div style="font-size:12px;color:#4a5272;text-align:center;margin-bottom:12px">${party.length} party members → <strong style="color:#44cc88">${perPlayer.toLocaleString()} XP each</strong></div>
+      ${tally.entries.length ? `<table style="width:100%;border-collapse:collapse;margin-bottom:12px"><tbody>${entryRows}</tbody></table>` : '<div style="text-align:center;color:#4a5272;font-size:11px;margin-bottom:12px">No kills recorded yet.</div>'}
+      <div style="display:flex;gap:8px">
+        <button onclick="_i236AwardToParty(event)" style="flex:2;background:rgba(68,204,136,.15);border:1px solid rgba(68,204,136,.4);color:#44cc88;border-radius:7px;padding:8px;cursor:pointer;font-size:12px;font-weight:700">✓ Award XP to Party (${party.length} members)</button>
+        <button onclick="_i236ResetTally(event);document.getElementById('i236AwardPanel')?.remove()" style="flex:1;background:rgba(204,51,51,.08);border:1px solid rgba(204,51,51,.25);color:#cc5555;border-radius:7px;padding:8px;cursor:pointer;font-size:11px">Reset</button>
+      </div>
+      <div style="margin-top:10px;border-top:1px solid #1e2040;padding-top:10px">
+        <div style="font-size:10px;color:#4a5272;margin-bottom:6px">Manually add kill:</div>
+        <div style="display:flex;gap:6px">
+          <input id="i236KillName" placeholder="Monster name" style="flex:2;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:5px;padding:5px;font-size:11px;outline:none">
+          <input id="i236KillCr" placeholder="CR" style="width:55px;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:5px;padding:5px;font-size:11px;text-align:center;outline:none">
+          <button onclick="_i236ManualKill(event)" style="background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.4);color:#c9a227;border-radius:5px;padding:5px 10px;cursor:pointer;font-size:11px">+XP</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+window._i236AwardToParty = function(event) {
+  if (event) event.stopPropagation();
+  const tally = _i236GetTally();
+  if (!tally.total) {
+    if (typeof showToast === 'function') showToast('No XP to award!', '#888', 1500);
+    return;
+  }
+  const chars = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS : [];
+  const party = (() => {
+    try {
+      const pinned = JSON.parse(localStorage.getItem('tiamat_pins') || '[]');
+      const favs = JSON.parse(localStorage.getItem('tiamat_favorites') || '[]');
+      const keys = new Set([...pinned, ...favs]);
+      const p = chars.filter(c => keys.has(c.name));
+      return p.length ? p : chars.slice(0, 6);
+    } catch(e) { return chars.slice(0, 6); }
+  })();
+  const perPlayer = Math.floor(tally.total / (party.length || 1));
+
+  // Award to each party member via XP tracker
+  party.forEach(c => {
+    try {
+      const xpData = JSON.parse(localStorage.getItem('tiamat_xp_tracker') || '{}');
+      if (!xpData[c.name]) xpData[c.name] = {xp: 0, level: 1};
+      xpData[c.name].xp = (xpData[c.name].xp || 0) + perPlayer;
+      localStorage.setItem('tiamat_xp_tracker', JSON.stringify(xpData));
+    } catch(e) {}
+  });
+
+  if (typeof logEntry === 'function') logEntry('system', `🏆 <strong>${tally.total.toLocaleString()} XP</strong> awarded (${perPlayer.toLocaleString()} each to ${party.length} party members)`);
+  if (typeof showToast === 'function') showToast(`XP awarded! +${perPlayer.toLocaleString()} to each party member`, '#c9a227', 3000);
+  _i236ResetTally(null);
+  document.getElementById('i236AwardPanel')?.remove();
+};
+
+window._i236ManualKill = function(event) {
+  if (event) event.stopPropagation();
+  const name = document.getElementById('i236KillName')?.value?.trim() || 'Monster';
+  const cr = document.getElementById('i236KillCr')?.value?.trim() || '1';
+  _i236AddKill(name, cr, null);
+  document.getElementById('i236AwardPanel')?.remove();
+  _i236OpenAward(null);
+};
+
+// Inject XP badge near initiative area
+(function() {
+  const inject = () => {
+    if (document.getElementById('i236XpBadge')) return;
+    const badge = document.createElement('span');
+    badge.id = 'i236XpBadge';
+    badge.style.cssText = 'position:fixed;bottom:14px;right:20px;background:#0a0a1e;border:1px solid rgba(201,162,39,.35);color:#4a5272;border-radius:6px;padding:4px 10px;font-family:"Cinzel",serif;font-size:11px;cursor:pointer;z-index:8000;font-weight:700';
+    badge.textContent = '⚔ 0 XP';
+    badge.title = 'Encounter XP Tally — click to award';
+    badge.onclick = () => _i236OpenAward(null);
+    document.body.appendChild(badge);
+    _i236UpdateBadge();
+  };
+  if (document.readyState === 'complete') inject();
+  else window.addEventListener('load', inject);
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
