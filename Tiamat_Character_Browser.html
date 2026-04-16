@@ -34872,6 +34872,155 @@ if (typeof window.nextTurn === 'function') {
   };
 }
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 226: Passive Skills Quick Panel
+// Show all characters' Passive Perception, Investigation, Insight in one table
+// Critical for DMs: traps, ambushes, lies. Also shows highest per skill.
+// Accessible via toolbar button and Ctrl+P shortcut
+
+function _i226GetPassive(char, skill) {
+  if (!char || !char.abilities) return 10;
+  // Ability score map for skills
+  const skillAbility = {
+    'Perception': 'WIS', 'Investigation': 'INT', 'Insight': 'WIS',
+  };
+  const abilityName = skillAbility[skill] || 'WIS';
+  const abilityEntry = char.abilities.find(a => a[0] === abilityName);
+  if (!abilityEntry) return 10;
+  const abilityScore = abilityEntry[1] || 10;
+  const mod = Math.floor((abilityScore - 10) / 2);
+
+  // Check proficiency — look at skills array if available
+  let profBonus = 2; // Default prof bonus level 5ish
+  try {
+    const xpData = JSON.parse(localStorage.getItem('tiamat_xp_tracker') || '{}');
+    const level = xpData[char.name]?.level || 5;
+    profBonus = level <= 4 ? 2 : level <= 8 ? 3 : level <= 12 ? 4 : level <= 16 ? 5 : 6;
+  } catch(e) {}
+
+  // Check if proficient in this skill
+  // We store proficiencies in skills[] array or check character data
+  let isProficient = false;
+  let isExpertise = false;
+  try {
+    const profKey = `tiamat_proficiencies_${char.name}`;
+    const profs = JSON.parse(localStorage.getItem(profKey) || '{}');
+    isProficient = !!(profs[skill] === 'prof' || profs[skill] === 'expert');
+    isExpertise = profs[skill] === 'expert';
+  } catch(e) {}
+
+  // Also check char.traits for "Proficiency in Perception" etc
+  const traitsText = (char.traits || []).join(' ').toLowerCase();
+  if (!isProficient) {
+    if (skill === 'Perception' && (traitsText.includes('perception') || traitsText.includes('keen senses'))) isProficient = true;
+    if (skill === 'Investigation' && traitsText.includes('investigation')) isProficient = true;
+    if (skill === 'Insight' && traitsText.includes('insight')) isProficient = true;
+  }
+
+  let bonus = mod;
+  if (isExpertise) bonus += profBonus * 2;
+  else if (isProficient) bonus += profBonus;
+
+  return 10 + bonus;
+}
+
+function openPassivePanel() {
+  const ex = document.getElementById('i226PassivePanel');
+  if (ex) { ex.remove(); return; }
+
+  const chars = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS : [];
+  const skills = ['Perception', 'Investigation', 'Insight'];
+
+  // Calculate passive scores
+  const scores = chars.slice(0, 60).map(c => ({
+    name: c.name,
+    pp: _i226GetPassive(c, 'Perception'),
+    pi: _i226GetPassive(c, 'Investigation'),
+    pins: _i226GetPassive(c, 'Insight'),
+  }));
+
+  // Find maximums
+  const maxPP = Math.max(...scores.map(s => s.pp));
+  const maxPI = Math.max(...scores.map(s => s.pi));
+  const maxPIns = Math.max(...scores.map(s => s.pins));
+
+  const getColor = (val, max) => {
+    if (val >= max - 1) return '#ffcc00';
+    if (val >= max - 3) return '#44cc88';
+    if (val >= 12) return '#c0c0e0';
+    return '#4a5272';
+  };
+
+  const rows = scores.map(s => `<tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+    <td style="padding:5px 8px;font-size:11px;color:#c0c0e0">${escHtml(s.name)}</td>
+    <td style="padding:5px 8px;text-align:center;font-size:12px;font-weight:700;color:${getColor(s.pp, maxPP)}">${s.pp}${s.pp === maxPP ? ' ★' : ''}</td>
+    <td style="padding:5px 8px;text-align:center;font-size:12px;font-weight:700;color:${getColor(s.pi, maxPI)}">${s.pi}${s.pi === maxPI ? ' ★' : ''}</td>
+    <td style="padding:5px 8px;text-align:center;font-size:12px;font-weight:700;color:${getColor(s.pins, maxPIns)}">${s.pins}${s.pins === maxPIns ? ' ★' : ''}</td>
+  </tr>`).join('');
+
+  const ov = document.createElement('div');
+  ov.id = 'i226PassivePanel';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9300;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `
+    <div style="background:#0a0a1e;border:1px solid rgba(201,162,39,.4);border-radius:12px;padding:18px;width:min(480px,95vw);max-height:80vh;overflow-y:auto;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-family:'Cinzel',serif;color:#c9a227;font-weight:700">👁 Passive Skills Reference</span>
+        <button onclick="document.getElementById('i226PassivePanel').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+      </div>
+      <div style="font-size:10px;color:#4a5272;margin-bottom:10px">★ = highest value. Used for detecting traps, ambushes, and lies without rolling.</div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="border-bottom:1px solid #1e2040;background:rgba(0,0,0,.3)">
+          <th style="font-size:9px;color:#4a5272;text-align:left;padding:5px 8px;font-weight:500">CHARACTER</th>
+          <th style="font-size:9px;color:#4a9ef5;text-align:center;padding:5px 8px;font-weight:600">👁 P.PERC</th>
+          <th style="font-size:9px;color:#9b6dff;text-align:center;padding:5px 8px;font-weight:600">🔍 P.INV</th>
+          <th style="font-size:9px;color:#ff9944;text-align:center;padding:5px 8px;font-weight:600">🧠 P.INS</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr style="border-top:1px solid #1e2040;background:rgba(0,0,0,.3)">
+          <td style="padding:5px 8px;font-size:10px;color:#4a5272;font-style:italic">Party Best</td>
+          <td style="padding:5px 8px;text-align:center;font-size:13px;font-weight:700;color:#ffcc00">${maxPP}</td>
+          <td style="padding:5px 8px;text-align:center;font-size:13px;font-weight:700;color:#ffcc00">${maxPI}</td>
+          <td style="padding:5px 8px;text-align:center;font-size:13px;font-weight:700;color:#ffcc00">${maxPIns}</td>
+        </tr></tfoot>
+      </table>
+      <div style="margin-top:10px;padding:8px;background:rgba(0,0,0,.3);border-radius:6px;font-size:10px;color:#4a5272;line-height:1.6">
+        <strong style="color:#c9a227">DM Quick Reference:</strong><br>
+        • Passive Perception ≥ creature's Stealth → they spot the creature automatically<br>
+        • Passive Investigation ≥ hidden object DC → they notice without rolling<br>
+        • Passive Insight ≥ creature's Deception → they sense something is off
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+// Toolbar button
+(function() {
+  const inject = () => {
+    if (document.getElementById('i226PassiveBtn')) return;
+    const tb = document.querySelector('.toolbar-buttons') || document.querySelector('#toolbar') || document.querySelector('.toolbar');
+    if (!tb) return;
+    const btn = document.createElement('button');
+    btn.id = 'i226PassiveBtn';
+    btn.innerHTML = '👁 Passive';
+    btn.title = 'Passive Perception/Investigation/Insight for all characters';
+    btn.style.cssText = 'background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.3);color:#c9a227;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;font-family:"Inter",sans-serif';
+    btn.onclick = () => openPassivePanel();
+    tb.appendChild(btn);
+  };
+  if (document.readyState === 'complete') inject();
+  else window.addEventListener('load', inject);
+})();
+
+// Keyboard shortcut Ctrl+P
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+    // Don't override print in non-DM context, but open passive panel
+    const modal = document.querySelector('.modal-overlay, .char-modal');
+    if (!modal) { e.preventDefault(); openPassivePanel(); }
+  }
+});
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
