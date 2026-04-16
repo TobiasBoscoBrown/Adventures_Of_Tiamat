@@ -38614,6 +38614,139 @@ window._i250SetAll = function(enabled) {
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Iter 255: Trinket & Curiosity Generator
+// Roll a random trinket, oddity, or minor magical curiosity for improv rewards.
+// 60 trinkets grouped by theme. Give to a character or add to notes.
+(function() {
+  const TRINKETS = [
+    // Mundane oddities
+    "A tiny glass eye that always seems to be watching you","A copper coin with a face you don't recognize",
+    "A folded note that reads 'Whatever you do, don't open it'","A smooth stone that is always cold to the touch",
+    "A brass button stamped with a rearing horse","A single black feather that never loses its sheen",
+    "A vial of swirling silver dust that never settles","A wooden token with a wolf carved on one side and a moon on the other",
+    "A bent skeleton key that doesn't fit any lock you've found","A stub of black candle — when lit, the flame burns blue",
+    "A doll's head with glass eyes and no body","A jar of teeth (human, probably)",
+    "A leather pouch containing a single dragon scale","A tiny hourglass — the sand moves upward",
+    "A folded map of a city that doesn't exist","A cracked monocle that makes distant things look closer",
+    // Minor magical
+    "A ring that turns your fingernail purple when worn","A coin that always lands heads",
+    "A handkerchief that cleans itself when folded neatly","A stone that hums faintly when held in your left hand",
+    "A mirror shard that shows your reflection slightly younger","A quill that writes in a second language you don't know",
+    "A thimble full of moonwater — it tastes of silver","A locket with a miniature portrait that changes face each morning",
+    "A compass that always points toward the nearest graveyard","A candle stub that lights itself at dusk and extinguishes at dawn",
+    "A glass marble with a tiny ship inside that rocks in real storms","A braided bracelet that warms when someone tells a lie nearby",
+    // Arcane curiosities
+    "A jar of purple smoke that won't escape when opened","A scroll sealed with wax — breaks open to reveal a blank page",
+    "A dried imp's foot, said to bring luck (smells awful)","A small crystal that projects starlight patterns on ceilings",
+    "A book of only blank pages, except on the last page: 'Found you'","A compass that points toward the nearest magical aura",
+    "A ceramic tile that shows a different scene each time you look","A length of rope that unties any knot by itself",
+    "A tooth from something very large — still radiates cold","A vial of 'dragon's tears' (probably just salt water, but maybe not)",
+    // From the world of Tiamat
+    "A cracked pendant bearing the sigil of the Midnight Court","A dried flower from the grove of the Verdant Oracle",
+    "A broken seal ring engraved with a black serpent","A coin stamped with Queen Ishara's young face",
+    "A note in flowing Elvish that reads: 'They are watching the harbors'","A shard of obsidian polished like a mirror",
+    "A torn page from a book about the Five Chromatic Aspects","A copper bracelet with tiny dragon heads biting each other's tails",
+    // Whimsical
+    "A tiny stuffed owlbear with one button eye missing","An empty perfume bottle that still smells of pine and lightning",
+    "A child's drawing of a dragon labeled 'not scary'","A pocket-sized book of terrible poetry",
+    "A sock — just one sock, very fine silk, initialed K.V.","A glass marble that giggles quietly if you roll it downhill",
+    "A fake moustache made of real hair","A recipe for 'grandmother's stew' that calls for moonflower",
+    // Suspicious
+    "A finger bone with a ring still attached — the ring is too small to remove","A half-burned letter mentioning a name you've heard before",
+    "A vial of liquid that smells of nothing — totally nothing","An iron key wrapped in black cloth with a warning: 'do not use at night'",
+  ];
+
+  function _i255Roll() {
+    return TRINKETS[Math.floor(Math.random() * TRINKETS.length)];
+  }
+
+  function _i255InjectBtn() {
+    if (document.getElementById('i255TrinketBtn')) return;
+    const ref = document.getElementById('i254TerrainBtn') || document.getElementById('passivesBtn');
+    if (!ref) return;
+    const btn = document.createElement('button');
+    btn.id = 'i255TrinketBtn';
+    btn.className = 'encounter-open-btn';
+    btn.textContent = '🎲 Trinket';
+    btn.title = 'Random Trinket & Curiosity Generator — improv rewards';
+    btn.style.cssText = 'border-color:#c9a227;color:#c9a227';
+    btn.onclick = () => _i255OpenPanel();
+    ref.insertAdjacentElement('afterend', btn);
+  }
+  document.addEventListener('DOMContentLoaded', _i255InjectBtn);
+  setTimeout(_i255InjectBtn, 2000);
+
+  let _i255Current = null;
+
+  window._i255OpenPanel = function() {
+    const ex = document.getElementById('i255Panel');
+    if (ex && _i255Current) { ex.remove(); return; }
+    if (ex) ex.remove();
+    if (!_i255Current) _i255Current = _i255Roll();
+    _i255Render();
+  };
+
+  function _i255Render() {
+    const ex = document.getElementById('i255Panel');
+    if (ex) ex.remove();
+    const t = _i255Current;
+    const chars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+    const charOpts = chars.map(c => `<option value="${escHtml(c.name)}">${escHtml(c.name)}</option>`).join('');
+
+    const ov = document.createElement('div');
+    ov.id = 'i255Panel';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9700;display:flex;align-items:center;justify-content:center';
+    ov.innerHTML = `
+      <div style="background:#0a0a1e;border:1px solid rgba(201,162,39,.35);border-radius:12px;padding:22px;width:min(420px,96vw);font-family:'Inter',sans-serif">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <span style="font-family:'Cinzel',serif;color:#c9a227;font-weight:700;font-size:15px">🎲 Trinket & Curiosity</span>
+          <button onclick="document.getElementById('i255Panel').remove();_i255Current=null" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+        </div>
+        <div style="background:rgba(201,162,39,.06);border:1px solid rgba(201,162,39,.2);border-radius:10px;padding:16px;margin-bottom:16px;min-height:60px;display:flex;align-items:center;justify-content:center;text-align:center">
+          <span style="font-size:14px;color:#e8d080;line-height:1.5;font-style:italic">"${escHtml(t)}"</span>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <button onclick="_i255ReRoll()" style="flex:1;background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.3);color:#c9a227;border-radius:7px;padding:8px;cursor:pointer;font-size:12px">🎲 Reroll</button>
+          <button onclick="_i255AddToLog()" style="flex:1;background:rgba(68,136,255,.06);border:1px solid rgba(68,136,255,.2);color:#4488ff;border-radius:7px;padding:8px;cursor:pointer;font-size:12px">📝 Log It</button>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <select id="i255CharSelect" style="flex:1;background:#06061a;border:1px solid #1e2040;color:#c0c0e0;border-radius:6px;padding:5px 7px;font-size:11px">${charOpts}</select>
+          <button onclick="_i255GiveTo()" style="background:rgba(68,204,136,.06);border:1px solid rgba(68,204,136,.2);color:#44cc88;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px">🎁 Give To</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener('click', e => { if (e.target === ov) { ov.remove(); _i255Current = null; } });
+  }
+
+  window._i255ReRoll = function() {
+    _i255Current = _i255Roll();
+    _i255Render();
+  };
+
+  window._i255AddToLog = function() {
+    if (typeof logEntry === 'function') logEntry('info', `🎲 Trinket found: "${escHtml(_i255Current)}"`);
+    if (typeof showToast === 'function') showToast('Trinket added to session log');
+  };
+
+  window._i255GiveTo = function() {
+    const sel = document.getElementById('i255CharSelect');
+    if (!sel || !_i255Current) return;
+    const charName = sel.value;
+    // Try to add to inventory
+    const invKey = `tiamat_inv_${charName}`;
+    try {
+      const inv = JSON.parse(localStorage.getItem(invKey) || '[]');
+      inv.push({ name: _i255Current, qty: 1, wt: 0, type: 'trinket' });
+      localStorage.setItem(invKey, JSON.stringify(inv));
+    } catch {}
+    if (typeof logEntry === 'function') logEntry('info', `🎁 Gave trinket to ${escHtml(charName)}: "${escHtml(_i255Current)}"`);
+    if (typeof showToast === 'function') showToast(`Trinket given to ${charName}`);
+    document.getElementById('i255Panel')?.remove();
+    _i255Current = null;
+  };
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Iter 254: Terrain & Environment Effects Panel
 // Track active terrain features in a combat encounter (difficult terrain zones,
 // environmental hazards, magical areas). Each feature has a label, effect description,
