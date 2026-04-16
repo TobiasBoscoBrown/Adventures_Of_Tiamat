@@ -33624,6 +33624,207 @@ function _i217LegendaryRow() {
   bar.innerHTML += h;
 }
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 218: Timed Effect Duration Tracker
+// Add effects with round countdowns to any combatant; auto-expire when rounds hit 0
+// Visible in active turn bar and initiative list; toast/log alert on expiry
+
+const _i218EffKey = 'tiamat_timed_effects';
+function _i218LoadEffects() {
+  try { return JSON.parse(localStorage.getItem(_i218EffKey) || '{}'); } catch(e) { return {}; }
+}
+function _i218SaveEffects(d) {
+  try { localStorage.setItem(_i218EffKey, JSON.stringify(d)); } catch(e) {}
+}
+function _i218GetEffects(charName) {
+  const d = _i218LoadEffects();
+  return d[charName] || [];
+}
+function _i218SetEffects(charName, list) {
+  const d = _i218LoadEffects();
+  d[charName] = list;
+  _i218SaveEffects(d);
+}
+
+const _i218PRESETS = [
+  {name:'Blinded',rounds:10,color:'#888'},
+  {name:'Charmed',rounds:10,color:'#ff77dd'},
+  {name:'Frightened',rounds:10,color:'#cc3333'},
+  {name:'Grappled',rounds:10,color:'#cc8844'},
+  {name:'Held',rounds:10,color:'#9b6dff'},
+  {name:'Poisoned',rounds:10,color:'#44cc88'},
+  {name:'Restrained',rounds:10,color:'#cc8844'},
+  {name:'Stunned',rounds:3,color:'#66aaff'},
+  {name:'Web',rounds:10,color:'#aaa'},
+  {name:'Hunter\'s Mark',rounds:600,color:'#cc3333'},
+  {name:'Hex',rounds:600,color:'#9b6dff'},
+  {name:'Bless',rounds:10,color:'#ffcc44'},
+  {name:'Bane',rounds:10,color:'#884422'},
+  {name:'Haste',rounds:10,color:'#44ddff'},
+  {name:'Slow',rounds:10,color:'#4466aa'},
+];
+
+function _i218AddEffect(charName, name, rounds, color) {
+  const effects = _i218GetEffects(charName);
+  // Replace if same name exists
+  const idx = effects.findIndex(e => e.name === name);
+  const eff = {name, rounds, color: color || '#c9a227', addedRound: _i218CurrentRound()};
+  if (idx >= 0) effects[idx] = eff; else effects.push(eff);
+  _i218SetEffects(charName, effects);
+  if (typeof showToast === 'function') showToast(`${name} added to ${charName} (${rounds} rounds)`, color || '#c9a227', 2000);
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+}
+
+function _i218RemoveEffect(charName, name, event) {
+  if (event) event.stopPropagation();
+  const effects = _i218GetEffects(charName).filter(e => e.name !== name);
+  _i218SetEffects(charName, effects);
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+}
+
+function _i218TickEffects(charName) {
+  // Tick all effects down 1 round for this character; remove expired; log/toast expired ones
+  const effects = _i218GetEffects(charName);
+  const remaining = [];
+  const expired = [];
+  for (const e of effects) {
+    if (e.rounds <= 1) { expired.push(e); }
+    else { remaining.push({...e, rounds: e.rounds - 1}); }
+  }
+  _i218SetEffects(charName, remaining);
+  for (const e of expired) {
+    if (typeof showToast === 'function') showToast(`⌛ ${e.name} expired on ${charName}!`, e.color || '#c9a227', 3500);
+    if (typeof logEntry === 'function') logEntry('system', `⌛ <strong>${escHtml(e.name)}</strong> expired on <strong>${escHtml(charName)}</strong>`);
+  }
+  return expired.length;
+}
+
+function _i218CurrentRound() {
+  // Try to get current round from initiative state
+  try { return parseInt(localStorage.getItem('tiamat_combat_round') || '1'); } catch(e) { return 1; }
+}
+
+function _i218OpenAdder(charName, event) {
+  if (event) event.stopPropagation();
+  const ex = document.getElementById('i218AdderOverlay');
+  if (ex) { ex.remove(); return; }
+
+  const ov = document.createElement('div');
+  ov.id = 'i218AdderOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9400;display:flex;align-items:center;justify-content:center';
+
+  const currentEffects = _i218GetEffects(charName);
+  const effectPills = currentEffects.map(e =>
+    `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(0,0,0,.3);border:1px solid ${e.color};border-radius:12px;padding:3px 8px;font-size:10px;color:${e.color}">
+      ${escHtml(e.name)} <strong>${e.rounds}r</strong>
+      <span onclick="_i218RemoveEffect('${charName.replace(/'/g,"\\'")}','${e.name.replace(/'/g,"\\'")}',event)" style="cursor:pointer;color:#cc3333;margin-left:2px;font-size:11px">×</span>
+    </span>`
+  ).join(' ');
+
+  const presetBtns = _i218PRESETS.map(p =>
+    `<button onclick="_i218AddPreset('${charName.replace(/'/g,"\\'")}','${p.name.replace(/'/g,"\\'")}',${p.rounds},'${p.color}')" style="background:rgba(0,0,0,.3);border:1px solid ${p.color};color:${p.color};border-radius:5px;padding:4px 8px;cursor:pointer;font-size:11px">${p.name} (${p.rounds}r)</button>`
+  ).join('');
+
+  ov.innerHTML = `
+    <div style="background:#0a0a1e;border:1px solid rgba(201,162,39,.4);border-radius:12px;padding:18px;width:min(480px,95vw);max-height:85vh;overflow-y:auto;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <span style="font-family:'Cinzel',serif;color:#c9a227;font-weight:700">⌛ Timed Effects — ${escHtml(charName)}</span>
+        <button onclick="document.getElementById('i218AdderOverlay').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+      </div>
+      ${currentEffects.length ? `<div style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:5px">${effectPills}</div>` : `<div style="font-size:11px;color:#4a5272;margin-bottom:12px">No active timed effects.</div>`}
+      <div style="margin-bottom:10px">
+        <div style="font-size:10px;color:#4a5272;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Quick Presets</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px">${presetBtns}</div>
+      </div>
+      <div style="border-top:1px solid #1e2040;padding-top:10px;margin-top:4px">
+        <div style="font-size:10px;color:#4a5272;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Custom Effect</div>
+        <div style="display:flex;gap:6px">
+          <input id="i218CustomName" placeholder="Effect name" style="flex:2;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:5px;padding:5px 8px;font-size:12px;outline:none">
+          <input id="i218CustomRounds" type="number" min="1" value="10" placeholder="Rounds" style="width:70px;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:5px;padding:5px;font-size:12px;text-align:center;outline:none">
+          <button onclick="_i218AddCustom('${charName.replace(/'/g,"\\'")}',event)" style="background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.5);color:#c9a227;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px">+ Add</button>
+        </div>
+      </div>
+      <div style="border-top:1px solid #1e2040;padding-top:10px;margin-top:10px">
+        <button onclick="_i218TickAll(event)" style="background:rgba(68,204,136,.08);border:1px solid rgba(68,204,136,.3);color:#44cc88;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:12px;width:100%">⏩ Tick All Effects (End of Turn)</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+
+  // Store charName for tick-all
+  ov._charName = charName;
+}
+
+window._i218AddPreset = function(charName, name, rounds, color) {
+  _i218AddEffect(charName, name, rounds, color);
+  document.getElementById('i218AdderOverlay')?.remove();
+  _i218OpenAdder(charName, null);
+};
+
+window._i218AddCustom = function(charName, event) {
+  if (event) event.stopPropagation();
+  const name = document.getElementById('i218CustomName')?.value?.trim();
+  const rounds = parseInt(document.getElementById('i218CustomRounds')?.value) || 10;
+  if (!name) return;
+  _i218AddEffect(charName, name, rounds, '#c9a227');
+  document.getElementById('i218AdderOverlay')?.remove();
+  _i218OpenAdder(charName, null);
+};
+
+window._i218TickAll = function(event) {
+  if (event) event.stopPropagation();
+  const ov = document.getElementById('i218AdderOverlay');
+  const charName = ov?._charName;
+  if (!charName) return;
+  const expired = _i218TickEffects(charName);
+  document.getElementById('i218AdderOverlay')?.remove();
+  if (expired === 0 && typeof showToast === 'function') showToast('Effects ticked — none expired', '#44cc88', 1500);
+  _i218OpenAdder(charName, null);
+};
+
+(function() {
+  const _origRATB = renderActiveTurnBar;
+  renderActiveTurnBar = function() {
+    _origRATB();
+    _i218EffectRow();
+  };
+})();
+
+function _i218EffectRow() {
+  const bar = document.getElementById('activeTurnBar');
+  if (!bar) return;
+  const il = (typeof initiativeList !== 'undefined') ? initiativeList : [];
+  const idx = (typeof currentTurnIdx !== 'undefined') ? currentTurnIdx : 0;
+  const combatant = il[idx];
+  if (!combatant) return;
+  const charName = combatant.name || combatant.charName;
+  if (!charName) return;
+
+  const effects = _i218GetEffects(charName);
+
+  const pills = effects.map(e => {
+    const warn = e.rounds <= 2;
+    return `<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(0,0,0,.3);border:1px solid ${e.color};border-radius:10px;padding:2px 7px;font-size:10px;color:${e.color};${warn?'animation:pulse 1s infinite':''}">
+      ⌛ ${escHtml(e.name)} <strong>${e.rounds}r</strong>
+      <span onclick="_i218RemoveEffect('${charName.replace(/'/g,"\\'")}','${e.name.replace(/'/g,"\\'")}',event)" style="cursor:pointer;color:#cc3333;margin-left:1px;font-size:10px">×</span>
+    </span>`;
+  }).join(' ');
+
+  const h = `<div style="background:rgba(20,20,40,.4);border:1px solid rgba(201,162,39,.2);border-radius:7px;padding:5px 10px;margin:3px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <span style="font-family:'Cinzel',serif;color:#c9a227;font-size:9px;font-weight:700;letter-spacing:.5px;white-space:nowrap">⌛ EFFECTS</span>
+    <div style="flex:1;display:flex;gap:5px;flex-wrap:wrap">${pills || '<span style="font-size:10px;color:#4a5272">none active</span>'}</div>
+    <button onclick="_i218OpenAdder('${charName.replace(/'/g,"\\'")}',event)" style="background:rgba(201,162,39,.1);border:1px solid rgba(201,162,39,.35);color:#c9a227;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:10px;white-space:nowrap">+ Effect</button>
+    ${effects.length ? `<button onclick="_i218TickAndRefresh('${charName.replace(/'/g,"\\'")}',event)" style="background:rgba(68,204,136,.08);border:1px solid rgba(68,204,136,.25);color:#44cc88;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:10px;white-space:nowrap">⏩ Tick</button>` : ''}
+  </div>`;
+  bar.innerHTML += h;
+}
+
+window._i218TickAndRefresh = function(charName, event) {
+  if (event) event.stopPropagation();
+  _i218TickEffects(charName);
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+};
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
