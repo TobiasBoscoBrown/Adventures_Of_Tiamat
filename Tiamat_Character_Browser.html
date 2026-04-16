@@ -6190,7 +6190,22 @@ function buildStatsPanel(c) {
         </span>
         <span class="stat-chip" onclick="i272OpenAcPopup(${JSON.stringify(c.name)},${JSON.stringify(c.ac)},${JSON.stringify(dex.mod)},event)" title="Click to view AC breakdown" style="cursor:pointer" onmouseover="this.style.background='rgba(68,136,255,.1)'" onmouseout="this.style.background=''"><strong>AC</strong> ${(() => { const bonus = typeof i272GetAcBonus === 'function' ? i272GetAcBonus(c.name) : 0; return bonus !== 0 ? '<span style="color:#4488ff">' + (parseInt(c.ac)+bonus) + '</span><span style="font-size:9px;color:#4a5272"> ('+c.ac+(bonus>0?'+'+bonus:bonus)+')</span>' : c.ac; })()}</span>
         <span class="stat-chip" onclick="i275OpenProfEdit(${JSON.stringify(c.name)},${_crProf},event)" style="cursor:pointer" title="Click to override proficiency bonus (set character level)" onmouseover="this.style.background='rgba(155,109,255,.1)'" onmouseout="this.style.background=''"><strong>Prof</strong> +${prof}${typeof i275GetOverride === 'function' && i275GetOverride(c.name) ? '<span style="font-size:9px;color:#9b6dff;margin-left:2px">✎</span>' : ''}</span>
-        <span class="stat-chip"><strong>Passive Perc</strong> ${passivePerc}</span>
+        ${(() => {
+          // Compute all three passive skills for Iter 279
+          const percProf = highlightedAbs.has('WIS');
+          const invProf = highlightedAbs.has('INT') || inferSkillProf('Investigation');
+          const insProf = highlightedAbs.has('WIS') || inferSkillProf('Insight');
+          const wisMod = parseInt(wis.mod) || 0;
+          const intMod = parseInt(int_.mod) || 0;
+          const pp = 10 + wisMod + (percProf ? prof : 0);
+          const pi = 10 + intMod + (invProf ? prof : 0);
+          const pa = 10 + wisMod + (insProf ? prof : 0);
+          return '<span class="stat-chip" title="Passive Perception: ' + pp + ' · Passive Investigation: ' + pi + ' · Passive Insight: ' + pa + '">'
+            + '<strong>PP</strong> ' + pp
+            + '<span style="color:#4a5272;margin:0 3px">·</span><strong style="color:#4488ff">PI</strong> <span style="color:#4488ff">' + pi + '</span>'
+            + '<span style="color:#4a5272;margin:0 3px">·</span><strong style="color:#44cc88">Pa</strong> <span style="color:#44cc88">' + pa + '</span>'
+            + '</span>';
+        })()}
         ${(() => {
           const speeds = c.speeds || inferSpeed(c);
           const walk = speeds.find(s => s.label === 'Walk');
