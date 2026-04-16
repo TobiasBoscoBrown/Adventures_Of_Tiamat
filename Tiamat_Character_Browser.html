@@ -38614,6 +38614,163 @@ window._i250SetAll = function(enabled) {
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Iter 263: Condition Immunity Reference & Auto-Detection
+// Auto-detects condition immunities from character traits/lore (undead, constructs, etc).
+// Shows immunity badges in the condition picker so DMs know which conditions won't apply.
+// Also adds a standalone reference for all creature type immunities.
+(function() {
+  // Condition immunity rules by creature type keyword
+  const TYPE_IMMUNITIES = {
+    'undead':       ['Poisoned','Exhaustion','Frightened'],
+    'construct':    ['Charmed','Exhaustion','Frightened','Poisoned'],
+    'elemental':    ['Poisoned','Exhaustion'],
+    'ooze':         ['Blinded','Charmed','Deafened','Exhaustion','Frightened','Prone'],
+    'plant':        ['Blinded','Deafened','Frightened'],
+    'swarm':        ['Charmed','Frightened','Grappled','Paralyzed','Petrified','Prone','Restrained','Stunned'],
+    'lycanthrope':  ['Bludgeoning/Piercing/Slashing (nonmagical, non-silver)'],
+    'dragon':       ['Frightened'],
+    'devil':        ['Poisoned','Fire'],
+    'demon':        ['Poisoned'],
+    'celestial':    ['Exhaustion'],
+    'vampire':      ['Poisoned','Exhaustion'],
+    'lich':         ['Poisoned','Frightened','Exhaustion'],
+    'specter':      ['Grappled','Prone','Restrained'],
+    'ghost':        ['Charmed','Exhaustion','Frightened','Grappled','Paralyzed','Petrified','Prone','Restrained','Stunned'],
+    'golem':        ['Charmed','Exhaustion','Frightened','Paralyzed','Petrified','Poisoned'],
+  };
+
+  // Immunity keywords in traits/lore
+  const TRAIT_IMMUNITY_PATTERNS = [
+    { pattern: /immune.*poisoned|immunity.*poison(?:ed)?/i,  conds: ['Poisoned'] },
+    { pattern: /immune.*charmed|immunity.*charm/i,           conds: ['Charmed'] },
+    { pattern: /immune.*frightened|immunity.*fright/i,       conds: ['Frightened'] },
+    { pattern: /immune.*exhaustion/i,                        conds: ['Exhaustion'] },
+    { pattern: /immune.*paralyzed|immunity.*paralyz/i,       conds: ['Paralyzed'] },
+    { pattern: /immune.*petrified|immunity.*petri/i,         conds: ['Petrified'] },
+    { pattern: /immune.*blinded|immunity.*blind/i,           conds: ['Blinded'] },
+    { pattern: /immune.*deafened|immunity.*deaf/i,           conds: ['Deafened'] },
+    { pattern: /immune.*stunned|immunity.*stun/i,            conds: ['Stunned'] },
+    { pattern: /immune.*prone|immunity.*prone/i,             conds: ['Prone'] },
+    { pattern: /immune.*restrained|immunity.*restrain/i,     conds: ['Restrained'] },
+    { pattern: /immune.*grappled|immunity.*grapple/i,        conds: ['Grappled'] },
+    { pattern: /immune.*incapacitated|immunity.*incapacitat/i, conds: ['Incapacitated'] },
+  ];
+
+  function _i263GetImmunities(c) {
+    const immunities = new Set();
+    const allText = ([...( c.traits || []), c.lore || '', c.title || '', c.subtitle || '']).join(' ').toLowerCase();
+
+    // Check creature type
+    Object.entries(TYPE_IMMUNITIES).forEach(([type, conds]) => {
+      if (allText.includes(type)) conds.forEach(cn => immunities.add(cn));
+    });
+
+    // Check explicit immunity mentions in traits
+    const traitText = (c.traits || []).join(' ');
+    TRAIT_IMMUNITY_PATTERNS.forEach(({ pattern, conds }) => {
+      if (pattern.test(traitText)) conds.forEach(cn => immunities.add(cn));
+    });
+
+    return [...immunities];
+  }
+
+  // Expose globally
+  window._i263GetImmunities = _i263GetImmunities;
+
+  // Inject into condition badge area — show immunity warnings
+  // This works by observing when condition panels are opened
+  const _origOpenConditions = typeof openConditions !== 'undefined' ? openConditions : null;
+  if (_origOpenConditions) {
+    window.openConditions = function(charName) {
+      _origOpenConditions.apply(this, arguments);
+      setTimeout(() => _i263InjectImmunityWarnings(charName), 100);
+    };
+  }
+
+  function _i263InjectImmunityWarnings(charName) {
+    const chars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+    const c = chars.find(x => x.name === charName);
+    if (!c) return;
+    const immunities = _i263GetImmunities(c);
+    if (!immunities.length) return;
+
+    // Find condition picker panel
+    const picker = document.querySelector('.condition-picker, [id*="condPicker"], [id*="condPanel"]');
+    if (!picker) return;
+    if (picker.querySelector('.i263ImmunityNote')) return;
+    const div = document.createElement('div');
+    div.className = 'i263ImmunityNote';
+    div.style.cssText = 'padding:4px 8px;background:rgba(100,100,150,.08);border:1px solid rgba(100,100,150,.2);border-radius:5px;margin-top:6px;font-size:9px;color:#5a5a8a';
+    div.innerHTML = `🛡 <strong style="color:#7a7acc">Likely immune:</strong> ${immunities.map(c => `<span style="color:#cc4444;text-decoration:line-through">${c}</span>`).join(', ')}`;
+    picker.appendChild(div);
+  }
+
+  // Standalone reference panel
+  function _i263InjectBtn() {
+    if (document.getElementById('i263ImmBtn')) return;
+    const ref = document.getElementById('i262TagFilterBtn') || document.getElementById('passivesBtn');
+    if (!ref) return;
+    const btn = document.createElement('button');
+    btn.id = 'i263ImmBtn';
+    btn.className = 'encounter-open-btn';
+    btn.textContent = '🛡 Immunities';
+    btn.title = 'Condition Immunity Reference — see which creatures are immune to which conditions';
+    btn.style.cssText = 'border-color:#44aadd;color:#44aadd';
+    btn.onclick = () => _i263OpenPanel();
+    ref.insertAdjacentElement('afterend', btn);
+  }
+  document.addEventListener('DOMContentLoaded', _i263InjectBtn);
+  setTimeout(_i263InjectBtn, 3200);
+
+  window._i263OpenPanel = function() {
+    const ex = document.getElementById('i263ImmPanel');
+    if (ex) { ex.remove(); return; }
+
+    const chars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+    // Build per-character immunity rows for chars with immunities
+    const rows = chars.map(c => {
+      const imm = _i263GetImmunities(c);
+      if (!imm.length) return null;
+      return `<tr style="border-bottom:1px solid #1a1a2e">
+        <td style="padding:5px 8px;font-size:11px;color:#c0c0e0;font-weight:600">${escHtml(c.name)}</td>
+        <td style="padding:5px 8px;font-size:10px">${imm.map(i => `<span style="color:#cc5555;text-decoration:line-through;margin-right:4px">${i}</span>`).join('')}</td>
+      </tr>`;
+    }).filter(Boolean);
+
+    const typeRef = Object.entries(TYPE_IMMUNITIES).map(([type, conds]) =>
+      `<tr style="border-bottom:1px solid #1a1a2e">
+        <td style="padding:4px 8px;font-size:10px;color:#c9a227;text-transform:capitalize;font-weight:600">${type}</td>
+        <td style="padding:4px 8px;font-size:10px;color:#cc5555">${conds.join(', ')}</td>
+      </tr>`
+    ).join('');
+
+    const ov = document.createElement('div');
+    ov.id = 'i263ImmPanel';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9700;display:flex;align-items:center;justify-content:center';
+    ov.innerHTML = `
+      <div style="background:#0a0a1e;border:1px solid rgba(68,170,221,.35);border-radius:12px;padding:18px;width:min(500px,96vw);max-height:90vh;overflow-y:auto;font-family:'Inter',sans-serif">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <span style="font-family:'Cinzel',serif;color:#44aadd;font-weight:700;font-size:15px">🛡 Condition Immunities</span>
+          <button onclick="document.getElementById('i263ImmPanel').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+        </div>
+        ${rows.length ? `<div style="font-size:11px;color:#5a6a8a;margin-bottom:6px">Characters with detected immunities (from traits/type):</div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:14px">
+          <tr><th style="padding:4px 8px;font-size:10px;color:#3a4a6a;text-align:left">Character</th><th style="font-size:10px;color:#3a4a6a;text-align:left;padding:4px 8px">Immune To</th></tr>
+          ${rows.join('')}
+        </table>` : `<div style="color:#3a3a60;font-size:11px;margin-bottom:12px">No immunities detected in current character data. Immunities are inferred from creature type keywords in traits.</div>`}
+        <div style="font-size:11px;color:#5a6a8a;margin-bottom:6px">Standard Condition Immunities by Creature Type:</div>
+        <table style="width:100%;border-collapse:collapse;font-size:10px">
+          <tr><th style="padding:4px 8px;font-size:10px;color:#3a4a6a;text-align:left">Type</th><th style="font-size:10px;color:#3a4a6a;text-align:left;padding:4px 8px">Standard Immunities</th></tr>
+          ${typeRef}
+        </table>
+        <div style="font-size:9px;color:#2a2a40;margin-top:8px">Immunities are inferred from traits and lore text. Always verify against official stat block.</div>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  };
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Iter 262: Character Tag System
 // Add custom DM tags to any character (e.g. "quest giver", "enemy", "dead", "captured").
 // Tags appear as colored badges on character cards and in the modal.
