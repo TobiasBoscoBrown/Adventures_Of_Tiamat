@@ -34532,6 +34532,187 @@ function _i223TempHpRow() {
   </div>`;
 }
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 224: Hit Dice Manager — short rest healing
+// Track hit dice remaining per character; spend them to heal; long rest recovers half
+// Accessible via toolbar button and character modal
+
+const _i224HdKey = 'tiamat_hit_dice';
+
+// Class → hit die mapping
+const _i224ClassDie = {
+  barbarian: 12, fighter: 10, paladin: 10, ranger: 10, 'blood hunter': 10,
+  monk: 8, rogue: 8, bard: 8, cleric: 8, druid: 8, warlock: 8,
+  wizard: 6, sorcerer: 6, artificer: 8, 'arcane trickster': 8,
+};
+
+function _i224GetHitDie(char) {
+  if (!char) return 8;
+  const title = (char.title || '').toLowerCase();
+  for (const [cls, die] of Object.entries(_i224ClassDie)) {
+    if (title.includes(cls)) return die;
+  }
+  return 8;
+}
+
+function _i224GetLevel(char) {
+  if (!char) return 1;
+  // Try to get level from XP tracker or title
+  try {
+    const xpData = JSON.parse(localStorage.getItem('tiamat_xp_tracker') || '{}');
+    if (xpData[char.name]?.level) return parseInt(xpData[char.name].level) || 1;
+  } catch(e) {}
+  const crVal = parseInt(char.cr || 0);
+  if (crVal > 0) return crVal; // Use CR as rough level for monsters
+  return 5; // Default
+}
+
+function _i224GetHdState(charName) {
+  try {
+    const d = JSON.parse(localStorage.getItem(_i224HdKey) || '{}');
+    return d[charName] || null;
+  } catch(e) { return null; }
+}
+
+function _i224SetHdState(charName, state) {
+  try {
+    const d = JSON.parse(localStorage.getItem(_i224HdKey) || '{}');
+    d[charName] = state;
+    localStorage.setItem(_i224HdKey, JSON.stringify(d));
+  } catch(e) {}
+}
+
+function _i224InitHd(char) {
+  const existing = _i224GetHdState(char.name);
+  if (existing) return existing;
+  const level = _i224GetLevel(char);
+  const die = _i224GetHitDie(char);
+  const state = { die, max: level, remaining: level };
+  _i224SetHdState(char.name, state);
+  return state;
+}
+
+function _i224SpendHd(charName, count, event) {
+  if (event) event.stopPropagation();
+  const char = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS.find(c => c.name === charName) : null;
+  const state = char ? _i224InitHd(char) : _i224GetHdState(charName);
+  if (!state) return;
+  if (state.remaining < count) {
+    if (typeof showToast === 'function') showToast(`Not enough hit dice! (${state.remaining} remaining)`, '#cc3333', 2000);
+    return;
+  }
+
+  // Roll count × die + CON mod
+  let conMod = 0;
+  if (char?.abilities) {
+    const con = char.abilities.find(a => a[0] === 'CON' || a[0] === 'Constitution');
+    if (con) conMod = con[2] ? parseInt(con[2]) : Math.floor((con[1] - 10) / 2);
+  }
+
+  let totalHeal = 0;
+  const rolls = [];
+  for (let i = 0; i < count; i++) {
+    const r = Math.floor(Math.random() * state.die) + 1;
+    rolls.push(r);
+    totalHeal += r + conMod;
+  }
+  totalHeal = Math.max(1, totalHeal);
+  state.remaining -= count;
+  _i224SetHdState(charName, state);
+
+  // Heal the character
+  if (typeof getCharHP === 'function' && typeof saveHp === 'function') {
+    const currentHp = getCharHP(charName);
+    const maxHp = (typeof hpState !== 'undefined' && hpState[charName]) ? (hpState[charName].max || parseInt(char?.hp || 0)) : parseInt(char?.hp || 0);
+    const newHp = Math.min(currentHp + totalHeal, maxHp);
+    saveHp(charName, newHp);
+    if (typeof renderGrid === 'function') renderGrid();
+    if (typeof renderInitiative === 'function') renderInitiative();
+  }
+
+  const rollStr = rolls.map(r => `d${state.die}(${r})`).join('+');
+  const modStr = conMod !== 0 ? `+${conMod}×${count}` : '';
+  if (typeof logEntry === 'function') logEntry('heal', `❤️ <strong>${escHtml(charName)}</strong> spent ${count}d${state.die}: [${rollStr}]${modStr} = <strong>+${totalHeal} HP</strong> (${state.remaining}/${state.max} HD left)`);
+  if (typeof showToast === 'function') showToast(`${charName} healed +${totalHeal} HP (${count}d${state.die})`, '#44cc88', 2500);
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+}
+
+function _i224LongRest(charName, event) {
+  if (event) event.stopPropagation();
+  const char = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS.find(c => c.name === charName) : null;
+  const state = char ? _i224InitHd(char) : _i224GetHdState(charName);
+  if (!state) return;
+  const recovery = Math.max(1, Math.floor(state.max / 2));
+  state.remaining = Math.min(state.max, state.remaining + recovery);
+  _i224SetHdState(charName, state);
+  if (typeof showToast === 'function') showToast(`${charName}: Long Rest — recovered ${recovery} HD (${state.remaining}/${state.max})`, '#44cc88', 2500);
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+}
+
+// Short Rest panel for all party members
+function openShortRestPanel() {
+  const ex = document.getElementById('i224ShortRestPanel');
+  if (ex) { ex.remove(); return; }
+  const chars = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS : [];
+
+  const rows = chars.slice(0, 50).map(c => {
+    const state = _i224InitHd(c);
+    const pips = Array.from({length: state.max}, (_, i) =>
+      `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${i < state.remaining ? '#44cc88' : 'rgba(68,204,136,.12)'};border:1px solid rgba(68,204,136,.4);margin:0 1px" title="${i < state.remaining ? 'Available' : 'Spent'}"></span>`
+    ).join('');
+    return `<tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+      <td style="padding:5px 8px;font-size:11px;color:#c0c0e0">${escHtml(c.name)}</td>
+      <td style="padding:5px 8px;text-align:center;font-size:10px;color:#44cc88">${state.remaining}/${state.max} d${state.die}</td>
+      <td style="padding:5px 8px">${pips}</td>
+      <td style="padding:5px 8px">
+        <button onclick="_i224SpendHd('${c.name.replace(/'/g,"\\'")}',1,event)" style="background:rgba(68,204,136,.1);border:1px solid rgba(68,204,136,.3);color:#44cc88;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:10px" ${state.remaining < 1 ? 'disabled' : ''}>Roll 1</button>
+        <button onclick="_i224SpendHd('${c.name.replace(/'/g,"\\'")}',2,event)" style="background:rgba(68,204,136,.1);border:1px solid rgba(68,204,136,.3);color:#44cc88;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:10px" ${state.remaining < 2 ? 'disabled' : ''}>Roll 2</button>
+        <button onclick="_i224LongRest('${c.name.replace(/'/g,"\\'")}',event)" style="background:rgba(201,162,39,.06);border:1px solid rgba(201,162,39,.2);color:rgba(201,162,39,.7);border-radius:4px;padding:2px 6px;cursor:pointer;font-size:9px">LR ↺</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const ov = document.createElement('div');
+  ov.id = 'i224ShortRestPanel';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9300;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `
+    <div style="background:#0a0a1e;border:1px solid rgba(68,204,136,.4);border-radius:12px;padding:18px;width:min(560px,95vw);max-height:80vh;overflow-y:auto;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <span style="font-family:'Cinzel',serif;color:#44cc88;font-weight:700">❤️ Hit Dice — Short Rest</span>
+        <button onclick="document.getElementById('i224ShortRestPanel').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+      </div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="border-bottom:1px solid #1e2040">
+          <th style="font-size:9px;color:#4a5272;text-align:left;padding:4px 8px">CHARACTER</th>
+          <th style="font-size:9px;color:#4a5272;text-align:center;padding:4px 8px">HD</th>
+          <th style="font-size:9px;color:#4a5272;text-align:left;padding:4px 8px">REMAINING</th>
+          <th style="font-size:9px;color:#4a5272;text-align:left;padding:4px 8px">ACTIONS</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+// Toolbar button
+(function() {
+  const inject = () => {
+    if (document.getElementById('i224HdBtn')) return;
+    const tb = document.querySelector('.toolbar-buttons') || document.querySelector('#toolbar') || document.querySelector('.toolbar');
+    if (!tb) return;
+    const btn = document.createElement('button');
+    btn.id = 'i224HdBtn';
+    btn.innerHTML = '❤️ Hit Dice';
+    btn.title = 'Short Rest — spend hit dice to heal';
+    btn.style.cssText = 'background:rgba(68,204,136,.1);border:1px solid rgba(68,204,136,.35);color:#44cc88;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;font-family:"Inter",sans-serif';
+    btn.onclick = () => openShortRestPanel();
+    tb.appendChild(btn);
+  };
+  if (document.readyState === 'complete') inject();
+  else window.addEventListener('load', inject);
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
