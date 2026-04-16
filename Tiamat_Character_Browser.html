@@ -35150,6 +35150,142 @@ function _i227NotesRow() {
   </div>`;
 }
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 228: Damage Resistance/Immunity Quick Icons in Active Turn Bar
+// Parse resistance/immunity/vulnerability from character lore + traits + resistances field
+// Show color-coded icons in active turn bar; also searchable reference per character
+
+const _i228DAMAGE_TYPES = [
+  {key:'fire', icon:'🔥', label:'Fire'},
+  {key:'cold', icon:'❄', label:'Cold'},
+  {key:'lightning', icon:'⚡', label:'Lightning'},
+  {key:'poison', icon:'☠', label:'Poison'},
+  {key:'acid', icon:'💧', label:'Acid'},
+  {key:'necrotic', icon:'💀', label:'Necrotic'},
+  {key:'radiant', icon:'✨', label:'Radiant'},
+  {key:'psychic', icon:'🧠', label:'Psychic'},
+  {key:'thunder', icon:'🌩', label:'Thunder'},
+  {key:'force', icon:'💜', label:'Force'},
+  {key:'bludgeoning', icon:'🔨', label:'Bludg.'},
+  {key:'piercing', icon:'🗡', label:'Pierce'},
+  {key:'slashing', icon:'⚔', label:'Slash'},
+];
+
+function _i228ParseDefenses(char) {
+  if (!char) return { immune: [], resist: [], vuln: [] };
+  const text = [
+    char.lore || '',
+    (char.traits || []).join(' '),
+    char.resistances || '',
+  ].join(' ').toLowerCase();
+
+  const immune = [];
+  const resist = [];
+  const vuln = [];
+
+  for (const dt of _i228DAMAGE_TYPES) {
+    const k = dt.key;
+    // Immunity checks
+    if (text.includes(`immune to ${k}`) || text.includes(`immunity to ${k}`) ||
+        text.includes(`${k} immunity`) || text.includes(`immunities.*${k}`) ||
+        (text.includes('immune') && text.includes(k))) {
+      immune.push(dt);
+    } else if (text.includes(`resist ${k}`) || text.includes(`resistance to ${k}`) ||
+               text.includes(`${k} resistance`) || text.includes(`resistant to ${k}`)) {
+      resist.push(dt);
+    } else if (text.includes(`vulnerab`) && text.includes(k)) {
+      vuln.push(dt);
+    }
+  }
+
+  // Check char.resistances field specifically if it exists
+  if (char.resistances) {
+    const resText = char.resistances.toLowerCase();
+    for (const dt of _i228DAMAGE_TYPES) {
+      if (!immune.find(x => x.key === dt.key) && !resist.find(x => x.key === dt.key)) {
+        if (resText.includes(dt.key)) resist.push(dt);
+      }
+    }
+  }
+
+  return { immune, resist, vuln };
+}
+
+function _i228DefenseRow() {
+  const bar = document.getElementById('activeTurnBar');
+  if (!bar) return;
+  const il = (typeof initiativeList !== 'undefined') ? initiativeList : [];
+  const idx = (typeof currentTurnIdx !== 'undefined') ? currentTurnIdx : 0;
+  const combatant = il[idx];
+  if (!combatant) return;
+  const charName = combatant.name || combatant.charName;
+  if (!charName) return;
+
+  const char = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS.find(c => c.name === charName) : null;
+  const { immune, resist, vuln } = _i228ParseDefenses(char);
+
+  if (!immune.length && !resist.length && !vuln.length) return;
+
+  const immuneBadges = immune.map(dt =>
+    `<span title="${dt.label}: IMMUNE" style="background:rgba(204,51,51,.2);border:1px solid #cc3333;border-radius:4px;padding:1px 4px;font-size:10px;color:#cc3333">${dt.icon} IMM</span>`
+  ).join('');
+  const resistBadges = resist.map(dt =>
+    `<span title="${dt.label}: Resistant" style="background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.5);border-radius:4px;padding:1px 4px;font-size:10px;color:#c9a227">${dt.icon}</span>`
+  ).join('');
+  const vulnBadges = vuln.map(dt =>
+    `<span title="${dt.label}: VULNERABLE (double damage)" style="background:rgba(68,204,136,.15);border:1px solid #44cc88;border-radius:4px;padding:1px 4px;font-size:10px;color:#44cc88">${dt.icon} ×2</span>`
+  ).join('');
+
+  bar.innerHTML += `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:4px 0;border-top:1px solid rgba(255,255,255,.05);margin-top:2px">
+    <span style="font-size:9px;color:#4a5272;white-space:nowrap;font-weight:600">🛡 DEFENSES</span>
+    ${immuneBadges}${resistBadges}${vulnBadges}
+  </div>`;
+}
+
+// Patch renderActiveTurnBar
+(function() {
+  const _origRATB = renderActiveTurnBar;
+  renderActiveTurnBar = function() {
+    _origRATB();
+    _i228DefenseRow();
+  };
+})();
+
+// Also add defense badges to character cards
+(function() {
+  if (typeof renderGrid !== 'function') return;
+  const _origRG228 = renderGrid;
+  renderGrid = function() {
+    _origRG228.apply(this, arguments);
+    setTimeout(_i228InjectCardBadges, 80);
+  };
+})();
+
+function _i228InjectCardBadges() {
+  const chars = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS : [];
+  chars.forEach(char => {
+    const { immune, resist, vuln } = _i228ParseDefenses(char);
+    if (!immune.length && !resist.length && !vuln.length) return;
+
+    const cards = document.querySelectorAll(`[data-name="${CSS.escape(char.name)}"]`);
+    cards.forEach(card => {
+      if (card.querySelector('.i228DefBadge')) return;
+      const badge = document.createElement('div');
+      badge.className = 'i228DefBadge';
+      badge.style.cssText = 'position:absolute;bottom:4px;left:4px;display:flex;gap:2px;flex-wrap:wrap;z-index:5;max-width:80%;';
+
+      const parts = [];
+      immune.forEach(dt => parts.push(`<span style="background:rgba(204,51,51,.25);border:1px solid rgba(204,51,51,.6);border-radius:3px;padding:0 2px;font-size:8px;color:#cc5555" title="Immune to ${dt.label}">${dt.icon}</span>`));
+      resist.forEach(dt => parts.push(`<span style="background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.4);border-radius:3px;padding:0 2px;font-size:8px;color:#c9a227" title="Resistant to ${dt.label}">${dt.icon}</span>`));
+      vuln.forEach(dt => parts.push(`<span style="background:rgba(68,204,136,.15);border:1px solid rgba(68,204,136,.4);border-radius:3px;padding:0 2px;font-size:8px;color:#44cc88" title="Vulnerable to ${dt.label}">${dt.icon}</span>`));
+
+      badge.innerHTML = parts.join('');
+      card.style.position = 'relative';
+      card.appendChild(badge);
+    });
+  });
+}
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
