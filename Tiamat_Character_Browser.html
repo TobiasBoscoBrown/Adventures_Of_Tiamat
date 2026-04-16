@@ -35629,6 +35629,142 @@ function _i230ConditionRefRow() {
   </div>`;
 }
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 231: Reaction Tracker
+// Each combatant gets 1 reaction/round; track who has used theirs
+// Shows in active turn bar and as indicator in initiative list
+// Resets automatically at start of each character's turn (round-based reset option)
+
+const _i231ReactKey = 'tiamat_reactions';
+
+function _i231GetReactions() {
+  try { return JSON.parse(localStorage.getItem(_i231ReactKey) || '{}'); } catch(e) { return {}; }
+}
+function _i231SaveReactions(d) {
+  try { localStorage.setItem(_i231ReactKey, JSON.stringify(d)); } catch(e) {}
+}
+function _i231HasReaction(charName) {
+  const d = _i231GetReactions();
+  return !d[charName]; // Not marked as used = has reaction
+}
+function _i231UseReaction(charName, actionLabel, event) {
+  if (event) event.stopPropagation();
+  if (!_i231HasReaction(charName)) {
+    if (typeof showToast === 'function') showToast(`${charName} already used their reaction!`, '#cc3333', 1800);
+    return;
+  }
+  const d = _i231GetReactions();
+  d[charName] = actionLabel || 'Used';
+  _i231SaveReactions(d);
+  if (typeof showToast === 'function') showToast(`${charName}: Reaction used${actionLabel ? ' (' + actionLabel + ')' : ''}`, '#9b6dff', 1800);
+  if (typeof logEntry === 'function') logEntry('system', `<strong>${escHtml(charName)}</strong> used their reaction${actionLabel ? ': <em>' + escHtml(actionLabel) + '</em>' : ''}`);
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+  if (typeof renderInitiative === 'function') renderInitiative();
+}
+function _i231RestoreReaction(charName, event) {
+  if (event) event.stopPropagation();
+  const d = _i231GetReactions();
+  delete d[charName];
+  _i231SaveReactions(d);
+  if (typeof showToast === 'function') showToast(`${charName}: Reaction restored`, '#44cc88', 1500);
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+}
+function _i231ResetAll(event) {
+  if (event) event.stopPropagation();
+  _i231SaveReactions({});
+  if (typeof showToast === 'function') showToast('All reactions reset', '#44cc88', 1500);
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+  if (typeof renderInitiative === 'function') renderInitiative();
+}
+
+// Common reactions for quick selection
+const _i231COMMON_REACTIONS = [
+  'Opportunity Attack', 'Shield', 'Counterspell', 'Hellish Rebuke',
+  'Absorb Elements', 'Feather Fall', 'Brace', 'Cutting Words',
+  'Uncanny Dodge', 'Evasion', 'Parry',
+];
+
+(function() {
+  const _origRATB = renderActiveTurnBar;
+  renderActiveTurnBar = function() {
+    _origRATB();
+    _i231ReactionRow();
+  };
+})();
+
+function _i231ReactionRow() {
+  const bar = document.getElementById('activeTurnBar');
+  if (!bar) return;
+  const il = (typeof initiativeList !== 'undefined') ? initiativeList : [];
+  const idx = (typeof currentTurnIdx !== 'undefined') ? currentTurnIdx : 0;
+  const combatant = il[idx];
+  if (!combatant) return;
+  const charName = combatant.name || combatant.charName;
+  if (!charName) return;
+
+  const hasReact = _i231HasReaction(charName);
+  const usedLabel = _i231GetReactions()[charName] || 'Used';
+
+  const quickBtns = _i231COMMON_REACTIONS.slice(0, 5).map(r =>
+    `<button onclick="_i231UseReaction('${charName.replace(/'/g,"\\'")}','${r}',event)"
+      style="background:rgba(155,109,255,.08);border:1px solid rgba(155,109,255,.2);color:rgba(155,109,255,.7);border-radius:4px;padding:2px 6px;cursor:pointer;font-size:9px;${!hasReact ? 'opacity:.35' : ''}"
+      ${!hasReact ? 'disabled' : ''}>${r}</button>`
+  ).join('');
+
+  bar.innerHTML += `<div style="background:rgba(30,20,50,.4);border:1px solid rgba(155,109,255,.2);border-radius:7px;padding:5px 10px;margin:3px 0">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;flex-wrap:wrap">
+      <span style="font-family:'Cinzel',serif;color:#9b6dff;font-size:9px;font-weight:700;letter-spacing:.5px;white-space:nowrap">⚡ REACTION</span>
+      ${hasReact
+        ? `<span style="font-size:11px;font-weight:700;color:#44cc88">Available</span>`
+        : `<span style="font-size:11px;font-weight:700;color:#cc3333">USED: ${escHtml(usedLabel)}</span>`
+      }
+      ${hasReact
+        ? `<button onclick="_i231UseReaction('${charName.replace(/'/g,"\\'")}','',event)" style="background:rgba(155,109,255,.15);border:1px solid #9b6dff;color:#9b6dff;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:10px">Use</button>`
+        : `<button onclick="_i231RestoreReaction('${charName.replace(/'/g,"\\'")}',event)" style="background:rgba(68,204,136,.08);border:1px solid rgba(68,204,136,.3);color:#44cc88;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:10px">↺ Restore</button>`
+      }
+      <button onclick="_i231ResetAll(event)" style="background:rgba(0,0,0,.2);border:1px solid #1e2040;color:#4a5272;border-radius:5px;padding:2px 6px;cursor:pointer;font-size:9px;margin-left:auto">↺ All</button>
+    </div>
+    ${hasReact ? `<div style="display:flex;gap:4px;flex-wrap:wrap">${quickBtns}</div>` : ''}
+  </div>`;
+}
+
+// Reaction status in initiative list
+(function() {
+  if (typeof renderInitiative !== 'function') return;
+  const _origRI = renderInitiative;
+  renderInitiative = function() {
+    _origRI.apply(this, arguments);
+    _i231InjectReactionDots();
+  };
+})();
+
+function _i231InjectReactionDots() {
+  const il = (typeof initiativeList !== 'undefined') ? initiativeList : [];
+  const d = _i231GetReactions();
+  il.forEach(c => {
+    const name = c.name || c.charName;
+    if (!name) return;
+    const used = !!d[name];
+    const rows = document.querySelectorAll(`[data-init-name="${CSS.escape(name)}"], [data-combatant="${CSS.escape(name)}"]`);
+    rows.forEach(row => {
+      let dot = row.querySelector('.i231ReactDot');
+      if (!dot) {
+        dot = document.createElement('span');
+        dot.className = 'i231ReactDot';
+        dot.style.cssText = 'display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:4px;vertical-align:middle;cursor:pointer;flex-shrink:0';
+        dot.onclick = (e) => {
+          if (used) _i231RestoreReaction(name, e);
+          else _i231UseReaction(name, 'Opportunity Attack', e);
+        };
+        row.appendChild(dot);
+      }
+      dot.style.background = used ? '#cc3333' : '#44cc88';
+      dot.style.boxShadow = used ? '0 0 4px #cc3333' : '0 0 4px #44cc88';
+      dot.title = used ? `${name}: Reaction USED (${d[name]}) — click to restore` : `${name}: Reaction available — click to use`;
+    });
+  });
+}
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
