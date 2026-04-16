@@ -6225,19 +6225,7 @@ function buildStatsPanel(c) {
         }).join('')}
       </div>
     </div>
-    <div class="stats-section">
-      <div class="stats-section-title">Skills <span style="font-size:10px;color:#4a5272;font-weight:400;font-family:'Inter',sans-serif">— filled dot = proficient · click to roll</span></div>
-      <div class="skills-grid">
-        ${skills.map(s =>
-          `<div class="skill-item" onclick="rollSkillCheck(${JSON.stringify(s.name)},${JSON.stringify(s.mod)})" title="Roll ${s.name} (d20${s.mod})">
-            <div class="skill-prof-dot ${s.prof}"></div>
-            <span class="skill-name">${s.name}</span>
-            <span class="skill-ab-tag">${s.ab}</span>
-            <span class="skill-val">${s.mod}</span>
-          </div>`
-        ).join('')}
-      </div>
-    </div>
+    ${buildSkillsSectionHtml(c, skills, prof)}
     ${buildMulticlassSection(c)}
     ${buildInventorySection(c)}
     ${buildAmmoSection(c)}
@@ -40612,6 +40600,104 @@ window._i250SetAll = function(enabled) {
     const chars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS.filter(c => c.abilities && c.abilities.length > 0) : [];
     chars.forEach(c => _i251RollActive(c.name, dc));
   };
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 265: Skill Expertise Tracker
+// Double-click any skill in the character modal to toggle Expertise (double proficiency bonus).
+// Rogues get 4 expertise skills, Bards get 2+2. Stored per character in localStorage.
+// Expertise skills show ◈ indicator and gold border; modifier displayed includes full bonus.
+(function() {
+  const EXP_KEY = name => 'tiamat_expertise_' + name;
+
+  window.i265GetExpertise = function(charName) {
+    try { return new Set(JSON.parse(localStorage.getItem(EXP_KEY(charName))) || []); }
+    catch { return new Set(); }
+  };
+
+  window.i265SaveExpertise = function(charName, set) {
+    localStorage.setItem(EXP_KEY(charName), JSON.stringify([...set]));
+  };
+
+  window.i265ToggleExpertise = function(charName, skillName, event) {
+    if (event) { event.stopPropagation(); event.preventDefault(); }
+    const set = i265GetExpertise(charName);
+    const added = !set.has(skillName);
+    if (added) set.add(skillName); else set.delete(skillName);
+    i265SaveExpertise(charName, set);
+    const msg = added ? ('◈ Expertise added: ' + skillName) : ('● Expertise removed: ' + skillName);
+    if (typeof showToast === 'function') showToast(msg, added ? '#c9a227' : '#7a7aaa');
+    // Refresh modal stats tab
+    const statsTab = document.getElementById('tab-stats-content');
+    if (statsTab) {
+      const char = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS.find(c => c.name === charName) : null;
+      if (char && typeof buildStats === 'function') {
+        statsTab.innerHTML = buildStats(char);
+      }
+    }
+  };
+
+  // Core roll function: uses expertise to double prof, adds prof bonus to proficient skills
+  window.i265RollSkill = function(charName, skillName, baseMod, isProf, profBonus) {
+    const exp = i265GetExpertise(charName);
+    const hasExp = exp.has(skillName);
+    const pb = parseInt(profBonus) || 2;
+    const base = parseInt(baseMod) || 0;
+    const bonus = base + (hasExp && isProf ? pb * 2 : isProf ? pb : 0);
+    const roll = Math.floor(Math.random() * 20) + 1;
+    const total = roll + bonus;
+    const isCrit = roll === 20, isFumble = roll === 1;
+    const bonusStr = bonus >= 0 ? '+' + bonus : '' + bonus;
+    const tag = hasExp ? ' ◈' : isProf ? ' ●' : '';
+    if (typeof showModalRollResult === 'function')
+      showModalRollResult(skillName + tag + ': d20(' + roll + ')' + bonusStr + ' = ' + total + (isCrit ? ' ★' : isFumble ? ' ☠' : ''), isCrit, isFumble, total);
+  };
+
+  // Builds the full skills section HTML with expertise support
+  window.buildSkillsSectionHtml = function(c, skills, prof) {
+    const exp = i265GetExpertise(c.name);
+    const pb = parseInt(prof) || 2;
+    const rows = skills.map(function(s) {
+      const isProf = s.prof === 'proficient';
+      const hasExp = exp.has(s.name);
+      const bonus = (parseInt(s.mod) || 0) + (hasExp && isProf ? pb * 2 : isProf ? pb : 0);
+      const bStr = bonus >= 0 ? '+' + bonus : '' + bonus;
+      const dotCls = hasExp ? 'expertise' : s.prof;
+      const border = hasExp ? 'border-left:2px solid #c9a227;' : '';
+      const bg = hasExp ? 'background:rgba(201,162,39,0.07);' : '';
+      return '<div class="skill-item' + (hasExp ? ' i265-expert' : '') + '" '
+        + 'style="' + border + bg + 'cursor:pointer" '
+        + 'onclick="i265RollSkill(' + JSON.stringify(c.name) + ',' + JSON.stringify(s.name) + ',' + JSON.stringify(s.mod) + ',' + isProf + ',' + pb + ')" '
+        + 'ondblclick="i265ToggleExpertise(' + JSON.stringify(c.name) + ',' + JSON.stringify(s.name) + ',event)" '
+        + 'title="' + s.name + (isProf ? ' (Prof)' : '') + (hasExp ? ' ◈ Expertise' : '') + ' d20' + bStr + ' — dbl-click to toggle expertise">'
+        + '<div class="skill-prof-dot ' + dotCls + '" style="' + (hasExp ? 'color:#c9a227' : '') + '"></div>'
+        + '<span class="skill-name">' + s.name + (hasExp ? ' <span style="color:#c9a227;font-size:9px">EXP</span>' : '') + '</span>'
+        + '<span class="skill-ab-tag">' + s.ab + '</span>'
+        + '<span class="skill-val" style="' + (hasExp ? 'color:#c9a227;font-weight:700' : '') + '">' + bStr + '</span>'
+        + '</div>';
+    }).join('');
+
+    const expCount = [...exp].filter(sk => skills.some(s => s.name === sk && s.prof === 'proficient')).length;
+    const subtitle = '— ● prof · <span style="color:#c9a227">◈ expertise</span> · click roll · dbl-click toggle'
+      + (expCount > 0 ? ' · <span style="color:#c9a227">' + expCount + ' expertise</span>' : '');
+
+    return '<div class="stats-section">'
+      + '<div class="stats-section-title">Skills <span style="font-size:10px;color:#4a5272;font-weight:400;font-family:\'Inter\',sans-serif">' + subtitle + '</span></div>'
+      + '<div class="skills-grid">' + rows + '</div>'
+      + '</div>';
+  };
+
+  // CSS for expertise dot state
+  document.addEventListener('DOMContentLoaded', function() {
+    const style = document.createElement('style');
+    style.textContent = [
+      '.skill-prof-dot.expertise { width:10px;height:10px;border-radius:3px;background:#c9a227;border:1px solid #c9a227;flex-shrink:0;position:relative; }',
+      '.skill-prof-dot.expertise::after { content:"◈";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:8px;color:#06061a;font-weight:900; }',
+      '.i265-expert { border-radius:5px; }',
+      '.i265-expert:hover { background:rgba(201,162,39,0.12) !important; }'
+    ].join('\n');
+    document.head.appendChild(style);
+  });
 })();
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
