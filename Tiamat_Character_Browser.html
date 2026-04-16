@@ -38614,6 +38614,85 @@ window._i250SetAll = function(enabled) {
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Iter 259: Spell Slot Quick-Use Widget in Turn Bar
+// When it's a spellcaster's turn, show their remaining spell slots directly
+// in the active turn bar as colored pips. Click a pip to spend it.
+// Supplements (not replaces) the full slot dashboard.
+(function() {
+  (function() {
+    const _origRATB = renderActiveTurnBar;
+    renderActiveTurnBar = function() {
+      _origRATB.apply(this, arguments);
+      _i259InjectSlotWidget();
+    };
+  })();
+
+  function _i259InjectSlotWidget() {
+    if (document.getElementById('i259SlotWidget')) return;
+    const bar = document.getElementById('activeTurnBar');
+    if (!bar) return;
+    if (typeof initiativeList === 'undefined' || typeof currentTurnIdx === 'undefined') return;
+    const cur = initiativeList[currentTurnIdx];
+    if (!cur) return;
+    const charName = cur.name || cur.charName;
+    if (!charName) return;
+
+    const chars = typeof UNIQUE_CHARS !== 'undefined' ? UNIQUE_CHARS : [];
+    const c = chars.find(x => x.name === charName);
+    if (!c) return;
+
+    // Check if caster
+    const isCaster = typeof isSpellcaster === 'function' ? isSpellcaster(c) : false;
+    const maxSlots = typeof getMaxSlotsForChar === 'function' ? getMaxSlotsForChar(c) : null;
+    if (!isCaster || !maxSlots) return;
+
+    const used = typeof getUsedSlots === 'function' ? getUsedSlots(charName) : {};
+    // Find highest non-zero slot level
+    const levels = Object.keys(maxSlots).map(Number).filter(l => maxSlots[l] > 0).sort((a,b)=>a-b);
+    if (!levels.length) return;
+
+    // Build compact slot row: each level shows available/used pips
+    const COLORS = ['','#9b6dff','#4488ff','#44cc88','#c9a227','#ff9944','#cc4444','#ff44ff','#00ccff','#ffffff'];
+    const levelHtml = levels.map(lv => {
+      const max = maxSlots[lv];
+      const usedN = used[lv] || 0;
+      const avail = max - usedN;
+      const pips = Array.from({length: max}, (_, i) => {
+        const isUsed = i >= avail;
+        return `<span onclick="event.stopPropagation();_i259UseSlot('${charName.replace(/'/g,"\\'")}',${lv})"
+          title="${isUsed ? 'Expended' : `Spend level ${lv} slot`}"
+          style="display:inline-block;width:9px;height:9px;border-radius:50%;cursor:pointer;
+            background:${isUsed ? '#1e1e3e' : COLORS[lv]||'#9b6dff'};
+            border:1px solid ${COLORS[lv]||'#9b6dff'};margin:0 1px;
+            opacity:${isUsed?'0.3':'1'}"></span>`;
+      }).join('');
+      return `<span style="margin-right:6px;white-space:nowrap">
+        <span style="font-size:9px;color:#4a4a7a">${lv}:</span>${pips}
+      </span>`;
+    }).join('');
+
+    const div = document.createElement('div');
+    div.id = 'i259SlotWidget';
+    div.style.cssText = 'padding:4px 8px;background:rgba(155,109,255,0.05);border:1px solid rgba(155,109,255,.12);border-radius:6px;margin:2px 0;display:flex;align-items:center;gap:4px;flex-wrap:wrap';
+    div.innerHTML = `<span style="font-size:10px;color:#5a4a8a;font-weight:600;margin-right:4px">Slots:</span>${levelHtml}`;
+    bar.appendChild(div);
+  }
+
+  window._i259UseSlot = function(charName, level) {
+    if (typeof useSlot === 'function') {
+      useSlot(charName, level, null);
+    } else {
+      // Fallback
+      const used = typeof getUsedSlots === 'function' ? getUsedSlots(charName) : {};
+      used[level] = (used[level] || 0) + 1;
+      if (typeof slotState !== 'undefined') slotState[charName] = used;
+      if (typeof saveSlots === 'function') saveSlots();
+      if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+    }
+  };
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Iter 258: Encounter Recap Generator
 // Scans recent session log entries and generates a narrative recap paragraph
 // summarizing the combat: who attacked, crits, HP changes, who went down, outcome.
