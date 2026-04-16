@@ -38452,6 +38452,167 @@ window._i249MULTIATTACK_PRESETS = {
   'Troll (Bite+Claws)': [{name:'Bite',hit:7,dmg:'1d6+4',type:'piercing'},{name:'Claw 1',hit:7,dmg:'2d6+4',type:'slashing'},{name:'Claw 2',hit:7,dmg:'2d6+4',type:'slashing'}],
 };
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 250: Turn Bar Sections Toggle
+// Let the DM choose which feature sections to show in the active turn bar
+// Configurable checkboxes persisted in localStorage
+// Each section identified by a keyword in its content; toggle via settings panel
+
+const _i250ConfigKey = 'tiamat_turnbar_sections';
+const _i250DEFAULT_SECTIONS = {
+  spells: { label: '✨ Spells', enabled: true },
+  attacks: { label: '⚔ Attacks', enabled: true },
+  multiattack: { label: '⚔ Multiattack', enabled: true },
+  movement: { label: '🏃 Movement', enabled: true },
+  effects: { label: '⌛ Effects', enabled: true },
+  inspiration: { label: '✨ Inspiration', enabled: true },
+  temphp: { label: '💠 Temp HP', enabled: true },
+  reaction: { label: '⚡ Reaction', enabled: true },
+  notes: { label: '📝 Notes', enabled: true },
+  defenses: { label: '🛡 Defenses', enabled: true },
+  legendary: { label: '⚔ Legendary', enabled: true },
+  recharge: { label: '🔄 Recharge', enabled: false }, // Off by default to reduce clutter
+  conditions: { label: '⚠ Conditions', enabled: true },
+  faction: { label: '⚔ Faction', enabled: false },
+  size: { label: '📐 Size', enabled: false },
+  grapple: { label: '🤼 Grapple', enabled: false },
+};
+
+function _i250GetConfig() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(_i250ConfigKey) || '{}');
+    // Merge with defaults
+    const config = {..._i250DEFAULT_SECTIONS};
+    Object.keys(saved).forEach(k => {
+      if (config[k]) config[k].enabled = saved[k];
+    });
+    return config;
+  } catch(e) { return {..._i250DEFAULT_SECTIONS}; }
+}
+
+function _i250SaveConfig(config) {
+  try {
+    const toSave = {};
+    Object.keys(config).forEach(k => { toSave[k] = config[k].enabled; });
+    localStorage.setItem(_i250ConfigKey, JSON.stringify(toSave));
+  } catch(e) {}
+}
+
+function _i250IsSectionEnabled(sectionKey) {
+  const config = _i250GetConfig();
+  return config[sectionKey]?.enabled !== false;
+}
+
+// Section keyword mapping — we identify sections by searching their text content
+const _i250SECTION_KEYWORDS = {
+  spells: ['SPELLS', 'CANTRIP', 'SPELL SLOTS'],
+  attacks: ['ATTACKS', 'Custom Attacks'],
+  multiattack: ['MULTIATTACK'],
+  movement: ['MOVEMENT', '🏃'],
+  effects: ['EFFECTS', '⌛ EFFECTS'],
+  inspiration: ['INSPIRATION', '✨ INSPIRATION'],
+  temphp: ['TEMP HP', '💠 TEMP'],
+  reaction: ['REACTION', '⚡ REACTION'],
+  notes: ['📝'],
+  defenses: ['DEFENSES', '🛡 DEFENSES'],
+  legendary: ['LEGENDARY', '⚔ LEGENDARY'],
+  recharge: ['RECHARGE', '🔄'],
+  conditions: ['CONDITIONS', '⚠ CONDITIONS'],
+  faction: ['FACTION'],
+  size: ['SIZE', '📐 SIZE'],
+  grapple: ['Grapple/Shove'],
+};
+
+// Post-process turn bar after all patches to hide disabled sections
+(function() {
+  const _origRATB = renderActiveTurnBar;
+  renderActiveTurnBar = function() {
+    _origRATB();
+    _i250FilterSections();
+  };
+})();
+
+function _i250FilterSections() {
+  const bar = document.getElementById('activeTurnBar');
+  if (!bar) return;
+  const config = _i250GetConfig();
+  const children = Array.from(bar.children);
+
+  children.forEach(child => {
+    if (child.id === 'i235CompactToggle' || child.id === 'i250ConfigBtn') return;
+    const text = (child.textContent || '') + (child.innerHTML || '');
+    // Check which section this is
+    for (const [key, keywords] of Object.entries(_i250SECTION_KEYWORDS)) {
+      const matches = keywords.some(kw => text.includes(kw));
+      if (matches) {
+        const isEnabled = config[key]?.enabled !== false;
+        child.style.display = isEnabled ? '' : 'none';
+        break;
+      }
+    }
+  });
+
+  // Add config button if not present
+  if (!document.getElementById('i250ConfigBtn')) {
+    const btn = document.createElement('button');
+    btn.id = 'i250ConfigBtn';
+    btn.innerHTML = '⚙';
+    btn.title = 'Configure turn bar sections';
+    btn.style.cssText = 'position:absolute;top:6px;right:60px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.12);color:#666;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:11px;z-index:101';
+    btn.onclick = (e) => { e.stopPropagation(); _i250OpenConfig(); };
+    bar.style.position = 'relative';
+    bar.appendChild(btn);
+  }
+}
+
+function _i250OpenConfig() {
+  const ex = document.getElementById('i250ConfigPanel');
+  if (ex) { ex.remove(); return; }
+
+  const config = _i250GetConfig();
+  const checkboxes = Object.entries(config).map(([key, sect]) =>
+    `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 0">
+      <input type="checkbox" ${sect.enabled ? 'checked' : ''} onchange="_i250ToggleSection('${key}',this.checked)"
+        style="cursor:pointer;accent-color:#c9a227">
+      <span style="font-size:12px;color:${sect.enabled ? '#c0c0e0' : '#4a5272'}">${sect.label}</span>
+    </label>`
+  ).join('');
+
+  const ov = document.createElement('div');
+  ov.id = 'i250ConfigPanel';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9600;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `
+    <div style="background:#0a0a1e;border:1px solid rgba(201,162,39,.4);border-radius:12px;padding:18px;width:min(340px,95vw);max-height:85vh;overflow-y:auto;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <span style="font-family:'Cinzel',serif;color:#c9a227;font-weight:700">⚙ Turn Bar Sections</span>
+        <button onclick="document.getElementById('i250ConfigPanel').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+      </div>
+      <div style="font-size:10px;color:#4a5272;margin-bottom:10px">Toggle which sections appear in the active turn bar during combat. Changes take effect immediately.</div>
+      ${checkboxes}
+      <div style="display:flex;gap:8px;margin-top:12px;border-top:1px solid #1e2040;padding-top:10px">
+        <button onclick="_i250SetAll(true)" style="flex:1;background:rgba(68,204,136,.08);border:1px solid rgba(68,204,136,.25);color:#44cc88;border-radius:6px;padding:6px;cursor:pointer;font-size:11px">Enable All</button>
+        <button onclick="_i250SetAll(false)" style="flex:1;background:rgba(204,51,51,.06);border:1px solid rgba(204,51,51,.2);color:#cc5555;border-radius:6px;padding:6px;cursor:pointer;font-size:11px">Disable All</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+window._i250ToggleSection = function(key, enabled) {
+  const config = _i250GetConfig();
+  if (config[key]) config[key].enabled = enabled;
+  _i250SaveConfig(config);
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+};
+
+window._i250SetAll = function(enabled) {
+  const config = _i250GetConfig();
+  Object.keys(config).forEach(k => { config[k].enabled = enabled; });
+  _i250SaveConfig(config);
+  document.getElementById('i250ConfigPanel')?.remove();
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+};
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
