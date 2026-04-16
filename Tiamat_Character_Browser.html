@@ -38614,6 +38614,170 @@ window._i250SetAll = function(enabled) {
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Iter 260: Auto-Advance Turn Timer
+// Optional countdown timer that automatically calls nextTurn() after N seconds.
+// Toggle button in the turn bar. Countdown progress ring + remaining seconds shown.
+// Pause/extend available. Prevents player analysis paralysis during combat.
+(function() {
+  const _i260KEY = 'tiamat_autoturn_secs';
+  let _i260Timer = null;
+  let _i260Active = false;
+  let _i260SecondsLeft = 0;
+  let _i260MaxSecs = 30;
+
+  function _i260GetMax() {
+    return parseInt(localStorage.getItem(_i260KEY)) || 30;
+  }
+  function _i260SetMax(s) {
+    localStorage.setItem(_i260KEY, s);
+  }
+
+  function _i260Start() {
+    _i260Stop();
+    _i260Active = true;
+    _i260MaxSecs = _i260GetMax();
+    _i260SecondsLeft = _i260MaxSecs;
+    _i260UpdateHUD();
+    _i260Timer = setInterval(() => {
+      _i260SecondsLeft--;
+      if (_i260SecondsLeft <= 0) {
+        _i260Stop();
+        if (typeof nextTurn === 'function' && typeof initiativeList !== 'undefined' && initiativeList.length > 0) {
+          if (typeof showToast === 'function') showToast('⏰ Time\'s up! Advancing turn...');
+          nextTurn();
+          // Restart for new turn
+          setTimeout(_i260Start, 500);
+        }
+      } else {
+        _i260UpdateHUD();
+      }
+    }, 1000);
+  }
+
+  function _i260Stop() {
+    _i260Active = false;
+    if (_i260Timer) { clearInterval(_i260Timer); _i260Timer = null; }
+    _i260UpdateHUD();
+  }
+
+  function _i260Toggle() {
+    if (_i260Active) _i260Stop();
+    else _i260Start();
+  }
+
+  function _i260UpdateHUD() {
+    const hud = document.getElementById('i260AutoHUD');
+    if (!hud) return;
+    const max = _i260GetMax();
+    if (!_i260Active) {
+      hud.innerHTML = `<button onclick="_i260Toggle()" title="Auto-advance turns after ${max}s"
+        style="font-size:10px;background:rgba(100,100,100,.06);border:1px solid #2a2a50;color:#4a4a7a;border-radius:5px;padding:2px 8px;cursor:pointer">⏱ Auto</button>`;
+      return;
+    }
+    const pct = _i260SecondsLeft / max;
+    const color = pct > 0.5 ? '#44cc88' : pct > 0.25 ? '#c9a227' : '#cc4444';
+    const r = 10, circ = 2 * Math.PI * r;
+    const dashOffset = circ * (1 - pct);
+    hud.innerHTML = `
+      <div style="display:flex;align-items:center;gap:5px">
+        <svg width="24" height="24" style="transform:rotate(-90deg)">
+          <circle cx="12" cy="12" r="${r}" fill="none" stroke="#1e2040" stroke-width="3"/>
+          <circle cx="12" cy="12" r="${r}" fill="none" stroke="${color}" stroke-width="3"
+            stroke-dasharray="${circ}" stroke-dashoffset="${dashOffset}"/>
+        </svg>
+        <span style="font-size:13px;color:${color};font-weight:700;min-width:20px">${_i260SecondsLeft}</span>
+        <button onclick="_i260Extend()" title="+10 seconds"
+          style="font-size:9px;background:rgba(100,200,100,.06);border:1px solid rgba(100,200,100,.2);color:#44aa44;border-radius:4px;padding:1px 5px;cursor:pointer">+10</button>
+        <button onclick="_i260Toggle()" title="Stop auto-timer"
+          style="font-size:9px;background:rgba(200,60,60,.06);border:1px solid rgba(200,60,60,.2);color:#cc3333;border-radius:4px;padding:1px 5px;cursor:pointer">⏹</button>
+      </div>`;
+  }
+
+  function _i260InjectHUD() {
+    if (document.getElementById('i260AutoHUD')) return;
+    const bar = document.getElementById('activeTurnBar');
+    if (!bar) return;
+    const div = document.createElement('div');
+    div.id = 'i260AutoHUD';
+    div.style.cssText = 'position:absolute;top:6px;right:8px;z-index:102;display:flex;align-items:center';
+    bar.style.position = 'relative';
+    bar.appendChild(div);
+    _i260UpdateHUD();
+  }
+
+  // Inject into turn bar render chain
+  (function() {
+    const _origRATB = renderActiveTurnBar;
+    renderActiveTurnBar = function() {
+      _origRATB.apply(this, arguments);
+      _i260InjectHUD();
+    };
+  })();
+
+  // Also inject toolbar button for config
+  function _i260InjectConfigBtn() {
+    if (document.getElementById('i260ConfigBtn')) return;
+    const ref = document.getElementById('i258RecapBtn') || document.getElementById('passivesBtn');
+    if (!ref) return;
+    const btn = document.createElement('button');
+    btn.id = 'i260ConfigBtn';
+    btn.className = 'encounter-open-btn';
+    btn.textContent = '⏱ Turn Timer';
+    btn.title = 'Auto-Advance Turn Timer — configure and toggle countdown';
+    btn.style.cssText = 'border-color:#44cc88;color:#44cc88';
+    btn.onclick = () => _i260OpenConfig();
+    ref.insertAdjacentElement('afterend', btn);
+  }
+  document.addEventListener('DOMContentLoaded', _i260InjectConfigBtn);
+  setTimeout(_i260InjectConfigBtn, 2600);
+
+  window._i260Extend = function() {
+    _i260SecondsLeft = Math.min(_i260SecondsLeft + 10, _i260MaxSecs + 10);
+    _i260UpdateHUD();
+  };
+
+  window._i260Toggle = _i260Toggle;
+
+  window._i260OpenConfig = function() {
+    const ex = document.getElementById('i260ConfigPanel');
+    if (ex) { ex.remove(); return; }
+    const max = _i260GetMax();
+    const ov = document.createElement('div');
+    ov.id = 'i260ConfigPanel';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9700;display:flex;align-items:center;justify-content:center';
+    ov.innerHTML = `
+      <div style="background:#0a0a1e;border:1px solid rgba(68,204,136,.35);border-radius:12px;padding:18px;width:min(320px,96vw);font-family:'Inter',sans-serif">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <span style="font-family:'Cinzel',serif;color:#44cc88;font-weight:700">⏱ Auto-Advance Timer</span>
+          <button onclick="document.getElementById('i260ConfigPanel').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+        </div>
+        <div style="font-size:11px;color:#8888aa;margin-bottom:10px">Each player has a limited time per turn. When the timer expires, the turn auto-advances.</div>
+        <label style="font-size:11px;color:#8888aa">Seconds per turn:</label>
+        <div style="display:flex;gap:6px;margin:6px 0 14px;flex-wrap:wrap">
+          ${[15,20,30,45,60,90,120].map(s => `<button onclick="_i260SetSecs(${s})"
+            style="flex:1;min-width:40px;padding:6px;font-size:12px;cursor:pointer;border-radius:6px;
+              border:1px solid ${max===s?'rgba(68,204,136,.6)':'#1e2040'};
+              background:${max===s?'rgba(68,204,136,.12)':'rgba(255,255,255,.02)'};
+              color:${max===s?'#44cc88':'#8888aa'}">${s}s</button>`).join('')}
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="_i260Toggle();document.getElementById('i260ConfigPanel').remove()"
+            style="flex:1;background:${_i260Active?'rgba(204,68,68,.08)':'rgba(68,204,136,.08)'};border:1px solid ${_i260Active?'rgba(204,68,68,.3)':'rgba(68,204,136,.3)'};color:${_i260Active?'#cc4444':'#44cc88'};border-radius:7px;padding:8px;cursor:pointer;font-size:12px">
+            ${_i260Active?'⏹ Stop Timer':'▶ Start Timer'}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  };
+
+  window._i260SetSecs = function(s) {
+    _i260SetMax(s);
+    document.getElementById('i260ConfigPanel')?.remove();
+    _i260OpenConfig();
+  };
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Iter 259: Spell Slot Quick-Use Widget in Turn Bar
 // When it's a spellcaster's turn, show their remaining spell slots directly
 // in the active turn bar as colored pips. Click a pip to spend it.
