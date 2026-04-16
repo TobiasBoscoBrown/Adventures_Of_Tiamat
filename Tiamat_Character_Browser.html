@@ -38350,6 +38350,108 @@ function openPartyCombatStats() {
   else window.addEventListener('load', inject);
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 249: Roll All Attacks (Multiattack in One Click)
+// Adds a "🎲 Roll All" button to the attack macro row in the active turn bar
+// Rolls every defined attack macro for the character sequentially
+// Also adds Multiattack presets for common monster multiattacks
+
+function _i249RollAllMacros(charName, event) {
+  if (event) event.stopPropagation();
+  const macros = (typeof _i216GetMacros === 'function') ? _i216GetMacros(charName) : [];
+  if (!macros.length) {
+    if (typeof showToast === 'function') showToast(`No attack macros defined for ${charName}. Add them with ⚔ ATTACKS.`, '#888', 2500);
+    return;
+  }
+
+  const target = (typeof _i213Targets !== 'undefined') ? _i213Targets[charName] : null;
+  const results = [];
+
+  macros.forEach((m, idx) => {
+    const rvResult = (typeof rollWithAdv === 'function') ? rollWithAdv(charName, m.hit) : {die: Math.floor(Math.random()*20)+1, detail: null};
+    const die = rvResult.die, detail = rvResult.detail;
+    const modStr = m.hit >= 0 ? `+${m.hit}` : `${m.hit}`;
+    const total = die + m.hit;
+    const isCrit = die === 20, isFumble = die === 1;
+
+    const hitMiss = target
+      ? (isCrit ? '★CRIT' : isFumble ? '☠MISS' : total >= target.ac ? 'HIT' : 'MISS')
+      : null;
+
+    let dmgTotal = 0;
+    let dmgStr = '';
+    if (!isFumble && (isCrit || !target || total >= (target?.ac || 0))) {
+      const dmgResult = (typeof rollDiceExpr === 'function') ? rollDiceExpr(m.dmg) : null;
+      if (dmgResult) {
+        if (isCrit) {
+          const extraResult = (typeof rollDiceExpr === 'function') ? rollDiceExpr(m.dmg) : null;
+          dmgTotal = dmgResult.total + (extraResult?.total || 0);
+          dmgStr = `${dmgTotal} ${m.type} (CRIT)`;
+        } else {
+          dmgTotal = dmgResult.total;
+          dmgStr = `${dmgTotal} ${m.type}`;
+        }
+      }
+    }
+
+    results.push({ name: m.name, die, total, isCrit, isFumble, hitMiss, dmgStr, modStr });
+  });
+
+  // Build summary
+  const hitColor = (r) => r.isCrit ? '#ffcc00' : r.isFumble ? '#cc3333' : r.hitMiss === 'HIT' ? '#44cc88' : r.hitMiss === 'MISS' ? '#cc3333' : '#c0c0e0';
+  const summaryParts = results.map(r =>
+    `<strong style="color:${hitColor(r)}">${r.name}: ${r.total}${r.isCrit?' ★':''}${r.isFumble?' ☠':''}</strong>${r.hitMiss ? ` (${r.hitMiss})` : ''}${r.dmgStr ? ` → ${r.dmgStr}` : ''}`
+  );
+
+  const logText = `⚔ <strong>${escHtml(charName)}</strong> Multiattack:<br>${summaryParts.join('<br>')}${target ? `<br>vs ${escHtml(target.name)} AC${target.ac}` : ''}`;
+
+  if (typeof logEntry === 'function') logEntry('roll', logText);
+  if (typeof showToast === 'function') {
+    const hits = results.filter(r => r.hitMiss === 'HIT' || r.isCrit).length;
+    const total = results.length;
+    showToast(`Multiattack: ${hits}/${total} hit${target ? ' vs ' + target.name : ''}`, hits > 0 ? '#c9a227' : '#888', 3000);
+  }
+}
+
+// Patch renderActiveTurnBar to add Roll All button
+(function() {
+  const _origRATB = renderActiveTurnBar;
+  renderActiveTurnBar = function() {
+    _origRATB();
+    _i249RollAllBtn();
+  };
+})();
+
+function _i249RollAllBtn() {
+  const bar = document.getElementById('activeTurnBar');
+  if (!bar) return;
+  const il = (typeof initiativeList !== 'undefined') ? initiativeList : [];
+  const idx = (typeof currentTurnIdx !== 'undefined') ? currentTurnIdx : 0;
+  const combatant = il[idx];
+  if (!combatant) return;
+  const charName = combatant.name || combatant.charName;
+  if (!charName) return;
+
+  const macros = (typeof _i216GetMacros === 'function') ? _i216GetMacros(charName) : [];
+  if (!macros.length) return;
+
+  bar.innerHTML += `<div style="padding:2px 0">
+    <button onclick="_i249RollAllMacros('${charName.replace(/'/g,"\\'")}',event)"
+      style="background:rgba(201,162,39,.2);border:2px solid rgba(201,162,39,.6);color:#c9a227;border-radius:7px;padding:5px 16px;cursor:pointer;font-size:12px;font-weight:700;width:100%">
+      ⚔ MULTIATTACK — Roll All ${macros.length} Attack${macros.length > 1 ? 's' : ''}
+    </button>
+  </div>`;
+}
+
+// Also add common multiattack presets to the macro editor
+window._i249MULTIATTACK_PRESETS = {
+  'Fighter (2 attacks)': [{name:'Main Hand',hit:5,dmg:'1d8+3',type:'slashing'},{name:'Main Hand',hit:5,dmg:'1d8+3',type:'slashing'}],
+  'Fighter (3 attacks)': [{name:'Attack 1',hit:7,dmg:'1d8+5',type:'slashing'},{name:'Attack 2',hit:7,dmg:'1d8+5',type:'slashing'},{name:'Attack 3',hit:7,dmg:'1d8+5',type:'slashing'}],
+  'Rogue (SA + Offhand)': [{name:'Rapier',hit:5,dmg:'1d8+3',type:'piercing'},{name:'Sneak Attack',hit:0,dmg:'3d6',type:'piercing'}],
+  'Dragon (Bite+Claws)': [{name:'Bite',hit:10,dmg:'2d10+6',type:'piercing'},{name:'Claw 1',hit:10,dmg:'2d6+6',type:'slashing'},{name:'Claw 2',hit:10,dmg:'2d6+6',type:'slashing'}],
+  'Troll (Bite+Claws)': [{name:'Bite',hit:7,dmg:'1d6+4',type:'piercing'},{name:'Claw 1',hit:7,dmg:'2d6+4',type:'slashing'},{name:'Claw 2',hit:7,dmg:'2d6+4',type:'slashing'}],
+};
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
