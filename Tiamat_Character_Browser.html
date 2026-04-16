@@ -6228,6 +6228,29 @@ function buildStatsPanel(c) {
             + ' <strong style="color:#9b6dff">Atk</strong> ' + spAtkStr + '</span>';
         })() : ''}
       </div>
+      ${isSpellcaster(c) ? (() => {
+        const maxSlots = getMaxSlotsForChar(c);
+        if (!maxSlots) return '';
+        const used = getUsedSlots(c.name);
+        const levels = Object.keys(maxSlots).map(Number).sort((a,b)=>a-b);
+        const strips = levels.map(lv => {
+          const max = maxSlots[lv];
+          const usedCount = used[lv] || 0;
+          const avail = Math.max(0, max - usedCount);
+          const pips = Array.from({length: max}, (_, i) => {
+            const used = i >= avail;
+            return '<span onclick="event.stopPropagation();' + (used ? 'recoverSlot' : 'useSlot') + '(' + JSON.stringify(c.name) + ',' + lv + ',event)" '
+              + 'title="' + (used ? 'Recover' : 'Use') + ' level ' + lv + ' slot" '
+              + 'style="display:inline-block;width:8px;height:8px;border-radius:50%;margin:0 1px;cursor:pointer;'
+              + (used ? 'background:#2a2a50;border:1px solid #4a5272' : 'background:#9b6dff;border:1px solid rgba(155,109,255,.6)')
+              + '" onmouseover="this.style.transform=\'scale(1.3)\'" onmouseout="this.style.transform=\'\'"></span>';
+          }).join('');
+          return '<div style="display:flex;align-items:center;gap:2px"><span style="font-size:8px;color:#4a5272;min-width:8px">' + lv + '</span>' + pips + '</div>';
+        }).join('');
+        return '<div style="padding:4px 0 2px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+          + '<span style="font-size:9px;color:#9b6dff;letter-spacing:.5px;opacity:.7">SLOTS</span>'
+          + strips + '</div>';
+      })() : ''}
     </div>
     ${typeof buildCharXpSection === 'function' ? buildCharXpSection(c.name) : ''}
     ${buildCurrencySection(c.name)}
