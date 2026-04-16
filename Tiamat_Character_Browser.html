@@ -43236,6 +43236,71 @@ void 0;
   });
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+// Iter 299: Combat Smart Suggestions — contextual tips on active turn
+(function() {
+  function generateSuggestions(char, allCombatants) {
+    const tips = [];
+    if (!char) return tips;
+    const maxHp = parseInt(char.hp) || 1;
+    const currHp = (() => { try { return parseInt(JSON.parse(localStorage.getItem('tiamat_hp') || '{}')[char.name]) || maxHp; } catch { return maxHp; } })();
+    const hpPct = currHp / maxHp;
+    if (hpPct <= 0.25) tips.push({ icon:'⚠', text:`${char.name} critically low (${currHp}/${maxHp} HP). Consider Disengage or healing.`, color:'#cc4444' });
+    else if (hpPct <= 0.5) tips.push({ icon:'🩸', text:`${char.name} bloodied (${Math.round(hpPct*100)}% HP). Watch for danger.`, color:'#c9a227' });
+    const conc = typeof getConcentration === 'function' ? getConcentration(char.name) : null;
+    if (conc) tips.push({ icon:'🔮', text:`Concentrating: ${conc} — damage may require CON save.`, color:'#4488ff' });
+    const maxSlots = typeof getMaxSlotsForChar === 'function' ? getMaxSlotsForChar(char) : null;
+    if (maxSlots) {
+      const used = typeof getUsedSlots === 'function' ? getUsedSlots(char.name) : {};
+      const bestLevel = Object.keys(maxSlots).map(Number).sort((a,b)=>b-a).find(l => maxSlots[l] > (used[l] || 0));
+      if (bestLevel) tips.push({ icon:'✨', text:`L${bestLevel} slots available — good turn for a high-impact spell.`, color:'#9b6dff' });
+      else tips.push({ icon:'💨', text:`Out of spell slots! Use cantrips or other actions.`, color:'#cc8844' });
+    }
+    const legMax = typeof getLegendaryMax === 'function' ? getLegendaryMax(char.name) : 0;
+    if (legMax) {
+      const legCur = typeof getLegendaryCharges === 'function' ? getLegendaryCharges(char.name) : legMax;
+      tips.push({ icon:'★', text:`Legendary actions: ${legCur}/${legMax} remaining this round.`, color: legCur > 0 ? '#c9a227' : '#4a5272' });
+    }
+    const enemies = (allCombatants || []).filter(e => {
+      if (e.name === char.name) return false;
+      const em = e.maxHp || 1;
+      const ec = (() => { try { return parseInt(JSON.parse(localStorage.getItem('tiamat_hp') || '{}')[e.name]) || em; } catch { return em; } })();
+      return ec > 0 && ec / em <= 0.25;
+    });
+    if (enemies.length) tips.push({ icon:'🎯', text:`${enemies.map(e=>e.name).slice(0,2).join(', ')} near death — focus fire!`, color:'#44cc88' });
+    const traits = char.traits || [];
+    if (traits.some(t => /multiattack/i.test(t))) tips.push({ icon:'⚔', text:`Multiattack available — use ⚔⚔ button in turn bar for all attacks.`, color:'#dd6622' });
+    return tips.slice(0, 3);
+  }
+
+  function renderSuggestions(char, allCombatants) {
+    let el = document.getElementById('i299Suggestions');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'i299Suggestions';
+      el.style.cssText = 'padding:4px 10px;background:rgba(0,0,0,.25);border-bottom:1px solid #0d0d1e';
+      const turnBar = document.getElementById('activeTurnBar');
+      if (turnBar && turnBar.parentNode) turnBar.parentNode.insertBefore(el, turnBar);
+      else { const ip = document.getElementById('initiativePanel'); if (ip) ip.appendChild(el); }
+    }
+    const tips = generateSuggestions(char, allCombatants);
+    if (!tips.length) { el.style.display = 'none'; return; }
+    el.style.display = 'block';
+    el.innerHTML = '<div style="font-size:9px;color:#2a3358;letter-spacing:.08em;margin-bottom:2px">SUGGESTIONS</div>'
+      + tips.map(t => `<div style="display:flex;align-items:flex-start;gap:5px;padding:1px 0;font-size:10px;color:${t.color};line-height:1.4"><span style="flex-shrink:0">${t.icon}</span><span>${t.text}</span></div>`).join('');
+  }
+
+  const _orig = window.nextTurn;
+  if (typeof _orig === 'function') {
+    window.nextTurn = function() {
+      _orig.apply(this, arguments);
+      setTimeout(() => {
+        const cur = (window.initiativeList || [])[window.currentTurnIdx];
+        if (cur) renderSuggestions((window.UNIQUE_CHARS || []).find(c => c.name === cur.name), window.initiativeList);
+      }, 80);
+    };
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
