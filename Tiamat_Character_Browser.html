@@ -35403,6 +35403,232 @@ if (typeof _i212Cast === 'function') {
   };
 }
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 230: Full Condition Reference Popup
+// Click any condition badge to see its mechanical effects; full PHB condition descriptions
+// Enhances existing condition system; accessible from character cards and turn bar
+
+const _i230CONDITIONS = {
+  Blinded: {
+    icon: '👁', color: '#888',
+    summary: 'Can\'t see; attacks have disadvantage, attackers have advantage',
+    effects: [
+      'A blinded creature can\'t see and automatically fails any ability check requiring sight.',
+      'Attack rolls against the creature have advantage.',
+      'The creature\'s attack rolls have disadvantage.',
+    ]
+  },
+  Charmed: {
+    icon: '💕', color: '#ff77dd',
+    summary: 'Can\'t attack the charmer; charmer has social advantage',
+    effects: [
+      'A charmed creature can\'t attack the charmer or target them with harmful abilities/effects.',
+      'The charmer has advantage on ability checks to interact socially with the creature.',
+    ]
+  },
+  Deafened: {
+    icon: '👂', color: '#cc9966',
+    summary: 'Can\'t hear; auto-fails hearing checks',
+    effects: [
+      'A deafened creature can\'t hear and automatically fails any ability check requiring hearing.',
+    ]
+  },
+  Frightened: {
+    icon: '😱', color: '#cc3333',
+    summary: 'Disadvantage while source is visible; can\'t move closer to source',
+    effects: [
+      'A frightened creature has disadvantage on ability checks and attack rolls while the source of its fear is within line of sight.',
+      'The creature can\'t willingly move closer to the source of its fear.',
+    ]
+  },
+  Grappled: {
+    icon: '🤼', color: '#cc8844',
+    summary: 'Speed becomes 0; ends if grappler is incapacitated',
+    effects: [
+      'A grappled creature\'s speed becomes 0 and can\'t benefit from bonuses to speed.',
+      'The condition ends if the grappler is incapacitated (see the condition).',
+      'The condition also ends if an effect removes the grappled creature from the grappler\'s reach.',
+    ]
+  },
+  Incapacitated: {
+    icon: '💤', color: '#aaaaaa',
+    summary: 'Can\'t take actions or reactions',
+    effects: [
+      'An incapacitated creature can\'t take actions or reactions.',
+    ]
+  },
+  Invisible: {
+    icon: '🫥', color: '#9b6dff',
+    summary: 'Can\'t be seen; attacks have advantage, attackers have disadvantage',
+    effects: [
+      'An invisible creature is impossible to see without special sense.',
+      'For purpose of hiding, the creature is heavily obscured.',
+      'The creature\'s location can be detected by noise it makes or tracks it leaves.',
+      'Attack rolls against the creature have disadvantage.',
+      'The creature\'s attack rolls have advantage.',
+    ]
+  },
+  Paralyzed: {
+    icon: '⚡', color: '#ffcc00',
+    summary: 'Incapacitated; auto-fail STR/DEX saves; attacks have advantage; crits within 5ft',
+    effects: [
+      'A paralyzed creature is incapacitated (can\'t take actions or reactions) and can\'t move or speak.',
+      'The creature automatically fails Strength and Dexterity saving throws.',
+      'Attack rolls against the creature have advantage.',
+      'Any attack that hits the creature is a critical hit if the attacker is within 5 feet of the creature.',
+    ]
+  },
+  Petrified: {
+    icon: '🗿', color: '#888866',
+    summary: 'Transformed to stone; incapacitated; resist all damage; immune to poison/disease',
+    effects: [
+      'A petrified creature is transformed, along with nonmagical objects it is wearing or carrying, into a solid inanimate substance (usually stone). Weight × 10, no aging.',
+      'The creature is incapacitated, can\'t move or speak, and is unaware of its surroundings.',
+      'Attack rolls against the creature have advantage.',
+      'The creature automatically fails Strength and Dexterity saving throws.',
+      'The creature has resistance to all damage.',
+      'The creature is immune to poison and disease, but a poison or disease already in its system is suspended (not neutralized).',
+    ]
+  },
+  Poisoned: {
+    icon: '☠', color: '#44cc88',
+    summary: 'Disadvantage on attack rolls and ability checks',
+    effects: [
+      'A poisoned creature has disadvantage on attack rolls and ability checks.',
+    ]
+  },
+  Prone: {
+    icon: '⬇', color: '#cc6622',
+    summary: 'Disadvantage on attacks; melee attackers get advantage, ranged get disadvantage',
+    effects: [
+      'A prone creature\'s only movement option is to crawl, unless it stands up (costing half its movement speed).',
+      'The creature has disadvantage on attack rolls.',
+      'An attack roll against the creature has advantage if the attacker is within 5 feet, disadvantage if further away.',
+    ]
+  },
+  Restrained: {
+    icon: '🕸', color: '#aaaaaa',
+    summary: 'Speed 0; disadvantage on attacks and DEX saves; attackers have advantage',
+    effects: [
+      'A restrained creature\'s speed becomes 0 and can\'t benefit from any bonus to its speed.',
+      'Attack rolls against the creature have advantage, and the creature\'s attack rolls have disadvantage.',
+      'The creature has disadvantage on Dexterity saving throws.',
+    ]
+  },
+  Stunned: {
+    icon: '💫', color: '#66aaff',
+    summary: 'Incapacitated; auto-fail STR/DEX saves; attackers have advantage',
+    effects: [
+      'A stunned creature is incapacitated (can\'t take actions or reactions), can\'t move, and can speak only falteringly.',
+      'The creature automatically fails Strength and Dexterity saving throws.',
+      'Attack rolls against the creature have advantage.',
+    ]
+  },
+  Unconscious: {
+    icon: '😴', color: '#9944aa',
+    summary: 'Incapacitated; drops items; falls prone; crits within 5ft',
+    effects: [
+      'An unconscious creature is incapacitated (can\'t take actions or reactions), can\'t move or speak, and is unaware of its surroundings.',
+      'The creature drops whatever it\'s holding and falls prone.',
+      'The creature automatically fails Strength and Dexterity saving throws.',
+      'Attack rolls against the creature have advantage.',
+      'Any attack that hits the creature is a critical hit if the attacker is within 5 feet.',
+    ]
+  },
+  Exhaustion: {
+    icon: '😓', color: '#cc7744',
+    summary: 'Tiered debuffs from Level 1 (disadvantage on checks) to Level 6 (death)',
+    effects: [
+      'Level 1: Disadvantage on ability checks',
+      'Level 2: Speed halved',
+      'Level 3: Disadvantage on attack rolls and saving throws',
+      'Level 4: Hit point maximum halved',
+      'Level 5: Speed reduced to 0',
+      'Level 6: Death',
+      'Long rest reduces exhaustion by 1 level (with food and water).',
+    ]
+  },
+};
+
+function _i230ShowConditionRef(conditionName, event) {
+  if (event) event.stopPropagation();
+  const ex = document.getElementById('i230CondRef');
+  if (ex) { ex.remove(); if (ex.dataset.condition === conditionName) return; }
+
+  const cond = _i230CONDITIONS[conditionName];
+  if (!cond) return;
+
+  const rect = event?.target?.getBoundingClientRect?.() || {bottom: 200, left: 100};
+  const ov = document.createElement('div');
+  ov.id = 'i230CondRef';
+  ov.dataset.condition = conditionName;
+  const top = Math.min(rect.bottom + 8, window.innerHeight - 280);
+  const left = Math.max(10, Math.min(rect.left, window.innerWidth - 310));
+  ov.style.cssText = `position:fixed;top:${top}px;left:${left}px;z-index:9900;background:#0a0a1e;border:2px solid ${cond.color};border-radius:10px;padding:14px;width:290px;box-shadow:0 0 20px rgba(0,0,0,.6);font-family:'Inter',sans-serif`;
+
+  const effectsList = cond.effects.map(e =>
+    `<li style="margin-bottom:4px;font-size:11px;color:#c0c0e0">${escHtml(e)}</li>`
+  ).join('');
+
+  ov.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <span style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:${cond.color}">${cond.icon} ${escHtml(conditionName)}</span>
+    <button onclick="document.getElementById('i230CondRef').remove()" style="background:none;border:none;color:#555;cursor:pointer;font-size:14px">✕</button>
+  </div>
+  <div style="font-size:11px;color:#c9a227;font-style:italic;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,.08)">${escHtml(cond.summary)}</div>
+  <ul style="margin:0;padding-left:14px">${effectsList}</ul>`;
+
+  document.body.appendChild(ov);
+  const dismiss = (e) => {
+    if (!ov.contains(e.target)) { ov.remove(); document.removeEventListener('click', dismiss); }
+  };
+  setTimeout(() => document.addEventListener('click', dismiss), 100);
+}
+
+// Make all condition badges (anywhere in the DOM) show the reference on right-click or long-press
+// Patch: intercept condition badge clicks to show reference first
+window._i230ShowConditionRef = _i230ShowConditionRef;
+
+// Add a "? Rule" button next to conditions in the active turn bar
+(function() {
+  const _origRATB = renderActiveTurnBar;
+  renderActiveTurnBar = function() {
+    _origRATB();
+    _i230ConditionRefRow();
+  };
+})();
+
+function _i230ConditionRefRow() {
+  const bar = document.getElementById('activeTurnBar');
+  if (!bar) return;
+  const il = (typeof initiativeList !== 'undefined') ? initiativeList : [];
+  const idx = (typeof currentTurnIdx !== 'undefined') ? currentTurnIdx : 0;
+  const combatant = il[idx];
+  if (!combatant) return;
+  const charName = combatant.name || combatant.charName;
+  if (!charName) return;
+
+  // Get current conditions from conditionState or similar
+  let conditions = [];
+  try {
+    const condKey = `tiamat_conditions_${charName}`;
+    conditions = JSON.parse(localStorage.getItem(condKey) || '[]');
+  } catch(e) {}
+
+  if (!conditions.length) return;
+
+  const condBadges = conditions.map(cond => {
+    const ref = _i230CONDITIONS[cond];
+    const color = ref?.color || '#c9a227';
+    const icon = ref?.icon || '⚠';
+    return `<span onclick="_i230ShowConditionRef('${cond.replace(/'/g,"\\'")}',event)" style="display:inline-flex;align-items:center;gap:2px;background:rgba(0,0,0,.3);border:1px solid ${color};border-radius:10px;padding:2px 7px;font-size:10px;color:${color};cursor:pointer" title="${ref?.summary || cond} — Click for full rules">${icon} ${escHtml(cond)} ❓</span>`;
+  }).join('');
+
+  bar.innerHTML += `<div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;padding:3px 0;border-top:1px solid rgba(255,255,255,.05)">
+    <span style="font-size:9px;color:#4a5272;white-space:nowrap">⚠ CONDITIONS</span>
+    ${condBadges}
+  </div>`;
+}
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
