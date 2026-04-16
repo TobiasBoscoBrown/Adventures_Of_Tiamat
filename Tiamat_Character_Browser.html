@@ -37784,6 +37784,165 @@ function _i244SetAllEnemies(event) {
 }
 window._i244SetAllEnemies = _i244SetAllEnemies;
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 245: Destructible Object Tracker
+// Track HP for doors, walls, pillars, barricades, containers, etc.
+// Objects can be targeted in combat; shows HP bar; destroyed at 0 HP
+// Persistent list accessible from toolbar
+
+const _i245ObjKey = 'tiamat_objects';
+
+// Default object types with HP from DMG
+const _i245OBJECT_PRESETS = [
+  {name:'Simple Door', hp:10, ac:15, immun:'poison, psychic'},
+  {name:'Reinforced Door', hp:27, ac:17, immun:'poison, psychic'},
+  {name:'Portcullis', hp:60, ac:19, immun:'poison, psychic'},
+  {name:'Stone Wall (5ft)', hp:30, ac:17, immun:'poison, psychic'},
+  {name:'Wooden Pillar', hp:26, ac:15, immun:'poison, psychic'},
+  {name:'Stone Pillar', hp:60, ac:17, immun:'poison, psychic'},
+  {name:'Wooden Chest', hp:15, ac:12, immun:'poison, psychic'},
+  {name:'Iron Chest', hp:30, ac:19, immun:'poison, psychic'},
+  {name:'Crystal Orb', hp:10, ac:13, immun:'poison, psychic'},
+  {name:'Rope Bridge', hp:60, ac:11, immun:'poison, psychic'},
+  {name:'Chain', hp:10, ac:19, immun:'poison, psychic'},
+  {name:'Rowboat', hp:50, ac:11, immun:'poison, psychic'},
+  {name:'Cannon', hp:75, ac:19, immun:'poison, psychic'},
+];
+
+function _i245GetObjects() {
+  try { return JSON.parse(localStorage.getItem(_i245ObjKey) || '[]'); } catch(e) { return []; }
+}
+function _i245SaveObjects(list) {
+  try { localStorage.setItem(_i245ObjKey, JSON.stringify(list)); } catch(e) {}
+}
+
+function _i245AddObject(name, maxHp, ac, event) {
+  if (event) event.stopPropagation();
+  const list = _i245GetObjects();
+  list.push({ id: Date.now(), name, hp: maxHp, maxHp, ac, destroyed: false });
+  _i245SaveObjects(list);
+  if (typeof showToast === 'function') showToast(`Object added: ${name} (${maxHp} HP)`, '#c9a227', 1800);
+  _i245RefreshPanel();
+}
+
+function _i245DamageObject(id, amount, event) {
+  if (event) event.stopPropagation();
+  const list = _i245GetObjects();
+  const obj = list.find(o => o.id === id);
+  if (!obj) return;
+  obj.hp = Math.max(0, obj.hp - amount);
+  if (obj.hp === 0) {
+    obj.destroyed = true;
+    if (typeof showToast === 'function') showToast(`💥 ${obj.name} is DESTROYED!`, '#cc3333', 3000);
+    if (typeof logEntry === 'function') logEntry('system', `💥 <strong>${escHtml(obj.name)}</strong> has been destroyed!`);
+  } else {
+    if (typeof logEntry === 'function') logEntry('system', `🗡 <strong>${escHtml(obj.name)}</strong> took ${amount} damage (${obj.hp}/${obj.maxHp} HP)`);
+  }
+  _i245SaveObjects(list);
+  _i245RefreshPanel();
+}
+
+function _i245RepairObject(id, event) {
+  if (event) event.stopPropagation();
+  const list = _i245GetObjects();
+  const obj = list.find(o => o.id === id);
+  if (obj) { obj.hp = obj.maxHp; obj.destroyed = false; }
+  _i245SaveObjects(list);
+  _i245RefreshPanel();
+}
+
+function _i245RemoveObject(id, event) {
+  if (event) event.stopPropagation();
+  const list = _i245GetObjects().filter(o => o.id !== id);
+  _i245SaveObjects(list);
+  _i245RefreshPanel();
+}
+
+function _i245RefreshPanel() {
+  const panel = document.getElementById('i245ObjPanel');
+  if (panel) { panel.remove(); openObjectTracker(); }
+}
+
+function openObjectTracker() {
+  const ex = document.getElementById('i245ObjPanel');
+  if (ex) { ex.remove(); return; }
+
+  const objects = _i245GetObjects();
+  const presetBtns = _i245OBJECT_PRESETS.map(p =>
+    `<button onclick="_i245AddObject('${p.name}',${p.hp},${p.ac},event)" style="background:rgba(0,0,0,.3);border:1px solid #2a2a50;color:#888;border-radius:5px;padding:3px 6px;cursor:pointer;font-size:9px;white-space:nowrap">${p.name} (${p.hp}HP)</button>`
+  ).join('');
+
+  const objCards = objects.map(obj => {
+    const pct = obj.maxHp > 0 ? (obj.hp / obj.maxHp) : 0;
+    const barColor = obj.destroyed ? '#cc3333' : pct > 0.5 ? '#c9a227' : pct > 0.25 ? '#ff6644' : '#cc3333';
+    const barWidth = Math.max(0, pct * 100);
+    return `<div style="background:rgba(0,0,0,.3);border:1px solid ${obj.destroyed ? '#cc3333' : '#2a2a50'};border-radius:7px;padding:8px;margin-bottom:6px;opacity:${obj.destroyed ? 0.5 : 1}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-size:11px;font-weight:700;color:${obj.destroyed ? '#cc3333' : '#c0c0e0'}">${obj.destroyed ? '💥 ' : ''}${escHtml(obj.name)}</span>
+        <span style="font-size:10px;color:#4a5272">AC ${obj.ac} · ${obj.hp}/${obj.maxHp} HP</span>
+      </div>
+      <div style="background:rgba(0,0,0,.3);border-radius:3px;height:6px;margin-bottom:6px">
+        <div style="background:${barColor};border-radius:3px;height:100%;width:${barWidth}%"></div>
+      </div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        ${[5,10,20,30].map(d => `<button onclick="_i245DamageObject(${obj.id},${d},event)" style="background:rgba(204,51,51,.1);border:1px solid rgba(204,51,51,.3);color:#cc5555;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:10px">-${d}</button>`).join('')}
+        <button onclick="_i245RepairObject(${obj.id},event)" style="background:rgba(68,204,136,.08);border:1px solid rgba(68,204,136,.25);color:#44cc88;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:10px">↺ Repair</button>
+        <button onclick="_i245RemoveObject(${obj.id},event)" style="background:rgba(0,0,0,.2);border:1px solid #2a2a50;color:#4a5272;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:10px">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  const ov = document.createElement('div');
+  ov.id = 'i245ObjPanel';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:9300;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `
+    <div style="background:#0a0a1e;border:1px solid rgba(201,162,39,.4);border-radius:12px;padding:18px;width:min(520px,95vw);max-height:85vh;overflow-y:auto;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="font-family:'Cinzel',serif;color:#c9a227;font-weight:700">🚪 Object Tracker</span>
+        <button onclick="document.getElementById('i245ObjPanel').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+      </div>
+      ${objects.length ? objCards : '<div style="font-size:11px;color:#4a5272;text-align:center;padding:12px 0">No objects added yet.</div>'}
+      <div style="border-top:1px solid #1e2040;padding-top:10px;margin-top:6px">
+        <div style="font-size:10px;color:#4a5272;margin-bottom:6px">Quick Add Presets:</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">${presetBtns}</div>
+        <div style="display:flex;gap:6px">
+          <input id="i245CustomName" placeholder="Custom object name" style="flex:2;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:5px;padding:5px;font-size:11px;outline:none">
+          <input id="i245CustomHp" type="number" placeholder="HP" value="20" style="width:60px;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:5px;padding:5px;font-size:11px;text-align:center;outline:none">
+          <input id="i245CustomAc" type="number" placeholder="AC" value="15" style="width:55px;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:5px;padding:5px;font-size:11px;text-align:center;outline:none">
+          <button onclick="_i245AddCustomObject(event)" style="background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.4);color:#c9a227;border-radius:5px;padding:5px 10px;cursor:pointer;font-size:11px">Add</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+window._i245AddCustomObject = function(event) {
+  if (event) event.stopPropagation();
+  const name = document.getElementById('i245CustomName')?.value?.trim();
+  const hp = parseInt(document.getElementById('i245CustomHp')?.value) || 20;
+  const ac = parseInt(document.getElementById('i245CustomAc')?.value) || 15;
+  if (!name) return;
+  _i245AddObject(name, hp, ac, null);
+};
+
+(function() {
+  const inject = () => {
+    if (document.getElementById('i245ObjBtn')) return;
+    const tb = document.querySelector('.toolbar-buttons') || document.querySelector('#toolbar') || document.querySelector('.toolbar');
+    if (!tb) return;
+    const btn = document.createElement('button');
+    btn.id = 'i245ObjBtn';
+    btn.innerHTML = '🚪 Objects';
+    btn.title = 'Track HP of doors, walls, and other destructible objects';
+    btn.style.cssText = 'background:rgba(201,162,39,.06);border:1px solid rgba(201,162,39,.2);color:rgba(201,162,39,.6);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;font-family:"Inter",sans-serif';
+    btn.onclick = () => openObjectTracker();
+    tb.appendChild(btn);
+  };
+  if (document.readyState === 'complete') inject();
+  else window.addEventListener('load', inject);
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
