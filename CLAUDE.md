@@ -169,7 +169,19 @@ Core character browser, search/filter, dark theme, tooltips, view modes.
 - Iter 217: Legendary Resistance & Actions Tracker — auto-detects legendary creatures (CR 17+ or 'legendary' keyword); pip indicators for LR (3/day) and LA (3/round); round-reset and long-rest buttons
 - Iter 218: Timed Effect Duration Tracker — track effects with round countdowns (Web 10r, Stunned 3r etc); 15 presets; pulse warning at ≤2 rounds; auto-expire with toast + log; tick button in active turn bar
 - Iter 219: Inspiration Tracker + Bardic Inspiration Dice — toggle D&D Inspiration per character (gold star); track Bardic Inspiration dice (d6-d12) given to characters; roll dice to consume; ✨ toolbar button
-- Iter 220: Concentration Save Prompt on Damage — auto-detects when concentrating caster takes damage; floating prompt with DC calculation; Roll/Pass/Fail buttons; auto-drops concentration on fail ← CURRENT
+- Iter 220: Concentration Save Prompt on Damage — auto-detects when concentrating caster takes damage; floating prompt with DC calculation; Roll/Pass/Fail buttons; auto-drops concentration on fail
+
+### Iterations 221–230
+- Iter 221: Round Counter + Start-of-Round Actions — persistent round counter HUD; Next Round button in initiative; resets legendary actions per round; lair action prompts at init 20
+- Iter 222: HP Undo — revert last HP change per character; Ctrl+Z shortcut for current turn's character; up to 10-step history
+- Iter 223: Temp HP Tracker — track temporary HP; damage absorbs temp HP first (PHB rules); teal badges in turn bar; quick-grant dialog with presets
+- Iter 224: Hit Dice Manager — track hit dice per character; spend to heal on short rest (auto-rolls die+CON); long rest recovery; ❤️ toolbar button
+- Iter 225: Movement Speed Tracker per Turn — remaining movement bar in active turn bar; 5/10/15/20/30ft spend buttons; Dash action; auto-resets each turn
+- Iter 226: Passive Skills Quick Panel — Passive Perception/Investigation/Insight for all characters; gold star highlights best; DM reference notes; 👁 toolbar button
+- Iter 227: Combat Notes per Combatant — persistent 200-char note per initiative slot; edit modal; shown as gold pill in turn bar and initiative list
+- Iter 228: Damage Resistance/Immunity Icons — parses lore/traits for immunities/resistances/vulnerabilities; color-coded badges in turn bar and on character cards
+- Iter 229: Spell Upcast Slot Picker — clicking leveled spells shows slot level selector; shows remaining slots; auto-detects upcast damage scaling from SPELL_LIBRARY
+- Iter 230: Full Condition Reference Popup — click any condition badge to see full PHB mechanical description; 15 conditions with icon/summary/effects list; ❓ buttons in turn bar ← CURRENT
 
 ## Features Currently Implemented (What We Have)
 - Character browser: search, filter by category/theme, view modes (grid/compact/list)
