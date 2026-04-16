@@ -37651,6 +37651,139 @@ window._i243RollHazard = function(dice, dmgType, hazardName, event) {
   else window.addEventListener('load', inject);
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 244: Combatant Faction Designator
+// Mark each initiative combatant as Ally/Enemy/Neutral
+// Color-coded indicator in initiative list; persists per character
+// Helps with mixed-faction encounters (enemy-of-enemy scenarios, switching loyalties)
+
+const _i244FactionKey = 'tiamat_factions';
+const _i244FACTIONS = {
+  ally:    { label: 'ALLY',    color: '#44cc88', icon: '🟢', short: 'A' },
+  enemy:   { label: 'ENEMY',   color: '#cc3333', icon: '🔴', short: 'E' },
+  neutral: { label: 'NEUTRAL', color: '#c9a227', icon: '🟡', short: 'N' },
+};
+
+function _i244GetFactions() {
+  try { return JSON.parse(localStorage.getItem(_i244FactionKey) || '{}'); } catch(e) { return {}; }
+}
+function _i244SaveFactions(d) {
+  try { localStorage.setItem(_i244FactionKey, JSON.stringify(d)); } catch(e) {}
+}
+function _i244GetFaction(charName) {
+  return _i244GetFactions()[charName] || null;
+}
+function _i244SetFaction(charName, faction, event) {
+  if (event) event.stopPropagation();
+  const d = _i244GetFactions();
+  if (faction === null) { delete d[charName]; }
+  else { d[charName] = faction; }
+  _i244SaveFactions(d);
+  if (typeof renderInitiative === 'function') renderInitiative();
+  if (typeof renderGrid === 'function') renderGrid();
+}
+function _i244CycleFaction(charName, event) {
+  if (event) event.stopPropagation();
+  const current = _i244GetFaction(charName);
+  const cycle = [null, 'ally', 'enemy', 'neutral'];
+  const nextIdx = (cycle.indexOf(current) + 1) % cycle.length;
+  _i244SetFaction(charName, cycle[nextIdx], event);
+}
+
+// Inject faction indicators into initiative list
+(function() {
+  if (typeof renderInitiative !== 'function') return;
+  const _origRI = renderInitiative;
+  renderInitiative = function() {
+    _origRI.apply(this, arguments);
+    _i244InjectFactionBadges();
+  };
+})();
+
+function _i244InjectFactionBadges() {
+  const il = (typeof initiativeList !== 'undefined') ? initiativeList : [];
+  il.forEach(c => {
+    const name = c.name || c.charName;
+    if (!name) return;
+    const faction = _i244GetFaction(name);
+    const fd = faction ? _i244FACTIONS[faction] : null;
+
+    const rows = document.querySelectorAll(`[data-init-name="${CSS.escape(name)}"], [data-combatant="${CSS.escape(name)}"]`);
+    rows.forEach(row => {
+      let badge = row.querySelector('.i244FactionBadge');
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'i244FactionBadge';
+        badge.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;cursor:pointer;font-size:9px;font-weight:700;border:1.5px solid;margin-left:3px;flex-shrink:0';
+        badge.title = 'Click to cycle: None → Ally → Enemy → Neutral';
+        badge.onclick = (e) => _i244CycleFaction(name, e);
+        row.appendChild(badge);
+      }
+      if (fd) {
+        badge.textContent = fd.short;
+        badge.style.background = fd.color + '33';
+        badge.style.borderColor = fd.color;
+        badge.style.color = fd.color;
+      } else {
+        badge.textContent = '?';
+        badge.style.background = 'rgba(255,255,255,.04)';
+        badge.style.borderColor = '#2a2a50';
+        badge.style.color = '#4a5272';
+      }
+    });
+  });
+}
+
+// Also show faction in active turn bar header
+(function() {
+  const _origRATB = renderActiveTurnBar;
+  renderActiveTurnBar = function() {
+    _origRATB();
+    _i244FactionRow();
+  };
+})();
+
+function _i244FactionRow() {
+  const bar = document.getElementById('activeTurnBar');
+  if (!bar) return;
+  const il = (typeof initiativeList !== 'undefined') ? initiativeList : [];
+  const idx = (typeof currentTurnIdx !== 'undefined') ? currentTurnIdx : 0;
+  const combatant = il[idx];
+  if (!combatant) return;
+  const charName = combatant.name || combatant.charName;
+  if (!charName) return;
+
+  const faction = _i244GetFaction(charName);
+  const fd = faction ? _i244FACTIONS[faction] : null;
+
+  const buttons = Object.entries(_i244FACTIONS).map(([key, f]) =>
+    `<button onclick="_i244SetFaction('${charName.replace(/'/g,"\\'")}','${key}',event)"
+      style="background:${faction === key ? f.color+'33' : 'rgba(0,0,0,.2)'};border:1px solid ${faction === key ? f.color : '#2a2a50'};color:${faction === key ? f.color : '#4a5272'};border-radius:5px;padding:2px 8px;cursor:pointer;font-size:10px">${f.icon} ${f.label}</button>`
+  ).join('');
+
+  bar.innerHTML += `<div style="display:flex;gap:6px;align-items:center;padding:2px 0;flex-wrap:wrap">
+    <span style="font-size:9px;color:#4a5272;font-weight:600">⚔ FACTION</span>
+    ${fd ? `<span style="font-size:11px;font-weight:700;color:${fd.color}">${fd.icon} ${fd.label}</span>` : `<span style="font-size:10px;color:#4a5272">unset</span>`}
+    ${buttons}
+    ${faction ? `<button onclick="_i244SetFaction('${charName.replace(/'/g,"\\'")}',null,event)" style="background:none;border:1px solid #2a2a50;color:#4a5272;border-radius:5px;padding:2px 6px;cursor:pointer;font-size:9px">Clear</button>` : ''}
+  </div>`;
+}
+
+// Quick-set all characters in initiative
+function _i244SetAllEnemies(event) {
+  if (event) event.stopPropagation();
+  const il = (typeof initiativeList !== 'undefined') ? initiativeList : [];
+  const d = _i244GetFactions();
+  il.forEach(c => {
+    const name = c.name || c.charName;
+    if (name && !d[name]) d[name] = 'enemy';
+  });
+  _i244SaveFactions(d);
+  if (typeof renderInitiative === 'function') renderInitiative();
+  if (typeof showToast === 'function') showToast('All unset combatants marked as Enemy', '#cc3333', 1800);
+}
+window._i244SetAllEnemies = _i244SetAllEnemies;
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
