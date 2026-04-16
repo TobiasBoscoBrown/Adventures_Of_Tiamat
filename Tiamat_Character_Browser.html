@@ -32837,6 +32837,144 @@ function _i212Cast(charName, spellName, level, event) {
   if (typeof renderInitiative === 'function') renderInitiative();
 }
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 213: Target Selector + Auto Hit/Miss in Active Turn Bar
+// Click any combatant to set as target — attack rolls auto-show HIT (green)
+// or MISS (red) vs their AC. Shows "need X+" threshold before rolling.
+// Auto-rolls damage on a hit. Better than DnD Beyond's manual AC lookup!
+// ─────────────────────────────────────────────────────────────────────────────
+let _i213Targets = {}; // {attackerName: {name, ac}}
+
+(function() {
+  const _orig213 = renderActiveTurnBar;
+  renderActiveTurnBar = function() {
+    _orig213();
+    _i213TargetRow();
+  };
+})();
+
+function _i213SetTarget(attackerName, targetName, ac) {
+  _i213Targets[attackerName] = {name: targetName, ac: parseInt(ac) || 0};
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+}
+function _i213ClearTarget(attackerName) {
+  delete _i213Targets[attackerName];
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+}
+
+function _i213TargetRow() {
+  const bar = document.getElementById('activeTurnBar');
+  if (!bar || bar.style.display === 'none') return;
+  if (!initiativeList || !initiativeList.length || currentTurnIdx < 0) return;
+  const e = initiativeList[currentTurnIdx];
+  if (!e) return;
+  const char = UNIQUE_CHARS.find(c => c.name === e.name);
+  if (!char) return;
+
+  const crN = parseFloat(char.cr || 0);
+  const p213 = crN>=17?6:crN>=13?5:crN>=9?4:crN>=5?3:2;
+  const sM = parseInt(((char.abilities||[]).find(a=>a[0]==='STR')||[])[2]) || 0;
+  const dM = parseInt(((char.abilities||[]).find(a=>a[0]==='DEX')||[])[2]) || 0;
+  const meleeB = p213 + Math.max(sM, dM);
+  const rangB  = p213 + dM;
+
+  const target = _i213Targets[char.name];
+  const tAc = target ? target.ac : 0;
+  const others = initiativeList.filter(c => c.name !== char.name);
+
+  let h = `<div style="margin-top:4px;border-top:1px solid rgba(255,100,68,.15);padding-top:4px">`;
+  h += `<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:3px">`;
+  h += `<span style="font-size:9px;color:#ff6644;letter-spacing:.5px;min-width:34px">TARGET</span>`;
+
+  if (target) {
+    h += `<span style="font-size:9px;color:#ff8866;background:rgba(255,100,68,.1);border:1px solid rgba(255,100,68,.3);border-radius:4px;padding:1px 8px">⚔ ${escHtml(target.name)} AC ${tAc}</span>`;
+    const mNeed = tAc - meleeB;
+    const rNeed = tAc - rangB;
+    const needColor = n => n <= 1 ? '#44cc88' : n <= 10 ? '#c9a227' : '#cc4444';
+    const needLabel = (n, icon) => `<span style="color:${needColor(n)}">${n<=1?'auto':n>20?'impossible':n+'+'}${icon}</span>`;
+    h += `<span style="font-size:9px;color:#4a5272">need ${needLabel(mNeed,'⚔')}`;
+    if (rangB !== meleeB) h += ` ${needLabel(rNeed,'🏹')}`;
+    h += `</span>`;
+    h += `<button onclick="_i213ClearTarget(${JSON.stringify(char.name)})" style="font-size:9px;background:none;border:1px solid #2a2a50;color:#4a5272;border-radius:3px;padding:0 4px;cursor:pointer" title="Clear target">✕</button>`;
+  } else {
+    h += `<span style="font-size:9px;color:#3a3a60;font-style:italic">click a combatant to set target</span>`;
+  }
+  h += `</div>`;
+
+  // Combatant quick-select chips
+  if (others.length) {
+    h += `<div style="display:flex;flex-wrap:wrap;gap:2px;margin-bottom:${target?'3px':'0'}">`;
+    others.forEach(c => {
+      const cc = UNIQUE_CHARS.find(x => x.name === c.name);
+      const cAc = cc ? (parseInt(cc.ac) || 10) : 10;
+      const cHp = getCharHP(c.name, c.maxHp || 1);
+      const hpPct = c.maxHp > 0 ? cHp / c.maxHp : 1;
+      const hCol = hpPct < 0.25 ? '#cc3333' : hpPct < 0.5 ? '#dd8822' : '#44aa66';
+      const isDead = c.maxHp > 0 && cHp <= 0;
+      const isSel = target && target.name === c.name;
+      h += `<button onclick="_i213SetTarget(${JSON.stringify(char.name)},${JSON.stringify(c.name)},${cAc})"
+        style="background:${isSel?'rgba(255,100,68,.15)':'rgba(255,255,255,.03)'};border:1px solid ${isSel?'rgba(255,100,68,.4)':'rgba(255,255,255,.07)'};color:${isDead?'#2a2a50':isSel?'#ff8866':'#6a7090'};border-radius:4px;padding:1px 6px;cursor:pointer;font-size:9px;${isDead?'text-decoration:line-through;opacity:.4':''};"
+        title="${c.name} — AC ${cAc}, HP ${cHp}/${c.maxHp}">
+        ${escHtml(c.name.length>11?c.name.slice(0,10)+'…':c.name)}<span style="font-size:8px;color:#4a5272"> ${cAc}AC</span><span style="color:${hCol};font-size:8px">${cHp}hp</span>
+      </button>`;
+    });
+    h += `</div>`;
+  }
+
+  // Attack-vs-AC roll buttons (only when target selected)
+  if (target) {
+    h += `<div style="display:flex;gap:3px;flex-wrap:wrap;align-items:center">`;
+    h += `<span style="font-size:9px;color:#4a5272;min-width:34px">ROLL</span>`;
+    [[`⚔ Melee`, meleeB, 'Melee'],[`🏹 Ranged`, rangB, 'Ranged']].forEach(([lbl, bon, typ]) => {
+      const bStr = bon >= 0 ? `+${bon}` : `${bon}`;
+      h += `<button onclick="_i213RollVs(${JSON.stringify(char.name)},${JSON.stringify(typ)},${bon},${tAc},event)"
+        style="background:rgba(255,80,50,.08);border:1px solid rgba(255,80,50,.25);color:#ff7755;border-radius:4px;padding:2px 7px;cursor:pointer;font-size:10px"
+        title="${typ} (${bStr}) vs AC ${tAc} — auto shows HIT or MISS">${lbl}(${bStr}) vs AC${tAc}</button>`;
+    });
+    h += `</div>`;
+  }
+
+  h += `</div>`;
+  bar.innerHTML += h;
+}
+
+function _i213RollVs(charName, type, bonus, targetAc, event) {
+  if (event) event.stopPropagation();
+  const rvResult = (typeof rollWithAdv === 'function') ? rollWithAdv(charName, bonus) : {die: Math.floor(Math.random()*20)+1, detail: null};
+  const die = rvResult.die, detail = rvResult.detail;
+  const total = die + bonus;
+  const bStr = bonus >= 0 ? `+${bonus}` : `${bonus}`;
+  const isCrit = die === 20, isFumble = die === 1;
+  const hit = isCrit || (!isFumble && total >= targetAc);
+  const target = _i213Targets[charName] || {};
+  const tName = target.name || '?';
+
+  const resWord = isCrit ? '★ CRITICAL HIT!' : isFumble ? '☠ AUTO MISS' : hit ? `HIT! (${total} ≥ AC${targetAc})` : `MISS (${total} < AC${targetAc})`;
+  const resCol = (isCrit || hit) ? '#44cc88' : '#cc3333';
+
+  if (typeof logEntry === 'function') logEntry('roll', `<strong>${escHtml(charName)}</strong> ${type} vs ${escHtml(tName)}: d20${detail||'('+die+')'}${bStr}=<strong>${total}</strong> — <strong style="color:${resCol};font-size:12px">${resWord}</strong>`);
+  if (typeof showToast === 'function') showToast(resWord, resCol, 3000);
+
+  // Auto-roll damage on hit
+  if (hit) {
+    const c = UNIQUE_CHARS.find(x => x.name === charName);
+    const crV = c ? parseFloat(c.cr || 0) : 1;
+    const wDie = crV>=21?12:crV>=13?10:crV>=7?8:crV>=3?6:4;
+    const sM2 = c ? (parseInt(((c.abilities||[]).find(a=>a[0]==='STR')||[])[2])||0) : 0;
+    const dM2 = c ? (parseInt(((c.abilities||[]).find(a=>a[0]==='DEX')||[])[2])||0) : 0;
+    const dMod = type === 'Ranged' ? dM2 : Math.max(sM2, dM2);
+    const dCount = isCrit ? 2 : 1;
+    const dRolls = Array.from({length:dCount}, () => Math.floor(Math.random()*wDie)+1);
+    const dTotal = dRolls.reduce((a,b)=>a+b,0) + dMod;
+    const dModStr = dMod >= 0 ? `+${dMod}` : `${dMod}`;
+    if (typeof logEntry === 'function') logEntry('roll', `  → Dmg: ${dCount}d${wDie}[${dRolls.join('+')}]${dModStr} = <strong style="color:#ff6644">${dTotal}</strong>${isCrit?' 💥 CRIT':''}`);
+    if (typeof showToast === 'function') showToast(`Damage: ${dTotal}${isCrit?' 💥':''}`, '#ff7744', 2500);
+  }
+
+  if (typeof playSound === 'function') playSound(isCrit ? 'crit' : hit ? 'roll' : 'damage');
+}
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
