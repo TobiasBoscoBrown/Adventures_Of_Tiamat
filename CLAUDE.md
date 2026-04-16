@@ -2,7 +2,7 @@
 
 ## Project Overview
 A single-file D&D campaign management web app for the "Tiamat" world.
-**File:** `Tiamat_Character_Browser.html` (42,000+ lines, self-contained)
+**File:** `Tiamat_Character_Browser.html` (43,500+ lines, self-contained)
 **Goal:** Make this the ultimate DM tool — better than DND Beyond, with full user control.
 
 ## Architecture
@@ -236,6 +236,18 @@ Core character browser, search/filter, dark theme, tooltips, view modes.
 - Iter 288: Player Turn Time Tracker — auto-records initiative turn duration per combatant; ⏱ Turns button shows avg/min/max analysis
 - Iter 289: NPC Quick-Pitch Summary — auto-generated 2-3 sentence DM briefing shown in modal header for rapid roleplay prep
 - Iter 290: Multiclass Spell Slot Calculator — PHB-accurate slot calculation for any class combo; full/half/third-casters; Warlock Pact Magic separate
+
+### Iterations 291–300 (MILESTONE)
+- Iter 291: Recently Opened Characters Panel — floating 🕐 button shows last 10 visited characters with HP bars; click to reopen
+- Iter 292: Spell Slot Pips on Character Cards — casters show L1-L5 slot pips on grid cards; click pip to use slot
+- Iter 293: Character Pin Notes — up to 3 short 📌 reminder notes per character shown on card; click to edit
+- Iter 294: Mystery Mode — 🎭 Mystery button blurs all character names; hover to reveal; great for mystery encounters
+- Iter 295: Persistent Party HP Strip — fixed bottom bar showing HP bars + conditions for all favorited characters
+- Iter 296: Encounter Notes — persistent text area in initiative panel for per-encounter terrain/objective notes
+- Iter 297: Turn Announcement Flash — animated overlay showing character name with theme color on Next Turn; toggleable
+- Iter 298: Initiative Name Click → Quick Stats Popup — click name in initiative for floating HP/AC/saves/traits popup
+- Iter 299: Combat Smart Suggestions — contextual tips shown above active turn bar (HP warnings, slots, legendary, targets)
+- Iter 300: Auto-Generated Character Sheet — 📄 Auto Sheet button in modal generates printable HTML character sheet with all stats
 
 ## Features Currently Implemented (What We Have)
 - Character browser: search, filter by category/theme, view modes (grid/compact/list)
