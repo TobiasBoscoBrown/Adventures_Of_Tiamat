@@ -5708,7 +5708,8 @@ function renderGrid() {
         (c.lore && c.lore.toLowerCase().includes(currentSearch)) ||
         (c.quote && c.quote.toLowerCase().includes(currentSearch)) ||
         (c.subtitle && c.subtitle.toLowerCase().includes(currentSearch)) ||
-        (c.traits && c.traits.join(' ').toLowerCase().includes(currentSearch));
+        (c.traits && c.traits.join(' ').toLowerCase().includes(currentSearch)) ||
+        (typeof i285GetAliases==='function' && i285GetAliases(c.name).toLowerCase().includes(currentSearch));
     }
     const matchFav = !showOnlyFavorites || isFavorite(c.name);
     const matchCr = matchesCrFilter(c, crFilter);
@@ -7727,6 +7728,8 @@ function buildStoryPanel(c) {
         <div style="font-size:18px;font-style:italic;color:var(--accent,#c9a227);line-height:1.5">"${c.quote}"</div>
         <div style="font-size:11px;color:#4a5272;margin-top:8px">— ${c.name}</div>
       </div>` : ''}
+
+      ${typeof i285GetAliasBlock==='function' ? i285GetAliasBlock(c.name) : ''}
 
       ${buildBioSection(c)}
 
@@ -42219,6 +42222,33 @@ void 0;
       }
     };
   }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 285: Character Alias / Nickname System — searchable alternate names per character
+(function() {
+  const KEY = n => 'tiamat_aliases_' + n;
+
+  window.i285GetAliases = function(name) {
+    return localStorage.getItem(KEY(name)) || '';
+  };
+
+  window.i285SaveAliases = function(name, val) {
+    if (val.trim()) localStorage.setItem(KEY(name), val.trim());
+    else localStorage.removeItem(KEY(name));
+  };
+
+  window.i285GetAliasBlock = function(name) {
+    const current = localStorage.getItem(KEY(name)) || '';
+    const safe = name.replace(/'/g,"\\'");
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;margin-bottom:2px;border-bottom:1px solid #1a1a35">
+      <span style="font-size:11px;color:#4a5272;white-space:nowrap;font-weight:600">🏷 Nicknames / Aliases</span>
+      <input id="i285AliasInput_${safe}" type="text" value="${current.replace(/"/g,'&quot;')}"
+        placeholder="e.g. Charlie, The King, Boss (comma-separated — all are searchable)"
+        style="flex:1;background:transparent;border:none;border-bottom:1px solid rgba(201,162,39,.25);color:#c8d0e8;font-size:12px;padding:2px 6px;outline:none;font-family:inherit"
+        oninput="i285SaveAliases('${safe}',this.value)"
+        title="Aliases are searched alongside name, title, and lore">
+    </div>`;
+  };
 })();
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
