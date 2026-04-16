@@ -37943,6 +37943,149 @@ window._i245AddCustomObject = function(event) {
   else window.addEventListener('load', inject);
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 246: Spell Area of Effect Calculator
+// Calculate grid squares and max creatures for spheres, cones, cubes, cylinders, lines
+// Quick reference: how many creatures can I catch in a Fireball?
+// Shows circle/cone diagrams using ASCII art approximation + dice roll buttons
+
+function openAoeCalc() {
+  const ex = document.getElementById('i246AoeCalc');
+  if (ex) { ex.remove(); return; }
+
+  const spells = [
+    {name:'Fireball', shape:'sphere', size:20, dmg:'8d6', save:'DEX', school:'evocation'},
+    {name:'Thunderwave', shape:'cube', size:15, dmg:'2d8', save:'CON', school:'evocation'},
+    {name:'Cone of Cold', shape:'cone', size:60, dmg:'8d8', save:'CON', school:'evocation'},
+    {name:'Burning Hands', shape:'cone', size:15, dmg:'3d6', save:'DEX', school:'evocation'},
+    {name:'Lightning Bolt', shape:'line', size:100, dmg:'8d6', save:'DEX', school:'evocation'},
+    {name:'Shatter', shape:'sphere', size:10, dmg:'3d8', save:'CON', school:'evocation'},
+    {name:'Hypnotic Pattern', shape:'cube', size:30, dmg:'0', save:'WIS', school:'illusion'},
+    {name:'Spirit Guardians', shape:'sphere', size:15, dmg:'3d8', save:'WIS', school:'conjuration'},
+    {name:'Sunburst', shape:'sphere', size:60, dmg:'12d6', save:'CON', school:'evocation'},
+    {name:'Meteor Swarm', shape:'sphere', size:40, dmg:'20d6', save:'DEX', school:'evocation'},
+  ];
+
+  function calcArea(shape, size) {
+    const sqSize = size / 5; // Convert feet to squares
+    switch(shape) {
+      case 'sphere': {
+        // Approximate circle area in squares
+        const r = sqSize;
+        const area = Math.floor(Math.PI * r * r);
+        const creatures = Math.floor(area); // 1 creature per square (Medium)
+        return { area: `${size}ft radius sphere`, squares: area, creatures };
+      }
+      case 'cone': {
+        // Cone: triangle area = 0.5 * base * height, base ≈ size for a 90° cone
+        const area = Math.floor(0.5 * sqSize * sqSize);
+        const creatures = Math.floor(area * 0.6); // About 60% coverage
+        return { area: `${size}ft cone`, squares: area, creatures };
+      }
+      case 'cube': {
+        const side = sqSize;
+        const area = side * side;
+        return { area: `${size}ft cube`, squares: Math.floor(area), creatures: Math.floor(area) };
+      }
+      case 'cylinder': {
+        const r = sqSize;
+        const area = Math.floor(Math.PI * r * r);
+        return { area: `${size}ft radius cylinder`, squares: area, creatures: area };
+      }
+      case 'line': {
+        const length = sqSize;
+        const area = length * 1; // 5ft wide line = 1 square wide
+        return { area: `${size}ft × 5ft line`, squares: Math.floor(area), creatures: Math.floor(area / 2) };
+      }
+      default:
+        return { area: `${size}ft`, squares: 0, creatures: 0 };
+    }
+  }
+
+  const spellRows = spells.map(s => {
+    const calc = calcArea(s.shape, s.size);
+    return `<tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+      <td style="padding:4px 6px;font-size:11px;color:#9b6dff;font-weight:600">${escHtml(s.name)}</td>
+      <td style="padding:4px 6px;font-size:10px;color:#c0c0e0">${calc.area}</td>
+      <td style="padding:4px 6px;text-align:center;font-size:11px;color:#c9a227;font-weight:700">${calc.squares}sq</td>
+      <td style="padding:4px 6px;text-align:center;font-size:11px;color:#44cc88">~${calc.creatures}</td>
+      <td style="padding:4px 6px;text-align:center;font-size:10px;color:#4a5272">${s.save}</td>
+      <td style="padding:4px 6px;text-align:center">
+        <button onclick="_i246RollDmg('${s.dmg}','${s.name}',event)" style="background:rgba(155,109,255,.1);border:1px solid rgba(155,109,255,.3);color:#9b6dff;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:10px">${s.dmg}</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const ov = document.createElement('div');
+  ov.id = 'i246AoeCalc';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:9300;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `
+    <div style="background:#0a0a1e;border:1px solid rgba(155,109,255,.4);border-radius:12px;padding:18px;width:min(620px,95vw);max-height:88vh;overflow-y:auto;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="font-family:'Cinzel',serif;color:#9b6dff;font-weight:700">💥 AoE Calculator</span>
+        <button onclick="document.getElementById('i246AoeCalc').remove()" style="background:none;border:1px solid #2a2a50;color:#666;border-radius:5px;padding:2px 8px;cursor:pointer">✕</button>
+      </div>
+      <div style="margin-bottom:12px">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="border-bottom:1px solid #1e2040">
+            <th style="font-size:9px;color:#4a5272;text-align:left;padding:4px 6px">SPELL</th>
+            <th style="font-size:9px;color:#4a5272;text-align:left;padding:4px 6px">AREA</th>
+            <th style="font-size:9px;color:#4a5272;text-align:center;padding:4px 6px">SQUARES</th>
+            <th style="font-size:9px;color:#4a5272;text-align:center;padding:4px 6px">~CREATURES</th>
+            <th style="font-size:9px;color:#4a5272;text-align:center;padding:4px 6px">SAVE</th>
+            <th style="font-size:9px;color:#4a5272;text-align:center;padding:4px 6px">ROLL DMG</th>
+          </tr></thead>
+          <tbody>${spellRows}</tbody>
+        </table>
+      </div>
+      <div style="border-top:1px solid #1e2040;padding-top:10px">
+        <div style="font-size:10px;color:#4a5272;margin-bottom:6px">Custom Calculator:</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <select id="i246Shape" style="background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:5px;padding:5px;font-size:11px;outline:none">
+            <option value="sphere">Sphere/Circle</option>
+            <option value="cone">Cone</option>
+            <option value="cube">Cube/Square</option>
+            <option value="line">Line</option>
+            <option value="cylinder">Cylinder</option>
+          </select>
+          <input id="i246Size" type="number" value="20" min="5" step="5" style="width:70px;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:5px;padding:5px;font-size:11px;text-align:center;outline:none" placeholder="Radius ft">
+          <span style="font-size:11px;color:#4a5272">ft</span>
+          <button onclick="_i246CalcCustom(event)" style="background:rgba(155,109,255,.15);border:1px solid rgba(155,109,255,.4);color:#9b6dff;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:11px">Calculate</button>
+          <span id="i246CustomResult" style="font-size:11px;color:#c9a227"></span>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+window._i246RollDmg = function(dice, spellName, event) {
+  if (event) event.stopPropagation();
+  if (!dice || dice === '0') return;
+  const result = (typeof rollDiceExpr === 'function') ? rollDiceExpr(dice) : null;
+  if (result) {
+    if (typeof showToast === 'function') showToast(`${spellName}: ${result.total} damage`, '#9b6dff', 2500);
+    if (typeof logEntry === 'function') logEntry('roll', `💥 <strong>${escHtml(spellName)}</strong>: ${dice}[${result.rolls.join('+')}] = <strong>${result.total}</strong>`);
+  }
+};
+
+window._i246CalcCustom = function(event) {
+  if (event) event.stopPropagation();
+  const shape = document.getElementById('i246Shape')?.value || 'sphere';
+  const size = parseInt(document.getElementById('i246Size')?.value) || 20;
+  const sqSize = size / 5;
+  let squares = 0, creatures = 0;
+  switch(shape) {
+    case 'sphere': squares = Math.floor(Math.PI * sqSize * sqSize); creatures = squares; break;
+    case 'cone': squares = Math.floor(0.5 * sqSize * sqSize); creatures = Math.floor(squares * 0.6); break;
+    case 'cube': squares = Math.floor(sqSize * sqSize); creatures = squares; break;
+    case 'line': squares = Math.floor(sqSize); creatures = Math.floor(squares / 2); break;
+    case 'cylinder': squares = Math.floor(Math.PI * sqSize * sqSize); creatures = squares; break;
+  }
+  const result = document.getElementById('i246CustomResult');
+  if (result) result.textContent = `→ ~${squares} squares, ~${creatures} Medium creatures`;
+};
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
