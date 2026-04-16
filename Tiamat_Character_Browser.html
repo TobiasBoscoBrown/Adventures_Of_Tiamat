@@ -38086,6 +38086,174 @@ window._i246CalcCustom = function(event) {
   if (result) result.textContent = `→ ~${squares} squares, ~${creatures} Medium creatures`;
 };
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 247: Grapple / Shove Contest Helper
+// One-click roll for Grapple (STR Athletics vs STR Athletics or DEX Acrobatics)
+// and Shove (STR Athletics vs STR Athletics or DEX Acrobatics — result: prone or pushed 5ft)
+// Integrates with target selector (Iter 213)
+
+function _i247GetAbilityMod(char, abilityKey) {
+  if (!char?.abilities) return 0;
+  const entry = char.abilities.find(a => a[0] === abilityKey);
+  if (!entry) return 0;
+  return entry[2] ? parseInt(entry[2]) : Math.floor(((entry[1] || 10) - 10) / 2);
+}
+
+function _i247GetProfBonus(char) {
+  try {
+    const xpData = JSON.parse(localStorage.getItem('tiamat_xp_tracker') || '{}');
+    const level = xpData[char?.name]?.level || 5;
+    return level <= 4 ? 2 : level <= 8 ? 3 : level <= 12 ? 4 : level <= 16 ? 5 : 6;
+  } catch(e) { return 2; }
+}
+
+function _i247GetAthleticsMod(char) {
+  const strMod = _i247GetAbilityMod(char, 'STR');
+  const profBonus = _i247GetProfBonus(char);
+  // Check if proficient in Athletics
+  let isProficient = false;
+  try {
+    const profs = JSON.parse(localStorage.getItem(`tiamat_proficiencies_${char?.name}`) || '{}');
+    isProficient = !!(profs['Athletics']);
+  } catch(e) {}
+  if (!isProficient) {
+    const traitsText = (char?.traits || []).join(' ').toLowerCase();
+    if (traitsText.includes('athletics')) isProficient = true;
+  }
+  return strMod + (isProficient ? profBonus : 0);
+}
+
+function _i247GetAcrobaticsMod(char) {
+  const dexMod = _i247GetAbilityMod(char, 'DEX');
+  const profBonus = _i247GetProfBonus(char);
+  let isProficient = false;
+  try {
+    const profs = JSON.parse(localStorage.getItem(`tiamat_proficiencies_${char?.name}`) || '{}');
+    isProficient = !!(profs['Acrobatics']);
+  } catch(e) {}
+  if (!isProficient) {
+    const traitsText = (char?.traits || []).join(' ').toLowerCase();
+    if (traitsText.includes('acrobatics')) isProficient = true;
+  }
+  return dexMod + (isProficient ? profBonus : 0);
+}
+
+function _i247RollContest(attacker, defender, contestType, event) {
+  if (event) event.stopPropagation();
+
+  const attChar = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS.find(c => c.name === attacker) : null;
+  const defChar = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS.find(c => c.name === defender) : null;
+
+  const attBonus = _i247GetAthleticsMod(attChar);
+  const defAthBonus = _i247GetAthleticsMod(defChar);
+  const defAcroBonus = _i247GetAcrobaticsMod(defChar);
+
+  const attRoll = Math.floor(Math.random() * 20) + 1;
+  const defRollAth = Math.floor(Math.random() * 20) + 1;
+  const defRollAcro = Math.floor(Math.random() * 20) + 1;
+
+  const attTotal = attRoll + attBonus;
+  const defTotalAth = defRollAth + defAthBonus;
+  const defTotalAcro = defRollAcro + defAcroBonus;
+
+  // Defender uses the better option (both are possible)
+  const defBetter = Math.max(defTotalAth, defTotalAcro);
+  const defUsed = defTotalAth >= defTotalAcro ? 'Athletics' : 'Acrobatics';
+  const defBonusUsed = defTotalAth >= defTotalAcro ? defAthBonus : defAcroBonus;
+  const defRollUsed = defTotalAth >= defTotalAcro ? defRollAth : defRollAcro;
+
+  const attWins = attTotal > defBetter; // Ties go to defender
+
+  const modStr = (n) => n >= 0 ? `+${n}` : `${n}`;
+  const attStr = `${attacker}: d20(${attRoll})${modStr(attBonus)}=**${attTotal}** Athletics`;
+  const defStr = `${defender}: d20(${defRollUsed})${modStr(defBonusUsed)}=**${defBetter}** ${defUsed}`;
+
+  let result = '';
+  if (contestType === 'grapple') {
+    result = attWins ? `${attacker} GRAPPLES ${defender}!` : `${defender} resists the grapple!`;
+  } else {
+    result = attWins ? `${attacker} SHOVES ${defender} (prone or pushed 5ft)!` : `${defender} resists the shove!`;
+  }
+
+  const color = attWins ? '#c9a227' : '#44cc88';
+  if (typeof logEntry === 'function') {
+    logEntry('roll', `⚔ <strong>${contestType === 'grapple' ? 'Grapple' : 'Shove'} Contest</strong><br>${attStr}<br>${defStr}<br><strong style="color:${color}">${result}</strong>`);
+  }
+  if (typeof showToast === 'function') showToast(result, color, 3000);
+
+  document.getElementById('i247ContestPanel')?.remove();
+}
+
+function openGrappleHelper() {
+  const ex = document.getElementById('i247ContestPanel');
+  if (ex) { ex.remove(); return; }
+
+  const il = (typeof initiativeList !== 'undefined') ? initiativeList : [];
+  const chars = (typeof UNIQUE_CHARS !== 'undefined') ? UNIQUE_CHARS : [];
+  const currentIdx = (typeof currentTurnIdx !== 'undefined') ? currentTurnIdx : 0;
+  const currentCombatant = il[currentIdx];
+  const defaultAttacker = currentCombatant?.name || currentCombatant?.charName || '';
+
+  const allNames = [...new Set([
+    ...il.map(c => c.name || c.charName).filter(Boolean),
+    ...chars.slice(0, 20).map(c => c.name),
+  ])];
+
+  const options = allNames.map(n => `<option value="${n}" ${n === defaultAttacker ? 'selected' : ''}>${escHtml(n)}</option>`).join('');
+  const targetName = typeof _i213Targets !== 'undefined' && _i213Targets[defaultAttacker]?.name || '';
+
+  const ov = document.createElement('div');
+  ov.id = 'i247ContestPanel';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9500;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `
+    <div style="background:#0a0a1e;border:2px solid rgba(201,162,39,.5);border-radius:12px;padding:18px;width:min(400px,95vw);font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <span style="font-family:'Cinzel',serif;color:#c9a227;font-weight:700">⚔ Grapple / Shove</span>
+        <button onclick="document.getElementById('i247ContestPanel').remove()" style="background:none;border:none;color:#555;cursor:pointer">✕</button>
+      </div>
+      <div style="font-size:10px;color:#4a5272;margin-bottom:10px">Attacker: STR Athletics vs Defender: STR Athletics OR DEX Acrobatics (defender's choice)</div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <div style="flex:1">
+          <div style="font-size:9px;color:#4a5272;margin-bottom:3px">ATTACKER</div>
+          <select id="i247Attacker" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:5px;padding:5px;font-size:11px;outline:none">${options}</select>
+        </div>
+        <div style="flex:1">
+          <div style="font-size:9px;color:#4a5272;margin-bottom:3px">DEFENDER</div>
+          <select id="i247Defender" style="width:100%;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:5px;padding:5px;font-size:11px;outline:none">
+            ${allNames.map(n => `<option value="${n}" ${n === targetName ? 'selected' : ''}>${escHtml(n)}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="_i247RollContest(document.getElementById('i247Attacker').value,document.getElementById('i247Defender').value,'grapple',event)"
+          style="flex:1;background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.5);color:#c9a227;border-radius:8px;padding:10px;cursor:pointer;font-size:13px;font-weight:700">🤼 Grapple</button>
+        <button onclick="_i247RollContest(document.getElementById('i247Attacker').value,document.getElementById('i247Defender').value,'shove',event)"
+          style="flex:1;background:rgba(204,51,51,.1);border:1px solid rgba(204,51,51,.4);color:#cc5555;border-radius:8px;padding:10px;cursor:pointer;font-size:13px;font-weight:700">⬇ Shove</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+// Add to active turn bar
+(function() {
+  const _origRATB = renderActiveTurnBar;
+  renderActiveTurnBar = function() {
+    _origRATB();
+    _i247GrappleBtn();
+  };
+})();
+
+function _i247GrappleBtn() {
+  const bar = document.getElementById('activeTurnBar');
+  if (!bar) return;
+  const il = (typeof initiativeList !== 'undefined') ? initiativeList : [];
+  if (!il.length) return;
+  bar.innerHTML += `<div style="display:flex;gap:5px;padding:2px 0">
+    <button onclick="openGrappleHelper()" style="background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.25);color:rgba(201,162,39,.7);border-radius:5px;padding:2px 10px;cursor:pointer;font-size:10px">🤼 Grapple/Shove</button>
+  </div>`;
+}
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
