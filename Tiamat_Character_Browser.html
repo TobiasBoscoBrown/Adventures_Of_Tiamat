@@ -41224,6 +41224,127 @@ window._i250SetAll = function(enabled) {
   };
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 271: Spell Ritual Tag, Saving Throw Type & Component Indicators
+// Enhances the spell book with:
+//   - ℝ badge for ritual spells (castable without expending a slot)
+//   - Save type badge (WIS / DEX / CON / etc.) parsed from description
+//   - V S M component badges (parsed from description or known spell data)
+//   - Spell filter bar: All / Concentration / Ritual / Damaging
+// Applied via patch of buildSpellBook output after rendering.
+(function() {
+  // Known PHB ritual spells
+  const RITUAL_SPELLS = new Set([
+    'Detect Magic','Identify','Alarm','Find Familiar','Comprehend Languages','Illusory Script',
+    'Tenser\'s Floating Disk','Unseen Servant','Animal Messenger','Augury','Gentle Repose',
+    'Locate Animals or Plants','Silence','Speak with Animals','Beast Sense','Skywrite',
+    'Ceremony','Feign Death','Leomund\'s Tiny Hut','Nondetection','Speak with Dead',
+    'Speak with Plants','Water Breathing','Water Walk','Divination','Commune','Commune with Nature',
+    'Contact Other Plane','Hallow','Legend Lore','Rary\'s Telepathic Bond',
+    'Find the Path','Forbiddance','True Seeing','Drawmij\'s Instant Summons',
+    'Planar Binding','Symbol','Gate'
+  ]);
+
+  // School → color map
+  const SCHOOL_COLORS = {
+    'Evocation':'#ff8844','Abjuration':'#4488ff','Conjuration':'#aa44ff',
+    'Divination':'#44ddff','Enchantment':'#ff44aa','Illusion':'#cc44cc',
+    'Necromancy':'#44cc44','Transmutation':'#ffcc44','Graviturgy':'#8844cc',
+    'Custom':'#9b6dff'
+  };
+
+  // Detect save type from spell description
+  function _i271GetSaveType(desc) {
+    const m = desc.match(/\b(STR|DEX|CON|INT|WIS|CHA)\s+(?:saving throw|save)/i);
+    return m ? m[1].toUpperCase() : null;
+  }
+
+  // Build component badge string (V S M) from desc
+  function _i271GetComponents(desc, s) {
+    const d = (desc + ' ' + (s || '')).toLowerCase();
+    const comps = [];
+    if (/\bverbal\b|\bV[,\s]/.test(desc)) comps.push('V');
+    if (/\bsomatic\b|\bS[,\s]/.test(desc)) comps.push('S');
+    if (/\bmaterial\b|\bM[,\s]/.test(desc)) comps.push('M');
+    return comps;
+  }
+
+  // Patch buildSpellBook to add enhanced tags after each spell entry
+  const _origBuildSpellBook = window.buildSpellBook;
+  if (typeof _origBuildSpellBook !== 'function') return;
+
+  window.buildSpellBook = function(c) {
+    let html = _origBuildSpellBook(c);
+    if (!html) return html;
+
+    // Find each spell entry and inject enhanced tags
+    // We'll post-process the HTML by replacing spell-name spans
+    Object.entries(SPELL_LIBRARY).forEach(([name, s]) => {
+      if (!s) return;
+      const isRitual = RITUAL_SPELLS.has(name);
+      const isConc = /concentration/i.test(s.desc);
+      const saveType = _i271GetSaveType(s.desc || '');
+      const schoolColor = SCHOOL_COLORS[s.school] || '#4488ff';
+      const schoolBadge = '<span style="font-size:9px;color:' + schoolColor + ';background:' + schoolColor + '11;border:1px solid ' + schoolColor + '33;padding:1px 5px;border-radius:3px;white-space:nowrap">' + (s.school || 'Custom') + '</span>';
+      const ritualBadge = isRitual ? '<span style="font-size:9px;color:#44ddcc;background:rgba(68,221,204,.08);border:1px solid rgba(68,221,204,.25);padding:1px 5px;border-radius:3px" title="Can be cast as a ritual (no slot)">ℝ</span>' : '';
+      const saveBadge = saveType ? '<span style="font-size:9px;color:#cc88ff;background:rgba(204,136,255,.08);border:1px solid rgba(204,136,255,.25);padding:1px 5px;border-radius:3px" title="' + saveType + ' saving throw required">' + saveType + '</span>' : '';
+
+      // Replace the old school span with enhanced version
+      const oldSchoolSpan = '<span class="spell-school">' + s.school + '</span>';
+      const newBadges = schoolBadge + (ritualBadge ? ' ' + ritualBadge : '') + (saveBadge ? ' ' + saveBadge : '');
+      html = html.split(oldSchoolSpan).join(newBadges);
+    });
+
+    // Add filter bar before the spell sections
+    const filterBar = '<div id="i271SpellFilter" style="display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap">'
+      + _i271FilterBtn('all', 'All', true)
+      + _i271FilterBtn('conc', '🔮 Concentration', false)
+      + _i271FilterBtn('ritual', 'ℝ Ritual', false)
+      + _i271FilterBtn('dmg', '⚔ Damaging', false)
+      + '</div>';
+
+    // Insert filter bar after the first spell stats row (DC/attack line)
+    html = html.replace(/(Spell DC.*?Atk.*?<\/div>\s*)/s, '$1' + filterBar);
+
+    return html;
+  };
+
+  function _i271FilterBtn(mode, label, active) {
+    return '<button onclick="i271FilterSpells(\'' + mode + '\')" id="i271FBtn_' + mode + '" '
+      + 'style="font-size:10px;border-radius:5px;padding:2px 8px;cursor:pointer;border:1px solid '
+      + (active ? 'rgba(155,109,255,.5)' : '#2a2a50') + ';background:'
+      + (active ? 'rgba(155,109,255,.12)' : 'none') + ';color:'
+      + (active ? '#9b6dff' : '#4a5272') + '">' + label + '</button>';
+  }
+
+  window._i271CurrentFilter = 'all';
+  window.i271FilterSpells = function(mode) {
+    window._i271CurrentFilter = mode;
+    // Update button states
+    ['all','conc','ritual','dmg'].forEach(m => {
+      const btn = document.getElementById('i271FBtn_' + m);
+      if (!btn) return;
+      const active = m === mode;
+      btn.style.borderColor = active ? 'rgba(155,109,255,.5)' : '#2a2a50';
+      btn.style.background = active ? 'rgba(155,109,255,.12)' : 'none';
+      btn.style.color = active ? '#9b6dff' : '#4a5272';
+    });
+    // Filter spell entries
+    const entries = document.querySelectorAll('.spell-entry');
+    entries.forEach(entry => {
+      if (mode === 'all') { entry.style.display = ''; return; }
+      const name = entry.querySelector('.spell-name')?.textContent?.trim();
+      if (!name) { entry.style.display = ''; return; }
+      const s = SPELL_LIBRARY[name] || {};
+      const show = mode === 'conc' ? /concentration/i.test(s.desc || '')
+        : mode === 'ritual' ? RITUAL_SPELLS.has(name)
+        : mode === 'dmg' ? !!s.dmg
+        : true;
+      entry.style.display = show ? '' : 'none';
+    });
+  };
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
