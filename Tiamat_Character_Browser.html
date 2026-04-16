@@ -42956,6 +42956,101 @@ void 0;
   if (document.readyState !== 'loading') apply();
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+// Iter 295: Persistent Party HP Strip — always-visible bottom bar for favorited characters
+(function() {
+  const STORE = 'tiamat_party_strip_visible';
+  let stripVisible = localStorage.getItem(STORE) !== '0'; // default on
+
+  function createStrip() {
+    if (document.getElementById('i295Strip')) return;
+    const strip = document.createElement('div');
+    strip.id = 'i295Strip';
+    strip.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:7900;background:rgba(6,6,26,.95);border-top:1px solid rgba(201,162,39,.2);padding:4px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:28px;backdrop-filter:blur(4px)';
+
+    const toggleBtn = document.createElement('button');
+    toggleBtn.id = 'i295ToggleBtn';
+    toggleBtn.title = 'Toggle Party HP Strip';
+    toggleBtn.style.cssText = 'background:none;border:none;color:#4a5272;cursor:pointer;font-size:10px;padding:0;white-space:nowrap';
+    toggleBtn.textContent = '❤ Party';
+    toggleBtn.onclick = () => {
+      const content = document.getElementById('i295Content');
+      if (content) {
+        const hidden = content.style.display === 'none';
+        content.style.display = hidden ? 'flex' : 'none';
+        localStorage.setItem(STORE, hidden ? '1' : '0');
+        toggleBtn.textContent = hidden ? '❤ Party ▾' : '❤ Party ▸';
+      }
+    };
+
+    const content = document.createElement('div');
+    content.id = 'i295Content';
+    content.style.cssText = 'display:flex;align-items:center;gap:10px;flex:1;flex-wrap:wrap';
+
+    strip.appendChild(toggleBtn);
+    strip.appendChild(content);
+    document.body.appendChild(strip);
+    // Add bottom padding to body so content isn't hidden
+    document.body.style.paddingBottom = '32px';
+  }
+
+  function renderStrip() {
+    const content = document.getElementById('i295Content');
+    if (!content) return;
+    const favs = (window.UNIQUE_CHARS || []).filter(c => typeof isFavorite === 'function' && isFavorite(c.name));
+    if (!favs.length) {
+      content.innerHTML = '<span style="font-size:10px;color:#2a2a50">Favorite characters to track them here</span>';
+      return;
+    }
+    content.innerHTML = favs.map(c => {
+      const maxHp = parseInt(c.hp) || 1;
+      const currHp = (() => { try { return parseInt(JSON.parse(localStorage.getItem('tiamat_hp') || '{}')[c.name]) || maxHp; } catch { return maxHp; } })();
+      const pct = Math.max(0, Math.min(1, currHp / maxHp));
+      const color = pct > 0.5 ? '#44cc88' : pct > 0.25 ? '#c9a227' : '#cc4444';
+      const conds = (typeof getCharConditions === 'function') ? getCharConditions(c.name) : [];
+      const condBadge = conds.length ? `<span style="font-size:8px;color:#cc8844">⚡${conds.length}</span>` : '';
+      return `<div onclick="const idx=(window.filteredChars||[]).findIndex(ch=>ch.name===${JSON.stringify(c.name)});if(idx>=0)openModal(idx)"
+        title="Click to open ${c.name} (${currHp}/${maxHp} HP${conds.length?' · '+conds.join(', '):''})"
+        style="display:flex;flex-direction:column;align-items:center;gap:1px;cursor:pointer;padding:1px 4px;border-radius:4px;border:1px solid transparent;transition:all .1s;min-width:44px"
+        onmouseover="this.style.background='rgba(201,162,39,.08)';this.style.borderColor='rgba(201,162,39,.2)'"
+        onmouseout="this.style.background='none';this.style.borderColor='transparent'">
+        <div style="font-size:9px;color:#c8d0e8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px;text-align:center">${c.name.split(' ')[0]}</div>
+        <div style="width:48px;height:4px;background:#1a1a35;border-radius:2px;overflow:hidden">
+          <div style="height:100%;width:${Math.round(pct*100)}%;background:${color};border-radius:2px;transition:width .3s"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:2px">
+          <span style="font-size:8px;color:${color};font-weight:700">${currHp}</span>
+          ${condBadge}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Initialize after DOM ready
+  document.addEventListener('DOMContentLoaded', function() {
+    createStrip();
+    renderStrip();
+    // Refresh every 3s
+    setInterval(renderStrip, 3000);
+  });
+
+  // Refresh when HP changes
+  const _origSaveHp = window.saveHp;
+  if (typeof _origSaveHp === 'function') {
+    window.saveHp = function() {
+      _origSaveHp.apply(this, arguments);
+      setTimeout(renderStrip, 100);
+    };
+  }
+
+  // Add toolbar button
+  window.i295ToggleStrip = function() {
+    const strip = document.getElementById('i295Strip');
+    if (!strip) { createStrip(); renderStrip(); return; }
+    strip.style.display = strip.style.display === 'none' ? '' : 'none';
+    document.body.style.paddingBottom = strip.style.display === 'none' ? '0' : '32px';
+  };
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
