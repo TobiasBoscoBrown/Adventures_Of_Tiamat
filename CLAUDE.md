@@ -193,7 +193,31 @@ Core character browser, search/filter, dark theme, tooltips, view modes.
 - Iter 237: Darkness & Vision Reference — parse DV/BS/TS from senses/traits/race; Toggle Darkness shows who is Blinded; 👁 Vision toolbar; 60ft/120ft inferred by race
 - Iter 238: Creature Size & Reach Reference — parse size from text/CR; Large=2×2/5ft, Huge=3×3/10ft, Gargantuan=4×4/15ft; shown in turn bar; 📐 Sizes toolbar
 - Iter 239: Short / Long Rest Menu — 💤 Rest toolbar; Short Rest recovers warlock slots + opens HD panel; Long Rest: full HP/slots/concentration/exhaustion/-1/HD recovery
-- Iter 240: PC Down! Handler — auto-triggers at 0 HP; centered death save overlay with roll/stabilize; nat 20 = regain 1 HP; 3 failures = dead; auto-applies Unconscious + clears concentration ← CURRENT
+- Iter 240: PC Down! Handler — auto-triggers at 0 HP; centered death save overlay with roll/stabilize; nat 20 = regain 1 HP; 3 failures = dead; auto-applies Unconscious + clears concentration
+
+### Iterations 241–250
+- Iter 241: Bardic Inspiration Tracker — per-character inspiration die (d6–d12 by level); give/use buttons; who has inspiration shown in turn bar
+- Iter 242: Wild Shape Tracker — Druid wild shape HP/CR pool; separate HP bar; revert when 0; uses/long-rest reset
+- Iter 243: Rage Tracker — Barbarian rages per long rest; rage damage bonus; duration rounds countdown; active rage shown in turn bar
+- Iter 244: Sneak Attack Reminder — Rogue sneak attack die by level; advantage/adjacent ally checker; click to roll with full damage expression
+- Iter 245: Destructible Object Tracker — add objects (doors, pillars, walls) with HP/AC; damage them in combat; "destroyed" state shown
+- Iter 246: Spell AoE Calculator — sphere/cube/cone/line areas in feet and grid squares; pick spell or enter custom; quick overlay panel
+- Iter 247: Grapple/Shove Contest Helper — STR(Athletics) vs STR(Athletics)/DEX(Acrobatics); pick attacker+defender; rolls both sides; declares winner
+- Iter 248: Party Combat Stats Overview — post-combat summary: total damage dealt/taken, crits, kills, heals per character; session-persistent counters
+- Iter 249: Multiattack Roll All — characters with Multiattack trait get ⚔⚔ button; rolls all attacks at once with separate hit/damage for each
+- Iter 250: Turn Bar Sections Toggle — ⚙ config button in turn bar opens checkbox panel to show/hide any section (Spells/Attacks/Movement/Effects etc); persisted in localStorage
+
+### Iterations 251–260
+- Iter 251: Stealth vs Passive Perception Checker — enter creature stealth DC; colored pass/fail for each character; active roll buttons; roll creature stealth
+- Iter 252: Spell Save DC & Attack Bonus Dashboard — all casters at a glance; enter target save mod to see pass% and "always saves/fails"; quick roll button
+- Iter 253: Weather & Lighting Conditions Tracker — 10 weather + 5 lighting options; mechanical effects shown as badges; HUD strip under toolbar; persisted
+- Iter 254: Terrain & Environment Effects Panel — track hazards (lava, web, darkness, etc); damage roll buttons; toggle active/inactive; 12 presets + custom
+- Iter 255: Trinket & Curiosity Generator — 60 themed trinkets; reroll; give to character (saves to inventory); log to session; 🎲 Trinket toolbar button
+- Iter 256: Concentration Spell Duration Timer — tracks rounds elapsed; progress bar; +1r button; auto-clears and logs on expiry; warns at 1 round left
+- Iter 257: Character Sheet Quick Print Card — printable 1-page HTML summary with stats, skills, spells, traits, lore; opens in new window; 🖨 Print Card toolbar
+- Iter 258: Encounter Recap Generator — scans last 60 session log entries; extracts crits/downs/heals/damage; generates narrative paragraph; copy to clipboard
+- Iter 259: Spell Slot Quick-Use Widget in Turn Bar — colored pips per slot level inline in active turn bar; click pip to spend slot with full cast picker
+- Iter 260: Auto-Advance Turn Timer — configurable countdown (15–120s) per turn; SVG progress ring; +10s extend; auto-calls nextTurn() on expiry
 
 ## Features Currently Implemented (What We Have)
 - Character browser: search, filter by category/theme, view modes (grid/compact/list)
