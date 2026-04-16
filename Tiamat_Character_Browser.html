@@ -3794,6 +3794,7 @@
   <button class="filter-btn" onclick="openPartySummary()" style="border-color:#c9a227;color:#c9a227;" title="Party Summary — HP, conditions, concentration for all party members at a glance">📊 Party</button>
   <button class="filter-btn" onclick="openDataManager()" style="border-color:#44ddaa;color:#44ddaa;" title="Data Manager — export/import all campaign data backup">💾 Data</button>
   <button class="filter-btn" onclick="i283Toggle()" id="i283ToggleBtn" style="border-color:#c9a227;color:#c9a227;" title="DM Announcement Bar — show a session-wide status message visible at all times">📢 Announce</button>
+  <button class="filter-btn" onclick="i284FilterStatus(this)" id="i284FilterBtn" style="border-color:#aa4488;color:#aa4488;" title="Filter by narrative status — Active/Deceased/Missing/Imprisoned/Unknown">🏷 Status</button>
   <button class="filter-btn" onclick="openShortcutsHelp()" style="border-color:#4488ff;color:#4488ff;" title="Keyboard shortcuts — press ? anytime">⌨ ?</button>
   <button class="filter-btn" onclick="openGlobalSearch()" style="border-color:#c9a227;color:#9098b8;" title="Global search — Ctrl+K">🔍 Search All</button>
   <button class="filter-btn" onclick="openDiceMacros()" style="border-color:#ff8822;color:#ff8822;" title="Quick Dice Macros — save &amp; replay dice rolls">🎲 Dice</button>
@@ -5816,7 +5817,7 @@ function renderGrid() {
             </div>
           </div>
           ${c.quote ? `<div class="card-quote">"${c.quote}"</div>` : ''}
-          <div class="conditions-row" onclick="event.stopPropagation()">${getInspirationBadgeHtml(c.name)}${getExhaustionBadgeHtml(c.name)}${getConditionBadgesHtml(c.name)}${getConcBadgeHtml(c.name)}${getTagBadgesHtml(c.name)}${getCardDmgBadgesHtml(c)}</div>
+          <div class="conditions-row" onclick="event.stopPropagation()">${getInspirationBadgeHtml(c.name)}${getExhaustionBadgeHtml(c.name)}${getConditionBadgesHtml(c.name)}${getConcBadgeHtml(c.name)}${getTagBadgesHtml(c.name)}${getCardDmgBadgesHtml(c)}${typeof i284GetStatusBadge==='function'?i284GetStatusBadge(c.name):''}</div>
           <div style="display:flex;gap:8px;align-items:center;margin-top:3px" onclick="event.stopPropagation()">
             <button class="card-cond-btn ${hasConditions(c.name)?'has-conds':''}" onclick="openCondPopup(${JSON.stringify(c.name)},event)">⚡ ${hasConditions(c.name)?'Conds':'Condition'}</button>
             <button class="card-enc-btn ${isInActiveEncounter(c.name)?'in-enc':''}" onclick="addCharToActiveEncounter(${JSON.stringify(c.name)},${maxHp})">☩ ${isInActiveEncounter(c.name)?'In Enc':'Encounter'}</button>
@@ -42108,6 +42109,116 @@ void 0;
     applyType(curType);
     if (visible && savedTxt) i283Show();
   });
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+// Iter 284: Character Status Labels — narrative status per character (Active/Deceased/Missing/Imprisoned/Unknown)
+(function() {
+  const STATUSES = [
+    { key:'active',     label:'Active',      icon:'✅', color:'#44cc88' },
+    { key:'deceased',   label:'Deceased',    icon:'💀', color:'#888'    },
+    { key:'missing',    label:'Missing',     icon:'❓', color:'#cc8844' },
+    { key:'imprisoned', label:'Imprisoned',  icon:'⛓', color:'#cc4444' },
+    { key:'unknown',    label:'Unknown',     icon:'🌀', color:'#9b6dff' },
+  ];
+  const STORE = 'tiamat_char_status';
+  let _filterActive = false;
+  let _filterStatus = null;
+
+  function loadAll() {
+    try { return JSON.parse(localStorage.getItem(STORE) || '{}'); } catch(e) { return {}; }
+  }
+  function saveAll(d) { localStorage.setItem(STORE, JSON.stringify(d)); }
+
+  window.i284GetStatus = function(name) {
+    return loadAll()[name] || null;
+  };
+
+  window.i284SetStatus = function(name, key) {
+    const d = loadAll();
+    if (key) d[name] = key; else delete d[name];
+    saveAll(d);
+    if (typeof renderGrid === 'function') renderGrid();
+  };
+
+  window.i284GetStatusBadge = function(name) {
+    const key = loadAll()[name];
+    if (!key) return '';
+    const s = STATUSES.find(x => x.key === key);
+    if (!s) return '';
+    return `<span onclick="event.stopPropagation();i284OpenPicker(${JSON.stringify(name)},event)"
+      title="Status: ${s.label} — click to change"
+      style="display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:.04em;cursor:pointer;
+        background:${s.color}22;border:1px solid ${s.color}88;color:${s.color};margin-right:2px;white-space:nowrap">
+      ${s.icon} ${s.label}
+    </span>`;
+  };
+
+  window.i284OpenPicker = function(name, ev) {
+    const existing = document.getElementById('i284Picker');
+    if (existing) existing.remove();
+    const cur = loadAll()[name];
+    const popup = document.createElement('div');
+    popup.id = 'i284Picker';
+    popup.style.cssText = 'position:fixed;z-index:9999;background:#0d0d24;border:1px solid #9b6dff;border-radius:10px;padding:10px;box-shadow:0 8px 32px rgba(0,0,0,.8);min-width:180px';
+    const rect = ev && ev.target ? ev.target.getBoundingClientRect() : { left:200, bottom:200 };
+    popup.style.left = Math.min(rect.left, window.innerWidth - 210) + 'px';
+    popup.style.top = (rect.bottom + 6) + 'px';
+    popup.innerHTML = '<div style="font-family:Cinzel,serif;color:#9b6dff;font-size:11px;font-weight:700;margin-bottom:8px;letter-spacing:.06em">SET STATUS: ' + name.toUpperCase() + '</div>'
+      + STATUSES.map(s =>
+        '<button onclick="i284SetStatus(' + JSON.stringify(name) + ',' + JSON.stringify(s.key) + ');document.getElementById(\'i284Picker\').remove()" '
+        + 'style="display:block;width:100%;text-align:left;padding:5px 8px;margin-bottom:3px;border-radius:6px;cursor:pointer;border:1px solid '
+        + s.color + '55;background:' + (cur===s.key ? s.color+'22' : 'none') + ';color:' + s.color + ';font-size:12px;font-weight:600">'
+        + s.icon + ' ' + s.label
+        + (cur===s.key ? ' ✓' : '') + '</button>'
+      ).join('')
+      + '<button onclick="i284SetStatus(' + JSON.stringify(name) + ',null);document.getElementById(\'i284Picker\').remove()" '
+      + 'style="display:block;width:100%;text-align:left;padding:5px 8px;margin-top:4px;border-radius:6px;cursor:pointer;border:1px solid #333;background:none;color:#666;font-size:11px">✕ Clear Status</button>';
+    document.body.appendChild(popup);
+    setTimeout(() => document.addEventListener('click', function rem(e){ if(!popup.contains(e.target)){popup.remove();document.removeEventListener('click',rem);} }), 50);
+  };
+
+  // Filter: show only characters with a status set, or a specific status
+  window.i284FilterStatus = function(btn) {
+    _filterActive = !_filterActive;
+    if (btn) {
+      btn.style.background = _filterActive ? 'rgba(170,68,136,.2)' : '';
+      btn.style.fontWeight = _filterActive ? '700' : '';
+    }
+    if (_filterActive) {
+      // Show status picker for filter
+      const statuses = loadAll();
+      const usedKeys = [...new Set(Object.values(statuses))];
+      if (usedKeys.length === 0) {
+        _filterActive = false;
+        if (btn) btn.style.background = '';
+        alert('No character statuses set yet. Right-click a status badge on any character card to set a status.');
+        return;
+      }
+    }
+    // Patch the renderGrid filter
+    if (typeof renderGrid === 'function') renderGrid();
+  };
+
+  // Inject a pre-renderGrid hook to filter by status
+  const _origRenderGrid = window.renderGrid;
+  if (typeof _origRenderGrid === 'function') {
+    window.renderGrid = function() {
+      _origRenderGrid.apply(this, arguments);
+      if (_filterActive) {
+        const statuses = loadAll();
+        const cards = document.querySelectorAll('.char-card-outer');
+        cards.forEach(card => {
+          const nameEl = card.querySelector('.card-name');
+          if (!nameEl) return;
+          const name = nameEl.textContent.trim();
+          if (!statuses[name]) card.style.display = 'none';
+        });
+        const visible = document.querySelectorAll('.char-card-outer:not([style*="none"])').length;
+        const vc = document.getElementById('visibleCount');
+        if (vc) vc.textContent = visible;
+      }
+    };
+  }
 })();
 // ─────────────────────────────────────────────────────────────────────────────
 </script>
