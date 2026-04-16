@@ -43147,6 +43147,95 @@ void 0;
   });
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+// Iter 298: Initiative Name Click → Quick Stats Popup
+(function() {
+  function showQuickStats(name, x, y) {
+    const existing = document.getElementById('i298Popup');
+    if (existing) { existing.remove(); return; }
+    const char = (window.UNIQUE_CHARS || []).find(c => c.name === name);
+    if (!char) return;
+
+    const maxHp = parseInt(char.hp) || 1;
+    const currHp = (() => { try { return parseInt(JSON.parse(localStorage.getItem('tiamat_hp') || '{}')[name]) || maxHp; } catch { return maxHp; } })();
+    const pct = Math.max(0, Math.min(1, currHp / maxHp));
+    const hpColor = pct > 0.5 ? '#44cc88' : pct > 0.25 ? '#c9a227' : '#cc4444';
+
+    const ab = {};
+    (char.abilities || []).forEach(([n,s,m,sav]) => { ab[n] = { score:s, mod:parseInt(m)||0, prof:sav }; });
+    const prof = char.cr === '20' || char.cr === '21' ? 7 : parseInt(char.cr||1) >= 17 ? 6 : parseInt(char.cr||1) >= 13 ? 5 : parseInt(char.cr||1) >= 9 ? 4 : parseInt(char.cr||1) >= 5 ? 3 : 2;
+
+    const saves = ['STR','DEX','CON','INT','WIS','CHA'].map(s => {
+      const d = ab[s];
+      if (!d) return '';
+      const bonus = d.mod + (d.prof ? prof : 0);
+      const str = bonus >= 0 ? `+${bonus}` : `${bonus}`;
+      return `<div style="text-align:center;padding:2px 4px;background:${d.prof?'rgba(201,162,39,.08)':'#0a0a1e'};border:1px solid ${d.prof?'rgba(201,162,39,.3)':'#1a1a35'};border-radius:4px;min-width:28px">
+        <div style="font-size:8px;color:#4a5272">${s}</div>
+        <div style="font-size:11px;font-weight:700;color:${d.prof?'#c9a227':'#9098b8'}">${str}</div>
+      </div>`;
+    }).join('');
+
+    const traits = (char.traits || []).slice(0, 3).map(t =>
+      `<div style="font-size:10px;color:#9098b8;border-left:2px solid #2a2a50;padding-left:5px;margin-bottom:2px">${t.replace(/—.*/,'').trim()}</div>`
+    ).join('');
+
+    const popup = document.createElement('div');
+    popup.id = 'i298Popup';
+    const px = Math.max(0, Math.min(x, window.innerWidth - 280));
+    const py = Math.max(60, Math.min(y, window.innerHeight - 320));
+    popup.style.cssText = `position:fixed;left:${px}px;top:${py}px;z-index:88000;width:260px;background:linear-gradient(160deg,#0d0b1a,#0a0820);border:1px solid rgba(155,109,255,.35);border-radius:12px;padding:12px;box-shadow:0 8px 40px rgba(0,0,0,.9);font-family:'Inter',sans-serif`;
+
+    popup.innerHTML = `
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#c9a227;font-family:Cinzel,serif">${name}</div>
+          <div style="font-size:10px;color:#4a5272">${char.title||''} · CR ${char.cr}</div>
+        </div>
+        <button onclick="document.getElementById('i298Popup').remove()" style="background:none;border:none;color:#2a2a50;cursor:pointer;font-size:12px">✕</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <div style="flex:1;background:rgba(204,68,68,.08);border:1px solid rgba(204,68,68,.25);border-radius:6px;padding:5px;text-align:center">
+          <div style="font-size:9px;color:#cc4444">HP</div>
+          <div style="font-size:14px;font-weight:700;color:${hpColor}">${currHp}/${maxHp}</div>
+          <div style="height:3px;background:#1a1a35;border-radius:2px;margin-top:2px"><div style="height:100%;width:${Math.round(pct*100)}%;background:${hpColor};border-radius:2px"></div></div>
+        </div>
+        <div style="background:rgba(68,136,255,.08);border:1px solid rgba(68,136,255,.25);border-radius:6px;padding:5px;text-align:center;min-width:44px">
+          <div style="font-size:9px;color:#4488ff">AC</div>
+          <div style="font-size:14px;font-weight:700;color:#4488ff">${char.ac}</div>
+        </div>
+        <div style="background:rgba(68,204,136,.08);border:1px solid rgba(68,204,136,.25);border-radius:6px;padding:5px;text-align:center;min-width:44px">
+          <div style="font-size:9px;color:#44cc88">Speed</div>
+          <div style="font-size:11px;font-weight:700;color:#44cc88">${char.speed||'30'}ft</div>
+        </div>
+      </div>
+      <div style="font-size:9px;color:#4a5272;letter-spacing:.08em;margin-bottom:4px">SAVING THROWS</div>
+      <div style="display:flex;gap:3px;margin-bottom:8px">${saves}</div>
+      ${traits ? `<div style="font-size:9px;color:#4a5272;letter-spacing:.08em;margin-bottom:4px">TRAITS</div>${traits}` : ''}
+      <div style="display:flex;gap:4px;margin-top:8px;border-top:1px solid #1a1a35;padding-top:8px">
+        <button onclick="const idx=(window.filteredChars||[]).findIndex(c=>c.name===${JSON.stringify(name)});if(idx>=0)openModal(idx);document.getElementById('i298Popup')?.remove()"
+          style="flex:1;font-size:10px;padding:4px;border-radius:5px;border:1px solid rgba(201,162,39,.3);color:#c9a227;background:rgba(201,162,39,.08);cursor:pointer">📖 Full Stats</button>
+        <button onclick="openHpPopup(${JSON.stringify(name)},${maxHp},event);document.getElementById('i298Popup')?.remove()"
+          style="flex:1;font-size:10px;padding:4px;border-radius:5px;border:1px solid rgba(204,68,68,.3);color:#cc4444;background:rgba(204,68,68,.08);cursor:pointer">❤ HP</button>
+      </div>`;
+
+    document.body.appendChild(popup);
+    setTimeout(() => document.addEventListener('click', function rem(e) {
+      if (!popup.contains(e.target)) { popup.remove(); document.removeEventListener('click', rem); }
+    }), 50);
+  }
+
+  // Delegate click on .init-name elements
+  document.addEventListener('click', function(e) {
+    const nameEl = e.target.closest('.init-name');
+    if (!nameEl) return;
+    const entry = nameEl.closest('.init-entry');
+    if (!entry) return;
+    const name = nameEl.textContent.trim();
+    e.stopPropagation();
+    showQuickStats(name, e.clientX + 10, e.clientY);
+  });
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
