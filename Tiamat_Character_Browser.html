@@ -42314,6 +42314,105 @@ void 0;
   });
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+// Iter 287: Card Hover Preview — 600ms hover shows compact stat popup
+(function() {
+  let hoverTimer = null;
+  let preview = null;
+
+  function removePreview() {
+    if (preview) { preview.remove(); preview = null; }
+    if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; }
+  }
+
+  function buildPreview(char, x, y) {
+    removePreview();
+    const c = char;
+    const currHp = (() => { try { return parseInt(JSON.parse(localStorage.getItem('tiamat_hp') || '{}')[c.name]) || parseInt(c.hp); } catch(e) { return parseInt(c.hp); } })();
+    const maxHp  = parseInt(c.hp) || 1;
+    const hpPct  = Math.max(0, Math.min(1, currHp / maxHp));
+    const hpColor = hpPct > 0.5 ? '#44cc88' : hpPct > 0.25 ? '#c9a227' : '#cc4444';
+    const prof = c.cr === '20' || c.cr === '21' ? 7 : parseInt(c.cr||1) >= 17 ? 6 : parseInt(c.cr||1) >= 13 ? 5 : parseInt(c.cr||1) >= 9 ? 4 : parseInt(c.cr||1) >= 5 ? 3 : 2;
+
+    const abilityRow = (c.abilities || []).map(([name, score, mod]) =>
+      `<div style="text-align:center;padding:2px 5px;background:#0a0a1e;border-radius:4px">
+        <div style="font-size:9px;color:#4a5272;letter-spacing:.05em">${name}</div>
+        <div style="font-size:12px;font-weight:700;color:#c8d0e8">${score}</div>
+        <div style="font-size:10px;color:#9b6dff">${mod}</div>
+      </div>`
+    ).join('');
+
+    const loreSnip = c.lore ? c.lore.slice(0, 140) + (c.lore.length > 140 ? '…' : '') : '';
+    const traits = (c.traits || []).slice(0, 3);
+
+    preview = document.createElement('div');
+    preview.id = 'i287Preview';
+    const px = Math.min(x + 12, window.innerWidth - 310);
+    const py = Math.min(y + 8, window.innerHeight - 340);
+    preview.style.cssText = `position:fixed;left:${px}px;top:${py}px;z-index:88888;width:290px;background:linear-gradient(160deg,#0d0b1a,#0a0820);border:1px solid rgba(155,109,255,.35);border-radius:12px;padding:14px;box-shadow:0 8px 40px rgba(0,0,0,.9);pointer-events:none;font-family:'Cinzel',serif`;
+
+    preview.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:#c9a227;line-height:1.2">${c.name}</div>
+          <div style="font-size:10px;color:#6070a0;margin-top:1px">${c.title}</div>
+        </div>
+        <div style="text-align:right;font-size:10px;color:#4a5272">
+          <div>CR <span style="color:#c9a227;font-weight:700">${c.cr}</span></div>
+          <div>Prof +${prof}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <div style="padding:4px 10px;background:rgba(204,68,68,.1);border:1px solid rgba(204,68,68,.3);border-radius:6px;text-align:center;flex:1">
+          <div style="font-size:9px;color:#cc4444;letter-spacing:.06em">HP</div>
+          <div style="font-size:14px;font-weight:700;color:${hpColor}">${currHp}/${maxHp}</div>
+          <div style="height:3px;background:#1a1a35;border-radius:2px;margin-top:2px"><div style="height:100%;width:${Math.round(hpPct*100)}%;background:${hpColor};border-radius:2px"></div></div>
+        </div>
+        <div style="padding:4px 10px;background:rgba(68,136,255,.08);border:1px solid rgba(68,136,255,.2);border-radius:6px;text-align:center;flex:1">
+          <div style="font-size:9px;color:#4488ff;letter-spacing:.06em">AC</div>
+          <div style="font-size:14px;font-weight:700;color:#4488ff">${c.ac}</div>
+        </div>
+        <div style="padding:4px 10px;background:rgba(68,204,136,.08);border:1px solid rgba(68,204,136,.2);border-radius:6px;text-align:center;flex:1">
+          <div style="font-size:9px;color:#44cc88;letter-spacing:.06em">INIT</div>
+          <div style="font-size:14px;font-weight:700;color:#44cc88">${(()=>{const d=c.abilities?.find(a=>a[0]==='DEX');return d?`${d[2]>='+0'?d[2]:d[2]}`:'—';})()}</div>
+        </div>
+      </div>
+      ${c.abilities?.length ? `<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:3px;margin-bottom:8px">${abilityRow}</div>` : ''}
+      ${traits.length ? `<div style="margin-bottom:7px">${traits.map(t=>`<div style="font-size:10px;color:#9098b8;padding:1px 0;border-left:2px solid #2a2a50;padding-left:5px;margin-bottom:2px">${t}</div>`).join('')}</div>` : ''}
+      ${loreSnip ? `<div style="font-size:10px;color:#6070a0;line-height:1.4;border-top:1px solid #1a1a35;padding-top:6px">${loreSnip}</div>` : ''}
+      <div style="font-size:9px;color:#2a2a50;text-align:center;margin-top:8px;letter-spacing:.05em">Click to open · Right-click for actions</div>`;
+
+    document.body.appendChild(preview);
+  }
+
+  document.addEventListener('mouseover', function(e) {
+    const outer = e.target.closest('.char-card-outer');
+    if (!outer) { removePreview(); return; }
+    if (preview) return; // already showing
+    const nameEl = outer.querySelector('.card-name');
+    if (!nameEl) return;
+    const charName = nameEl.textContent.trim();
+    const char = UNIQUE_CHARS.find(c => c.name === charName);
+    if (!char) return;
+    clearTimeout(hoverTimer);
+    hoverTimer = setTimeout(() => buildPreview(char, e.clientX, e.clientY), 600);
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (!preview) return;
+    const px = Math.min(e.clientX + 12, window.innerWidth - 310);
+    const py = Math.min(e.clientY + 8, window.innerHeight - 340);
+    preview.style.left = px + 'px';
+    preview.style.top = py + 'px';
+    if (!e.target.closest('.char-card-outer')) removePreview();
+  });
+
+  document.addEventListener('mouseout', function(e) {
+    if (!e.target.closest('.char-card-outer')) { clearTimeout(hoverTimer); hoverTimer = null; }
+  });
+
+  document.addEventListener('click', function() { removePreview(); });
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
