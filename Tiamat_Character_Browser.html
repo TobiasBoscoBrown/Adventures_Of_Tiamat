@@ -34390,6 +34390,148 @@ document.addEventListener('keydown', function(e) {
   }
 });
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Iter 223: Temp HP Tracker
+// Track temporary hit points separately; damage absorbs temp HP first
+// Shown as a teal/cyan band on HP bars; grant/clear buttons; displayed in initiative
+
+const _i223TempKey = 'tiamat_temp_hp';
+
+function _i223GetTemp(charName) {
+  try {
+    const d = JSON.parse(localStorage.getItem(_i223TempKey) || '{}');
+    return d[charName] || 0;
+  } catch(e) { return 0; }
+}
+
+function _i223SetTemp(charName, val) {
+  try {
+    const d = JSON.parse(localStorage.getItem(_i223TempKey) || '{}');
+    d[charName] = Math.max(0, val);
+    localStorage.setItem(_i223TempKey, JSON.stringify(d));
+  } catch(e) {}
+}
+
+function _i223GrantTemp(charName, amount, event) {
+  if (event) event.stopPropagation();
+  const current = _i223GetTemp(charName);
+  // Temp HP doesn't stack — take the higher value
+  const newVal = Math.max(current, amount);
+  _i223SetTemp(charName, newVal);
+  if (typeof showToast === 'function') showToast(`${charName}: +${amount} Temp HP${newVal > amount ? ' (already had '+current+', kept higher)' : ''}`, '#44ddff', 2200);
+  if (typeof logEntry === 'function') logEntry('system', `<strong>${escHtml(charName)}</strong> gained <strong style="color:#44ddff">${amount} temp HP</strong> (total: ${newVal})`);
+  if (typeof renderGrid === 'function') renderGrid();
+  if (typeof renderInitiative === 'function') renderInitiative();
+  if (typeof renderActiveTurnBar === 'function') renderActiveTurnBar();
+}
+
+function _i223ClearTemp(charName, event) {
+  if (event) event.stopPropagation();
+  _i223SetTemp(charName, 0);
+  if (typeof showToast === 'function') showToast(`${charName}: Temp HP cleared`, '#888', 1500);
+  if (typeof renderGrid === 'function') renderGrid();
+  if (typeof renderInitiative === 'function') renderInitiative();
+}
+
+function _i223OpenGrantDialog(charName, event) {
+  if (event) event.stopPropagation();
+  const ex = document.getElementById('i223TempDialog');
+  if (ex) { ex.remove(); return; }
+
+  const current = _i223GetTemp(charName);
+  const ov = document.createElement('div');
+  ov.id = 'i223TempDialog';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9600;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `
+    <div style="background:#0a0a1e;border:2px solid #44ddff;border-radius:10px;padding:16px;width:260px;font-family:'Inter',sans-serif">
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px;align-items:center">
+        <span style="font-family:'Cinzel',serif;color:#44ddff;font-weight:700;font-size:12px">💠 Temp HP — ${escHtml(charName)}</span>
+        <button onclick="document.getElementById('i223TempDialog').remove()" style="background:none;border:none;color:#555;cursor:pointer">✕</button>
+      </div>
+      <div style="font-size:11px;color:#4a5272;margin-bottom:10px">Current: <strong style="color:#44ddff">${current}</strong> temp HP</div>
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        <input id="i223TempInput" type="number" min="1" value="10" style="flex:1;background:#06061a;border:1px solid #2a2a50;color:#e0e0ff;border-radius:5px;padding:6px;font-size:13px;text-align:center;outline:none">
+        <button onclick="_i223GrantTemp('${charName.replace(/'/g,"\\'")}',parseInt(document.getElementById('i223TempInput').value)||0,event);document.getElementById('i223TempDialog').remove()" style="flex:1;background:rgba(68,221,255,.15);border:1px solid #44ddff;color:#44ddff;border-radius:7px;padding:6px;cursor:pointer;font-size:12px;font-weight:700">Grant</button>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px">
+        ${[5,10,15,20,25].map(n => `<button onclick="_i223GrantTemp('${charName.replace(/'/g,"\\'")}',${n},event);document.getElementById('i223TempDialog').remove()" style="background:rgba(68,221,255,.1);border:1px solid rgba(68,221,255,.3);color:#44ddff;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:11px">+${n}</button>`).join('')}
+      </div>
+      ${current > 0 ? `<button onclick="_i223ClearTemp('${charName.replace(/'/g,"\\'")}',event);document.getElementById('i223TempDialog').remove()" style="width:100%;background:rgba(204,51,51,.1);border:1px solid rgba(204,51,51,.3);color:#cc5555;border-radius:6px;padding:6px;cursor:pointer;font-size:11px">✕ Clear Temp HP (${current})</button>` : ''}
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+}
+
+// Patch saveHp to absorb temp HP from damage
+// When HP goes down, reduce temp HP first
+(function() {
+  if (typeof saveHp !== 'function') return;
+  const _origSaveHp3 = saveHp;
+  saveHp = function(charName, newHp) {
+    const oldHp = (typeof getCharHP === 'function') ? getCharHP(charName) : null;
+    if (oldHp !== null) {
+      const rawDelta = newHp - oldHp;
+      if (rawDelta < 0) {
+        // Taking damage — absorb with temp HP first
+        const temp = _i223GetTemp(charName);
+        if (temp > 0) {
+          const dmg = Math.abs(rawDelta);
+          const absorbed = Math.min(temp, dmg);
+          const remaining = dmg - absorbed;
+          _i223SetTemp(charName, temp - absorbed);
+          if (absorbed > 0 && typeof logEntry === 'function') {
+            logEntry('system', `💠 <strong>${escHtml(charName)}</strong>: ${absorbed} damage absorbed by Temp HP (${temp - absorbed} temp left)`);
+          }
+          if (absorbed > 0 && typeof showToast === 'function') {
+            showToast(`${charName}: ${absorbed} absorbed by Temp HP`, '#44ddff', 2000);
+          }
+          // Adjust newHp: only take remaining damage
+          const adjustedHp = oldHp - remaining;
+          return _origSaveHp3.call(this, charName, adjustedHp);
+        }
+      }
+    }
+    return _origSaveHp3.apply(this, arguments);
+  };
+})();
+
+// Add temp HP display to active turn bar
+(function() {
+  const _origRATB = renderActiveTurnBar;
+  renderActiveTurnBar = function() {
+    _origRATB();
+    _i223TempHpRow();
+  };
+})();
+
+function _i223TempHpRow() {
+  const bar = document.getElementById('activeTurnBar');
+  if (!bar) return;
+  const il = (typeof initiativeList !== 'undefined') ? initiativeList : [];
+  const idx = (typeof currentTurnIdx !== 'undefined') ? currentTurnIdx : 0;
+  const combatant = il[idx];
+  if (!combatant) return;
+  const charName = combatant.name || combatant.charName;
+  if (!charName) return;
+
+  const temp = _i223GetTemp(charName);
+  if (temp <= 0) {
+    // Still show grant button but minimal
+    bar.innerHTML += `<div style="display:flex;gap:6px;align-items:center;margin:2px 0">
+      <span style="font-size:10px;color:#4a5272">💠 Temp HP: <strong style="color:#4a5272">0</strong></span>
+      <button onclick="_i223OpenGrantDialog('${charName.replace(/'/g,"\\'")}',event)" style="background:rgba(68,221,255,.06);border:1px dashed rgba(68,221,255,.25);color:rgba(68,221,255,.5);border-radius:4px;padding:1px 7px;cursor:pointer;font-size:10px">+ Grant</button>
+    </div>`;
+    return;
+  }
+
+  bar.innerHTML += `<div style="background:rgba(20,60,80,.4);border:1px solid rgba(68,221,255,.35);border-radius:7px;padding:5px 10px;margin:3px 0;display:flex;gap:8px;align-items:center">
+    <span style="font-family:'Cinzel',serif;color:#44ddff;font-size:9px;font-weight:700;letter-spacing:.5px;white-space:nowrap">💠 TEMP HP</span>
+    <span style="font-size:14px;font-weight:700;color:#44ddff">${temp}</span>
+    <button onclick="_i223OpenGrantDialog('${charName.replace(/'/g,"\\'")}',event)" style="background:rgba(68,221,255,.1);border:1px solid rgba(68,221,255,.35);color:#44ddff;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:10px">Edit</button>
+    <button onclick="_i223ClearTemp('${charName.replace(/'/g,"\\'")}',event)" style="background:rgba(204,51,51,.08);border:1px solid rgba(204,51,51,.25);color:#cc5555;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:10px">Clear</button>
+  </div>`;
+}
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
