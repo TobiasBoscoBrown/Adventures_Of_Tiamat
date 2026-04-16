@@ -42718,6 +42718,100 @@ void 0;
   };
 })();
 // ─────────────────────────────────────────────────────────────────────────────
+// Iter 291: Recently Opened Characters Panel — quick access to last 10 viewed characters
+(function() {
+  const STORE = 'tiamat_recently_opened';
+  const MAX = 10;
+
+  function loadRecent() { try { return JSON.parse(localStorage.getItem(STORE) || '[]'); } catch { return []; } }
+  function saveRecent(a) { localStorage.setItem(STORE, JSON.stringify(a)); }
+
+  function recordOpen(name) {
+    let rec = loadRecent().filter(n => n !== name);
+    rec.unshift(name);
+    if (rec.length > MAX) rec.length = MAX;
+    saveRecent(rec);
+    refreshPanel();
+  }
+
+  function refreshPanel() {
+    const panel = document.getElementById('i291Panel');
+    if (!panel || panel.style.display === 'none') return;
+    renderPanel(panel);
+  }
+
+  function renderPanel(panel) {
+    const rec = loadRecent();
+    if (!rec.length) {
+      panel.innerHTML = '<div style="font-size:11px;color:#4a5272;text-align:center;padding:12px">Open character modals to<br>build recent history</div>';
+      return;
+    }
+    panel.innerHTML = rec.map(name => {
+      const char = (window.UNIQUE_CHARS || []).find(c => c.name === name);
+      const theme = char ? getTheme?.(char.theme) : null;
+      const accent = theme?.accent || '#c9a227';
+      const hp = (() => { try { return parseInt(JSON.parse(localStorage.getItem('tiamat_hp')||'{}')[name]) || (char ? parseInt(char.hp) : '?'); } catch { return char ? parseInt(char.hp) : '?'; } })();
+      const maxHp = char ? parseInt(char.hp) || 1 : 1;
+      const pct = Math.max(0, Math.min(1, hp / maxHp));
+      const hpColor = pct > 0.5 ? '#44cc88' : pct > 0.25 ? '#c9a227' : '#cc4444';
+      const charIdx = (window.filteredChars || []).findIndex(c => c.name === name);
+      return `<div onclick="${charIdx >= 0 ? `openModal(${charIdx})` : ''}" title="Open ${name}"
+        style="display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:7px;cursor:pointer;border:1px solid transparent;margin-bottom:2px;transition:all .1s"
+        onmouseover="this.style.background='rgba(155,109,255,.1)';this.style.borderColor='rgba(155,109,255,.25)'"
+        onmouseout="this.style.background='none';this.style.borderColor='transparent'">
+        <div style="width:22px;height:22px;border-radius:50%;border:1.5px solid ${accent};background:${accent}22;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:${accent}">${name.charAt(0)}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:11px;font-weight:600;color:#c8d0e8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div>
+          <div style="height:2px;background:#1a1a35;border-radius:1px;margin-top:2px"><div style="height:100%;width:${Math.round(pct*100)}%;background:${hpColor};border-radius:1px"></div></div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Create the floating panel button + panel
+  document.addEventListener('DOMContentLoaded', function() {
+    const btn = document.createElement('button');
+    btn.id = 'i291Btn';
+    btn.textContent = '🕐';
+    btn.title = 'Recently Opened Characters — quick nav (Iter 291)';
+    btn.style.cssText = 'position:fixed;bottom:130px;right:18px;z-index:8000;width:36px;height:36px;border-radius:50%;background:rgba(13,13,36,.9);border:1.5px solid rgba(201,162,39,.4);color:#c9a227;font-size:14px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;transition:all .15s';
+    btn.onmouseover = () => btn.style.borderColor = '#c9a227';
+    btn.onmouseout = () => btn.style.borderColor = 'rgba(201,162,39,.4)';
+    document.body.appendChild(btn);
+
+    const panel = document.createElement('div');
+    panel.id = 'i291Panel';
+    panel.style.cssText = 'position:fixed;bottom:175px;right:18px;z-index:7999;width:210px;background:#0d0d24;border:1px solid rgba(201,162,39,.35);border-radius:10px;padding:8px;box-shadow:0 8px 32px rgba(0,0,0,.8);display:none;max-height:320px;overflow-y:auto';
+    const header = document.createElement('div');
+    header.style.cssText = 'font-size:10px;color:#c9a227;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:2px 2px 6px;border-bottom:1px solid #1a1a35;margin-bottom:6px;font-family:Cinzel,serif';
+    header.textContent = '🕐 Recent';
+    panel.insertBefore(header, panel.firstChild);
+    document.body.appendChild(panel);
+
+    btn.onclick = () => {
+      const isOpen = panel.style.display !== 'none';
+      panel.style.display = isOpen ? 'none' : 'block';
+      if (!isOpen) { panel.innerHTML = ''; panel.appendChild(header); renderPanel(panel); }
+    };
+
+    document.addEventListener('click', e => {
+      if (!panel.contains(e.target) && e.target !== btn) panel.style.display = 'none';
+    });
+  });
+
+  // Patch openModal to record visits
+  const _origOpen = window.openModal;
+  if (typeof _origOpen === 'function') {
+    window.openModal = function(idx) {
+      _origOpen.apply(this, arguments);
+      try {
+        const c = (window.filteredChars || [])[idx];
+        if (c) recordOpen(c.name);
+      } catch(e) {}
+    };
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 </script>
 
 </body>
